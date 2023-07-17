@@ -1,0 +1,61 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNet.WebApi.Core" Version="5.2.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="6.0.18" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="6.0.18">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="6.0.14" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.2.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Controllers\activos_fijos\transaccion\" />
+    <Folder Include="Controllers\activos_fijos\operacion\" />
+    <Folder Include="Controllers\compras\modificacion\" />
+    <Folder Include="Controllers\compras\transaccion\" />
+    <Folder Include="Controllers\compras\operacion\" />
+    <Folder Include="Controllers\contabilidad\modificacion\" />
+    <Folder Include="Controllers\contabilidad\transaccion\" />
+    <Folder Include="Controllers\contabilidad\operacion\" />
+    <Folder Include="Controllers\costos_costeo\mantenimiento\" />
+    <Folder Include="Controllers\costos_costeo\operacion\" />
+    <Folder Include="Controllers\ctasXcobrar\mantenimiento\" />
+    <Folder Include="Controllers\ctasXcobrar\modificacion\" />
+    <Folder Include="Controllers\ctasXcobrar\transaccion\" />
+    <Folder Include="Controllers\ctasXcobrar\operacion\" />
+    <Folder Include="Controllers\fondos\mantenimiento\" />
+    <Folder Include="Controllers\fondos\modificacion\" />
+    <Folder Include="Controllers\fondos\transaccion\" />
+    <Folder Include="Controllers\fondos\operacion\" />
+    <Folder Include="Controllers\importaciones\mantenimiento\" />
+    <Folder Include="Controllers\importaciones\modificacion\" />
+    <Folder Include="Controllers\importaciones\transaccion\" />
+    <Folder Include="Controllers\importaciones\operacion\" />
+    <Folder Include="Controllers\inventarios\mantenimiento\" />
+    <Folder Include="Controllers\inventarios\modificacion\" />
+    <Folder Include="Controllers\inventarios\transaccion\" />
+    <Folder Include="Controllers\inventarios\operacion\" />
+    <Folder Include="Controllers\personal_planillas\mantenimiento\" />
+    <Folder Include="Controllers\personal_planillas\modificacion\" />
+    <Folder Include="Controllers\personal_planillas\transaccion\" />
+    <Folder Include="Controllers\personal_planillas\operacion\" />
+    <Folder Include="Controllers\seg_adm\logs\" />
+    <Folder Include="Controllers\seg_adm\mantenimiento\" />
+    <Folder Include="Controllers\seg_adm\operacion\" />
+    <Folder Include="Controllers\ventas\mantenimiento\" />
+    <Folder Include="Controllers\ventas\modificacion\" />
+    <Folder Include="Controllers\ventas\transaccion\" />
+    <Folder Include="Controllers\ventas\operacion\" />
+    <Folder Include="Models_Extra\" />
+  </ItemGroup>
+
+</Project>

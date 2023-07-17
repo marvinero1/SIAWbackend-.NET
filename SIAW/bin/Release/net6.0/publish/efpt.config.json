@@ -1,0 +1,274 @@
+﻿{
+   "CodeGenerationMode": 2,
+   "ContextClassName": "PSContext",
+   "ContextNamespace": "Data",
+   "DefaultDacpacSchema": null,
+   "FilterSchemas": false,
+   "IncludeConnectionString": false,
+   "ModelNamespace": "Models",
+   "OutputContextPath": "Data",
+   "OutputPath": "Models",
+   "PreserveCasingWithRegex": true,
+   "ProjectRootNamespace": "SIAW",
+   "Schemas": null,
+   "SelectedHandlebarsLanguage": 0,
+   "SelectedToBeGenerated": 0,
+   "Tables": [
+      {
+         "Name": "[dbo].[acaseguradora]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[adarea]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[addepto]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[adempresa]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[admoneda]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[adparametros]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[adparametros_complementarias]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[adparametros_diasextranc]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[adparametros_tarifasfact]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[adprovincia]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[adtipocambio]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[adunidad]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[adusparametros]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[adusuario]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[cmtipocompra]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[cncuenta]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[cnnumeracion]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[cnplancuenta]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[cntipo]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[cotipo]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[fncuenta]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[inalmacen]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[inconcepto]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[inctrlstock]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[ingrupo]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[ingrupomer]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[initem]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[initem_controltarifa]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[initem_max]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[inkit]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[inlinea]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[inmatriz]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[inresistencia]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[inrosca]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[insubgrupo_vta]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[intarifa]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[interminacion]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[intipocarga]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[intipoinv]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[intipomovimiento]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[intipopedido]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[intiposolurgente]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[inudemed]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[pepersona]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[peplanporcen]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[seclasificacion]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[selog]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[semodulo]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[seprograma]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[serol]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[serolprogs]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[vecliente]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[vedescuento]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[vedesextra]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[vedesitem]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[veempaque]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[venumeracion]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[veplanpago]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[vevendedor]",
+         "ObjectType": 0
+      }
+   ],
+   "UiHint": "rodrigo.PS.dbo",
+   "UncountableWords": null,
+   "UseBoolPropertiesWithoutDefaultSql": false,
+   "UseDatabaseNames": true,
+   "UseDateOnlyTimeOnly": false,
+   "UseDbContextSplitting": false,
+   "UseFluentApiOnly": true,
+   "UseHandleBars": false,
+   "UseHierarchyId": false,
+   "UseInflector": false,
+   "UseLegacyPluralizer": false,
+   "UseManyToManyEntity": false,
+   "UseNoDefaultConstructor": false,
+   "UseNoObjectFilter": false,
+   "UseNodaTime": false,
+   "UseNullableReferences": false,
+   "UseSchemaFolders": false,
+   "UseSchemaNamespaces": false,
+   "UseSpatial": false,
+   "UseT4": false
+}
