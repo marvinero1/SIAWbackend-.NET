@@ -11066,11 +11066,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "Z:\\prueba\\SIAW\\SIAW\\SIAW.csproj",
+      "projectUniqueName": "C:\\laragon\\www\\siawbackend-.net\\SIAW\\SIAW.csproj",
       "projectName": "SIAW",
-      "projectPath": "Z:\\prueba\\SIAW\\SIAW\\SIAW.csproj",
+      "projectPath": "C:\\laragon\\www\\siawbackend-.net\\SIAW\\SIAW.csproj",
       "packagesPath": "C:\\Users\\anali\\.nuget\\packages\\",
-      "outputPath": "Z:\\prueba\\SIAW\\SIAW\\obj\\",
+      "outputPath": "C:\\laragon\\www\\siawbackend-.net\\SIAW\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

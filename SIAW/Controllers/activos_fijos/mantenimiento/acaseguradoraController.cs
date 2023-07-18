@@ -35,7 +35,7 @@ namespace SIAW.Controllers.activos_fijos.mantenimiento
                         return Problem("Entidad acaseguradora es null.");
                     }
                     var result = await _context.acaseguradora.OrderByDescending(fechareg => fechareg.fechareg).ToListAsync();
-                    return result;
+                    return Ok(result);
                 }
                 return BadRequest("Se perdio la conexion con el servidor");
             }
@@ -66,7 +66,7 @@ namespace SIAW.Controllers.activos_fijos.mantenimiento
                         return NotFound("No se encontro un registro con este código");
                     }
 
-                    return acaseguradora;
+                    return Ok(acaseguradora);
                 }
                 return BadRequest("Se perdio la conexion con el servidor");
             }

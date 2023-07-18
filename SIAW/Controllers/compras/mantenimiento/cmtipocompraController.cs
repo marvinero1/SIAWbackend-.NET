@@ -35,7 +35,7 @@ namespace SIAW.Controllers.compras.mantenimiento
                         return Problem("Entidad cmtipocompra es null.");
                     }
                     var result = await _context.cmtipocompra.OrderBy(id => id.id).ToListAsync();
-                    return result;
+                    return Ok(result);
                 }
                 return BadRequest("Se perdio la conexion con el servidor");
             }
@@ -66,7 +66,7 @@ namespace SIAW.Controllers.compras.mantenimiento
                         return NotFound("No se encontro un registro con este código");
                     }
 
-                    return cmtipocompra;
+                    return Ok(cmtipocompra);
                 }
                 return BadRequest("Se perdio la conexion con el servidor");
             }

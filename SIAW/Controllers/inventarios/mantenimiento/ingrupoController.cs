@@ -4,17 +4,17 @@ using Microsoft.EntityFrameworkCore;
 using SIAW.Data;
 using SIAW.Models;
 
-namespace SIAW.Controllers.contabilidad.mantenimiento
+namespace SIAW.Controllers.inventarios.mantenimiento
 {
-    [Route("api/contab/mant/cnnumeracion/[controller]")]
+    [Route("api/inventario/mant/ingrupo/[controller]")]
     [ApiController]
-    public class cnnumeracionController : ControllerBase
+    public class ingrupoController : ControllerBase
     {
         private readonly DBContext _context;
         private readonly string connectionString;
         private VerificaConexion verificador;
         private readonly IConfiguration _configuration;
-        public cnnumeracionController(IConfiguration configuration)
+        public ingrupoController(IConfiguration configuration)
         {
             connectionString = ConnectionController.ConnectionString;
             _context = DbContextFactory.Create(connectionString);
@@ -22,19 +22,19 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
             verificador = new VerificaConexion(_configuration);
         }
 
-        // GET: api/cnnumeracion
+        // GET: api/ingrupo
         [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<cnnumeracion>>> Getcnnumeracion(string conexionName)
+        public async Task<ActionResult<IEnumerable<ingrupo>>> Getingrupo(string conexionName)
         {
             try
             {
                 if (verificador.VerConnection(conexionName, connectionString))
                 {
-                    if (_context.cnnumeracion == null)
+                    if (_context.ingrupo == null)
                     {
-                        return Problem("Entidad cnnumeracion es null.");
+                        return Problem("Entidad ingrupo es null.");
                     }
-                    var result = await _context.cnnumeracion.OrderBy(id => id.id).ToListAsync();
+                    var result = await _context.ingrupo.OrderByDescending(fechareg => fechareg.fechareg).ToListAsync();
                     return Ok(result);
                 }
                 return BadRequest("Se perdio la conexion con el servidor");
@@ -47,26 +47,26 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
 
         }
 
-        // GET: api/cnnumeracion/5
-        [HttpGet("{conexionName}/{id}")]
-        public async Task<ActionResult<cnnumeracion>> Getcnnumeracion(string conexionName, string id)
+        // GET: api/ingrupo/5
+        [HttpGet("{conexionName}/{codigo}")]
+        public async Task<ActionResult<ingrupo>> Getingrupo(string conexionName, int codigo)
         {
             try
             {
                 if (verificador.VerConnection(conexionName, connectionString))
                 {
-                    if (_context.cnnumeracion == null)
+                    if (_context.ingrupo == null)
                     {
-                        return Problem("Entidad cnnumeracion es null.");
+                        return Problem("Entidad ingrupo es null.");
                     }
-                    var cnnumeracion = await _context.cnnumeracion.FindAsync(id);
+                    var ingrupo = await _context.ingrupo.FindAsync(codigo);
 
-                    if (cnnumeracion == null)
+                    if (ingrupo == null)
                     {
                         return NotFound("No se encontro un registro con este código");
                     }
 
-                    return Ok(cnnumeracion);
+                    return Ok(ingrupo);
                 }
                 return BadRequest("Se perdio la conexion con el servidor");
             }
@@ -76,19 +76,19 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
             }
         }
 
-        // PUT: api/cnnumeracion/5
+        // PUT: api/ingrupo/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{id}")]
-        public async Task<IActionResult> Putcnnumeracion(string conexionName, string id, cnnumeracion cnnumeracion)
+        [HttpPut("{conexionName}/{codigo}")]
+        public async Task<IActionResult> Putingrupo(string conexionName, int codigo, ingrupo ingrupo)
         {
             if (verificador.VerConnection(conexionName, connectionString))
             {
-                if (id != cnnumeracion.id)
+                if (codigo != ingrupo.codigo)
                 {
                     return BadRequest("Error con Id en datos proporcionados.");
                 }
 
-                _context.Entry(cnnumeracion).State = EntityState.Modified;
+                _context.Entry(ingrupo).State = EntityState.Modified;
 
                 try
                 {
@@ -96,7 +96,7 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!cnnumeracionExists(id))
+                    if (!ingrupoExists(codigo))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -113,25 +113,25 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
 
         }
 
-        // POST: api/cnnumeracion
+        // POST: api/ingrupo
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost("{conexionName}")]
-        public async Task<ActionResult<cnnumeracion>> Postcnnumeracion(string conexionName, cnnumeracion cnnumeracion)
+        public async Task<ActionResult<ingrupo>> Postingrupo(string conexionName, ingrupo ingrupo)
         {
             if (verificador.VerConnection(conexionName, connectionString))
             {
-                if (_context.cnnumeracion == null)
+                if (_context.ingrupo == null)
                 {
-                    return Problem("Entidad cnnumeracion es null.");
+                    return Problem("Entidad ingrupo es null.");
                 }
-                _context.cnnumeracion.Add(cnnumeracion);
+                _context.ingrupo.Add(ingrupo);
                 try
                 {
                     await _context.SaveChangesAsync();
                 }
                 catch (DbUpdateException)
                 {
-                    if (cnnumeracionExists(cnnumeracion.id))
+                    if (ingrupoExists(ingrupo.codigo))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -147,25 +147,25 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
             return BadRequest("Se perdio la conexion con el servidor");
         }
 
-        // DELETE: api/cnnumeracion/5
-        [HttpDelete("{conexionName}/{id}")]
-        public async Task<IActionResult> Deletecnnumeracion(string conexionName, string id)
+        // DELETE: api/ingrupo/5
+        [HttpDelete("{conexionName}/{codigo}")]
+        public async Task<IActionResult> Deleteingrupo(string conexionName, int codigo)
         {
             try
             {
                 if (verificador.VerConnection(conexionName, connectionString))
                 {
-                    if (_context.cnnumeracion == null)
+                    if (_context.ingrupo == null)
                     {
-                        return Problem("Entidad cnnumeracion es null.");
+                        return Problem("Entidad ingrupo es null.");
                     }
-                    var cnnumeracion = await _context.cnnumeracion.FindAsync(id);
-                    if (cnnumeracion == null)
+                    var ingrupo = await _context.ingrupo.FindAsync(codigo);
+                    if (ingrupo == null)
                     {
                         return NotFound("No existe un registro con ese código");
                     }
 
-                    _context.cnnumeracion.Remove(cnnumeracion);
+                    _context.ingrupo.Remove(ingrupo);
                     await _context.SaveChangesAsync();
 
                     return Ok("Datos eliminados con exito");
@@ -179,9 +179,9 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
             }
         }
 
-        private bool cnnumeracionExists(string id)
+        private bool ingrupoExists(int codigo)
         {
-            return (_context.cnnumeracion?.Any(e => e.id == id)).GetValueOrDefault();
+            return (_context.ingrupo?.Any(e => e.codigo == codigo)).GetValueOrDefault();
 
         }
     }

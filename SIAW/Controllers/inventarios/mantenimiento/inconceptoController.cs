@@ -4,17 +4,17 @@ using Microsoft.EntityFrameworkCore;
 using SIAW.Data;
 using SIAW.Models;
 
-namespace SIAW.Controllers.contabilidad.mantenimiento
+namespace SIAW.Controllers.inventarios.mantenimiento
 {
-    [Route("api/contab/mant/cnnumeracion/[controller]")]
+    [Route("api/inventario/mant/inconcepto/[controller]")]
     [ApiController]
-    public class cnnumeracionController : ControllerBase
+    public class inconceptoController : ControllerBase
     {
         private readonly DBContext _context;
         private readonly string connectionString;
         private VerificaConexion verificador;
         private readonly IConfiguration _configuration;
-        public cnnumeracionController(IConfiguration configuration)
+        public inconceptoController(IConfiguration configuration)
         {
             connectionString = ConnectionController.ConnectionString;
             _context = DbContextFactory.Create(connectionString);
@@ -22,19 +22,19 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
             verificador = new VerificaConexion(_configuration);
         }
 
-        // GET: api/cnnumeracion
+        // GET: api/inconcepto
         [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<cnnumeracion>>> Getcnnumeracion(string conexionName)
+        public async Task<ActionResult<IEnumerable<inconcepto>>> Getinconcepto(string conexionName)
         {
             try
             {
                 if (verificador.VerConnection(conexionName, connectionString))
                 {
-                    if (_context.cnnumeracion == null)
+                    if (_context.inconcepto == null)
                     {
-                        return Problem("Entidad cnnumeracion es null.");
+                        return Problem("Entidad inconcepto es null.");
                     }
-                    var result = await _context.cnnumeracion.OrderBy(id => id.id).ToListAsync();
+                    var result = await _context.inconcepto.OrderByDescending(fechareg => fechareg.fechareg).ToListAsync();
                     return Ok(result);
                 }
                 return BadRequest("Se perdio la conexion con el servidor");
@@ -47,26 +47,26 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
 
         }
 
-        // GET: api/cnnumeracion/5
-        [HttpGet("{conexionName}/{id}")]
-        public async Task<ActionResult<cnnumeracion>> Getcnnumeracion(string conexionName, string id)
+        // GET: api/inconcepto/5
+        [HttpGet("{conexionName}/{codigo}")]
+        public async Task<ActionResult<inconcepto>> Getinconcepto(string conexionName, int codigo)
         {
             try
             {
                 if (verificador.VerConnection(conexionName, connectionString))
                 {
-                    if (_context.cnnumeracion == null)
+                    if (_context.inconcepto == null)
                     {
-                        return Problem("Entidad cnnumeracion es null.");
+                        return Problem("Entidad inconcepto es null.");
                     }
-                    var cnnumeracion = await _context.cnnumeracion.FindAsync(id);
+                    var inconcepto = await _context.inconcepto.FindAsync(codigo);
 
-                    if (cnnumeracion == null)
+                    if (inconcepto == null)
                     {
                         return NotFound("No se encontro un registro con este código");
                     }
 
-                    return Ok(cnnumeracion);
+                    return Ok(inconcepto);
                 }
                 return BadRequest("Se perdio la conexion con el servidor");
             }
@@ -76,19 +76,53 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
             }
         }
 
-        // PUT: api/cnnumeracion/5
+        // GET: api/catalogo
+        [HttpGet]
+        [Route("catalogo/{conexionName}")]
+        public async Task<ActionResult<IEnumerable<inconcepto>>> Getinconcepto_catalogo(string conexionName)
+        {
+            try
+            {
+                if (verificador.VerConnection(conexionName, connectionString))
+                {
+                    var query = _context.inconcepto
+                    .OrderBy(i => i.codigo)
+                    .Select(i => new
+                    {
+                        i.codigo,
+                        i.descripcion
+                    });
+
+                    var result = query.ToList();
+
+                    if (result.Count() == 0)
+                    {
+                        return Problem("Entidad inconcepto es null.");
+                    }
+                    return Ok(result);
+                }
+                return BadRequest("Se perdio la conexion con el servidor");
+            }
+            catch (Exception)
+            {
+                return BadRequest("Error en el servidor");
+                throw;
+            }
+        }
+
+        // PUT: api/inconcepto/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{id}")]
-        public async Task<IActionResult> Putcnnumeracion(string conexionName, string id, cnnumeracion cnnumeracion)
+        [HttpPut("{conexionName}/{codigo}")]
+        public async Task<IActionResult> Putinconcepto(string conexionName, int codigo, inconcepto inconcepto)
         {
             if (verificador.VerConnection(conexionName, connectionString))
             {
-                if (id != cnnumeracion.id)
+                if (codigo != inconcepto.codigo)
                 {
                     return BadRequest("Error con Id en datos proporcionados.");
                 }
 
-                _context.Entry(cnnumeracion).State = EntityState.Modified;
+                _context.Entry(inconcepto).State = EntityState.Modified;
 
                 try
                 {
@@ -96,7 +130,7 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!cnnumeracionExists(id))
+                    if (!inconceptoExists(codigo))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -113,25 +147,25 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
 
         }
 
-        // POST: api/cnnumeracion
+        // POST: api/inconcepto
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost("{conexionName}")]
-        public async Task<ActionResult<cnnumeracion>> Postcnnumeracion(string conexionName, cnnumeracion cnnumeracion)
+        public async Task<ActionResult<inconcepto>> Postinconcepto(string conexionName, inconcepto inconcepto)
         {
             if (verificador.VerConnection(conexionName, connectionString))
             {
-                if (_context.cnnumeracion == null)
+                if (_context.inconcepto == null)
                 {
-                    return Problem("Entidad cnnumeracion es null.");
+                    return Problem("Entidad inconcepto es null.");
                 }
-                _context.cnnumeracion.Add(cnnumeracion);
+                _context.inconcepto.Add(inconcepto);
                 try
                 {
                     await _context.SaveChangesAsync();
                 }
                 catch (DbUpdateException)
                 {
-                    if (cnnumeracionExists(cnnumeracion.id))
+                    if (inconceptoExists(inconcepto.codigo))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -147,25 +181,25 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
             return BadRequest("Se perdio la conexion con el servidor");
         }
 
-        // DELETE: api/cnnumeracion/5
-        [HttpDelete("{conexionName}/{id}")]
-        public async Task<IActionResult> Deletecnnumeracion(string conexionName, string id)
+        // DELETE: api/inconcepto/5
+        [HttpDelete("{conexionName}/{codigo}")]
+        public async Task<IActionResult> Deleteinconcepto(string conexionName, int codigo)
         {
             try
             {
                 if (verificador.VerConnection(conexionName, connectionString))
                 {
-                    if (_context.cnnumeracion == null)
+                    if (_context.inconcepto == null)
                     {
-                        return Problem("Entidad cnnumeracion es null.");
+                        return Problem("Entidad inconcepto es null.");
                     }
-                    var cnnumeracion = await _context.cnnumeracion.FindAsync(id);
-                    if (cnnumeracion == null)
+                    var inconcepto = await _context.inconcepto.FindAsync(codigo);
+                    if (inconcepto == null)
                     {
                         return NotFound("No existe un registro con ese código");
                     }
 
-                    _context.cnnumeracion.Remove(cnnumeracion);
+                    _context.inconcepto.Remove(inconcepto);
                     await _context.SaveChangesAsync();
 
                     return Ok("Datos eliminados con exito");
@@ -179,9 +213,9 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
             }
         }
 
-        private bool cnnumeracionExists(string id)
+        private bool inconceptoExists(int codigo)
         {
-            return (_context.cnnumeracion?.Any(e => e.id == id)).GetValueOrDefault();
+            return (_context.inconcepto?.Any(e => e.codigo == codigo)).GetValueOrDefault();
 
         }
     }

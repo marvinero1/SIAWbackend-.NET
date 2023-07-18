@@ -28,11 +28,9 @@
     <Folder Include="Controllers\contabilidad\operacion\" />
     <Folder Include="Controllers\costos_costeo\mantenimiento\" />
     <Folder Include="Controllers\costos_costeo\operacion\" />
-    <Folder Include="Controllers\ctasXcobrar\mantenimiento\" />
     <Folder Include="Controllers\ctasXcobrar\modificacion\" />
     <Folder Include="Controllers\ctasXcobrar\transaccion\" />
     <Folder Include="Controllers\ctasXcobrar\operacion\" />
-    <Folder Include="Controllers\fondos\mantenimiento\" />
     <Folder Include="Controllers\fondos\modificacion\" />
     <Folder Include="Controllers\fondos\transaccion\" />
     <Folder Include="Controllers\fondos\operacion\" />
@@ -40,7 +38,6 @@
     <Folder Include="Controllers\importaciones\modificacion\" />
     <Folder Include="Controllers\importaciones\transaccion\" />
     <Folder Include="Controllers\importaciones\operacion\" />
-    <Folder Include="Controllers\inventarios\mantenimiento\" />
     <Folder Include="Controllers\inventarios\modificacion\" />
     <Folder Include="Controllers\inventarios\transaccion\" />
     <Folder Include="Controllers\inventarios\operacion\" />

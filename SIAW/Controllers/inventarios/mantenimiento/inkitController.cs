@@ -5,17 +5,17 @@ using SIAW.Data;
 using SIAW.Models;
 using System.Net;
 
-namespace SIAW.Controllers.contabilidad.mantenimiento
+namespace SIAW.Controllers.inventarios.mantenimiento
 {
-    [Route("api/contab/mant/cncuenta/[controller]")]
+    [Route("api/inventario/mant/inkit/[controller]")]
     [ApiController]
-    public class cncuentaController : ControllerBase
+    public class inkitController : ControllerBase
     {
         private readonly DBContext _context;
         private readonly string connectionString;
         private VerificaConexion verificador;
         private readonly IConfiguration _configuration;
-        public cncuentaController(IConfiguration configuration)
+        public inkitController(IConfiguration configuration)
         {
             connectionString = ConnectionController.ConnectionString;
             _context = DbContextFactory.Create(connectionString);
@@ -23,19 +23,19 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
             verificador = new VerificaConexion(_configuration);
         }
 
-        // GET: api/cncuenta
+        // GET: api/inkit
         [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<cncuenta>>> Getcncuenta(string conexionName)
+        public async Task<ActionResult<IEnumerable<inkit>>> Getinkit(string conexionName)
         {
             try
             {
                 if (verificador.VerConnection(conexionName, connectionString))
                 {
-                    if (_context.cncuenta == null)
+                    if (_context.inkit == null)
                     {
-                        return Problem("Entidad cncuenta es null.");
+                        return Problem("Entidad inkit es null.");
                     }
-                    var result = await _context.cncuenta.OrderByDescending(fechareg => fechareg.fechareg).ToListAsync();
+                    var result = await _context.inkit.OrderBy(codigo => codigo.codigo).ToListAsync();
                     return Ok(result);
                 }
                 return BadRequest("Se perdio la conexion con el servidor");
@@ -48,26 +48,26 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
 
         }
 
-        // GET: api/cncuenta/5
+        // GET: api/inkit/5
         [HttpGet("{conexionName}/{codigo}")]
-        public async Task<ActionResult<cncuenta>> Getcncuenta(string conexionName, string codigo)
+        public async Task<ActionResult<inkit>> Getinkit(string conexionName, string codigo, string item)
         {
             try
             {
                 if (verificador.VerConnection(conexionName, connectionString))
                 {
-                    if (_context.cncuenta == null)
+                    if (_context.inkit == null)
                     {
-                        return Problem("Entidad cncuenta es null.");
+                        return Problem("Entidad inkit es null.");
                     }
-                    var cncuenta = await _context.cncuenta.FindAsync(codigo);
+                    var inkit = _context.inkit.FirstOrDefault(objeto => objeto.codigo == codigo && objeto.item == item);
 
-                    if (cncuenta == null)
+                    if (inkit == null)
                     {
                         return NotFound("No se encontro un registro con este código");
                     }
 
-                    return Ok(cncuenta);
+                    return Ok(inkit);
                 }
                 return BadRequest("Se perdio la conexion con el servidor");
             }
@@ -77,28 +77,40 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
             }
         }
 
-        // GET: api/catalogo
+        /// <summary>
+        /// Obtiene todos los registros de la tabla inkit (item) con initem, dependiendo del codigo de item
+        /// </summary>
+        /// <param name="conexionName"></param>
+        /// <param name="coditem"></param>
+        /// <returns></returns>
+        // GET: api/initem_inkit
         [HttpGet]
-        [Route("catalogo/{conexionName}")]
-        public async Task<ActionResult<IEnumerable<cncuenta>>> Getcncuenta_catalogo(string conexionName)
+        [Route("initem_inkit/{conexionName}/{coditem}")]
+        public async Task<ActionResult<IEnumerable<inkit>>> Getinitem_inkit(string conexionName, string coditem)
         {
             try
             {
                 if (verificador.VerConnection(conexionName, connectionString))
                 {
-                    var query = _context.cncuenta
-                    .OrderBy(i => i.codigo)
-                    .Select(i => new
-                    {
-                        i.codigo,
-                        i.descripcion
-                    });
+                    var query = from k in _context.inkit
+                                join i in _context.initem on k.item equals i.codigo
+                                where k.codigo == coditem
+                                orderby k.item
+                                select new
+                                {
+                                    k.codigo,
+                                    k.item,
+                                    i.descripcion,
+                                    i.medida,
+                                    k.cantidad,
+                                    k.unidad
+                                };
 
                     var result = query.ToList();
 
                     if (result.Count() == 0)
                     {
-                        return Problem("Entidad cncuenta es null.");
+                        return Problem("No se encontraron registros con esos datos.");
                     }
                     return Ok(result);
                 }
@@ -112,19 +124,20 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
         }
 
 
-        // PUT: api/cncuenta/5
+        // PUT: api/inkit/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Putcncuenta(string conexionName, string codigo, cncuenta cncuenta)
+        [HttpPut("{conexionName}/{codigo}/{item}")]
+        public async Task<IActionResult> Putinkit(string conexionName, string codigo, string item, inkit inkit)
         {
             if (verificador.VerConnection(conexionName, connectionString))
             {
-                if (codigo != cncuenta.codigo)
+                var kit = _context.inkit.FirstOrDefault(objeto => objeto.codigo == codigo && objeto.item == item);
+                if (kit == null)
                 {
-                    return BadRequest("Error con Id en datos proporcionados.");
+                    return NotFound("No existe un registro con esa información");
                 }
 
-                _context.Entry(cncuenta).State = EntityState.Modified;
+                _context.Entry(inkit).State = EntityState.Modified;
 
                 try
                 {
@@ -132,7 +145,7 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!cncuentaExists(codigo))
+                    if (!inkitExists(codigo, item))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -149,25 +162,25 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
 
         }
 
-        // POST: api/cncuenta
+        // POST: api/inkit
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost("{conexionName}")]
-        public async Task<ActionResult<cncuenta>> Postcncuenta(string conexionName, cncuenta cncuenta)
+        public async Task<ActionResult<inkit>> Postinkit(string conexionName, inkit inkit)
         {
             if (verificador.VerConnection(conexionName, connectionString))
             {
-                if (_context.cncuenta == null)
+                if (_context.inkit == null)
                 {
-                    return Problem("Entidad cncuenta es null.");
+                    return Problem("Entidad inkit es null.");
                 }
-                _context.cncuenta.Add(cncuenta);
+                _context.inkit.Add(inkit);
                 try
                 {
                     await _context.SaveChangesAsync();
                 }
                 catch (DbUpdateException)
                 {
-                    if (cncuentaExists(cncuenta.codigo))
+                    if (inkitExists(inkit.codigo, inkit.item))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -183,25 +196,25 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
             return BadRequest("Se perdio la conexion con el servidor");
         }
 
-        // DELETE: api/cncuenta/5
+        // DELETE: api/inkit/5
         [HttpDelete("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Deletecncuenta(string conexionName, string codigo)
+        public async Task<IActionResult> Deleteinkit(string conexionName, string codigo, string item)
         {
             try
             {
                 if (verificador.VerConnection(conexionName, connectionString))
                 {
-                    if (_context.cncuenta == null)
+                    if (_context.inkit == null)
                     {
-                        return Problem("Entidad cncuenta es null.");
+                        return Problem("Entidad inkit es null.");
                     }
-                    var cncuenta = await _context.cncuenta.FindAsync(codigo);
-                    if (cncuenta == null)
+                    inkit inkit = _context.inkit.FirstOrDefault(objeto => objeto.codigo == codigo && objeto.item == item);
+                    if (inkit == null)
                     {
                         return NotFound("No existe un registro con ese código");
                     }
 
-                    _context.cncuenta.Remove(cncuenta);
+                    _context.inkit.Remove(inkit);
                     await _context.SaveChangesAsync();
 
                     return Ok("Datos eliminados con exito");
@@ -215,9 +228,9 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
             }
         }
 
-        private bool cncuentaExists(string codigo)
+        private bool inkitExists(string codigo, string item)
         {
-            return (_context.cncuenta?.Any(e => e.codigo == codigo)).GetValueOrDefault();
+            return (_context.inkit?.Any(e => e.codigo == codigo && e.item == item)).GetValueOrDefault();
 
         }
     }

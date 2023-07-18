@@ -4,17 +4,17 @@ using Microsoft.EntityFrameworkCore;
 using SIAW.Data;
 using SIAW.Models;
 
-namespace SIAW.Controllers.contabilidad.mantenimiento
+namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 {
-    [Route("api/contab/mant/cnnumeracion/[controller]")]
+    [Route("api/ctasXcobrar/mant/cotipo/[controller]")]
     [ApiController]
-    public class cnnumeracionController : ControllerBase
+    public class cotipoController : ControllerBase
     {
         private readonly DBContext _context;
         private readonly string connectionString;
         private VerificaConexion verificador;
         private readonly IConfiguration _configuration;
-        public cnnumeracionController(IConfiguration configuration)
+        public cotipoController(IConfiguration configuration)
         {
             connectionString = ConnectionController.ConnectionString;
             _context = DbContextFactory.Create(connectionString);
@@ -22,19 +22,19 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
             verificador = new VerificaConexion(_configuration);
         }
 
-        // GET: api/cnnumeracion
+        // GET: api/cotipo
         [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<cnnumeracion>>> Getcnnumeracion(string conexionName)
+        public async Task<ActionResult<IEnumerable<cotipo>>> Getcotipo(string conexionName)
         {
             try
             {
                 if (verificador.VerConnection(conexionName, connectionString))
                 {
-                    if (_context.cnnumeracion == null)
+                    if (_context.cotipo == null)
                     {
-                        return Problem("Entidad cnnumeracion es null.");
+                        return Problem("Entidad cotipo es null.");
                     }
-                    var result = await _context.cnnumeracion.OrderBy(id => id.id).ToListAsync();
+                    var result = await _context.cotipo.OrderByDescending(id => id.id).ToListAsync();
                     return Ok(result);
                 }
                 return BadRequest("Se perdio la conexion con el servidor");
@@ -47,26 +47,26 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
 
         }
 
-        // GET: api/cnnumeracion/5
+        // GET: api/cotipo/5
         [HttpGet("{conexionName}/{id}")]
-        public async Task<ActionResult<cnnumeracion>> Getcnnumeracion(string conexionName, string id)
+        public async Task<ActionResult<cotipo>> Getcotipo(string conexionName, string id)
         {
             try
             {
                 if (verificador.VerConnection(conexionName, connectionString))
                 {
-                    if (_context.cnnumeracion == null)
+                    if (_context.cotipo == null)
                     {
-                        return Problem("Entidad cnnumeracion es null.");
+                        return Problem("Entidad cotipo es null.");
                     }
-                    var cnnumeracion = await _context.cnnumeracion.FindAsync(id);
+                    var cotipo = await _context.cotipo.FindAsync(id);
 
-                    if (cnnumeracion == null)
+                    if (cotipo == null)
                     {
                         return NotFound("No se encontro un registro con este código");
                     }
 
-                    return Ok(cnnumeracion);
+                    return Ok(cotipo);
                 }
                 return BadRequest("Se perdio la conexion con el servidor");
             }
@@ -76,19 +76,53 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
             }
         }
 
-        // PUT: api/cnnumeracion/5
+        // GET: api/catalogo
+        [HttpGet]
+        [Route("catalogo/{conexionName}")]
+        public async Task<ActionResult<IEnumerable<cotipo>>> Getcotipo_catalogo(string conexionName)
+        {
+            try
+            {
+                if (verificador.VerConnection(conexionName, connectionString))
+                {
+                    var query = _context.cotipo
+                    .OrderBy(i => i.id)
+                    .Select(i => new
+                    {
+                        i.id,
+                        i.descripcion
+                    });
+
+                    var result = query.ToList();
+
+                    if (result.Count() == 0)
+                    {
+                        return Problem("No se encontraron registros con esos datos.");
+                    }
+                    return Ok(result);
+                }
+                return BadRequest("Se perdio la conexion con el servidor");
+            }
+            catch (Exception)
+            {
+                return BadRequest("Error en el servidor");
+                throw;
+            }
+        }
+
+        // PUT: api/cotipo/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{conexionName}/{id}")]
-        public async Task<IActionResult> Putcnnumeracion(string conexionName, string id, cnnumeracion cnnumeracion)
+        public async Task<IActionResult> Putcotipo(string conexionName, string id, cotipo cotipo)
         {
             if (verificador.VerConnection(conexionName, connectionString))
             {
-                if (id != cnnumeracion.id)
+                if (id != cotipo.id)
                 {
                     return BadRequest("Error con Id en datos proporcionados.");
                 }
 
-                _context.Entry(cnnumeracion).State = EntityState.Modified;
+                _context.Entry(cotipo).State = EntityState.Modified;
 
                 try
                 {
@@ -96,7 +130,7 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!cnnumeracionExists(id))
+                    if (!cotipoExists(id))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -113,25 +147,25 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
 
         }
 
-        // POST: api/cnnumeracion
+        // POST: api/cotipo
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost("{conexionName}")]
-        public async Task<ActionResult<cnnumeracion>> Postcnnumeracion(string conexionName, cnnumeracion cnnumeracion)
+        public async Task<ActionResult<cotipo>> Postcotipo(string conexionName, cotipo cotipo)
         {
             if (verificador.VerConnection(conexionName, connectionString))
             {
-                if (_context.cnnumeracion == null)
+                if (_context.cotipo == null)
                 {
-                    return Problem("Entidad cnnumeracion es null.");
+                    return Problem("Entidad cotipo es null.");
                 }
-                _context.cnnumeracion.Add(cnnumeracion);
+                _context.cotipo.Add(cotipo);
                 try
                 {
                     await _context.SaveChangesAsync();
                 }
                 catch (DbUpdateException)
                 {
-                    if (cnnumeracionExists(cnnumeracion.id))
+                    if (cotipoExists(cotipo.id))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -147,25 +181,25 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
             return BadRequest("Se perdio la conexion con el servidor");
         }
 
-        // DELETE: api/cnnumeracion/5
+        // DELETE: api/cotipo/5
         [HttpDelete("{conexionName}/{id}")]
-        public async Task<IActionResult> Deletecnnumeracion(string conexionName, string id)
+        public async Task<IActionResult> Deletecotipo(string conexionName, string id)
         {
             try
             {
                 if (verificador.VerConnection(conexionName, connectionString))
                 {
-                    if (_context.cnnumeracion == null)
+                    if (_context.cotipo == null)
                     {
-                        return Problem("Entidad cnnumeracion es null.");
+                        return Problem("Entidad cotipo es null.");
                     }
-                    var cnnumeracion = await _context.cnnumeracion.FindAsync(id);
-                    if (cnnumeracion == null)
+                    var cotipo = await _context.cotipo.FindAsync(id);
+                    if (cotipo == null)
                     {
                         return NotFound("No existe un registro con ese código");
                     }
 
-                    _context.cnnumeracion.Remove(cnnumeracion);
+                    _context.cotipo.Remove(cotipo);
                     await _context.SaveChangesAsync();
 
                     return Ok("Datos eliminados con exito");
@@ -179,9 +213,9 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
             }
         }
 
-        private bool cnnumeracionExists(string id)
+        private bool cotipoExists(string id)
         {
-            return (_context.cnnumeracion?.Any(e => e.id == id)).GetValueOrDefault();
+            return (_context.cotipo?.Any(e => e.id == id)).GetValueOrDefault();
 
         }
     }

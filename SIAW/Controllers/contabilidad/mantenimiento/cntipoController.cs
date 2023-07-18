@@ -35,7 +35,7 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
                         return Problem("Entidad cntipo es null.");
                     }
                     var result = await _context.cntipo.OrderByDescending(fechareg => fechareg.fechareg).ToListAsync();
-                    return result;
+                    return Ok(result);
                 }
                 return BadRequest("Se perdio la conexion con el servidor");
             }
@@ -66,7 +66,7 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
                         return NotFound("No se encontro un registro con este código");
                     }
 
-                    return cntipo;
+                    return Ok(cntipo);
                 }
                 return BadRequest("Se perdio la conexion con el servidor");
             }
