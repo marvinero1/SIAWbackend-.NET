@@ -197,7 +197,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
         }
 
         // DELETE: api/inkit/5
-        [HttpDelete("{conexionName}/{codigo}")]
+        [HttpDelete("{conexionName}/{codigo}/{item}")]
         public async Task<IActionResult> Deleteinkit(string conexionName, string codigo, string item)
         {
             try
