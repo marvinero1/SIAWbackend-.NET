@@ -41,12 +41,9 @@
     <Folder Include="Controllers\inventarios\modificacion\" />
     <Folder Include="Controllers\inventarios\transaccion\" />
     <Folder Include="Controllers\inventarios\operacion\" />
-    <Folder Include="Controllers\personal_planillas\mantenimiento\" />
     <Folder Include="Controllers\personal_planillas\modificacion\" />
     <Folder Include="Controllers\personal_planillas\transaccion\" />
     <Folder Include="Controllers\personal_planillas\operacion\" />
-    <Folder Include="Controllers\seg_adm\logs\" />
-    <Folder Include="Controllers\seg_adm\mantenimiento\" />
     <Folder Include="Controllers\seg_adm\operacion\" />
     <Folder Include="Controllers\ventas\mantenimiento\" />
     <Folder Include="Controllers\ventas\modificacion\" />

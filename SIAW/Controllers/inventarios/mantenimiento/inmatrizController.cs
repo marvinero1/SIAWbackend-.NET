@@ -110,8 +110,8 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
         // PUT: api/inmatriz/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}")]
-        [Route("inmatrizVarios")]
+        [HttpPut]
+        [Route("inmatrizVarios/{conexionName}")]
         public async Task<IActionResult> Putinmatriz(string conexionName, List<inmatriz> inmatrizList)
         {
             if (verificador.VerConnection(conexionName, connectionString))
