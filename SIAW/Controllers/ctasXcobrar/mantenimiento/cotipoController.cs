@@ -6,7 +6,7 @@ using SIAW.Models;
 
 namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 {
-    [Route("api/ctasXcobrar/mant/cotipo/[controller]")]
+    [Route("api/ctasXcobrar/mant/[controller]")]
     [ApiController]
     public class cotipoController : ControllerBase
     {

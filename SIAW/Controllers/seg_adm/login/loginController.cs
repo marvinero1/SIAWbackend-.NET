@@ -12,74 +12,88 @@ using SIAW.Controllers.seg_adm.login;
 using ApiBackend.Controllers;
 using System.Net;
 using NuGet.Common;
+using System.Configuration;
 
 namespace SIAW.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/seg_adm/[controller]")]
     [ApiController]
     public class loginController : ControllerBase
     {
         private static List<string> validTokens = new List<string>();
 
         private readonly DBContext _context;
+        private readonly string connectionString;
+        private VerificaConexion verificador;
+        private readonly IConfiguration _configuration;
 
-        public loginController()
+        public loginController(IConfiguration configuration)
         {
-            string connectionString = ConnectionController.ConnectionString;
+            connectionString = ConnectionController.ConnectionString;
             _context = DbContextFactory.Create(connectionString);
+            _configuration = configuration;
+            verificador = new VerificaConexion(_configuration);
         }
 
         /// <summary>
         /// Autenticación de usuario, devuelve token para consultas.
         /// </summary>
+        /// <param name="conexionName"></param>
         /// <param name="login"></param>
         /// <returns></returns>
         /// <exception cref="HttpResponseException"></exception>
         [HttpPost]
-        [Route("authenticate")]
-        public async Task<IActionResult> Authenticate(LoginRequest login)
+        [Route("authenticate/{conexionName}")]
+        public async Task<IActionResult> Authenticate(string conexionName, LoginRequest login)
         {
-            encriptacion encript = new encriptacion();
-            if (login == null)
+            if (verificador.VerConnection(conexionName, connectionString))
             {
-                return BadRequest("Revise los datos ingresados");
-            }
-            
-            try
-            {
-                var x = _context.adusuario.FirstOrDefault(e => e.login == login.login);
-                if (x == null)
+                encriptacion encript = new encriptacion();
+                if (login == null)
                 {
-                    return NotFound("No se encontro un registro con los datos proporcionados (usuario).");
-                }
-                if (x.password != encript.EncryptToMD5Base64(login.password))
-                {
-                    return Unauthorized ("Contraseña Erronea.");
+                    return BadRequest("Revise los datos ingresados");
                 }
 
-                var rolUser = _context.serol.FirstOrDefault(e => e.codigo == x.codrol);
-                if (rolUser == null)
+                try
                 {
-                    return NotFound ("No se encontro un registro con los datos proporcionados (rol).");
+                    var x = _context.adusuario.FirstOrDefault(e => e.login == login.login);
+                    if (x == null)
+                    {
+                        return NotFound("201");         //-----No se encontro un registro con los datos proporcionados (usuario).
+                    }
+                    if (x.password_siaw != encript.EncryptToMD5Base64(login.password))
+                    {
+                        return Unauthorized("203");           //-----Contraseña Erronea.
+                    }
+                    if (x.activo == false)
+                    {
+                        return Unauthorized("207");           //-----Usuario no activo.
+                    }
+                    var rolUser = _context.serol.FirstOrDefault(e => e.codigo == x.codrol);
+                    if (rolUser == null)
+                    {
+                        return NotFound("No se encontro un registro con los datos proporcionados (rol).");
+                    }
+
+                    int dias = (int)rolUser.dias_cambio;
+
+                    if (!verificaFechaPass(x.fechareg_siaw, dias))
+                    {
+                        return Unauthorized("205");          //------Su contraseña ya venció, registre una nueva.
+                    }
+                    var usuario = login.login;
+                    /*var token = TokenGenerator.GenerateTokenJwt(usuario);
+                    validTokens.Add(token);   //agrega token a la lista de validos
+                    return OK (token);*/
+                    return Ok("200");                  //------Bienvenido
                 }
-
-                int dias = (int)rolUser.dias_cambio;
-
-                if (!verificaFechaPass(x.fechareg, dias))
+                catch (Exception)
                 {
-                    return Unauthorized ("Su contraseña ya venció, registre una nueva.");
+                    return BadRequest("Reviso los datos ingresados.");
+                    throw;
                 }
-                var usuario = login.login;
-                /*var token = TokenGenerator.GenerateTokenJwt(usuario);
-                validTokens.Add(token);   //agrega token a la lista de validos
-                return OK (token);*/
-                return Ok("Bienvenido");
             }
-            catch (Exception)
-            {
-                return BadRequest ("Reviso los datos ingresados.");
-                throw;
-            }
+            return BadRequest("Se perdio la conexion con el servidor");
 
         }
 

@@ -6,7 +6,7 @@ using SIAW.Models;
 
 namespace SIAW.Controllers.inventarios.mantenimiento
 {
-    [Route("api/inventario/mant/inlinea/[controller]")]
+    [Route("api/inventario/mant/[controller]")]
     [ApiController]
     public class inlineaController : ControllerBase
     {

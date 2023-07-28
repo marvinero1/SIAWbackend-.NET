@@ -6,7 +6,7 @@ using SIAW.Models;
 
 namespace SIAW.Controllers.compras.mantenimiento
 {
-    [Route("api/compras/mant/cmtipocompra/[controller]")]
+    [Route("api/compras/mant/[controller]")]
     [ApiController]
     public class cmtipocompraController : ControllerBase
     {

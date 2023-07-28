@@ -7,7 +7,7 @@ using System.Net;
 
 namespace SIAW.Controllers.contabilidad.mantenimiento
 {
-    [Route("api/contab/mant/cncuenta/[controller]")]
+    [Route("api/contab/mant/[controller]")]
     [ApiController]
     public class cncuentaController : ControllerBase
     {

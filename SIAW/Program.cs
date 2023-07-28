@@ -16,6 +16,17 @@ builder.Services.AddSwaggerGen();
 //        options.UseSqlServer(builder.Configuration.GetConnectionString("PS_DB"));
 //    });
 
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("NuevaPolitica", app =>
+    {
+        app.AllowAnyOrigin()
+        .AllowAnyHeader()
+        .AllowAnyMethod();
+    });
+});
+
 var app = builder.Build();
 
 
@@ -26,6 +37,8 @@ var app = builder.Build();
     app.UseSwaggerUI();
 }*/
 
+
+
 if (app.Environment.IsProduction())
 {
     app.UseSwagger();
@@ -33,6 +46,8 @@ if (app.Environment.IsProduction())
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors("NuevaPolitica");
 
 app.UseAuthorization();
 

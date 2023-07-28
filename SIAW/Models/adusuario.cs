@@ -17,5 +17,7 @@ namespace SIAW.Models
         public DateTime fechareg { get; set; }
         public string usuarioreg { get; set; }
         public string correo { get; set; }
+        public string password_siaw { get; set; }
+        public DateTime fechareg_siaw { get; set; }
     }
 }

@@ -6,7 +6,7 @@ using SIAW.Models;
 
 namespace SIAW.Controllers.seg_adm.mantenimiento
 {
-    [Route("api/seg_adm/mant/adempresa/[controller]")]
+    [Route("api/seg_adm/mant/[controller]")]
     [ApiController]
     public class adempresaController : ControllerBase
     {

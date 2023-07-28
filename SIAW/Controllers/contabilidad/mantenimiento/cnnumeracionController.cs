@@ -6,7 +6,7 @@ using SIAW.Models;
 
 namespace SIAW.Controllers.contabilidad.mantenimiento
 {
-    [Route("api/contab/mant/cnnumeracion/[controller]")]
+    [Route("api/contab/mant/[controller]")]
     [ApiController]
     public class cnnumeracionController : ControllerBase
     {

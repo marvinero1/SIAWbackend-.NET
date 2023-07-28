@@ -6,7 +6,7 @@ using SIAW.Models;
 
 namespace SIAW.Controllers.seg_adm.logs
 {
-    [Route("api/seg_adm/logs/selog/[controller]")]
+    [Route("api/seg_adm/logs/[controller]")]
     [ApiController]
     public class selogController : ControllerBase
     {

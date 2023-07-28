@@ -8,7 +8,7 @@ using System.Net;
 
 namespace SIAW.Controllers.inventarios.mantenimiento
 {
-    [Route("api/inventario/mant/initem/[controller]")]
+    [Route("api/inventario/mant/[controller]")]
     [ApiController]
     public class initemController : ControllerBase
     {

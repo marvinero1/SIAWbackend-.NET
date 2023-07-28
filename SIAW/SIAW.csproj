@@ -44,12 +44,10 @@
     <Folder Include="Controllers\personal_planillas\modificacion\" />
     <Folder Include="Controllers\personal_planillas\transaccion\" />
     <Folder Include="Controllers\personal_planillas\operacion\" />
-    <Folder Include="Controllers\seg_adm\operacion\" />
     <Folder Include="Controllers\ventas\mantenimiento\" />
     <Folder Include="Controllers\ventas\modificacion\" />
     <Folder Include="Controllers\ventas\transaccion\" />
     <Folder Include="Controllers\ventas\operacion\" />
-    <Folder Include="Models_Extra\" />
   </ItemGroup>
 
 </Project>

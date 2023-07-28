@@ -6,7 +6,7 @@ using SIAW.Models;
 
 namespace SIAW.Controllers.personal_planillas.mantenimiento
 {
-    [Route("api/pers_plan/mant/pepersona/[controller]")]
+    [Route("api/pers_plan/mant/[controller]")]
     [ApiController]
     public class pepersonaController : ControllerBase
     {

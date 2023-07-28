@@ -8,13 +8,13 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 {
     [Route("api/seg_adm/mant/[controller]")]
     [ApiController]
-    public class admonedaController : ControllerBase
+    public class cnplancuentaController : ControllerBase
     {
         private readonly DBContext _context;
         private readonly string connectionString;
         private VerificaConexion verificador;
         private readonly IConfiguration _configuration;
-        public admonedaController(IConfiguration configuration)
+        public cnplancuentaController(IConfiguration configuration)
         {
             connectionString = ConnectionController.ConnectionString;
             _context = DbContextFactory.Create(connectionString);
@@ -22,19 +22,19 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             verificador = new VerificaConexion(_configuration);
         }
 
-        // GET: api/admoneda
+        // GET: api/cnplancuenta
         [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<admoneda>>> Getadmoneda(string conexionName)
+        public async Task<ActionResult<IEnumerable<cnplancuenta>>> Getcnplancuenta(string conexionName)
         {
             try
             {
                 if (verificador.VerConnection(conexionName, connectionString))
                 {
-                    if (_context.admoneda == null)
+                    if (_context.cnplancuenta == null)
                     {
-                        return Problem("Entidad admoneda es null.");
+                        return Problem("Entidad cnplancuenta es null.");
                     }
-                    var result = await _context.admoneda.OrderByDescending(fechareg => fechareg.fechareg).ToListAsync();
+                    var result = await _context.cnplancuenta.OrderByDescending(fechareg => fechareg.fechareg).ToListAsync();
                     return Ok(result);
                 }
                 return BadRequest("Se perdio la conexion con el servidor");
@@ -47,26 +47,26 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
         }
 
-        // GET: api/admoneda/5
+        // GET: api/cnplancuenta/5
         [HttpGet("{conexionName}/{codigo}")]
-        public async Task<ActionResult<admoneda>> Getadmoneda(string conexionName, string codigo)
+        public async Task<ActionResult<cnplancuenta>> Getcnplancuenta(string conexionName, int codigo)
         {
             try
             {
                 if (verificador.VerConnection(conexionName, connectionString))
                 {
-                    if (_context.admoneda == null)
+                    if (_context.cnplancuenta == null)
                     {
-                        return Problem("Entidad admoneda es null.");
+                        return Problem("Entidad cnplancuenta es null.");
                     }
-                    var admoneda = await _context.admoneda.FindAsync(codigo);
+                    var cnplancuenta = await _context.cnplancuenta.FindAsync(codigo);
 
-                    if (admoneda == null)
+                    if (cnplancuenta == null)
                     {
                         return NotFound("No se encontro un registro con este código");
                     }
 
-                    return Ok(admoneda);
+                    return Ok(cnplancuenta);
                 }
                 return BadRequest("Se perdio la conexion con el servidor");
             }
@@ -76,19 +76,19 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
         }
 
-        // PUT: api/admoneda/5
+        // PUT: api/cnplancuenta/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Putadmoneda(string conexionName, string codigo, admoneda admoneda)
+        public async Task<IActionResult> Putcnplancuenta(string conexionName, int codigo, cnplancuenta cnplancuenta)
         {
             if (verificador.VerConnection(conexionName, connectionString))
             {
-                if (codigo != admoneda.codigo)
+                if (codigo != cnplancuenta.codigo)
                 {
                     return BadRequest("Error con Id en datos proporcionados.");
                 }
 
-                _context.Entry(admoneda).State = EntityState.Modified;
+                _context.Entry(cnplancuenta).State = EntityState.Modified;
 
                 try
                 {
@@ -96,7 +96,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!admonedaExists(codigo))
+                    if (!cnplancuentaExists(codigo))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -113,25 +113,25 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
         }
 
-        // POST: api/admoneda
+        // POST: api/cnplancuenta
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost("{conexionName}")]
-        public async Task<ActionResult<admoneda>> Postadmoneda(string conexionName, admoneda admoneda)
+        public async Task<ActionResult<cnplancuenta>> Postcnplancuenta(string conexionName, cnplancuenta cnplancuenta)
         {
             if (verificador.VerConnection(conexionName, connectionString))
             {
-                if (_context.admoneda == null)
+                if (_context.cnplancuenta == null)
                 {
-                    return Problem("Entidad admoneda es null.");
+                    return Problem("Entidad cnplancuenta es null.");
                 }
-                _context.admoneda.Add(admoneda);
+                _context.cnplancuenta.Add(cnplancuenta);
                 try
                 {
                     await _context.SaveChangesAsync();
                 }
                 catch (DbUpdateException)
                 {
-                    if (admonedaExists(admoneda.codigo))
+                    if (cnplancuentaExists(cnplancuenta.codigo))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -147,25 +147,25 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             return BadRequest("Se perdio la conexion con el servidor");
         }
 
-        // DELETE: api/admoneda/5
+        // DELETE: api/cnplancuenta/5
         [HttpDelete("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Deleteadmoneda(string conexionName, string codigo)
+        public async Task<IActionResult> Deletecnplancuenta(string conexionName, int codigo)
         {
             try
             {
                 if (verificador.VerConnection(conexionName, connectionString))
                 {
-                    if (_context.admoneda == null)
+                    if (_context.cnplancuenta == null)
                     {
-                        return Problem("Entidad admoneda es null.");
+                        return Problem("Entidad cnplancuenta es null.");
                     }
-                    var admoneda = await _context.admoneda.FindAsync(codigo);
-                    if (admoneda == null)
+                    var cnplancuenta = await _context.cnplancuenta.FindAsync(codigo);
+                    if (cnplancuenta == null)
                     {
                         return NotFound("No existe un registro con ese código");
                     }
 
-                    _context.admoneda.Remove(admoneda);
+                    _context.cnplancuenta.Remove(cnplancuenta);
                     await _context.SaveChangesAsync();
 
                     return Ok("Datos eliminados con exito");
@@ -179,9 +179,9 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
         }
 
-        private bool admonedaExists(string codigo)
+        private bool cnplancuentaExists(int codigo)
         {
-            return (_context.admoneda?.Any(e => e.codigo == codigo)).GetValueOrDefault();
+            return (_context.cnplancuenta?.Any(e => e.codigo == codigo)).GetValueOrDefault();
 
         }
     }

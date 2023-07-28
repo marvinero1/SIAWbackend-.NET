@@ -8,13 +8,13 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 {
     [Route("api/seg_adm/mant/[controller]")]
     [ApiController]
-    public class admonedaController : ControllerBase
+    public class serolController : ControllerBase
     {
         private readonly DBContext _context;
         private readonly string connectionString;
         private VerificaConexion verificador;
         private readonly IConfiguration _configuration;
-        public admonedaController(IConfiguration configuration)
+        public serolController(IConfiguration configuration)
         {
             connectionString = ConnectionController.ConnectionString;
             _context = DbContextFactory.Create(connectionString);
@@ -22,19 +22,19 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             verificador = new VerificaConexion(_configuration);
         }
 
-        // GET: api/admoneda
+        // GET: api/serol
         [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<admoneda>>> Getadmoneda(string conexionName)
+        public async Task<ActionResult<IEnumerable<serol>>> Getserol(string conexionName)
         {
             try
             {
                 if (verificador.VerConnection(conexionName, connectionString))
                 {
-                    if (_context.admoneda == null)
+                    if (_context.serol == null)
                     {
-                        return Problem("Entidad admoneda es null.");
+                        return Problem("Entidad serol es null.");
                     }
-                    var result = await _context.admoneda.OrderByDescending(fechareg => fechareg.fechareg).ToListAsync();
+                    var result = await _context.serol.OrderByDescending(fechareg => fechareg.fechareg).ToListAsync();
                     return Ok(result);
                 }
                 return BadRequest("Se perdio la conexion con el servidor");
@@ -47,26 +47,26 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
         }
 
-        // GET: api/admoneda/5
+        // GET: api/serol/5
         [HttpGet("{conexionName}/{codigo}")]
-        public async Task<ActionResult<admoneda>> Getadmoneda(string conexionName, string codigo)
+        public async Task<ActionResult<serol>> Getserol(string conexionName, string codigo)
         {
             try
             {
                 if (verificador.VerConnection(conexionName, connectionString))
                 {
-                    if (_context.admoneda == null)
+                    if (_context.serol == null)
                     {
-                        return Problem("Entidad admoneda es null.");
+                        return Problem("Entidad serol es null.");
                     }
-                    var admoneda = await _context.admoneda.FindAsync(codigo);
+                    var serol = await _context.serol.FindAsync(codigo);
 
-                    if (admoneda == null)
+                    if (serol == null)
                     {
                         return NotFound("No se encontro un registro con este código");
                     }
 
-                    return Ok(admoneda);
+                    return Ok(serol);
                 }
                 return BadRequest("Se perdio la conexion con el servidor");
             }
@@ -76,19 +76,19 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
         }
 
-        // PUT: api/admoneda/5
+        // PUT: api/serol/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Putadmoneda(string conexionName, string codigo, admoneda admoneda)
+        public async Task<IActionResult> Putserol(string conexionName, string codigo, serol serol)
         {
             if (verificador.VerConnection(conexionName, connectionString))
             {
-                if (codigo != admoneda.codigo)
+                if (codigo != serol.codigo)
                 {
                     return BadRequest("Error con Id en datos proporcionados.");
                 }
 
-                _context.Entry(admoneda).State = EntityState.Modified;
+                _context.Entry(serol).State = EntityState.Modified;
 
                 try
                 {
@@ -96,7 +96,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!admonedaExists(codigo))
+                    if (!serolExists(codigo))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -113,25 +113,25 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
         }
 
-        // POST: api/admoneda
+        // POST: api/serol
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost("{conexionName}")]
-        public async Task<ActionResult<admoneda>> Postadmoneda(string conexionName, admoneda admoneda)
+        public async Task<ActionResult<serol>> Postserol(string conexionName, serol serol)
         {
             if (verificador.VerConnection(conexionName, connectionString))
             {
-                if (_context.admoneda == null)
+                if (_context.serol == null)
                 {
-                    return Problem("Entidad admoneda es null.");
+                    return Problem("Entidad serol es null.");
                 }
-                _context.admoneda.Add(admoneda);
+                _context.serol.Add(serol);
                 try
                 {
                     await _context.SaveChangesAsync();
                 }
                 catch (DbUpdateException)
                 {
-                    if (admonedaExists(admoneda.codigo))
+                    if (serolExists(serol.codigo))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -147,25 +147,25 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             return BadRequest("Se perdio la conexion con el servidor");
         }
 
-        // DELETE: api/admoneda/5
+        // DELETE: api/serol/5
         [HttpDelete("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Deleteadmoneda(string conexionName, string codigo)
+        public async Task<IActionResult> Deleteserol(string conexionName, string codigo)
         {
             try
             {
                 if (verificador.VerConnection(conexionName, connectionString))
                 {
-                    if (_context.admoneda == null)
+                    if (_context.serol == null)
                     {
-                        return Problem("Entidad admoneda es null.");
+                        return Problem("Entidad serol es null.");
                     }
-                    var admoneda = await _context.admoneda.FindAsync(codigo);
-                    if (admoneda == null)
+                    var serol = await _context.serol.FindAsync(codigo);
+                    if (serol == null)
                     {
                         return NotFound("No existe un registro con ese código");
                     }
 
-                    _context.admoneda.Remove(admoneda);
+                    _context.serol.Remove(serol);
                     await _context.SaveChangesAsync();
 
                     return Ok("Datos eliminados con exito");
@@ -179,9 +179,9 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
         }
 
-        private bool admonedaExists(string codigo)
+        private bool serolExists(string codigo)
         {
-            return (_context.admoneda?.Any(e => e.codigo == codigo)).GetValueOrDefault();
+            return (_context.serol?.Any(e => e.codigo == codigo)).GetValueOrDefault();
 
         }
     }

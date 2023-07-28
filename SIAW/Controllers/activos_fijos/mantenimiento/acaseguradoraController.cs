@@ -6,7 +6,7 @@ using SIAW.Models;
 
 namespace SIAW.Controllers.activos_fijos.mantenimiento
 {
-    [Route("api/act_fij/mant/acaseguradora/[controller]")]
+    [Route("api/act_fij/mant/[controller]")]
     [ApiController]
     public class acaseguradoraController : ControllerBase
     {

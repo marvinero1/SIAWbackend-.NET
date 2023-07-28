@@ -6,7 +6,7 @@ using SIAW.Models;
 
 namespace SIAW.Controllers.fondos.mantenimiento
 {
-    [Route("api/fondos/mant/fncuenta/[controller]")]
+    [Route("api/fondos/mant/[controller]")]
     [ApiController]
     public class fncuentaController : ControllerBase
     {
