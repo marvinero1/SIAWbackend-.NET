@@ -3,9 +3,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SIAW.Data;
 using SIAW.Models;
+using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.fondos.mantenimiento
 {
+    [Authorize]
     [Route("api/fondos/mant/[controller]")]
     [ApiController]
     public class fncuentaController : ControllerBase

@@ -504,3 +504,4 @@ C:\laragon\www\siawbackend-.net\SIAW\obj\Debug\net6.0\refint\SIAW.dll
 C:\laragon\www\siawbackend-.net\SIAW\obj\Debug\net6.0\SIAW.pdb
 C:\laragon\www\siawbackend-.net\SIAW\obj\Debug\net6.0\SIAW.genruntimeconfig.cache
 C:\laragon\www\siawbackend-.net\SIAW\obj\Debug\net6.0\ref\SIAW.dll
+C:\laragon\www\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll

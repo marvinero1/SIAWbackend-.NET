@@ -3,9 +3,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SIAW.Data;
 using SIAW.Models;
+using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.personal_planillas.mantenimiento
 {
+    [Authorize]
     [Route("api/pers_plan/mant/[controller]")]
     [ApiController]
     public class pepersonaController : ControllerBase

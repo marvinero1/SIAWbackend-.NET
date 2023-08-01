@@ -1,18 +1,20 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using SIAW.Models;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using SIAW.Data;
-using SIAW.Models;
 using SIAW.Controllers.seg_adm.login;
-using ApiBackend.Controllers;
 using System.Net;
-using NuGet.Common;
-using System.Configuration;
+
+
+// para generar token
+using SIAW.Models_Extra;
+using System.Security.Claims;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Text;
+using SIAW.Models;
 
 namespace SIAW.Controllers
 {
@@ -82,10 +84,10 @@ namespace SIAW.Controllers
                         return Unauthorized("205");          //------Su contraseña ya venció, registre una nueva.
                     }
                     var usuario = login.login;
-                    /*var token = TokenGenerator.GenerateTokenJwt(usuario);
-                    validTokens.Add(token);   //agrega token a la lista de validos
-                    return OK (token);*/
-                    return Ok("200");                  //------Bienvenido
+                    var jwtToken = GenerateToken(login);
+                    validTokens.Add(jwtToken);   //agrega token a la lista de validos
+                    //return OK (token);
+                    return Ok(new {token= jwtToken });                  //------Bienvenido
                 }
                 catch (Exception)
                 {
@@ -110,24 +112,64 @@ namespace SIAW.Controllers
             }
             return true;
         }
-        /*
+        
+
         [HttpPost]
         [Route("verificaToken")]
-        public HttpResponseMessage IsTokenValid(tokken token)
+        public async Task<IActionResult> IsTokenValid(string token)
         {
-            // Verificar si el token se encuentra en la lista blanca de tokens válidos
-            var exitencia = validTokens.Contains(token.token);
-            return Request.CreateResponse(HttpStatusCode.OK, exitencia);
+            try
+            {
+                // Verificar si el token se encuentra en la lista blanca de tokens válidos
+                var exitencia = validTokens.Contains(token);
+                return Ok(exitencia);
+            }
+            catch (Exception)
+            {
+                return BadRequest("Error en el servidor");
+                throw;
+            }
         }
 
         [HttpPost]
         [Route("eliminaToken")]
-        public HttpResponseMessage InvalidateToken(tokken token)
+        public async Task<IActionResult> InvalidateToken(string token)
         {
-            // Remover el token de la lista blanca de tokens válidos
-            validTokens.Remove(token.token);
-            return Request.CreateResponse(HttpStatusCode.OK, "Token eliminado");
+            try
+            {
+                // Remover el token de la lista blanca de tokens válidos
+                validTokens.Remove(token);
+                return Ok("Token eliminado");
+            }
+            catch (Exception)
+            {
+                return BadRequest("No se pudo eliminar el token");
+                throw;
+            }
+            
         }
-        */
+        
+
+
+
+        private string GenerateToken(LoginRequest login)
+        {
+            var claims = new[]
+            {
+                new Claim(ClaimTypes.Name, login.login)
+            };
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration.GetSection("JWT:Key").Value));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512Signature);
+
+            var securityToken = new JwtSecurityToken(
+                claims: claims,
+                expires: DateTime.Now.AddDays(1),
+                signingCredentials: creds);
+
+            string token = new JwtSecurityTokenHandler().WriteToken(securityToken);
+
+            return token;
+        }
     }
 }

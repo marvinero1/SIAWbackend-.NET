@@ -4,9 +4,11 @@ using Microsoft.EntityFrameworkCore;
 using SIAW.Data;
 using SIAW.Models;
 using System.Net;
+using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.contabilidad.mantenimiento
 {
+    [Authorize]
     [Route("api/contab/mant/[controller]")]
     [ApiController]
     public class cncuentaController : ControllerBase

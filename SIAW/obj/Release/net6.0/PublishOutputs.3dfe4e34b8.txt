@@ -10,6 +10,7 @@ C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\MessagePack.d
 C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\MessagePack.Annotations.dll
 C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\System.Net.Http.Formatting.dll
 C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\System.Web.Http.dll
+C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\Microsoft.AspNetCore.Authentication.JwtBearer.dll
 C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\Microsoft.AspNetCore.Razor.Language.dll
 C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\Microsoft.Bcl.AsyncInterfaces.dll
 C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\Microsoft.Build.dll

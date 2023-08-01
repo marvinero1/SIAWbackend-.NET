@@ -7,9 +7,11 @@ using SIAW.Data;
 using SIAW.Models;
 using SIAW.Models_Extra;
 using System.Net;
+using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.seg_adm.mantenimiento
 {
+    [Authorize]
     [Route("api/seg_adm/mant/[controller]")]
     [ApiController]
     public class adusuarioController : ControllerBase

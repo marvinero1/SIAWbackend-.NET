@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNet.WebApi.Core" Version="5.2.9" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="6.0.20" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="6.0.18" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="6.0.18">
       <PrivateAssets>all</PrivateAssets>
@@ -44,7 +45,6 @@
     <Folder Include="Controllers\personal_planillas\modificacion\" />
     <Folder Include="Controllers\personal_planillas\transaccion\" />
     <Folder Include="Controllers\personal_planillas\operacion\" />
-    <Folder Include="Controllers\ventas\mantenimiento\" />
     <Folder Include="Controllers\ventas\modificacion\" />
     <Folder Include="Controllers\ventas\transaccion\" />
     <Folder Include="Controllers\ventas\operacion\" />

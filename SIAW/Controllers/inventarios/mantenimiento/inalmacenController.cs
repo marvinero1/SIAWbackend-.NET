@@ -4,9 +4,11 @@ using Microsoft.EntityFrameworkCore;
 using SIAW.Data;
 using SIAW.Models;
 using System.Net;
+using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.inventarios.mantenimiento
 {
+    [Authorize]
     [Route("api/inventario/mant/[controller]")]
     [ApiController]
     public class inalmacenController : ControllerBase

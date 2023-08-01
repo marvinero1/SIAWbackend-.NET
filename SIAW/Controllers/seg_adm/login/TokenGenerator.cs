@@ -1,10 +1,15 @@
-﻿using Microsoft.IdentityModel.Tokens;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Linq;
-using System.Security.Claims;
 using System.Web;
+// para generar token
+using SIAW.Models_Extra;
+using System.Security.Claims;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Text;
+using SIAW.Models;
 
 namespace ApiBackend.Controllers
 {
@@ -14,6 +19,9 @@ namespace ApiBackend.Controllers
     /// more info: https://self-issued.info/docs/draft-ietf-oauth-json-web-token.html
     /// </summary>
     /// 
+
+    
+
 
     public static class TokenGenerator
     {
@@ -46,5 +54,15 @@ namespace ApiBackend.Controllers
             return jwtTokenString;
         }
         */
+        /*
+        protected string GenerateToken(LoginRequest login)
+        {
+            var claims = new[]
+            {
+                new Claim(ClaimTypes.Name, login.login)
+            };
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config))
+        }*/
     }
 }

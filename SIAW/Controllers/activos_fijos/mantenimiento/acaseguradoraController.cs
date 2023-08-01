@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SIAW.Data;
@@ -6,6 +7,7 @@ using SIAW.Models;
 
 namespace SIAW.Controllers.activos_fijos.mantenimiento
 {
+    [Authorize]
     [Route("api/act_fij/mant/[controller]")]
     [ApiController]
     public class acaseguradoraController : ControllerBase
