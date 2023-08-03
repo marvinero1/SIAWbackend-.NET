@@ -7,30 +7,28 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.ventas.mantenimiento
 {
-    [Authorize]
     [Route("api/seg_adm/mant/[controller]")]
     [ApiController]
     public class vevendedorController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public vevendedorController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public vevendedorController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/vevendedor
-        [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<vevendedor>>> Getvevendedor(string conexionName)
+        [HttpGet("{userConn}")]
+        public async Task<ActionResult<IEnumerable<vevendedor>>> Getvevendedor(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.vevendedor == null)
                     {
@@ -39,7 +37,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                     var result = await _context.vevendedor.OrderBy(codigo => codigo.codigo).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -50,12 +48,17 @@ namespace SIAW.Controllers.ventas.mantenimiento
         }
 
         // GET: api/vevendedor/5
-        [HttpGet("{conexionName}/{codigo}")]
-        public async Task<ActionResult<vevendedor>> Getvevendedor(string conexionName, int codigo)
+        [HttpGet("{userConn}/{codigo}")]
+        public async Task<ActionResult<vevendedor>> Getvevendedor(string userConn, int codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.vevendedor == null)
                     {
@@ -70,7 +73,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
                     return Ok(vevendedor);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -80,10 +83,16 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
         // PUT: api/vevendedor/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Putvevendedor(string conexionName, int codigo, vevendedor vevendedor)
+        [Authorize]
+        [HttpPut("{userConn}/{codigo}")]
+        public async Task<IActionResult> Putvevendedor(string userConn, int codigo, vevendedor vevendedor)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (codigo != vevendedor.codigo)
                 {
@@ -98,7 +107,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!vevendedorExists(codigo))
+                    if (!vevendedorExists(codigo, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -110,17 +119,23 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
 
         // POST: api/vevendedor
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<vevendedor>> Postvevendedor(string conexionName, vevendedor vevendedor)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<vevendedor>> Postvevendedor(string userConn, vevendedor vevendedor)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.vevendedor == null)
                 {
@@ -133,7 +148,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (vevendedorExists(vevendedor.codigo))
+                    if (vevendedorExists(vevendedor.codigo, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -146,16 +161,22 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/vevendedor/5
-        [HttpDelete("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Deletevevendedor(string conexionName, int codigo)
+        [Authorize]
+        [HttpDelete("{userConn}/{codigo}")]
+        public async Task<IActionResult> Deletevevendedor(string userConn, int codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.vevendedor == null)
                     {
@@ -172,7 +193,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -181,7 +202,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
             }
         }
 
-        private bool vevendedorExists(int codigo)
+        private bool vevendedorExists(int codigo, DBContext _context)
         {
             return (_context.vevendedor?.Any(e => e.codigo == codigo)).GetValueOrDefault();
 

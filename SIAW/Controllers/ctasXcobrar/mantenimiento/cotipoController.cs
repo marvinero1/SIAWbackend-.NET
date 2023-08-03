@@ -7,30 +7,28 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 {
-    [Authorize]
     [Route("api/ctasXcobrar/mant/[controller]")]
     [ApiController]
     public class cotipoController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public cotipoController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public cotipoController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/cotipo
-        [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<cotipo>>> Getcotipo(string conexionName)
+        [HttpGet("{userConn}")]
+        public async Task<ActionResult<IEnumerable<cotipo>>> Getcotipo(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.cotipo == null)
                     {
@@ -39,7 +37,7 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
                     var result = await _context.cotipo.OrderByDescending(id => id.id).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -50,12 +48,17 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
         }
 
         // GET: api/cotipo/5
-        [HttpGet("{conexionName}/{id}")]
-        public async Task<ActionResult<cotipo>> Getcotipo(string conexionName, string id)
+        [HttpGet("{userConn}/{id}")]
+        public async Task<ActionResult<cotipo>> Getcotipo(string userConn, string id)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.cotipo == null)
                     {
@@ -70,7 +73,7 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 
                     return Ok(cotipo);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -80,12 +83,17 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 
         // GET: api/catalogo
         [HttpGet]
-        [Route("catalogo/{conexionName}")]
-        public async Task<ActionResult<IEnumerable<cotipo>>> Getcotipo_catalogo(string conexionName)
+        [Route("catalogo/{userConn}")]
+        public async Task<ActionResult<IEnumerable<cotipo>>> Getcotipo_catalogo(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     var query = _context.cotipo
                     .OrderBy(i => i.id)
@@ -103,7 +111,7 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
                     }
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -114,10 +122,16 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 
         // PUT: api/cotipo/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{id}")]
-        public async Task<IActionResult> Putcotipo(string conexionName, string id, cotipo cotipo)
+        [Authorize]
+        [HttpPut("{userConn}/{id}")]
+        public async Task<IActionResult> Putcotipo(string userConn, string id, cotipo cotipo)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (id != cotipo.id)
                 {
@@ -132,7 +146,7 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!cotipoExists(id))
+                    if (!cotipoExists(id, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -144,17 +158,23 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
 
         // POST: api/cotipo
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<cotipo>> Postcotipo(string conexionName, cotipo cotipo)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<cotipo>> Postcotipo(string userConn, cotipo cotipo)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.cotipo == null)
                 {
@@ -167,7 +187,7 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (cotipoExists(cotipo.id))
+                    if (cotipoExists(cotipo.id, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -180,16 +200,22 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/cotipo/5
-        [HttpDelete("{conexionName}/{id}")]
-        public async Task<IActionResult> Deletecotipo(string conexionName, string id)
+        [Authorize]
+        [HttpDelete("{userConn}/{id}")]
+        public async Task<IActionResult> Deletecotipo(string userConn, string id)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.cotipo == null)
                     {
@@ -206,7 +232,7 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -215,7 +241,7 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
             }
         }
 
-        private bool cotipoExists(string id)
+        private bool cotipoExists(string id, DBContext _context)
         {
             return (_context.cotipo?.Any(e => e.id == id)).GetValueOrDefault();
 

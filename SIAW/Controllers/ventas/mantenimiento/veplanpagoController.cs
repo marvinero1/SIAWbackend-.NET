@@ -7,30 +7,28 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.ventas.mantenimiento
 {
-    [Authorize]
     [Route("api/venta/mant/[controller]")]
     [ApiController]
     public class veplanpagoController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public veplanpagoController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public veplanpagoController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/veplanpago
-        [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<veplanpago>>> Getveplanpago(string conexionName)
+        [HttpGet("{userConn}")]
+        public async Task<ActionResult<IEnumerable<veplanpago>>> Getveplanpago(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.veplanpago == null)
                     {
@@ -39,7 +37,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                     var result = await _context.veplanpago.OrderByDescending(fechareg => fechareg.fechareg).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -50,12 +48,17 @@ namespace SIAW.Controllers.ventas.mantenimiento
         }
 
         // GET: api/veplanpago/5
-        [HttpGet("{conexionName}/{codigo}")]
-        public async Task<ActionResult<veplanpago>> Getveplanpago(string conexionName, int codigo)
+        [HttpGet("{userConn}/{codigo}")]
+        public async Task<ActionResult<veplanpago>> Getveplanpago(string userConn, int codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.veplanpago == null)
                     {
@@ -70,7 +73,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
                     return Ok(veplanpago);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -80,10 +83,16 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
         // PUT: api/veplanpago/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Putveplanpago(string conexionName, int codigo, veplanpago veplanpago)
+        [Authorize]
+        [HttpPut("{userConn}/{codigo}")]
+        public async Task<IActionResult> Putveplanpago(string userConn, int codigo, veplanpago veplanpago)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (codigo != veplanpago.codigo)
                 {
@@ -98,7 +107,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!veplanpagoExists(codigo))
+                    if (!veplanpagoExists(codigo, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -110,17 +119,23 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
 
         // POST: api/veplanpago
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<veplanpago>> Postveplanpago(string conexionName, veplanpago veplanpago)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<veplanpago>> Postveplanpago(string userConn, veplanpago veplanpago)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.veplanpago == null)
                 {
@@ -133,7 +148,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (veplanpagoExists(veplanpago.codigo))
+                    if (veplanpagoExists(veplanpago.codigo, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -146,16 +161,22 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/veplanpago/5
-        [HttpDelete("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Deleteveplanpago(string conexionName, int codigo)
+        [Authorize]
+        [HttpDelete("{userConn}/{codigo}")]
+        public async Task<IActionResult> Deleteveplanpago(string userConn, int codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.veplanpago == null)
                     {
@@ -172,7 +193,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -181,7 +202,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
             }
         }
 
-        private bool veplanpagoExists(int codigo)
+        private bool veplanpagoExists(int codigo, DBContext _context)
         {
             return (_context.veplanpago?.Any(e => e.codigo == codigo)).GetValueOrDefault();
 

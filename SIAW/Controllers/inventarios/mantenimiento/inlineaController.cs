@@ -7,30 +7,28 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.inventarios.mantenimiento
 {
-    [Authorize]
     [Route("api/inventario/mant/[controller]")]
     [ApiController]
     public class inlineaController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public inlineaController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public inlineaController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/inlinea
-        [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<inlinea>>> Getinlinea(string conexionName)
+        [HttpGet("{userConn}")]
+        public async Task<ActionResult<IEnumerable<inlinea>>> Getinlinea(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.inlinea == null)
                     {
@@ -39,7 +37,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     var result = await _context.inlinea.OrderBy(codigo => codigo.codigo).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -50,12 +48,17 @@ namespace SIAW.Controllers.inventarios.mantenimiento
         }
 
         // GET: api/inlinea/5
-        [HttpGet("{conexionName}/{codigo}")]
-        public async Task<ActionResult<inlinea>> Getinlinea(string conexionName, string codigo)
+        [HttpGet("{userConn}/{codigo}")]
+        public async Task<ActionResult<inlinea>> Getinlinea(string userConn, string codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.inlinea == null)
                     {
@@ -70,7 +73,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                     return Ok(inlinea);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -80,10 +83,16 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
         // PUT: api/inlinea/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Putinlinea(string conexionName, string codigo, inlinea inlinea)
+        [Authorize]
+        [HttpPut("{userConn}/{codigo}")]
+        public async Task<IActionResult> Putinlinea(string userConn, string codigo, inlinea inlinea)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (codigo != inlinea.codigo)
                 {
@@ -98,7 +107,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!inlineaExists(codigo))
+                    if (!inlineaExists(codigo, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -110,17 +119,23 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
 
         // POST: api/inlinea
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<inlinea>> Postinlinea(string conexionName, inlinea inlinea)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<inlinea>> Postinlinea(string userConn, inlinea inlinea)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.inlinea == null)
                 {
@@ -133,7 +148,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (inlineaExists(inlinea.codigo))
+                    if (inlineaExists(inlinea.codigo, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -146,16 +161,22 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/inlinea/5
-        [HttpDelete("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Deleteinlinea(string conexionName, string codigo)
+        [Authorize]
+        [HttpDelete("{userConn}/{codigo}")]
+        public async Task<IActionResult> Deleteinlinea(string userConn, string codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.inlinea == null)
                     {
@@ -172,7 +193,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -181,7 +202,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
         }
 
-        private bool inlineaExists(string codigo)
+        private bool inlineaExists(string codigo, DBContext _context)
         {
             return (_context.inlinea?.Any(e => e.codigo == codigo)).GetValueOrDefault();
 
@@ -195,29 +216,28 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
 
 
-    [Route("api/inventario/mant/insubgrupoVta/[controller]")]
+    [Route("api/inventario/mant/[controller]")]
     [ApiController]
     public class insubgrupo_vtaController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public insubgrupo_vtaController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public insubgrupo_vtaController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/insubgrupo_vta
-        [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<insubgrupo_vta>>> Getinsubgrupo_vta(string conexionName)
+        [HttpGet("{userConn}")]
+        public async Task<ActionResult<IEnumerable<insubgrupo_vta>>> Getinsubgrupo_vta(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.insubgrupo_vta == null)
                     {
@@ -226,7 +246,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     var result = await _context.insubgrupo_vta.OrderBy(codigo => codigo.codigo).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -237,12 +257,17 @@ namespace SIAW.Controllers.inventarios.mantenimiento
         }
 
         // GET: api/insubgrupo_vta/5
-        [HttpGet("{conexionName}/{codigo}")]
-        public async Task<ActionResult<insubgrupo_vta>> Getinsubgrupo_vta(string conexionName, string codigo)
+        [HttpGet("{userConn}/{codigo}")]
+        public async Task<ActionResult<insubgrupo_vta>> Getinsubgrupo_vta(string userConn, string codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.insubgrupo_vta == null)
                     {
@@ -257,7 +282,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                     return Ok(insubgrupo_vta);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -267,10 +292,16 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
         // PUT: api/insubgrupo_vta/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Putinsubgrupo_vta(string conexionName, string codigo, insubgrupo_vta insubgrupo_vta)
+        [Authorize]
+        [HttpPut("{userConn}/{codigo}")]
+        public async Task<IActionResult> Putinsubgrupo_vta(string userConn, string codigo, insubgrupo_vta insubgrupo_vta)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (codigo != insubgrupo_vta.codigo)
                 {
@@ -285,7 +316,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!insubgrupo_vtaExists(codigo))
+                    if (!insubgrupo_vtaExists(codigo, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -297,17 +328,23 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
 
         // POST: api/insubgrupo_vta
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<insubgrupo_vta>> Postinsubgrupo_vta(string conexionName, insubgrupo_vta insubgrupo_vta)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<insubgrupo_vta>> Postinsubgrupo_vta(string userConn, insubgrupo_vta insubgrupo_vta)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.insubgrupo_vta == null)
                 {
@@ -320,7 +357,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (insubgrupo_vtaExists(insubgrupo_vta.codigo))
+                    if (insubgrupo_vtaExists(insubgrupo_vta.codigo, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -333,16 +370,22 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/insubgrupo_vta/5
-        [HttpDelete("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Deleteinsubgrupo_vta(string conexionName, string codigo)
+        [Authorize]
+        [HttpDelete("{userConn}/{codigo}")]
+        public async Task<IActionResult> Deleteinsubgrupo_vta(string userConn, string codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.insubgrupo_vta == null)
                     {
@@ -359,7 +402,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -368,7 +411,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
         }
 
-        private bool insubgrupo_vtaExists(string codigo)
+        private bool insubgrupo_vtaExists(string codigo, DBContext _context)
         {
             return (_context.insubgrupo_vta?.Any(e => e.codigo == codigo)).GetValueOrDefault();
 

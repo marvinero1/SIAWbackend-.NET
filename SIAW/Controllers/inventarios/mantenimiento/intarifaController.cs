@@ -7,30 +7,28 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.inventarios.mantenimiento
 {
-    [Authorize]
     [Route("api/inventario/mant/[controller]")]
     [ApiController]
     public class intarifaController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public intarifaController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public intarifaController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/intarifa
-        [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<intarifa>>> Getintarifa(string conexionName)
+        [HttpGet("{userConn}")]
+        public async Task<ActionResult<IEnumerable<intarifa>>> Getintarifa(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.intarifa == null)
                     {
@@ -39,7 +37,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     var result = await _context.intarifa.OrderBy(codigo => codigo.codigo).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -50,12 +48,17 @@ namespace SIAW.Controllers.inventarios.mantenimiento
         }
 
         // GET: api/intarifa/5
-        [HttpGet("{conexionName}/{codigo}")]
-        public async Task<ActionResult<intarifa>> Getintarifa(string conexionName, int codigo)
+        [HttpGet("{userConn}/{codigo}")]
+        public async Task<ActionResult<intarifa>> Getintarifa(string userConn, int codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.intarifa == null)
                     {
@@ -70,7 +73,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                     return Ok(intarifa);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -80,12 +83,17 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
         // GET: api/catalogo
         [HttpGet]
-        [Route("catalogo/{conexionName}")]
-        public async Task<ActionResult<IEnumerable<intarifa>>> Getintarifa_catalogo(string conexionName)
+        [Route("catalogo/{userConn}")]
+        public async Task<ActionResult<IEnumerable<intarifa>>> Getintarifa_catalogo(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     var query = _context.intarifa
                     .OrderBy(i => i.codigo)
@@ -103,7 +111,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     }
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -114,10 +122,16 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
         // PUT: api/intarifa/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Putintarifa(string conexionName, int codigo, intarifa intarifa)
+        [Authorize]
+        [HttpPut("{userConn}/{codigo}")]
+        public async Task<IActionResult> Putintarifa(string userConn, int codigo, intarifa intarifa)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (codigo != intarifa.codigo)
                 {
@@ -132,7 +146,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!intarifaExists(codigo))
+                    if (!intarifaExists(codigo, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -144,17 +158,23 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
 
         // POST: api/intarifa
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<intarifa>> Postintarifa(string conexionName, intarifa intarifa)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<intarifa>> Postintarifa(string userConn, intarifa intarifa)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.intarifa == null)
                 {
@@ -167,7 +187,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (intarifaExists(intarifa.codigo))
+                    if (intarifaExists(intarifa.codigo, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -180,16 +200,22 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/intarifa/5
-        [HttpDelete("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Deleteintarifa(string conexionName, int codigo)
+        [Authorize]
+        [HttpDelete("{userConn}/{codigo}")]
+        public async Task<IActionResult> Deleteintarifa(string userConn, int codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.intarifa == null)
                     {
@@ -206,7 +232,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -215,7 +241,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
         }
 
-        private bool intarifaExists(int codigo)
+        private bool intarifaExists(int codigo, DBContext _context)
         {
             return (_context.intarifa?.Any(e => e.codigo == codigo)).GetValueOrDefault();
 

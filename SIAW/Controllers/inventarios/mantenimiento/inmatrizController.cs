@@ -8,30 +8,28 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.inventarios.mantenimiento
 {
-    [Authorize]
     [Route("api/inventario/mant/[controller]")]
     [ApiController]
     public class inmatrizController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public inmatrizController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public inmatrizController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/inmatriz
-        [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<inmatriz>>> Getinmatriz(string conexionName)
+        [HttpGet("{userConn}")]
+        public async Task<ActionResult<IEnumerable<inmatriz>>> Getinmatriz(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.inmatriz == null)
                     {
@@ -40,7 +38,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     var result = await _context.inmatriz.OrderBy(hoja => hoja.hoja).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -51,12 +49,17 @@ namespace SIAW.Controllers.inventarios.mantenimiento
         }
 
         // GET: api/inmatriz/5
-        [HttpGet("{conexionName}/{hoja}")]
-        public async Task<ActionResult<inmatriz>> Getinmatriz(string conexionName, string hoja)
+        [HttpGet("{userConn}/{hoja}")]
+        public async Task<ActionResult<inmatriz>> Getinmatriz(string userConn, string hoja)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.inmatriz == null)
                     {
@@ -71,7 +74,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                     return Ok(inmatriz);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -81,10 +84,16 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
         // PUT: api/inmatriz/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{hoja}/{linea}")]
-        public async Task<IActionResult> Putinmatriz(string conexionName, string hoja, int linea, inmatriz inmatriz)
+        [Authorize]
+        [HttpPut("{userConn}/{hoja}/{linea}")]
+        public async Task<IActionResult> Putinmatriz(string userConn, string hoja, int linea, inmatriz inmatriz)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 var matriz = _context.inmatriz.FirstOrDefault(objeto => objeto.hoja == hoja && objeto.linea == linea);
 
@@ -106,17 +115,23 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
 
         // PUT: api/inmatriz/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [Authorize]
         [HttpPut]
-        [Route("inmatrizVarios/{conexionName}")]
-        public async Task<IActionResult> Putinmatriz(string conexionName, List<inmatriz> inmatrizList)
+        [Route("inmatrizVarios/{userConn}")]
+        public async Task<IActionResult> Putinmatriz(string userConn, List<inmatriz> inmatrizList)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 foreach (var inmatriz in inmatrizList)
                 {
@@ -154,17 +169,23 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
 
 
         // POST: api/inmatriz
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<inmatriz>> Postinmatriz(string conexionName, inmatriz inmatriz)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<inmatriz>> Postinmatriz(string userConn, inmatriz inmatriz)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.inmatriz == null)
                 {
@@ -183,22 +204,28 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/inmatriz/5
-        [HttpDelete("{conexionName}/{hoja}/{linea}")]
-        public async Task<IActionResult> Deleteinmatriz(string conexionName, string hoja, int linea)
+        [Authorize]
+        [HttpDelete("{userConn}/{hoja}/{linea}")]
+        public async Task<IActionResult> Deleteinmatriz(string userConn, string hoja, int linea)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.inmatriz == null)
                     {
                         return Problem("Entidad inmatriz es null.");
                     }
-                    inmatriz inmatriz = _context.inmatriz.FirstOrDefault(objeto => objeto.hoja == hoja && objeto.linea == linea);
+                    var inmatriz = _context.inmatriz.FirstOrDefault(objeto => objeto.hoja == hoja && objeto.linea == linea);
                     if (inmatriz == null)
                     {
                         return NotFound("No existe un registro con ese código");
@@ -209,7 +236,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)

@@ -10,26 +10,25 @@ namespace SIAW.Controllers.seg_adm.logs
     [ApiController]
     public class selogController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public selogController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public selogController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/selog
         [HttpGet]
-        [Route("getselogfecha/{conexionName}/{fecha}")]
-        public async Task<ActionResult<IEnumerable<selog>>> Getselog(string conexionName, DateTime fecha)
+        [Route("getselogfecha/{userConn}/{fecha}")]
+        public async Task<ActionResult<IEnumerable<selog>>> Getselog(string userConn, DateTime fecha)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.selog == null)
                     {
@@ -38,7 +37,7 @@ namespace SIAW.Controllers.seg_adm.logs
                     var result = await _context.selog.Where(x => x.fecha == fecha).OrderByDescending(f => f.hora).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -51,10 +50,15 @@ namespace SIAW.Controllers.seg_adm.logs
        
         // POST: api/selog
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<selog>> Postselog(string conexionName, selog selog)
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<selog>> Postselog(string userConn, selog selog)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.selog == null)
                 {
@@ -73,7 +77,7 @@ namespace SIAW.Controllers.seg_adm.logs
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
     }
 }

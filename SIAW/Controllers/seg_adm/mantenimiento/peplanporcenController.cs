@@ -7,30 +7,28 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.seg_adm.mantenimiento
 {
-    [Authorize]
     [Route("api/seg_adm/mant/[controller]")]
     [ApiController]
     public class peplanporcenController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public peplanporcenController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public peplanporcenController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/peplanporcen
-        [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<peplanporcen>>> Getpeplanporcen(string conexionName)
+        [HttpGet("{userConn}")]
+        public async Task<ActionResult<IEnumerable<peplanporcen>>> Getpeplanporcen(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.peplanporcen == null)
                     {
@@ -39,7 +37,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     var result = await _context.peplanporcen.OrderByDescending(fechareg => fechareg.fechareg).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -50,12 +48,17 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
         }
 
         // GET: api/peplanporcen/5
-        [HttpGet("{conexionName}/{codigo}")]
-        public async Task<ActionResult<peplanporcen>> Getpeplanporcen(string conexionName, int codigo)
+        [HttpGet("{userConn}/{codigo}")]
+        public async Task<ActionResult<peplanporcen>> Getpeplanporcen(string userConn, int codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.peplanporcen == null)
                     {
@@ -70,7 +73,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                     return Ok(peplanporcen);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -80,10 +83,16 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
         // PUT: api/peplanporcen/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Putpeplanporcen(string conexionName, int codigo, peplanporcen peplanporcen)
+        [Authorize]
+        [HttpPut("{userConn}/{codigo}")]
+        public async Task<IActionResult> Putpeplanporcen(string userConn, int codigo, peplanporcen peplanporcen)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (codigo != peplanporcen.codigo)
                 {
@@ -98,7 +107,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!peplanporcenExists(codigo))
+                    if (!peplanporcenExists(codigo, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -110,17 +119,23 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
 
         // POST: api/peplanporcen
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<peplanporcen>> Postpeplanporcen(string conexionName, peplanporcen peplanporcen)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<peplanporcen>> Postpeplanporcen(string userConn, peplanporcen peplanporcen)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.peplanporcen == null)
                 {
@@ -133,7 +148,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (peplanporcenExists(peplanporcen.codigo))
+                    if (peplanporcenExists(peplanporcen.codigo, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -146,16 +161,22 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/peplanporcen/5
-        [HttpDelete("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Deletepeplanporcen(string conexionName, int codigo)
+        [Authorize]
+        [HttpDelete("{userConn}/{codigo}")]
+        public async Task<IActionResult> Deletepeplanporcen(string userConn, int codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.peplanporcen == null)
                     {
@@ -172,7 +193,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -181,7 +202,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
         }
 
-        private bool peplanporcenExists(int codigo)
+        private bool peplanporcenExists(int codigo, DBContext _context)
         {
             return (_context.peplanporcen?.Any(e => e.codigo == codigo)).GetValueOrDefault();
 

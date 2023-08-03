@@ -7,30 +7,28 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.inventarios.mantenimiento
 {
-    [Authorize]
     [Route("api/inventario/mant/[controller]")]
     [ApiController]
     public class intipomovimientoController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public intipomovimientoController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public intipomovimientoController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/intipomovimiento
-        [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<intipomovimiento>>> Getintipomovimiento(string conexionName)
+        [HttpGet("{userConn}")]
+        public async Task<ActionResult<IEnumerable<intipomovimiento>>> Getintipomovimiento(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.intipomovimiento == null)
                     {
@@ -39,7 +37,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     var result = await _context.intipomovimiento.OrderByDescending(fechareg => fechareg.fechareg).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -50,12 +48,17 @@ namespace SIAW.Controllers.inventarios.mantenimiento
         }
 
         // GET: api/intipomovimiento/5
-        [HttpGet("{conexionName}/{id}")]
-        public async Task<ActionResult<intipomovimiento>> Getintipomovimiento(string conexionName, string id)
+        [HttpGet("{userConn}/{id}")]
+        public async Task<ActionResult<intipomovimiento>> Getintipomovimiento(string userConn, string id)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.intipomovimiento == null)
                     {
@@ -70,7 +73,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                     return Ok(intipomovimiento);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -80,10 +83,16 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
         // PUT: api/intipomovimiento/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{id}")]
-        public async Task<IActionResult> Putintipomovimiento(string conexionName, string id, intipomovimiento intipomovimiento)
+        [Authorize]
+        [HttpPut("{userConn}/{id}")]
+        public async Task<IActionResult> Putintipomovimiento(string userConn, string id, intipomovimiento intipomovimiento)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (id != intipomovimiento.id)
                 {
@@ -98,7 +107,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!intipomovimientoExists(id))
+                    if (!intipomovimientoExists(id, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -110,17 +119,23 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
 
         // POST: api/intipomovimiento
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<intipomovimiento>> Postintipomovimiento(string conexionName, intipomovimiento intipomovimiento)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<intipomovimiento>> Postintipomovimiento(string userConn, intipomovimiento intipomovimiento)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.intipomovimiento == null)
                 {
@@ -133,7 +148,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (intipomovimientoExists(intipomovimiento.id))
+                    if (intipomovimientoExists(intipomovimiento.id, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -146,16 +161,22 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/intipomovimiento/5
-        [HttpDelete("{conexionName}/{id}")]
-        public async Task<IActionResult> Deleteintipomovimiento(string conexionName, string id)
+        [Authorize]
+        [HttpDelete("{userConn}/{id}")]
+        public async Task<IActionResult> Deleteintipomovimiento(string userConn, string id)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.intipomovimiento == null)
                     {
@@ -172,7 +193,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -181,7 +202,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
         }
 
-        private bool intipomovimientoExists(string id)
+        private bool intipomovimientoExists(string id, DBContext _context)
         {
             return (_context.intipomovimiento?.Any(e => e.id == id)).GetValueOrDefault();
 

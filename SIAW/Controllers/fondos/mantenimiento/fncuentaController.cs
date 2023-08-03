@@ -7,30 +7,28 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.fondos.mantenimiento
 {
-    [Authorize]
     [Route("api/fondos/mant/[controller]")]
     [ApiController]
     public class fncuentaController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public fncuentaController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public fncuentaController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/fncuenta
-        [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<fncuenta>>> Getfncuenta(string conexionName)
+        [HttpGet("{userConn}")]
+        public async Task<ActionResult<IEnumerable<fncuenta>>> Getfncuenta(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.fncuenta == null)
                     {
@@ -39,7 +37,7 @@ namespace SIAW.Controllers.fondos.mantenimiento
                     var result = await _context.fncuenta.OrderByDescending(fechareg => fechareg.fechareg).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -50,12 +48,17 @@ namespace SIAW.Controllers.fondos.mantenimiento
         }
 
         // GET: api/fncuenta/5
-        [HttpGet("{conexionName}/{id}")]
-        public async Task<ActionResult<fncuenta>> Getfncuenta(string conexionName, string id)
+        [HttpGet("{userConn}/{id}")]
+        public async Task<ActionResult<fncuenta>> Getfncuenta(string userConn, string id)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.fncuenta == null)
                     {
@@ -70,7 +73,7 @@ namespace SIAW.Controllers.fondos.mantenimiento
 
                     return Ok(fncuenta);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -80,12 +83,17 @@ namespace SIAW.Controllers.fondos.mantenimiento
 
         // GET: api/catalogo
         [HttpGet]
-        [Route("catalogo/{conexionName}")]
-        public async Task<ActionResult<IEnumerable<fncuenta>>> Getfncuenta_catalogo(string conexionName)
+        [Route("catalogo/{userConn}")]
+        public async Task<ActionResult<IEnumerable<fncuenta>>> Getfncuenta_catalogo(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     var query = _context.fncuenta
                     .OrderBy(i => i.id)
@@ -103,7 +111,7 @@ namespace SIAW.Controllers.fondos.mantenimiento
                     }
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -114,10 +122,16 @@ namespace SIAW.Controllers.fondos.mantenimiento
 
         // PUT: api/fncuenta/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{id}")]
-        public async Task<IActionResult> Putfncuenta(string conexionName, string id, fncuenta fncuenta)
+        [Authorize]
+        [HttpPut("{userConn}/{id}")]
+        public async Task<IActionResult> Putfncuenta(string userConn, string id, fncuenta fncuenta)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (id != fncuenta.id)
                 {
@@ -132,7 +146,7 @@ namespace SIAW.Controllers.fondos.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!fncuentaExists(id))
+                    if (!fncuentaExists(id, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -144,17 +158,23 @@ namespace SIAW.Controllers.fondos.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
 
         // POST: api/fncuenta
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<fncuenta>> Postfncuenta(string conexionName, fncuenta fncuenta)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<fncuenta>> Postfncuenta(string userConn, fncuenta fncuenta)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.fncuenta == null)
                 {
@@ -167,7 +187,7 @@ namespace SIAW.Controllers.fondos.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (fncuentaExists(fncuenta.id))
+                    if (fncuentaExists(fncuenta.id, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -180,16 +200,22 @@ namespace SIAW.Controllers.fondos.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/fncuenta/5
-        [HttpDelete("{conexionName}/{id}")]
-        public async Task<IActionResult> Deletefncuenta(string conexionName, string id)
+        [Authorize]
+        [HttpDelete("{userConn}/{id}")]
+        public async Task<IActionResult> Deletefncuenta(string userConn, string id)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.fncuenta == null)
                     {
@@ -206,7 +232,7 @@ namespace SIAW.Controllers.fondos.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -215,7 +241,7 @@ namespace SIAW.Controllers.fondos.mantenimiento
             }
         }
 
-        private bool fncuentaExists(string id)
+        private bool fncuentaExists(string id, DBContext _context)
         {
             return (_context.fncuenta?.Any(e => e.id == id)).GetValueOrDefault();
 

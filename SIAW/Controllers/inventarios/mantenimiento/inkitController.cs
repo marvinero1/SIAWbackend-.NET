@@ -8,30 +8,28 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.inventarios.mantenimiento
 {
-    [Authorize]
     [Route("api/inventario/mant/[controller]")]
     [ApiController]
     public class inkitController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public inkitController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public inkitController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/inkit
-        [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<inkit>>> Getinkit(string conexionName)
+        [HttpGet("{userConn}")]
+        public async Task<ActionResult<IEnumerable<inkit>>> Getinkit(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.inkit == null)
                     {
@@ -40,7 +38,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     var result = await _context.inkit.OrderBy(codigo => codigo.codigo).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -51,12 +49,17 @@ namespace SIAW.Controllers.inventarios.mantenimiento
         }
 
         // GET: api/inkit/5
-        [HttpGet("{conexionName}/{codigo}")]
-        public async Task<ActionResult<inkit>> Getinkit(string conexionName, string codigo, string item)
+        [HttpGet("{userConn}/{codigo}")]
+        public async Task<ActionResult<inkit>> Getinkit(string userConn, string codigo, string item)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.inkit == null)
                     {
@@ -71,7 +74,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                     return Ok(inkit);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -82,17 +85,22 @@ namespace SIAW.Controllers.inventarios.mantenimiento
         /// <summary>
         /// Obtiene todos los registros de la tabla inkit (item) con initem, dependiendo del codigo de item
         /// </summary>
-        /// <param name="conexionName"></param>
+        /// <param name="userConn"></param>
         /// <param name="coditem"></param>
         /// <returns></returns>
         // GET: api/initem_inkit
         [HttpGet]
-        [Route("initem_inkit/{conexionName}/{coditem}")]
-        public async Task<ActionResult<IEnumerable<inkit>>> Getinitem_inkit(string conexionName, string coditem)
+        [Route("initem_inkit/{userConn}/{coditem}")]
+        public async Task<ActionResult<IEnumerable<inkit>>> Getinitem_inkit(string userConn, string coditem)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     var query = from k in _context.inkit
                                 join i in _context.initem on k.item equals i.codigo
@@ -116,7 +124,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     }
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -128,10 +136,16 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
         // PUT: api/inkit/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{codigo}/{item}")]
-        public async Task<IActionResult> Putinkit(string conexionName, string codigo, string item, inkit inkit)
+        [Authorize]
+        [HttpPut("{userConn}/{codigo}/{item}")]
+        public async Task<IActionResult> Putinkit(string userConn, string codigo, string item, inkit inkit)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 var kit = _context.inkit.FirstOrDefault(objeto => objeto.codigo == codigo && objeto.item == item);
                 if (kit == null)
@@ -147,7 +161,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!inkitExists(codigo, item))
+                    if (!inkitExists(codigo, item, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -159,17 +173,23 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
 
         // POST: api/inkit
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<inkit>> Postinkit(string conexionName, inkit inkit)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<inkit>> Postinkit(string userConn, inkit inkit)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.inkit == null)
                 {
@@ -182,7 +202,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (inkitExists(inkit.codigo, inkit.item))
+                    if (inkitExists(inkit.codigo, inkit.item, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -195,22 +215,28 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/inkit/5
-        [HttpDelete("{conexionName}/{codigo}/{item}")]
-        public async Task<IActionResult> Deleteinkit(string conexionName, string codigo, string item)
+        [Authorize]
+        [HttpDelete("{userConn}/{codigo}/{item}")]
+        public async Task<IActionResult> Deleteinkit(string userConn, string codigo, string item)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.inkit == null)
                     {
                         return Problem("Entidad inkit es null.");
                     }
-                    inkit inkit = _context.inkit.FirstOrDefault(objeto => objeto.codigo == codigo && objeto.item == item);
+                    var inkit = _context.inkit.FirstOrDefault(objeto => objeto.codigo == codigo && objeto.item == item);
                     if (inkit == null)
                     {
                         return NotFound("No existe un registro con ese código");
@@ -221,7 +247,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -230,7 +256,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
         }
 
-        private bool inkitExists(string codigo, string item)
+        private bool inkitExists(string codigo, string item, DBContext _context)
         {
             return (_context.inkit?.Any(e => e.codigo == codigo && e.item == item)).GetValueOrDefault();
 

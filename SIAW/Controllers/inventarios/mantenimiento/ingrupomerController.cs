@@ -7,30 +7,28 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.inventarios.mantenimiento
 {
-    [Authorize]
     [Route("api/inventario/mant/[controller]")]
     [ApiController]
     public class ingrupomerController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public ingrupomerController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public ingrupomerController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/ingrupomer
-        [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<ingrupomer>>> Getingrupomer(string conexionName)
+        [HttpGet("{userConn}")]
+        public async Task<ActionResult<IEnumerable<ingrupomer>>> Getingrupomer(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.ingrupomer == null)
                     {
@@ -39,7 +37,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     var result = await _context.ingrupomer.OrderBy(codigo => codigo.codigo).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -50,12 +48,17 @@ namespace SIAW.Controllers.inventarios.mantenimiento
         }
 
         // GET: api/ingrupomer/5
-        [HttpGet("{conexionName}/{codigo}")]
-        public async Task<ActionResult<ingrupomer>> Getingrupomer(string conexionName, int codigo)
+        [HttpGet("{userConn}/{codigo}")]
+        public async Task<ActionResult<ingrupomer>> Getingrupomer(string userConn, int codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.ingrupomer == null)
                     {
@@ -70,7 +73,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                     return Ok(ingrupomer);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -80,10 +83,16 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
         // PUT: api/ingrupomer/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Putingrupomer(string conexionName, int codigo, ingrupomer ingrupomer)
+        [Authorize]
+        [HttpPut("{userConn}/{codigo}")]
+        public async Task<IActionResult> Putingrupomer(string userConn, int codigo, ingrupomer ingrupomer)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (codigo != ingrupomer.codigo)
                 {
@@ -98,7 +107,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!ingrupomerExists(codigo))
+                    if (!ingrupomerExists(codigo, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -110,17 +119,23 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
 
         // POST: api/ingrupomer
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<ingrupomer>> Postingrupomer(string conexionName, ingrupomer ingrupomer)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<ingrupomer>> Postingrupomer(string userConn, ingrupomer ingrupomer)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.ingrupomer == null)
                 {
@@ -133,7 +148,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (ingrupomerExists(ingrupomer.codigo))
+                    if (ingrupomerExists(ingrupomer.codigo, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -146,16 +161,22 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/ingrupomer/5
-        [HttpDelete("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Deleteingrupomer(string conexionName, int codigo)
+        [Authorize]
+        [HttpDelete("{userConn}/{codigo}")]
+        public async Task<IActionResult> Deleteingrupomer(string userConn, int codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.ingrupomer == null)
                     {
@@ -172,7 +193,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -181,7 +202,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
         }
 
-        private bool ingrupomerExists(int codigo)
+        private bool ingrupomerExists(int codigo, DBContext _context)
         {
             return (_context.ingrupomer?.Any(e => e.codigo == codigo)).GetValueOrDefault();
 

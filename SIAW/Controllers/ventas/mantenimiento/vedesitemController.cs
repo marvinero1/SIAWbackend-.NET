@@ -8,35 +8,33 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.ventas.mantenimiento
 {
-    [Authorize]
     [Route("api/venta/mant/[controller]")]
     [ApiController]
     public class vedesitemController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public vedesitemController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public vedesitemController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         /// <summary>
         /// Obtiene todos los datos de la tabla vedesitem ordenado por codalmacen y coditem
         /// </summary>
-        /// <param name="conexionName"></param>
+        /// <param name="userConn"></param>
         /// <returns></returns>
         // GET: api/vedesitem
-        [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<vedesitem>>> Getvedesitem(string conexionName)
+        [HttpGet("{userConn}")]
+        public async Task<ActionResult<IEnumerable<vedesitem>>> Getvedesitem(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.vedesitem == null)
                     {
@@ -45,7 +43,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                     var result = await _context.vedesitem.OrderBy(codalmacen => codalmacen.codalmacen).ThenBy(coditem => coditem.coditem).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -59,18 +57,23 @@ namespace SIAW.Controllers.ventas.mantenimiento
         /// <summary>
         /// Obtiene todos los datos de un registro de la tabla vedesitem
         /// </summary>
-        /// <param name="conexionName"></param>
+        /// <param name="userConn"></param>
         /// <param name="codalmacen"></param>
         /// <param name="coditem"></param>
         /// <param name="nivel"></param>
         /// <returns></returns>
         // GET: api/vedesitem/5
-        [HttpGet("{conexionName}/{codalmacen}/{coditem}/{nivel}")]
-        public async Task<ActionResult<vedesitem>> Getvedesitem(string conexionName, int codalmacen, string coditem, string nivel)
+        [HttpGet("{userConn}/{codalmacen}/{coditem}/{nivel}")]
+        public async Task<ActionResult<vedesitem>> Getvedesitem(string userConn, int codalmacen, string coditem, string nivel)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.vedesitem == null)
                     {
@@ -85,7 +88,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
                     return Ok(vedesitem);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -97,10 +100,16 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
         // PUT: api/vedesitem/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{codalmacen}/{coditem}/{nivel}")]
-        public async Task<IActionResult> Putvedesitem(string conexionName, int codalmacen, string coditem, string nivel, vedesitem vedesitem)
+        [Authorize]
+        [HttpPut("{userConn}/{codalmacen}/{coditem}/{nivel}")]
+        public async Task<IActionResult> Putvedesitem(string userConn, int codalmacen, string coditem, string nivel, vedesitem vedesitem)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 var desitem = _context.vedesitem.FirstOrDefault(objeto => objeto.codalmacen == codalmacen && objeto.coditem == coditem && objeto.nivel == nivel);
                 if (desitem == null)
@@ -121,17 +130,23 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
 
         // POST: api/vedesitem
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<vedesitem>> Postvedesitem(string conexionName, vedesitem vedesitem)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<vedesitem>> Postvedesitem(string userConn, vedesitem vedesitem)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.vedesitem == null)
                 {
@@ -150,16 +165,22 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/vedesitem/5
-        [HttpDelete("{conexionName}/{codalmacen}/{coditem}/{nivel}")]
-        public async Task<IActionResult> Deletevedesitem(string conexionName, int codalmacen, string coditem, string nivel)
+        [Authorize]
+        [HttpDelete("{userConn}/{codalmacen}/{coditem}/{nivel}")]
+        public async Task<IActionResult> Deletevedesitem(string userConn, int codalmacen, string coditem, string nivel)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.vedesitem == null)
                     {
@@ -176,7 +197,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)

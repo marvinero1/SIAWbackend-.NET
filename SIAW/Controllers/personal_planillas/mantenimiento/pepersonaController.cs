@@ -7,30 +7,28 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.personal_planillas.mantenimiento
 {
-    [Authorize]
     [Route("api/pers_plan/mant/[controller]")]
     [ApiController]
     public class pepersonaController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public pepersonaController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public pepersonaController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/pepersona
-        [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<pepersona>>> Getpepersona(string conexionName)
+        [HttpGet("{userConn}")]
+        public async Task<ActionResult<IEnumerable<pepersona>>> Getpepersona(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.pepersona == null)
                     {
@@ -39,7 +37,7 @@ namespace SIAW.Controllers.personal_planillas.mantenimiento
                     var result = await _context.pepersona.OrderByDescending(fechareg => fechareg.fechareg).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -50,12 +48,17 @@ namespace SIAW.Controllers.personal_planillas.mantenimiento
         }
 
         // GET: api/pepersona/5
-        [HttpGet("{conexionName}/{codigo}")]
-        public async Task<ActionResult<pepersona>> Getpepersona(string conexionName, int codigo)
+        [HttpGet("{userConn}/{codigo}")]
+        public async Task<ActionResult<pepersona>> Getpepersona(string userConn, int codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.pepersona == null)
                     {
@@ -70,7 +73,7 @@ namespace SIAW.Controllers.personal_planillas.mantenimiento
 
                     return Ok(pepersona);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -80,10 +83,16 @@ namespace SIAW.Controllers.personal_planillas.mantenimiento
 
         // PUT: api/pepersona/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Putpepersona(string conexionName, int codigo, pepersona pepersona)
+        [Authorize]
+        [HttpPut("{userConn}/{codigo}")]
+        public async Task<IActionResult> Putpepersona(string userConn, int codigo, pepersona pepersona)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (codigo != pepersona.codigo)
                 {
@@ -98,7 +107,7 @@ namespace SIAW.Controllers.personal_planillas.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!pepersonaExists(codigo))
+                    if (!pepersonaExists(codigo, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -110,17 +119,23 @@ namespace SIAW.Controllers.personal_planillas.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
 
         // POST: api/pepersona
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<pepersona>> Postpepersona(string conexionName, pepersona pepersona)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<pepersona>> Postpepersona(string userConn, pepersona pepersona)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.pepersona == null)
                 {
@@ -133,7 +148,7 @@ namespace SIAW.Controllers.personal_planillas.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (pepersonaExists(pepersona.codigo))
+                    if (pepersonaExists(pepersona.codigo, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -146,16 +161,22 @@ namespace SIAW.Controllers.personal_planillas.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/pepersona/5
-        [HttpDelete("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Deletepepersona(string conexionName, int codigo)
+        [Authorize]
+        [HttpDelete("{userConn}/{codigo}")]
+        public async Task<IActionResult> Deletepepersona(string userConn, int codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.pepersona == null)
                     {
@@ -172,7 +193,7 @@ namespace SIAW.Controllers.personal_planillas.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -181,7 +202,7 @@ namespace SIAW.Controllers.personal_planillas.mantenimiento
             }
         }
 
-        private bool pepersonaExists(int codigo)
+        private bool pepersonaExists(int codigo, DBContext _context)
         {
             return (_context.pepersona?.Any(e => e.codigo == codigo)).GetValueOrDefault();
 

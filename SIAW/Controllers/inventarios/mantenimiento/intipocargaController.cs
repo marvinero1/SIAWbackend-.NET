@@ -7,30 +7,28 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.inventarios.mantenimiento
 {
-    [Authorize]
     [Route("api/inventario/mant/[controller]")]
     [ApiController]
     public class intipocargaController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public intipocargaController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public intipocargaController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/intipocarga
-        [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<intipocarga>>> Getintipocarga(string conexionName)
+        [HttpGet("{userConn}")]
+        public async Task<ActionResult<IEnumerable<intipocarga>>> Getintipocarga(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.intipocarga == null)
                     {
@@ -39,7 +37,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     var result = await _context.intipocarga.OrderBy(id => id.id).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -50,12 +48,17 @@ namespace SIAW.Controllers.inventarios.mantenimiento
         }
 
         // GET: api/intipocarga/5
-        [HttpGet("{conexionName}/{id}")]
-        public async Task<ActionResult<intipocarga>> Getintipocarga(string conexionName, string id)
+        [HttpGet("{userConn}/{id}")]
+        public async Task<ActionResult<intipocarga>> Getintipocarga(string userConn, string id)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.intipocarga == null)
                     {
@@ -70,7 +73,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                     return Ok(intipocarga);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -80,10 +83,16 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
         // PUT: api/intipocarga/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{id}")]
-        public async Task<IActionResult> Putintipocarga(string conexionName, string id, intipocarga intipocarga)
+        [Authorize]
+        [HttpPut("{userConn}/{id}")]
+        public async Task<IActionResult> Putintipocarga(string userConn, string id, intipocarga intipocarga)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (id != intipocarga.id)
                 {
@@ -98,7 +107,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!intipocargaExists(id))
+                    if (!intipocargaExists(id, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -110,17 +119,23 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
 
         // POST: api/intipocarga
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<intipocarga>> Postintipocarga(string conexionName, intipocarga intipocarga)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<intipocarga>> Postintipocarga(string userConn, intipocarga intipocarga)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.intipocarga == null)
                 {
@@ -133,7 +148,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (intipocargaExists(intipocarga.id))
+                    if (intipocargaExists(intipocarga.id, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -146,16 +161,22 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/intipocarga/5
-        [HttpDelete("{conexionName}/{id}")]
-        public async Task<IActionResult> Deleteintipocarga(string conexionName, string id)
+        [Authorize]
+        [HttpDelete("{userConn}/{id}")]
+        public async Task<IActionResult> Deleteintipocarga(string userConn, string id)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.intipocarga == null)
                     {
@@ -172,7 +193,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -181,7 +202,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
         }
 
-        private bool intipocargaExists(string id)
+        private bool intipocargaExists(string id, DBContext _context)
         {
             return (_context.intipocarga?.Any(e => e.id == id)).GetValueOrDefault();
 

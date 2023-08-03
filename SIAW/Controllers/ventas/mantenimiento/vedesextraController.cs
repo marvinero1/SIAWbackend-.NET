@@ -7,30 +7,28 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.ventas.mantenimiento
 {
-    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class vedesextraController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public vedesextraController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public vedesextraController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/vedesextra
-        [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<vedesextra>>> Getvedesextra(string conexionName)
+        [HttpGet("{userConn}")]
+        public async Task<ActionResult<IEnumerable<vedesextra>>> Getvedesextra(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.vedesextra == null)
                     {
@@ -39,7 +37,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                     var result = await _context.vedesextra.OrderByDescending(fechareg => fechareg.fechareg).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -50,12 +48,17 @@ namespace SIAW.Controllers.ventas.mantenimiento
         }
 
         // GET: api/vedesextra/5
-        [HttpGet("{conexionName}/{codigo}")]
-        public async Task<ActionResult<vedesextra>> Getvedesextra(string conexionName, int codigo)
+        [HttpGet("{userConn}/{codigo}")]
+        public async Task<ActionResult<vedesextra>> Getvedesextra(string userConn, int codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.vedesextra == null)
                     {
@@ -70,7 +73,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
                     return Ok(vedesextra);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -80,10 +83,16 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
         // PUT: api/vedesextra/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Putvedesextra(string conexionName, int codigo, vedesextra vedesextra)
+        [Authorize]
+        [HttpPut("{userConn}/{codigo}")]
+        public async Task<IActionResult> Putvedesextra(string userConn, int codigo, vedesextra vedesextra)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (codigo != vedesextra.codigo)
                 {
@@ -98,7 +107,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!vedesextraExists(codigo))
+                    if (!vedesextraExists(codigo, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -110,17 +119,23 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
 
         // POST: api/vedesextra
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<vedesextra>> Postvedesextra(string conexionName, vedesextra vedesextra)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<vedesextra>> Postvedesextra(string userConn, vedesextra vedesextra)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.vedesextra == null)
                 {
@@ -133,7 +148,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (vedesextraExists(vedesextra.codigo))
+                    if (vedesextraExists(vedesextra.codigo, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -146,16 +161,22 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/vedesextra/5
-        [HttpDelete("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Deletevedesextra(string conexionName, int codigo)
+        [Authorize]
+        [HttpDelete("{userConn}/{codigo}")]
+        public async Task<IActionResult> Deletevedesextra(string userConn, int codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.vedesextra == null)
                     {
@@ -172,7 +193,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -181,7 +202,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
             }
         }
 
-        private bool vedesextraExists(int codigo)
+        private bool vedesextraExists(int codigo, DBContext _context)
         {
             return (_context.vedesextra?.Any(e => e.codigo == codigo)).GetValueOrDefault();
 

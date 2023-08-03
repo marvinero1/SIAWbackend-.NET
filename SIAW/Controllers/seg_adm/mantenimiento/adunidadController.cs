@@ -7,30 +7,28 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.seg_adm.mantenimiento
 {
-    [Authorize]
     [Route("api/seg_adm/mant/[controller]")]
     [ApiController]
     public class adunidadController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public adunidadController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public adunidadController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/adunidad
-        [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<adunidad>>> Getadunidad(string conexionName)
+        [HttpGet("{userConn}")]
+        public async Task<ActionResult<IEnumerable<adunidad>>> Getadunidad(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adunidad == null)
                     {
@@ -39,7 +37,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     var result = await _context.adunidad.OrderByDescending(fechareg => fechareg.fechareg).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -50,12 +48,17 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
         }
 
         // GET: api/adunidad/5
-        [HttpGet("{conexionName}/{codigo}")]
-        public async Task<ActionResult<adunidad>> Getadunidad(string conexionName, string codigo)
+        [HttpGet("{userConn}/{codigo}")]
+        public async Task<ActionResult<adunidad>> Getadunidad(string userConn, string codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adunidad == null)
                     {
@@ -70,7 +73,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                     return Ok(adunidad);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -80,10 +83,16 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
         // PUT: api/adunidad/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Putadunidad(string conexionName, string codigo, adunidad adunidad)
+        [Authorize]
+        [HttpPut("{userConn}/{codigo}")]
+        public async Task<IActionResult> Putadunidad(string userConn, string codigo, adunidad adunidad)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (codigo != adunidad.codigo)
                 {
@@ -98,7 +107,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!adunidadExists(codigo))
+                    if (!adunidadExists(codigo, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -110,17 +119,23 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
 
         // POST: api/adunidad
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<adunidad>> Postadunidad(string conexionName, adunidad adunidad)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<adunidad>> Postadunidad(string userConn, adunidad adunidad)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.adunidad == null)
                 {
@@ -133,7 +148,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (adunidadExists(adunidad.codigo))
+                    if (adunidadExists(adunidad.codigo, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -146,16 +161,22 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/adunidad/5
-        [HttpDelete("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Deleteadunidad(string conexionName, string codigo)
+        [Authorize]
+        [HttpDelete("{userConn}/{codigo}")]
+        public async Task<IActionResult> Deleteadunidad(string userConn, string codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adunidad == null)
                     {
@@ -172,7 +193,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -181,7 +202,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
         }
 
-        private bool adunidadExists(string codigo)
+        private bool adunidadExists(string codigo, DBContext _context)
         {
             return (_context.adunidad?.Any(e => e.codigo == codigo)).GetValueOrDefault();
 

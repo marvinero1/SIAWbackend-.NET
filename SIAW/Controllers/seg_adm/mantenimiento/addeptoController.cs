@@ -7,30 +7,28 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.seg_adm.mantenimiento
 {
-    [Authorize]
     [Route("api/seg_adm/mant/[controller]")]
     [ApiController]
     public class addeptoController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public addeptoController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public addeptoController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/addepto
-        [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<addepto>>> Getaddepto(string conexionName)
+        [HttpGet("{userConn}")]
+        public async Task<ActionResult<IEnumerable<addepto>>> Getaddepto(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.addepto == null)
                     {
@@ -39,7 +37,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     var result = await _context.addepto.OrderByDescending(fechareg => fechareg.fechareg).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -50,12 +48,17 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
         }
 
         // GET: api/addepto/5
-        [HttpGet("{conexionName}/{codigo}")]
-        public async Task<ActionResult<addepto>> Getaddepto(string conexionName, string codigo)
+        [HttpGet("{userConn}/{codigo}")]
+        public async Task<ActionResult<addepto>> Getaddepto(string userConn, string codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.addepto == null)
                     {
@@ -70,7 +73,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                     return Ok(addepto);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -80,10 +83,16 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
         // PUT: api/addepto/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Putaddepto(string conexionName, string codigo, addepto addepto)
+        [Authorize]
+        [HttpPut("{userConn}/{codigo}")]
+        public async Task<IActionResult> Putaddepto(string userConn, string codigo, addepto addepto)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (codigo != addepto.codigo)
                 {
@@ -98,7 +107,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!addeptoExists(codigo))
+                    if (!addeptoExists(codigo, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -110,17 +119,23 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
 
         // POST: api/addepto
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<addepto>> Postaddepto(string conexionName, addepto addepto)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<addepto>> Postaddepto(string userConn, addepto addepto)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.addepto == null)
                 {
@@ -133,7 +148,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (addeptoExists(addepto.codigo))
+                    if (addeptoExists(addepto.codigo, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -146,16 +161,22 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/addepto/5
-        [HttpDelete("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Deleteaddepto(string conexionName, string codigo)
+        [Authorize]
+        [HttpDelete("{userConn}/{codigo}")]
+        public async Task<IActionResult> Deleteaddepto(string userConn, string codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.addepto == null)
                     {
@@ -172,7 +193,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -181,7 +202,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
         }
 
-        private bool addeptoExists(string codigo)
+        private bool addeptoExists(string codigo, DBContext _context)
         {
             return (_context.addepto?.Any(e => e.codigo == codigo)).GetValueOrDefault();
 

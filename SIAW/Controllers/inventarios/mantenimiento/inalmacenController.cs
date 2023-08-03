@@ -8,30 +8,28 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.inventarios.mantenimiento
 {
-    [Authorize]
     [Route("api/inventario/mant/[controller]")]
     [ApiController]
     public class inalmacenController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public inalmacenController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public inalmacenController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/inalmacen
-        [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<inalmacen>>> Getinalmacen(string conexionName)
+        [HttpGet("{userConn}")]
+        public async Task<ActionResult<IEnumerable<inalmacen>>> Getinalmacen(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.inalmacen == null)
                     {
@@ -93,7 +91,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     return Ok(query);
 
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -105,12 +103,17 @@ namespace SIAW.Controllers.inventarios.mantenimiento
         }
 
         // GET: api/inalmacen/5
-        [HttpGet("{conexionName}/{codigo}")]
-        public async Task<ActionResult<inalmacen>> Getinalmacen(string conexionName, int codigo)
+        [HttpGet("{userConn}/{codigo}")]
+        public async Task<ActionResult<inalmacen>> Getinalmacen(string userConn, int codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.inalmacen == null)
                     {
@@ -179,7 +182,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                     return Ok(query);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -189,10 +192,16 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
         // PUT: api/inalmacen/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Putinalmacen(string conexionName, int codigo, inalmacen inalmacen)
+        [Authorize]
+        [HttpPut("{userConn}/{codigo}")]
+        public async Task<IActionResult> Putinalmacen(string userConn, int codigo, inalmacen inalmacen)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (codigo != inalmacen.codigo)
                 {
@@ -207,7 +216,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!inalmacenExists(codigo))
+                    if (!inalmacenExists(codigo, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -219,17 +228,23 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
 
         // POST: api/inalmacen
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<inalmacen>> Postinalmacen(string conexionName, inalmacen inalmacen)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<inalmacen>> Postinalmacen(string userConn, inalmacen inalmacen)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.inalmacen == null)
                 {
@@ -242,7 +257,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (inalmacenExists(inalmacen.codigo))
+                    if (inalmacenExists(inalmacen.codigo, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -255,16 +270,22 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/inalmacen/5
-        [HttpDelete("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Deleteinalmacen(string conexionName, int codigo)
+        [Authorize]
+        [HttpDelete("{userConn}/{codigo}")]
+        public async Task<IActionResult> Deleteinalmacen(string userConn, int codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.inalmacen == null)
                     {
@@ -281,7 +302,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -290,7 +311,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
         }
 
-        private bool inalmacenExists(int codigo)
+        private bool inalmacenExists(int codigo, DBContext _context)
         {
             return (_context.inalmacen?.Any(e => e.codigo == codigo)).GetValueOrDefault();
 

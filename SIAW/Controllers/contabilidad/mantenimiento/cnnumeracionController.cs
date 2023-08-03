@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.contabilidad.mantenimiento
 {
-    [Authorize]
     [Route("api/contab/mant/[controller]")]
     [ApiController]
     public class cnnumeracionController : ControllerBase
@@ -80,6 +79,7 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
 
         // PUT: api/cnnumeracion/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [Authorize]
         [HttpPut("{conexionName}/{id}")]
         public async Task<IActionResult> Putcnnumeracion(string conexionName, string id, cnnumeracion cnnumeracion)
         {
@@ -117,6 +117,7 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
 
         // POST: api/cnnumeracion
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [Authorize]
         [HttpPost("{conexionName}")]
         public async Task<ActionResult<cnnumeracion>> Postcnnumeracion(string conexionName, cnnumeracion cnnumeracion)
         {
@@ -150,6 +151,7 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
         }
 
         // DELETE: api/cnnumeracion/5
+        [Authorize]
         [HttpDelete("{conexionName}/{id}")]
         public async Task<IActionResult> Deletecnnumeracion(string conexionName, string id)
         {

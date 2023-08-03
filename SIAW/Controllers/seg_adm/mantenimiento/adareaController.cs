@@ -7,30 +7,28 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.seg_adm.mantenimiento
 {
-    [Authorize]
     [Route("api/seg_adm/mant/[controller]")]
     [ApiController]
     public class adareaController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public adareaController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public adareaController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/adarea
-        [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<adarea>>> Getadarea(string conexionName)
+        [HttpGet("{userConn}")]
+        public async Task<ActionResult<IEnumerable<adarea>>> Getadarea(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adarea == null)
                     {
@@ -39,7 +37,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     var result = await _context.adarea.OrderByDescending(fechareg => fechareg.fechareg).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -50,12 +48,17 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
         }
 
         // GET: api/adarea/5
-        [HttpGet("{conexionName}/{codigo}")]
-        public async Task<ActionResult<adarea>> Getadarea(string conexionName, int codigo)
+        [HttpGet("{userConn}/{codigo}")]
+        public async Task<ActionResult<adarea>> Getadarea(string userConn, int codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adarea == null)
                     {
@@ -70,7 +73,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                     return Ok(adarea);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -80,10 +83,16 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
         // PUT: api/adarea/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Putadarea(string conexionName, int codigo, adarea adarea)
+        [Authorize]
+        [HttpPut("{userConn}/{codigo}")]
+        public async Task<IActionResult> Putadarea(string userConn, int codigo, adarea adarea)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (codigo != adarea.codigo)
                 {
@@ -98,7 +107,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!adareaExists(codigo))
+                    if (!adareaExists(codigo, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -110,17 +119,23 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
 
         // POST: api/adarea
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<adarea>> Postadarea(string conexionName, adarea adarea)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<adarea>> Postadarea(string userConn, adarea adarea)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.adarea == null)
                 {
@@ -133,7 +148,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (adareaExists(adarea.codigo))
+                    if (adareaExists(adarea.codigo, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -146,16 +161,22 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/adarea/5
-        [HttpDelete("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Deleteadarea(string conexionName, int codigo)
+        [Authorize]
+        [HttpDelete("{userConn}/{codigo}")]
+        public async Task<IActionResult> Deleteadarea(string userConn, int codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adarea == null)
                     {
@@ -172,7 +193,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -181,7 +202,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
         }
 
-        private bool adareaExists(int codigo)
+        private bool adareaExists(int codigo, DBContext _context)
         {
             return (_context.adarea?.Any(e => e.codigo == codigo)).GetValueOrDefault();
 

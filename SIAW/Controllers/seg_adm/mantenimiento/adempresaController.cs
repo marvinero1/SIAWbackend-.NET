@@ -7,30 +7,28 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.seg_adm.mantenimiento
 {
-    [Authorize]
     [Route("api/seg_adm/mant/[controller]")]
     [ApiController]
     public class adempresaController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public adempresaController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public adempresaController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/adempresa
-        [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<adempresa>>> Getadempresa(string conexionName)
+        [HttpGet("{userConn}")]
+        public async Task<ActionResult<IEnumerable<adempresa>>> Getadempresa(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adempresa == null)
                     {
@@ -39,7 +37,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     var result = await _context.adempresa.OrderByDescending(fechareg => fechareg.Fechareg).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -50,12 +48,17 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
         }
 
         // GET: api/adempresa/5
-        [HttpGet("{conexionName}/{codigo}")]
-        public async Task<ActionResult<adempresa>> Getadempresa(string conexionName, string codigo)
+        [HttpGet("{userConn}/{codigo}")]
+        public async Task<ActionResult<adempresa>> Getadempresa(string userConn, string codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adempresa == null)
                     {
@@ -70,7 +73,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                     return Ok(adempresa);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -80,10 +83,16 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
         // PUT: api/adempresa/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Putadempresa(string conexionName, string codigo, adempresa adempresa)
+        [Authorize]
+        [HttpPut("{userConn}/{codigo}")]
+        public async Task<IActionResult> Putadempresa(string userConn, string codigo, adempresa adempresa)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (codigo != adempresa.codigo)
                 {
@@ -98,7 +107,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!adempresaExists(codigo))
+                    if (!adempresaExists(codigo, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -110,17 +119,23 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
 
         // POST: api/adempresa
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<adempresa>> Postadempresa(string conexionName, adempresa adempresa)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<adempresa>> Postadempresa(string userConn, adempresa adempresa)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.adempresa == null)
                 {
@@ -133,7 +148,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (adempresaExists(adempresa.codigo))
+                    if (adempresaExists(adempresa.codigo, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -146,16 +161,22 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/adempresa/5
-        [HttpDelete("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Deleteadempresa(string conexionName, string codigo)
+        [Authorize]
+        [HttpDelete("{userConn}/{codigo}")]
+        public async Task<IActionResult> Deleteadempresa(string userConn, string codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adempresa == null)
                     {
@@ -172,7 +193,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -181,7 +202,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
         }
 
-        private bool adempresaExists(string codigo)
+        private bool adempresaExists(string codigo, DBContext _context)
         {
             return (_context.adempresa?.Any(e => e.codigo == codigo)).GetValueOrDefault();
 
@@ -190,12 +211,17 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
         // GET: api/adempresaGetDetalle
         [HttpGet]
-        [Route("adempresaGetDetalle/{conexionName}")]
-        public async Task<ActionResult<IEnumerable<adempresa>>> Getadempresa_ListDetalle(string conexionName)
+        [Route("adempresaGetDetalle/{userConn}")]
+        public async Task<ActionResult<IEnumerable<adempresa>>> Getadempresa_ListDetalle(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     List<adempresa> ladempresa = _context.adempresa.ToList();
                     List<admoneda> ladmonena = _context.admoneda.ToList();
@@ -235,7 +261,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     }
                     return Ok(query);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -247,12 +273,17 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
         // GET: api/adempresaGetDetalle/1
         [HttpGet]
-        [Route("adempresaGetDetalle/{conexionName}/{codigo}")]
-        public async Task<ActionResult<IEnumerable<adempresa>>> Getadempresa_Detalle(string conexionName, string codigo)
+        [Route("adempresaGetDetalle/{userConn}/{codigo}")]
+        public async Task<ActionResult<IEnumerable<adempresa>>> Getadempresa_Detalle(string userConn, string codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     List<adempresa> ladempresa = _context.adempresa.ToList();
                     List<admoneda> ladmonena = _context.admoneda.ToList();
@@ -293,7 +324,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     }
                     return Ok(query);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {

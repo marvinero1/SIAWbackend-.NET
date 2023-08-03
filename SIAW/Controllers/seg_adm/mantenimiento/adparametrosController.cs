@@ -8,30 +8,28 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.seg_adm.mantenimiento
 {
-    [Authorize]
     [Route("api/seg_adm/mant/[controller]")]
     [ApiController]
     public class adparametrosController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public adparametrosController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public adparametrosController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/adparametros
-        [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<adparametros>>> Getadparametros(string conexionName)
+        [HttpGet("{userConn}")]
+        public async Task<ActionResult<IEnumerable<adparametros>>> Getadparametros(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adparametros == null)
                     {
@@ -40,7 +38,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     var result = await _context.adparametros.ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -51,12 +49,17 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
         }
 
         // GET: api/adparametros/5
-        [HttpGet("{conexionName}/{codempresa}")]
-        public async Task<ActionResult<adparametros>> Getadparametros(string conexionName, string codempresa)
+        [HttpGet("{userConn}/{codempresa}")]
+        public async Task<ActionResult<adparametros>> Getadparametros(string userConn, string codempresa)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adparametros == null)
                     {
@@ -71,7 +74,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                     return Ok(adparametros);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -81,10 +84,16 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
         // PUT: api/adparametros/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{codempresa}")]
-        public async Task<IActionResult> Putadparametros(string conexionName, string codempresa, adparametros adparametros)
+        [Authorize]
+        [HttpPut("{userConn}/{codempresa}")]
+        public async Task<IActionResult> Putadparametros(string userConn, string codempresa, adparametros adparametros)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (codempresa != adparametros.codempresa)
                 {
@@ -99,7 +108,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!adparametrosExists(codempresa))
+                    if (!adparametrosExists(codempresa, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -111,17 +120,23 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
 
         // POST: api/adparametros
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<adparametros>> Postadparametros(string conexionName, adparametros adparametros)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<adparametros>> Postadparametros(string userConn, adparametros adparametros)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.adparametros == null)
                 {
@@ -134,7 +149,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (adparametrosExists(adparametros.codempresa))
+                    if (adparametrosExists(adparametros.codempresa, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -147,16 +162,22 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/adparametros/5
-        [HttpDelete("{conexionName}/{codempresa}")]
-        public async Task<IActionResult> Deleteadparametros(string conexionName, string codempresa)
+        [Authorize]
+        [HttpDelete("{userConn}/{codempresa}")]
+        public async Task<IActionResult> Deleteadparametros(string userConn, string codempresa)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adparametros == null)
                     {
@@ -173,7 +194,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -182,7 +203,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
         }
 
-        private bool adparametrosExists(string codempresa)
+        private bool adparametrosExists(string codempresa, DBContext _context)
         {
             return (_context.adparametros?.Any(e => e.codempresa == codempresa)).GetValueOrDefault();
 
@@ -196,29 +217,28 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
 
 
-    [Route("api/seg_adm/mant/adparametrosComplementarias/[controller]")]
+    [Route("api/seg_adm/mant/[controller]")]
     [ApiController]
     public class adparametros_complementariasController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public adparametros_complementariasController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public adparametros_complementariasController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/adparametros_complementarias
-        [HttpGet("{conexionName}/{codempresa}")]
-        public async Task<ActionResult<IEnumerable<adparametros_complementarias>>> Getadparametros_complementarias(string conexionName, string codempresa)
+        [HttpGet("{userConn}/{codempresa}")]
+        public async Task<ActionResult<IEnumerable<adparametros_complementarias>>> Getadparametros_complementarias(string userConn, string codempresa)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adparametros_complementarias == null)
                     {
@@ -235,7 +255,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     }
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -249,10 +269,16 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
         // POST: api/adparametros_complementarias
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<adparametros_complementarias>> Postadparametros_complementarias(string conexionName, adparametros_complementarias adparametros_complementarias)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<adparametros_complementarias>> Postadparametros_complementarias(string userConn, adparametros_complementarias adparametros_complementarias)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.adparametros_complementarias == null)
                 {
@@ -265,7 +291,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (adparametros_complementariasExists(adparametros_complementarias.codigo))
+                    if (adparametros_complementariasExists(adparametros_complementarias.codigo, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -278,16 +304,22 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/adparametros_complementarias/5
-        [HttpDelete("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Deleteadparametros_complementarias(string conexionName, int codigo)
+        [Authorize]
+        [HttpDelete("{userConn}/{codigo}")]
+        public async Task<IActionResult> Deleteadparametros_complementarias(string userConn, int codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adparametros_complementarias == null)
                     {
@@ -304,7 +336,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -313,7 +345,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
         }
 
-        private bool adparametros_complementariasExists(int codigo)
+        private bool adparametros_complementariasExists(int codigo, DBContext _context)
         {
             return (_context.adparametros_complementarias?.Any(e => e.codigo == codigo)).GetValueOrDefault();
 
@@ -328,29 +360,28 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
 
 
-    [Route("api/seg_adm/mant/adparametrosDiasextranc/[controller]")]
+    [Route("api/seg_adm/mant/[controller]")]
     [ApiController]
     public class adparametros_diasextrancController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public adparametros_diasextrancController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public adparametros_diasextrancController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/adparametros_diasextranc
-        [HttpGet("{conexionName}/{codempresa}")]
-        public async Task<ActionResult<IEnumerable<adparametros_diasextranc>>> Getadparametros_diasextranc(string conexionName, string codempresa)
+        [HttpGet("{userConn}/{codempresa}")]
+        public async Task<ActionResult<IEnumerable<adparametros_diasextranc>>> Getadparametros_diasextranc(string userConn, string codempresa)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adparametros_diasextranc == null)
                     {
@@ -368,7 +399,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     }
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -378,14 +409,20 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
         }
 
-        
+
 
         // POST: api/adparametros_diasextranc
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<adparametros_diasextranc>> Postadparametros_diasextranc(string conexionName, adparametros_diasextranc adparametros_diasextranc)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<adparametros_diasextranc>> Postadparametros_diasextranc(string userConn, adparametros_diasextranc adparametros_diasextranc)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.adparametros_diasextranc == null)
                 {
@@ -398,7 +435,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (adparametros_diasextrancExists(adparametros_diasextranc.codigo))
+                    if (adparametros_diasextrancExists(adparametros_diasextranc.codigo, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -411,16 +448,22 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/adparametros_diasextranc/5
-        [HttpDelete("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Deleteadparametros_diasextranc(string conexionName, int codigo)
+        [Authorize]
+        [HttpDelete("{userConn}/{codigo}")]
+        public async Task<IActionResult> Deleteadparametros_diasextranc(string userConn, int codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adparametros_diasextranc == null)
                     {
@@ -437,7 +480,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -446,7 +489,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
         }
 
-        private bool adparametros_diasextrancExists(int codigo)
+        private bool adparametros_diasextrancExists(int codigo, DBContext _context)
         {
             return (_context.adparametros_diasextranc?.Any(e => e.codigo == codigo)).GetValueOrDefault();
 
@@ -457,29 +500,28 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
 
 
-    [Route("api/seg_adm/mant/adparametrosTarifasfact/[controller]")]
+    [Route("api/seg_adm/mant/[controller]")]
     [ApiController]
     public class adparametros_tarifasfactController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public adparametros_tarifasfactController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public adparametros_tarifasfactController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/adparametros_tarifasfact
-        [HttpGet("{conexionName}/{codempresa}")]
-        public async Task<ActionResult<IEnumerable<adparametros_tarifasfact>>> Getadparametros_tarifasfact(string conexionName, string codempresa)
+        [HttpGet("{userConn}/{codempresa}")]
+        public async Task<ActionResult<IEnumerable<adparametros_tarifasfact>>> Getadparametros_tarifasfact(string userConn, string codempresa)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adparametros_tarifasfact == null)
                     {
@@ -504,7 +546,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -514,14 +556,20 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
         }
 
-        
-       
+
+
         // POST: api/adparametros_tarifasfact
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<adparametros_tarifasfact>> Postadparametros_tarifasfact(string conexionName, adparametros_tarifasfact adparametros_tarifasfact)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<adparametros_tarifasfact>> Postadparametros_tarifasfact(string userConn, adparametros_tarifasfact adparametros_tarifasfact)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.adparametros_tarifasfact == null)
                 {
@@ -534,7 +582,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (adparametros_tarifasfactExists(adparametros_tarifasfact.codtarifa))
+                    if (adparametros_tarifasfactExists(adparametros_tarifasfact.codtarifa, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -547,16 +595,22 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/adparametros_tarifasfact/5
-        [HttpDelete("{conexionName}/{codigo}/{codempresa}")]
-        public async Task<IActionResult> Deleteadparametros_tarifasfact(string conexionName, int codtarifa, string codempresa)
+        [Authorize]
+        [HttpDelete("{userConn}/{codigo}/{codempresa}")]
+        public async Task<IActionResult> Deleteadparametros_tarifasfact(string userConn, int codtarifa, string codempresa)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adparametros_tarifasfact == null)
                     {
@@ -573,7 +627,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -582,7 +636,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
         }
 
-        private bool adparametros_tarifasfactExists(int codtarifa)
+        private bool adparametros_tarifasfactExists(int codtarifa, DBContext _context)
         {
             return (_context.adparametros_tarifasfact?.Any(e => e.codtarifa == codtarifa)).GetValueOrDefault();
 

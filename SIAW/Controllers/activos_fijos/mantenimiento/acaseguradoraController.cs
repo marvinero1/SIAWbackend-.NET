@@ -7,55 +7,57 @@ using SIAW.Models;
 
 namespace SIAW.Controllers.activos_fijos.mantenimiento
 {
-    [Authorize]
     [Route("api/act_fij/mant/[controller]")]
     [ApiController]
     public class acaseguradoraController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public acaseguradoraController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+
+        public acaseguradoraController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/acaseguradora
-        [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<acaseguradora>>> Getacaseguradora(string conexionName)
+        [HttpGet("{userConn}")]
+        public async Task<ActionResult<IEnumerable<acaseguradora>>> Getacaseguradora(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.acaseguradora == null)
                     {
                         return Problem("Entidad acaseguradora es null.");
                     }
+
                     var result = await _context.acaseguradora.OrderByDescending(fechareg => fechareg.fechareg).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
             }
             catch (Exception)
             {
                 return BadRequest("Error en el servidor");
             }
-
-
         }
 
         // GET: api/acaseguradora/5
-        [HttpGet("{conexionName}/{codigo}")]
-        public async Task<ActionResult<acaseguradora>> Getacaseguradora(string conexionName, int codigo)
+        [HttpGet("{userConn}/{codigo}")]
+        public async Task<ActionResult<acaseguradora>> Getacaseguradora(string userConn, int codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.acaseguradora == null)
                     {
@@ -70,7 +72,6 @@ namespace SIAW.Controllers.activos_fijos.mantenimiento
 
                     return Ok(acaseguradora);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
             }
             catch (Exception)
             {
@@ -80,10 +81,16 @@ namespace SIAW.Controllers.activos_fijos.mantenimiento
 
         // PUT: api/acaseguradora/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Putacaseguradora(string conexionName, int codigo, acaseguradora acaseguradora)
+        [Authorize]
+        [HttpPut("{userConn}/{codigo}")]
+        public async Task<IActionResult> Putacaseguradora(string userConn, int codigo, acaseguradora acaseguradora)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (codigo != acaseguradora.codigo)
                 {
@@ -98,7 +105,7 @@ namespace SIAW.Controllers.activos_fijos.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!acaseguradoraExists(codigo))
+                    if (!acaseguradoraExists(codigo, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -110,17 +117,21 @@ namespace SIAW.Controllers.activos_fijos.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
-            
 
         }
 
         // POST: api/acaseguradora
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<acaseguradora>> Postacaseguradora(string conexionName, acaseguradora acaseguradora)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<acaseguradora>> Postacaseguradora(string userConn, acaseguradora acaseguradora)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.acaseguradora == null)
                 {
@@ -133,7 +144,7 @@ namespace SIAW.Controllers.activos_fijos.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (acaseguradoraExists(acaseguradora.codigo))
+                    if (acaseguradoraExists(acaseguradora.codigo, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -146,16 +157,22 @@ namespace SIAW.Controllers.activos_fijos.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/acaseguradora/5
-        [HttpDelete("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Deleteacaseguradora(string conexionName, int codigo)
+        [Authorize]
+        [HttpDelete("{userConn}/{codigo}")]
+        public async Task<IActionResult> Deleteacaseguradora(string userConn, int codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.acaseguradora == null)
                     {
@@ -172,7 +189,7 @@ namespace SIAW.Controllers.activos_fijos.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
                 
             }
             catch (Exception)
@@ -181,7 +198,7 @@ namespace SIAW.Controllers.activos_fijos.mantenimiento
             }
         }
 
-        private bool acaseguradoraExists(int codigo)
+        private bool acaseguradoraExists(int codigo, DBContext _context)
         {
             return (_context.acaseguradora?.Any(e => e.codigo == codigo)).GetValueOrDefault();
 

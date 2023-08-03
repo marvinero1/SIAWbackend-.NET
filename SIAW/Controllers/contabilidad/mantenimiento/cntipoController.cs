@@ -7,30 +7,28 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.contabilidad.mantenimiento
 {
-    [Authorize]
     [Route("api/contab/mant/[controller]")]
     [ApiController]
     public class cntipoController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public cntipoController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public cntipoController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/cntipo
-        [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<cntipo>>> Getcntipo(string conexionName)
+        [HttpGet("{userConn}")]
+        public async Task<ActionResult<IEnumerable<cntipo>>> Getcntipo(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.cntipo == null)
                     {
@@ -39,7 +37,7 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
                     var result = await _context.cntipo.OrderByDescending(fechareg => fechareg.fechareg).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -50,12 +48,17 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
         }
 
         // GET: api/cntipo/5
-        [HttpGet("{conexionName}/{codigo}")]
-        public async Task<ActionResult<cntipo>> Getcntipo(string conexionName, string codigo)
+        [HttpGet("{userConn}/{codigo}")]
+        public async Task<ActionResult<cntipo>> Getcntipo(string userConn, string codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.cntipo == null)
                     {
@@ -70,7 +73,7 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
 
                     return Ok(cntipo);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -80,10 +83,16 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
 
         // PUT: api/cntipo/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Putcntipo(string conexionName, string codigo, cntipo cntipo)
+        [Authorize]
+        [HttpPut("{userConn}/{codigo}")]
+        public async Task<IActionResult> Putcntipo(string userConn, string codigo, cntipo cntipo)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (codigo != cntipo.codigo)
                 {
@@ -98,7 +107,7 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!cntipoExists(codigo))
+                    if (!cntipoExists(codigo, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -110,17 +119,23 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
 
         // POST: api/cntipo
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<cntipo>> Postcntipo(string conexionName, cntipo cntipo)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<cntipo>> Postcntipo(string userConn, cntipo cntipo)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.cntipo == null)
                 {
@@ -133,7 +148,7 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (cntipoExists(cntipo.codigo))
+                    if (cntipoExists(cntipo.codigo, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -146,16 +161,22 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/cntipo/5
-        [HttpDelete("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Deletecntipo(string conexionName, string codigo)
+        [Authorize]
+        [HttpDelete("{userConn}/{codigo}")]
+        public async Task<IActionResult> Deletecntipo(string userConn, string codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.cntipo == null)
                     {
@@ -172,7 +193,7 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -181,7 +202,7 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
             }
         }
 
-        private bool cntipoExists(string codigo)
+        private bool cntipoExists(string codigo, DBContext _context)
         {
             return (_context.cntipo?.Any(e => e.codigo == codigo)).GetValueOrDefault();
 

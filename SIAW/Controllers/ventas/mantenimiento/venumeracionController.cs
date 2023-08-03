@@ -7,30 +7,28 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.ventas.mantenimiento
 {
-    [Authorize]
     [Route("api/venta/mant/[controller]")]
     [ApiController]
     public class venumeracionController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public venumeracionController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public venumeracionController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/venumeracion
-        [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<venumeracion>>> Getvenumeracion(string conexionName)
+        [HttpGet("{userConn}")]
+        public async Task<ActionResult<IEnumerable<venumeracion>>> Getvenumeracion(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.venumeracion == null)
                     {
@@ -39,7 +37,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                     var result = await _context.venumeracion.OrderBy(id => id.id).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -50,12 +48,17 @@ namespace SIAW.Controllers.ventas.mantenimiento
         }
 
         // GET: api/venumeracion/5
-        [HttpGet("{conexionName}/{id}")]
-        public async Task<ActionResult<venumeracion>> Getvenumeracion(string conexionName, string id)
+        [HttpGet("{userConn}/{id}")]
+        public async Task<ActionResult<venumeracion>> Getvenumeracion(string userConn, string id)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.venumeracion == null)
                     {
@@ -70,7 +73,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
                     return Ok(venumeracion);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -82,17 +85,22 @@ namespace SIAW.Controllers.ventas.mantenimiento
         /// <summary>
         /// Obtiene algunos datos de la tabla venumeracion para catalogo por tipodoc y si esta habilitado
         /// </summary>
-        /// <param name="conexionName"></param>
+        /// <param name="userConn"></param>
         /// <param name="tipodoc"></param>
         /// <returns></returns>
         // GET: api/catalogo
         [HttpGet]
-        [Route("catalogo/{conexionName}/{tipodoc}")]
-        public async Task<ActionResult<IEnumerable<venumeracion>>> Getvenumeracion_catalogo(string conexionName, int tipodoc)
+        [Route("catalogo/{userConn}/{tipodoc}")]
+        public async Task<ActionResult<IEnumerable<venumeracion>>> Getvenumeracion_catalogo(string userConn, int tipodoc)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     var query = _context.venumeracion
                     .Where(i => i.tipodoc == tipodoc)
@@ -112,7 +120,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                     }
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -125,10 +133,16 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
         // PUT: api/venumeracion/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{id}")]
-        public async Task<IActionResult> Putvenumeracion(string conexionName, string id, venumeracion venumeracion)
+        [Authorize]
+        [HttpPut("{userConn}/{id}")]
+        public async Task<IActionResult> Putvenumeracion(string userConn, string id, venumeracion venumeracion)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (id != venumeracion.id)
                 {
@@ -143,7 +157,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!venumeracionExists(id))
+                    if (!venumeracionExists(id, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -155,17 +169,23 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
 
         // POST: api/venumeracion
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<venumeracion>> Postvenumeracion(string conexionName, venumeracion venumeracion)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<venumeracion>> Postvenumeracion(string userConn, venumeracion venumeracion)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.venumeracion == null)
                 {
@@ -178,7 +198,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (venumeracionExists(venumeracion.id))
+                    if (venumeracionExists(venumeracion.id, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -191,16 +211,22 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/venumeracion/5
-        [HttpDelete("{conexionName}/{id}")]
-        public async Task<IActionResult> Deletevenumeracion(string conexionName, string id)
+        [Authorize]
+        [HttpDelete("{userConn}/{id}")]
+        public async Task<IActionResult> Deletevenumeracion(string userConn, string id)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.venumeracion == null)
                     {
@@ -217,7 +243,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -226,7 +252,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
             }
         }
 
-        private bool venumeracionExists(string id)
+        private bool venumeracionExists(string id, DBContext _context)
         {
             return (_context.venumeracion?.Any(e => e.id == id)).GetValueOrDefault();
 

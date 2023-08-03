@@ -8,30 +8,28 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.seg_adm.mantenimiento
 {
-    [Authorize]
     [Route("api/seg_adm/mant/[controller]")]
     [ApiController]
     public class adtipocambioController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public adtipocambioController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public adtipocambioController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/adtipocambio
-        [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<adtipocambio>>> Getadtipocambio(string conexionName)
+        [HttpGet("{userConn}")]
+        public async Task<ActionResult<IEnumerable<adtipocambio>>> Getadtipocambio(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adtipocambio == null)
                     {
@@ -40,7 +38,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     var result = await _context.adtipocambio.ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -53,17 +51,22 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
         /// <summary>
         /// Obtiene los registros por fecha
         /// </summary>
-        /// <param name="conexionName"></param>
+        /// <param name="userConn"></param>
         /// <param name="fecha"></param>
         /// <returns></returns>
         // GET: api/adtipocambio/5
         [HttpGet]
-        [Route("getTipocambioFecha/{conexionName}/{fecha}")]
-        public async Task<ActionResult<adtipocambio>> Getadtipocambio(string conexionName, DateTime fecha)
+        [Route("getTipocambioFecha/{userConn}/{fecha}")]
+        public async Task<ActionResult<adtipocambio>> Getadtipocambio(string userConn, DateTime fecha)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adtipocambio == null)
                     {
@@ -80,7 +83,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                     return Ok(adtipocambio);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -96,12 +99,17 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
         /// <returns></returns>
         // GET: api/adtipocambio/5
         [HttpGet]
-        [Route("getTipocambioAnt/{conexionName}")]
-        public async Task<ActionResult<adtipocambio>> GetTipocambAnt(string conexionName)
+        [Route("getTipocambioAnt/{userConn}")]
+        public async Task<ActionResult<adtipocambio>> GetTipocambAnt(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adtipocambio == null)
                     {
@@ -121,7 +129,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     
                     return Ok(resultado);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -133,10 +141,16 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
         // PUT: api/adtipocambio/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{moneda}/{fecha}/{codalmacen}")]
-        public async Task<IActionResult> Putadtipocambio(string conexionName, string moneda, DateTime fecha, int codalmacen, adtipocambio adtipocambio)
+        [Authorize]
+        [HttpPut("{userConn}/{moneda}/{fecha}/{codalmacen}")]
+        public async Task<IActionResult> Putadtipocambio(string userConn, string moneda, DateTime fecha, int codalmacen, adtipocambio adtipocambio)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 var tipocambio = _context.adtipocambio.FirstOrDefault(objeto => objeto.moneda == moneda && objeto.fecha == fecha && objeto.codalmacen == codalmacen);
                 if (tipocambio == null)
@@ -157,17 +171,23 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
 
         // POST: api/adtipocambio
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<adtipocambio>> Postadtipocambio(string conexionName, adtipocambio adtipocambio)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<adtipocambio>> Postadtipocambio(string userConn, adtipocambio adtipocambio)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.adtipocambio == null)
                 {
@@ -186,7 +206,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
 
@@ -194,11 +214,17 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
         // POST: api/adtipocambio
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [Authorize]
         [HttpPost]
-        [Route("addlisttipocambio/{conexionName}")]
-        public async Task<ActionResult<adtipocambio>> PostListadtipocambio(string conexionName, List<adtipocambio> adtipocambio)
+        [Route("addlisttipocambio/{userConn}")]
+        public async Task<ActionResult<adtipocambio>> PostListadtipocambio(string userConn, List<adtipocambio> adtipocambio)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.adtipocambio == null)
                 {
@@ -217,25 +243,31 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
 
 
         // DELETE: api/adtipocambio/5
-        [HttpDelete("{conexionName}/{moneda}/{fecha}/{codalmacen}")]
-        public async Task<IActionResult> Deleteadtipocambio(string conexionName, string moneda, DateTime fecha, int codalmacen)
+        [Authorize]
+        [HttpDelete("{userConn}/{moneda}/{fecha}/{codalmacen}")]
+        public async Task<IActionResult> Deleteadtipocambio(string userConn, string moneda, DateTime fecha, int codalmacen)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adtipocambio == null)
                     {
                         return Problem("Entidad adtipocambio es null.");
                     }
                    
-                    adtipocambio adtipocambio = _context.adtipocambio.FirstOrDefault(objeto => objeto.moneda == moneda && objeto.fecha == fecha && objeto.codalmacen == codalmacen);
+                    var adtipocambio = _context.adtipocambio.FirstOrDefault(objeto => objeto.moneda == moneda && objeto.fecha == fecha && objeto.codalmacen == codalmacen);
                     if (adtipocambio == null)
                     {
                         return NotFound("Revise los datos ingresados.");
@@ -246,7 +278,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)

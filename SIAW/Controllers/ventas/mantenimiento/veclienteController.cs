@@ -7,32 +7,30 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.ventas.mantenimiento
 {
-    [Authorize]
     [Route("api/venta/mant/[controller]")]
     [ApiController]
     public class veclienteController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public veclienteController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public veclienteController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
 
         // GET: api/vecliente
         /*
-        [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<vecliente>>> Getvecliente(string conexionName)
+        [HttpGet("{userConn}")]
+        public async Task<ActionResult<IEnumerable<vecliente>>> Getvecliente(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.vecliente == null)
                     {
@@ -41,7 +39,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                     var result = await _context.vecliente.OrderByDescending(fechareg => fechareg.fechareg).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -54,12 +52,17 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
 
         // GET: api/vecliente/5
-        [HttpGet("{conexionName}/{codigo}")]
-        public async Task<ActionResult<vecliente>> Getvecliente(string conexionName, string codigo)
+        [HttpGet("{userConn}/{codigo}")]
+        public async Task<ActionResult<vecliente>> Getvecliente(string userConn, string codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.vecliente == null)
                     {
@@ -74,7 +77,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
                     return Ok(vecliente);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -85,16 +88,21 @@ namespace SIAW.Controllers.ventas.mantenimiento
         /// <summary>
         /// Obtiene algunos datos de todos los registros de la tabla vecliente para catalogo
         /// </summary>
-        /// <param name="conexionName"></param>
+        /// <param name="userConn"></param>
         /// <returns></returns>
         // GET: api/vecliente/5
         [HttpGet]
-        [Route("catalogo/{conexionName}")]
-        public async Task<ActionResult<vecliente>> Getvecliente_catalogo(string conexionName)
+        [Route("catalogo/{userConn}")]
+        public async Task<ActionResult<vecliente>> Getvecliente_catalogo(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.vecliente == null)
                     {
@@ -123,7 +131,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -134,10 +142,16 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
         // PUT: api/vecliente/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Putvecliente(string conexionName, string codigo, vecliente vecliente)
+        [Authorize]
+        [HttpPut("{userConn}/{codigo}")]
+        public async Task<IActionResult> Putvecliente(string userConn, string codigo, vecliente vecliente)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (codigo != vecliente.codigo)
                 {
@@ -152,7 +166,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!veclienteExists(codigo))
+                    if (!veclienteExists(codigo, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -164,17 +178,23 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
 
         // POST: api/vecliente
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<vecliente>> Postvecliente(string conexionName, vecliente vecliente)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<vecliente>> Postvecliente(string userConn, vecliente vecliente)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.vecliente == null)
                 {
@@ -187,7 +207,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (veclienteExists(vecliente.codigo))
+                    if (veclienteExists(vecliente.codigo, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -200,16 +220,22 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/vecliente/5
-        [HttpDelete("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Deletevecliente(string conexionName, string codigo)
+        [Authorize]
+        [HttpDelete("{userConn}/{codigo}")]
+        public async Task<IActionResult> Deletevecliente(string userConn, string codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.vecliente == null)
                     {
@@ -226,7 +252,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -234,7 +260,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
             }
         }
 
-        private bool veclienteExists(string codigo)
+        private bool veclienteExists(string codigo, DBContext _context)
         {
             return (_context.vecliente?.Any(e => e.codigo == codigo)).GetValueOrDefault();
         }

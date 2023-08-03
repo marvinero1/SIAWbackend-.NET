@@ -11,31 +11,29 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.seg_adm.mantenimiento
 {
-    [Authorize]
     [Route("api/seg_adm/mant/[controller]")]
     [ApiController]
     public class adusuarioController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
+        private readonly UserConnectionManager _userConnectionManager;
         encriptacion encript = new encriptacion();
-        public adusuarioController(IConfiguration configuration)
+        public adusuarioController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/adusuario
-        [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<adusuario>>> Getadusuario(string conexionName)
+        [HttpGet("{userConn}")]
+        public async Task<ActionResult<IEnumerable<adusuario>>> Getadusuario(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adusuario == null)
                     {
@@ -44,7 +42,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     var result = await _context.adusuario.OrderByDescending(fechareg_siaw => fechareg_siaw.fechareg_siaw).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -55,12 +53,17 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
         }
 
         // GET: api/adusuario/5
-        [HttpGet("{conexionName}/{login}")]
-        public async Task<ActionResult<adusuario>> Getadusuario(string conexionName, string login)
+        [HttpGet("{userConn}/{login}")]
+        public async Task<ActionResult<adusuario>> Getadusuario(string userConn, string login)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adusuario == null)
                     {
@@ -75,7 +78,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                     return Ok(adusuario);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -85,10 +88,16 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
         // PUT: api/adusuario/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{login}")]
-        public async Task<IActionResult> Putadusuario(string conexionName, string login, adusuario adusuario)
+        [Authorize]
+        [HttpPut("{userConn}/{login}")]
+        public async Task<IActionResult> Putadusuario(string userConn, string login, adusuario adusuario)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (login != adusuario.login)
                 {
@@ -132,7 +141,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!adusuarioExists(login))
+                    if (!adusuarioExists(login, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -144,17 +153,23 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
 
         // POST: api/adusuario
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<adusuario>> Postadusuario(string conexionName, adusuario adusuario)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<adusuario>> Postadusuario(string userConn, adusuario adusuario)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.adusuario == null)
                 {
@@ -188,7 +203,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (adusuarioExists(adusuario.login))
+                    if (adusuarioExists(adusuario.login, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -201,16 +216,22 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/adusuario/5
-        [HttpDelete("{conexionName}/{login}")]
-        public async Task<IActionResult> Deleteadusuario(string conexionName, string login)
+        [Authorize]
+        [HttpDelete("{userConn}/{login}")]
+        public async Task<IActionResult> Deleteadusuario(string userConn, string login)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adusuario == null)
                     {
@@ -227,7 +248,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -236,7 +257,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
         }
 
-        private bool adusuarioExists(string login)
+        private bool adusuarioExists(string login, DBContext _context)
         {
             return (_context.adusuario?.Any(e => e.login == login)).GetValueOrDefault();
 
@@ -273,14 +294,20 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
         /// <summary>
         /// Cambiar el estado del Usuario para deshabilitarlo o habilitarlo
         /// </summary>
-        /// <param name="conexionName"></param>
+        /// <param name="userConn"></param>
         /// <param name="login"></param>
         /// <returns></returns>
+        [Authorize]
         [HttpPut]
-        [Route("adusuarioEstado/{conexionName}/{login}")]
-        public async Task<IActionResult> actualizarEstado(string conexionName, string login, adusuario usu)
+        [Route("adusuarioEstado/{userConn}/{login}")]
+        public async Task<IActionResult> actualizarEstado(string userConn, string login, adusuario usu)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 var usuario = _context.adusuario.FirstOrDefault(e => e.login == login);
                 if (usuario == null)
@@ -298,7 +325,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!adusuarioExists(login))
+                    if (!adusuarioExists(login, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -310,22 +337,28 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
+
 
 
         /// <summary>
         /// Cambiar la contraseña del Usuario 
         /// </summary>
-        /// <param name="conexionName"></param>
+        /// <param name="userConn"></param>
         /// <param name="login"></param>
         /// <param name="usu"></param>
         /// <returns></returns>
-        [HttpPut]
-        [Route("adusuarioPassword/{conexionName}/{login}")]
-        public async Task<IActionResult> actualizarContraseña(string conexionName, string login, [FromBody] usuarioPassword usu)
+        [HttpPost]
+        [Route("adusuarioPassword/{userConn}/{login}")]
+        public async Task<IActionResult> actualizarContraseña(string userConn, string login, [FromBody] usuarioPassword usu)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 DateTime fechaActual = DateTime.Now;
                 var f = fechaActual.ToString("yyyy-MM-dd"); //importante
@@ -378,7 +411,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!adusuarioExists(login))
+                    if (!adusuarioExists(login, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -389,23 +422,34 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     }
                 }
 
-                return Ok("Datos actualizados correctamente.");
+                return Ok(new { resp = "Datos actualizados correctamente." });
             }
-            return BadRequest("Se perdio la conexion con el servidor");
         }
+
+
+       
+
+
+
+
 
 
 
         /// <summary>
         /// Obtiene una lista completa de los usuarios junto con la su rol y la persona a la que pertenece
         /// </summary>
-        /// <param name="conexionName"></param>
+        /// <param name="userConn"></param>
         /// <returns></returns>
         [HttpGet]
-        [Route("adusuarioGetListDetalle/{conexionName}")]
-        public async Task<IActionResult> usuarioGetListDetalle(string conexionName)
+        [Route("adusuarioGetListDetalle/{userConn}")]
+        public async Task<IActionResult> usuarioGetListDetalle(string userConn)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 try
                 {
@@ -452,14 +496,19 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
         /// <summary>
         /// Obtiene los datos de un usuario junto con la su rol y la persona a la que pertenece
         /// </summary>
-        /// <param name="conexionName"></param>
+        /// <param name="userConn"></param>
         /// <param name="login"></param>
         /// <returns></returns>
         [HttpGet]
-        [Route("adusuarioGetDetalle/{conexionName}/{login}")]
-        public async Task<IActionResult> usuarioGetDetalle(string conexionName, string login)
+        [Route("adusuarioGetDetalle/{userConn}/{login}")]
+        public async Task<IActionResult> usuarioGetDetalle(string userConn, string login)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 try
                 {
@@ -506,7 +555,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     throw;
                 }
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
 

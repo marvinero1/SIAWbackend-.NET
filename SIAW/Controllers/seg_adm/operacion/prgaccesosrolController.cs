@@ -12,27 +12,26 @@ namespace SIAW.Controllers.seg_adm.operacion
     [ApiController]
     public class prgaccesosrolController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public prgaccesosrolController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public prgaccesosrolController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
 
         // GET: api/semodulo
         [HttpGet]
-        [Route("semodulo/{conexionName}")]
-        public async Task<ActionResult<IEnumerable<semodulo>>> Getsemodulo(string conexionName)
+        [Route("semodulo/{userConn}")]
+        public async Task<ActionResult<IEnumerable<semodulo>>> Getsemodulo(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.semodulo == null)
                     {
@@ -41,7 +40,7 @@ namespace SIAW.Controllers.seg_adm.operacion
                     var result = await _context.semodulo.OrderBy(codigo => codigo.codigo).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -53,12 +52,17 @@ namespace SIAW.Controllers.seg_adm.operacion
 
         // GET: api/semodulo/5
         [HttpGet]
-        [Route("semodulo/{conexionName}/{codigo}")]
-        public async Task<ActionResult<semodulo>> Getsemodulo(string conexionName, int codigo)
+        [Route("semodulo/{userConn}/{codigo}")]
+        public async Task<ActionResult<semodulo>> Getsemodulo(string userConn, int codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.semodulo == null)
                     {
@@ -73,7 +77,7 @@ namespace SIAW.Controllers.seg_adm.operacion
 
                     return Ok(semodulo);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -84,10 +88,15 @@ namespace SIAW.Controllers.seg_adm.operacion
         // PUT: api/semodulo/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut]
-        [Route("semodulo/{conexionName}/{codigo}")]
-        public async Task<IActionResult> Putsemodulo(string conexionName, int codigo, semodulo semodulo)
+        [Route("semodulo/{userConn}/{codigo}")]
+        public async Task<IActionResult> Putsemodulo(string userConn, int codigo, semodulo semodulo)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (codigo != semodulo.codigo)
                 {
@@ -102,7 +111,7 @@ namespace SIAW.Controllers.seg_adm.operacion
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!semoduloExists(codigo))
+                    if (!semoduloExists(codigo, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -114,7 +123,7 @@ namespace SIAW.Controllers.seg_adm.operacion
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
@@ -122,10 +131,15 @@ namespace SIAW.Controllers.seg_adm.operacion
         // POST: api/semodulo
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        [Route("semodulo/{conexionName}")]
-        public async Task<ActionResult<semodulo>> Postsemodulo(string conexionName, semodulo semodulo)
+        [Route("semodulo/{userConn}")]
+        public async Task<ActionResult<semodulo>> Postsemodulo(string userConn, semodulo semodulo)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.semodulo == null)
                 {
@@ -138,7 +152,7 @@ namespace SIAW.Controllers.seg_adm.operacion
                 }
                 catch (DbUpdateException)
                 {
-                    if (semoduloExists(semodulo.codigo))
+                    if (semoduloExists(semodulo.codigo, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -151,17 +165,22 @@ namespace SIAW.Controllers.seg_adm.operacion
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/semodulo/5
         [HttpDelete]
-        [Route("semodulo/{conexionName}/{codigo}")]
-        public async Task<IActionResult> Deletesemodulo(string conexionName, int codigo)
+        [Route("semodulo/{userConn}/{codigo}")]
+        public async Task<IActionResult> Deletesemodulo(string userConn, int codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.semodulo == null)
                     {
@@ -178,7 +197,7 @@ namespace SIAW.Controllers.seg_adm.operacion
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -187,7 +206,7 @@ namespace SIAW.Controllers.seg_adm.operacion
             }
         }
 
-        private bool semoduloExists(int codigo)
+        private bool semoduloExists(int codigo, DBContext _context)
         {
             return (_context.semodulo?.Any(e => e.codigo == codigo)).GetValueOrDefault();
 
@@ -202,12 +221,17 @@ namespace SIAW.Controllers.seg_adm.operacion
 
         // GET: api/seclasificacion
         [HttpGet]
-        [Route("seclasificacion/{conexionName}")]
-        public async Task<ActionResult<IEnumerable<seclasificacion>>> Getseclasificacion(string conexionName)
+        [Route("seclasificacion/{userConn}")]
+        public async Task<ActionResult<IEnumerable<seclasificacion>>> Getseclasificacion(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.seclasificacion == null)
                     {
@@ -216,7 +240,7 @@ namespace SIAW.Controllers.seg_adm.operacion
                     var result = await _context.seclasificacion.OrderBy(codigo => codigo.codigo).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -228,12 +252,17 @@ namespace SIAW.Controllers.seg_adm.operacion
 
         // GET: api/seclasificacion/5
         [HttpGet]
-        [Route("seclasificacion/{conexionName}/{codigo}")]
-        public async Task<ActionResult<seclasificacion>> Getseclasificacion(string conexionName, int codigo)
+        [Route("seclasificacion/{userConn}/{codigo}")]
+        public async Task<ActionResult<seclasificacion>> Getseclasificacion(string userConn, int codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.seclasificacion == null)
                     {
@@ -248,7 +277,7 @@ namespace SIAW.Controllers.seg_adm.operacion
 
                     return Ok(seclasificacion);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -259,10 +288,15 @@ namespace SIAW.Controllers.seg_adm.operacion
         // PUT: api/seclasificacion/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut]
-        [Route("seclasificacion/{conexionName}/{codigo}")]
-        public async Task<IActionResult> Putseclasificacion(string conexionName, int codigo, seclasificacion seclasificacion)
+        [Route("seclasificacion/{userConn}/{codigo}")]
+        public async Task<IActionResult> Putseclasificacion(string userConn, int codigo, seclasificacion seclasificacion)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (codigo != seclasificacion.codigo)
                 {
@@ -277,7 +311,7 @@ namespace SIAW.Controllers.seg_adm.operacion
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!seclasificacionExists(codigo))
+                    if (!seclasificacionExists(codigo, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -289,7 +323,7 @@ namespace SIAW.Controllers.seg_adm.operacion
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
@@ -297,10 +331,15 @@ namespace SIAW.Controllers.seg_adm.operacion
         // POST: api/seclasificacion
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        [Route("seclasificacion/{conexionName}")]
-        public async Task<ActionResult<seclasificacion>> Postseclasificacion(string conexionName, seclasificacion seclasificacion)
+        [Route("seclasificacion/{userConn}")]
+        public async Task<ActionResult<seclasificacion>> Postseclasificacion(string userConn, seclasificacion seclasificacion)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.seclasificacion == null)
                 {
@@ -313,7 +352,7 @@ namespace SIAW.Controllers.seg_adm.operacion
                 }
                 catch (DbUpdateException)
                 {
-                    if (seclasificacionExists(seclasificacion.codigo))
+                    if (seclasificacionExists(seclasificacion.codigo, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -326,17 +365,22 @@ namespace SIAW.Controllers.seg_adm.operacion
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/seclasificacion/5
         [HttpDelete]
-        [Route("seclasificacion/{conexionName}/{codigo}")]
-        public async Task<IActionResult> Deleteseclasificacion(string conexionName, int codigo)
+        [Route("seclasificacion/{userConn}/{codigo}")]
+        public async Task<IActionResult> Deleteseclasificacion(string userConn, int codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.seclasificacion == null)
                     {
@@ -353,7 +397,7 @@ namespace SIAW.Controllers.seg_adm.operacion
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -362,7 +406,7 @@ namespace SIAW.Controllers.seg_adm.operacion
             }
         }
 
-        private bool seclasificacionExists(int codigo)
+        private bool seclasificacionExists(int codigo, DBContext _context)
         {
             return (_context.seclasificacion?.Any(e => e.codigo == codigo)).GetValueOrDefault();
 
@@ -375,12 +419,17 @@ namespace SIAW.Controllers.seg_adm.operacion
 
         // GET: api/seprograma
         [HttpGet]
-        [Route("seprograma/{conexionName}")]
-        public async Task<ActionResult<IEnumerable<seprograma>>> Getseprograma(string conexionName)
+        [Route("seprograma/{userConn}")]
+        public async Task<ActionResult<IEnumerable<seprograma>>> Getseprograma(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.seprograma == null)
                     {
@@ -389,7 +438,7 @@ namespace SIAW.Controllers.seg_adm.operacion
                     var result = await _context.seprograma.OrderBy(codigo => codigo.codigo).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -400,18 +449,23 @@ namespace SIAW.Controllers.seg_adm.operacion
         /// <summary>
         /// Obtiene todos los datos de la tabla seprograma de acuerdo al codclasificacion y codmodulo
         /// </summary>
-        /// <param name="conexionName"></param>
+        /// <param name="userConn"></param>
         /// <param name="codclasificacion"></param>
         /// <param name="codmodulo"></param>
         /// <returns></returns>
         // GET: api/seprograma
         [HttpGet]
-        [Route("seprograma/{conexionName}/{codclasificacion}/{codmodulo}")]
-        public async Task<ActionResult<IEnumerable<seprograma>>> Getseprograma2(string conexionName, int codclasificacion, int codmodulo)
+        [Route("seprograma/{userConn}/{codclasificacion}/{codmodulo}")]
+        public async Task<ActionResult<IEnumerable<seprograma>>> Getseprograma2(string userConn, int codclasificacion, int codmodulo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.seprograma == null)
                     {
@@ -437,7 +491,7 @@ namespace SIAW.Controllers.seg_adm.operacion
 
                     return Ok(programas);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -450,10 +504,15 @@ namespace SIAW.Controllers.seg_adm.operacion
         // PUT: api/seprograma/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut]
-        [Route("seprograma/{conexionName}/{codigo}")]
-        public async Task<IActionResult> Putseprograma(string conexionName, int codigo, seprograma seprograma)
+        [Route("seprograma/{userConn}/{codigo}")]
+        public async Task<IActionResult> Putseprograma(string userConn, int codigo, seprograma seprograma)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (codigo != seprograma.codigo)
                 {
@@ -468,7 +527,7 @@ namespace SIAW.Controllers.seg_adm.operacion
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!seprogramaExists(codigo))
+                    if (!seprogramaExists(codigo, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -480,7 +539,7 @@ namespace SIAW.Controllers.seg_adm.operacion
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
@@ -488,10 +547,15 @@ namespace SIAW.Controllers.seg_adm.operacion
         // POST: api/seprograma
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        [Route("seprograma/{conexionName}")]
-        public async Task<ActionResult<seprograma>> Postseprograma(string conexionName, seprograma seprograma)
+        [Route("seprograma/{userConn}")]
+        public async Task<ActionResult<seprograma>> Postseprograma(string userConn, seprograma seprograma)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.seprograma == null)
                 {
@@ -504,7 +568,7 @@ namespace SIAW.Controllers.seg_adm.operacion
                 }
                 catch (DbUpdateException)
                 {
-                    if (seprogramaExists(seprograma.codigo))
+                    if (seprogramaExists(seprograma.codigo, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -517,17 +581,22 @@ namespace SIAW.Controllers.seg_adm.operacion
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/seprograma/5
         [HttpDelete]
-        [Route("seprograma/{conexionName}/{codigo}")]
-        public async Task<IActionResult> Deleteseprograma(string conexionName, int codigo)
+        [Route("seprograma/{userConn}/{codigo}")]
+        public async Task<IActionResult> Deleteseprograma(string userConn, int codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.seprograma == null)
                     {
@@ -544,7 +613,7 @@ namespace SIAW.Controllers.seg_adm.operacion
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -553,7 +622,7 @@ namespace SIAW.Controllers.seg_adm.operacion
             }
         }
 
-        private bool seprogramaExists(int codigo)
+        private bool seprogramaExists(int codigo, DBContext _context)
         {
             return (_context.seprograma?.Any(e => e.codigo == codigo)).GetValueOrDefault();
 
@@ -564,12 +633,17 @@ namespace SIAW.Controllers.seg_adm.operacion
 
         // GET: api/serolprogs
         [HttpGet]
-        [Route("serolprogs/{conexionName}")]
-        public async Task<ActionResult<IEnumerable<serolprogs>>> Getserolprogs(string conexionName)
+        [Route("serolprogs/{userConn}")]
+        public async Task<ActionResult<IEnumerable<serolprogs>>> Getserolprogs(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.serolprogs == null)
                     {
@@ -578,7 +652,7 @@ namespace SIAW.Controllers.seg_adm.operacion
                     var result = await _context.serolprogs.OrderBy(codigo => codigo.codigo).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -588,12 +662,17 @@ namespace SIAW.Controllers.seg_adm.operacion
 
         // GET: api/serolprogs/5
         [HttpGet]
-        [Route("serolprogs/{conexionName}/{codigo}")]
-        public async Task<ActionResult<serolprogs>> Getserolprogs1(string conexionName, int codigo)
+        [Route("serolprogs/{userConn}/{codigo}")]
+        public async Task<ActionResult<serolprogs>> Getserolprogs1(string userConn, int codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.serolprogs == null)
                     {
@@ -608,7 +687,7 @@ namespace SIAW.Controllers.seg_adm.operacion
 
                     return Ok(serolprogs);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -619,17 +698,22 @@ namespace SIAW.Controllers.seg_adm.operacion
         /// <summary>
         /// Obtiene los programas habilitados a un rol
         /// </summary>
-        /// <param name="conexionName"></param>
+        /// <param name="userConn"></param>
         /// <param name="codRol"></param>
         /// <returns></returns>
         // GET: api/serolprogs/5
         [HttpGet]
-        [Route("serolprogs/rolGet/{conexionName}/{codRol}")]
-        public async Task<ActionResult<serolprogs>> Getserolprogs2(string conexionName, string codRol)
+        [Route("serolprogs/rolGet/{userConn}/{codRol}")]
+        public async Task<ActionResult<serolprogs>> Getserolprogs2(string userConn, string codRol)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.serolprogs == null)
                     {
@@ -648,7 +732,7 @@ namespace SIAW.Controllers.seg_adm.operacion
 
                     return Ok(codProgramas);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -661,19 +745,24 @@ namespace SIAW.Controllers.seg_adm.operacion
         /// <summary>
         /// Obtiene los programas habilitados a un rol con check en base a los programas filtrados
         /// </summary>
-        /// <param name="conexionName"></param>
+        /// <param name="userConn"></param>
         /// <param name="codRol"></param>
         /// <param name="codclasificacion"></param>
         /// <param name="codmodulo"></param>
         /// <returns></returns>
         // GET: api/serolprogs/5
         [HttpGet]
-        [Route("serolprogs/rolGetCheck/{conexionName}/{codRol}/{codclasificacion}/{codmodulo}")]
-        public async Task<ActionResult<serolprogs>> Getserolprogs3(string conexionName, string codRol, int codclasificacion, int codmodulo)
+        [Route("serolprogs/rolGetCheck/{userConn}/{codRol}/{codclasificacion}/{codmodulo}")]
+        public async Task<ActionResult<serolprogs>> Getserolprogs3(string userConn, string codRol, int codclasificacion, int codmodulo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     var programas = _context.seprograma
                         .Where(p => p.codclasificacion == codclasificacion && p.codmodulo == codmodulo)
@@ -707,7 +796,7 @@ namespace SIAW.Controllers.seg_adm.operacion
 
                     return Ok(resultado);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -721,17 +810,22 @@ namespace SIAW.Controllers.seg_adm.operacion
         /// <summary>
         /// Verifica si un rol tiene acceso a una ventana
         /// </summary>
-        /// <param name="conexionName"></param>
+        /// <param name="userConn"></param>
         /// <param name="acceso"></param>
         /// <returns></returns>
         // POST: api/Verificaserolprogs/DPD/5
         [HttpPost]
-        [Route("verificaserolprogs/{conexionName}")]
-        public async Task<ActionResult<serolprogs>> VerificaAcceso(string conexionName, Getserolprogs acceso)
+        [Route("verificaserolprogs/{userConn}")]
+        public async Task<ActionResult<serolprogs>> VerificaAcceso(string userConn, Getserolprogs acceso)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     var result = from sp in _context.serolprogs
                                  where sp.codrol == acceso.codrol &&
@@ -747,7 +841,7 @@ namespace SIAW.Controllers.seg_adm.operacion
 
                     return Ok(true); //acceso
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -761,10 +855,15 @@ namespace SIAW.Controllers.seg_adm.operacion
         // PUT: api/serolprogs/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut]
-        [Route("serolprogs/{conexionName}/{codigo}")]
-        public async Task<IActionResult> Putserolprogs(string conexionName, int codigo, serolprogs serolprogs)
+        [Route("serolprogs/{userConn}/{codigo}")]
+        public async Task<IActionResult> Putserolprogs(string userConn, int codigo, serolprogs serolprogs)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (codigo != serolprogs.codigo)
                 {
@@ -779,7 +878,7 @@ namespace SIAW.Controllers.seg_adm.operacion
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!serolprogsExists(codigo))
+                    if (!serolprogsExists(codigo, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -791,7 +890,7 @@ namespace SIAW.Controllers.seg_adm.operacion
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
@@ -799,10 +898,15 @@ namespace SIAW.Controllers.seg_adm.operacion
         // POST: api/serolprogs
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        [Route("serolprogs/{conexionName}")]
-        public async Task<ActionResult<serolprogs>> Postserolprogs(string conexionName, serolprogs serolprogs)
+        [Route("serolprogs/{userConn}")]
+        public async Task<ActionResult<serolprogs>> Postserolprogs(string userConn, serolprogs serolprogs)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.serolprogs == null)
                 {
@@ -815,7 +919,7 @@ namespace SIAW.Controllers.seg_adm.operacion
                 }
                 catch (DbUpdateException)
                 {
-                    if (serolprogsExists(serolprogs.codigo))
+                    if (serolprogsExists(serolprogs.codigo, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -828,17 +932,22 @@ namespace SIAW.Controllers.seg_adm.operacion
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/serolprogs/5
         [HttpDelete]
-        [Route("serolprogs/{conexionName}/{codigo}")]
-        public async Task<IActionResult> Deleteserolprogs(string conexionName, int codigo)
+        [Route("serolprogs/{userConn}/{codigo}")]
+        public async Task<IActionResult> Deleteserolprogs(string userConn, int codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.serolprogs == null)
                     {
@@ -855,7 +964,7 @@ namespace SIAW.Controllers.seg_adm.operacion
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -864,7 +973,7 @@ namespace SIAW.Controllers.seg_adm.operacion
             }
         }
 
-        private bool serolprogsExists(int codigo)
+        private bool serolprogsExists(int codigo, DBContext _context)
         {
             return (_context.serolprogs?.Any(e => e.codigo == codigo)).GetValueOrDefault();
 

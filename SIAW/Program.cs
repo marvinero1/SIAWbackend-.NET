@@ -1,8 +1,17 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.IdentityModel.Tokens;
 using SIAW.Data;
 using System.Text;
+using SIAW;
+using System.Security.Claims;
+
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -30,6 +39,9 @@ builder.Services.AddCors(options =>
     });
 });
 
+//builder.Services.AddScoped<ICustomDbContextFactory, CustomDbContextFactory>();
+//builder.Services.AddHttpContextAccessor(); // Agregar esta línea
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -41,6 +53,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = false
         };
     });
+
+builder.Services.AddSingleton<UserConnectionManager>();
+
 
 var app = builder.Build();
 
@@ -63,14 +78,42 @@ if (app.Environment.IsProduction())
 // CORS siuempre arriba de toda instancia app.
 
 app.UseCors("NuevaPolitica");
+app.UseAuthentication();
 
 app.UseHttpsRedirection();
 
-app.UseAuthentication();
+
 
 app.UseAuthorization();
 
 app.MapControllers();
+
+
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+
+    try
+    {
+        // Obtener la fábrica de contextos personalizada
+        var dbContextFactory = services.GetRequiredService<ICustomDbContextFactory>();
+
+        // Usar la fábrica de contextos para crear un contexto y trabajar con él
+        var dbContext = dbContextFactory.Create();
+
+        // Realizar operaciones con el contexto
+        // ...
+
+        // Asegurarse de cerrar el contexto cuando ya no se necesita
+        dbContext.Dispose();
+    }
+    catch (Exception ex)
+    {
+        // Manejar errores
+        Console.WriteLine(ex.Message);
+    }
+}
+
 
 app.Run();
 
@@ -85,3 +128,23 @@ public static class DbContextFactory
         return new DBContext(optionsBuilder.Options);
     }
 }
+/*
+public static class DbContextFactory2
+{
+    public static DBContext Create(ClaimsPrincipal user)
+    {
+        var connectionStringClaim = user?.FindFirst("ConnectionString");
+        var connectionString = connectionStringClaim?.Value;
+
+        if (string.IsNullOrEmpty(connectionString))
+        {
+            throw new Exception("No se ha proporcionado una cadena de conexión válida.");
+        }
+
+        var optionsBuilder = new DbContextOptionsBuilder<DBContext>();
+        optionsBuilder.UseSqlServer(connectionString);
+
+        return new DBContext(optionsBuilder.Options);
+    }
+}
+*/

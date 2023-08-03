@@ -7,30 +7,28 @@ using SIAW.Models;
 
 namespace SIAW.Controllers.compras.mantenimiento
 {
-    [Authorize]
     [Route("api/compras/mant/[controller]")]
     [ApiController]
     public class cmtipocompraController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public cmtipocompraController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public cmtipocompraController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/cmtipocompra
-        [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<cmtipocompra>>> Getcmtipocompra(string conexionName)
+        [HttpGet("{userConn}")]
+        public async Task<ActionResult<IEnumerable<cmtipocompra>>> Getcmtipocompra(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.cmtipocompra == null)
                     {
@@ -39,7 +37,7 @@ namespace SIAW.Controllers.compras.mantenimiento
                     var result = await _context.cmtipocompra.OrderBy(id => id.id).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -50,12 +48,17 @@ namespace SIAW.Controllers.compras.mantenimiento
         }
 
         // GET: api/cmtipocompra/5
-        [HttpGet("{conexionName}/{id}")]
-        public async Task<ActionResult<cmtipocompra>> Getcmtipocompra(string conexionName, string id)
+        [HttpGet("{userConn}/{id}")]
+        public async Task<ActionResult<cmtipocompra>> Getcmtipocompra(string userConn, string id)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.cmtipocompra == null)
                     {
@@ -70,7 +73,7 @@ namespace SIAW.Controllers.compras.mantenimiento
 
                     return Ok(cmtipocompra);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -80,10 +83,16 @@ namespace SIAW.Controllers.compras.mantenimiento
 
         // PUT: api/cmtipocompra/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{id}")]
-        public async Task<IActionResult> Putcmtipocompra(string conexionName, string id, cmtipocompra cmtipocompra)
+        [Authorize]
+        [HttpPut("{userConn}/{id}")]
+        public async Task<IActionResult> Putcmtipocompra(string userConn, string id, cmtipocompra cmtipocompra)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (id != cmtipocompra.id)
                 {
@@ -98,7 +107,7 @@ namespace SIAW.Controllers.compras.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!cmtipocompraExists(id))
+                    if (!cmtipocompraExists(id, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -110,17 +119,23 @@ namespace SIAW.Controllers.compras.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
 
         // POST: api/cmtipocompra
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<cmtipocompra>> Postcmtipocompra(string conexionName, cmtipocompra cmtipocompra)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<cmtipocompra>> Postcmtipocompra(string userConn, cmtipocompra cmtipocompra)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.cmtipocompra == null)
                 {
@@ -133,7 +148,7 @@ namespace SIAW.Controllers.compras.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (cmtipocompraExists(cmtipocompra.id))
+                    if (cmtipocompraExists(cmtipocompra.id, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -146,16 +161,22 @@ namespace SIAW.Controllers.compras.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/cmtipocompra/5
-        [HttpDelete("{conexionName}/{id}")]
-        public async Task<IActionResult> Deletecmtipocompra(string conexionName, string id)
+        [Authorize]
+        [HttpDelete("{userConn}/{id}")]
+        public async Task<IActionResult> Deletecmtipocompra(string userConn, string id)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.cmtipocompra == null)
                     {
@@ -172,7 +193,7 @@ namespace SIAW.Controllers.compras.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -181,10 +202,9 @@ namespace SIAW.Controllers.compras.mantenimiento
             }
         }
 
-        private bool cmtipocompraExists(string id)
+        private bool cmtipocompraExists(string id, DBContext _context)
         {
             return (_context.cmtipocompra?.Any(e => e.id == id)).GetValueOrDefault();
-
         }
     }
 }

@@ -14,7 +14,6 @@ using System.Security.Claims;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
-using SIAW.Models;
 
 namespace SIAW.Controllers
 {
@@ -29,12 +28,18 @@ namespace SIAW.Controllers
         private VerificaConexion verificador;
         private readonly IConfiguration _configuration;
 
-        public loginController(IConfiguration configuration)
+        encriptacion encript = new encriptacion();
+
+        private readonly UserConnectionManager _userConnectionManager;
+
+        public loginController(IConfiguration configuration, UserConnectionManager userConnectionManager)
         {
             connectionString = ConnectionController.ConnectionString;
             _context = DbContextFactory.Create(connectionString);
             _configuration = configuration;
             verificador = new VerificaConexion(_configuration);
+
+            _userConnectionManager = userConnectionManager;
         }
 
         /// <summary>
@@ -58,20 +63,20 @@ namespace SIAW.Controllers
 
                 try
                 {
-                    var x = _context.adusuario.FirstOrDefault(e => e.login == login.login);
-                    if (x == null)
+                    var data = _context.adusuario.FirstOrDefault(e => e.login == login.login);
+                    if (data == null)
                     {
                         return NotFound("201");         //-----No se encontro un registro con los datos proporcionados (usuario).
                     }
-                    if (x.password_siaw != encript.EncryptToMD5Base64(login.password))
+                    if (data.password_siaw != encript.EncryptToMD5Base64(login.password))
                     {
                         return Unauthorized("203");           //-----Contraseña Erronea.
                     }
-                    if (x.activo == false)
+                    if (data.activo == false)
                     {
                         return Unauthorized("207");           //-----Usuario no activo.
                     }
-                    var rolUser = _context.serol.FirstOrDefault(e => e.codigo == x.codrol);
+                    var rolUser = _context.serol.FirstOrDefault(e => e.codigo == data.codrol);
                     if (rolUser == null)
                     {
                         return NotFound("No se encontro un registro con los datos proporcionados (rol).");
@@ -79,14 +84,15 @@ namespace SIAW.Controllers
 
                     int dias = (int)rolUser.dias_cambio;
 
-                    if (!verificaFechaPass(x.fechareg_siaw, dias))
+                    if (!verificaFechaPass(data.fechareg_siaw, dias))
                     {
                         return Unauthorized("205");          //------Su contraseña ya venció, registre una nueva.
                     }
                     var usuario = login.login;
-                    var jwtToken = GenerateToken(login);
+                    var jwtToken = GenerateToken(login, connectionString);
                     validTokens.Add(jwtToken);   //agrega token a la lista de validos
                     //return OK (token);
+                    guardaStringConection(login.userConn, connectionString);
                     return Ok(new {token= jwtToken });                  //------Bienvenido
                 }
                 catch (Exception)
@@ -97,6 +103,11 @@ namespace SIAW.Controllers
             }
             return BadRequest("Se perdio la conexion con el servidor");
 
+        }
+
+        private void guardaStringConection(string userConn, string connectioString)
+        {
+            _userConnectionManager.SetUserConnection(userConn, connectioString);
         }
 
         public static bool verificaFechaPass(DateTime fechareg, int dias)
@@ -152,11 +163,12 @@ namespace SIAW.Controllers
 
 
 
-        private string GenerateToken(LoginRequest login)
+        private string GenerateToken(LoginRequest login, string cadConection)
         {
             var claims = new[]
             {
-                new Claim(ClaimTypes.Name, login.login)
+                new Claim(ClaimTypes.Name, login.login),
+                //new Claim("ConnectionString", cadConection) // Agregar la cadena de conexión como claim
             };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration.GetSection("JWT:Key").Value));
@@ -171,5 +183,12 @@ namespace SIAW.Controllers
 
             return token;
         }
+
+
+
+
+        
+
+
     }
 }

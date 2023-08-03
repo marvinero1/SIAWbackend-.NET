@@ -14,6 +14,7 @@ namespace SIAW.Controllers
 
         public bool VerConnection(string connectionName, string cadenaAntigua)
         {
+            /*
             string connectionString = _configuration.GetConnectionString(connectionName);
 
             if (string.IsNullOrEmpty(connectionString))
@@ -24,6 +25,7 @@ namespace SIAW.Controllers
             {
                 return false;
             }
+            */
             return true;
         }
     }

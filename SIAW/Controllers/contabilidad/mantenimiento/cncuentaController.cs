@@ -8,30 +8,28 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.contabilidad.mantenimiento
 {
-    [Authorize]
     [Route("api/contab/mant/[controller]")]
     [ApiController]
     public class cncuentaController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public cncuentaController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public cncuentaController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/cncuenta
-        [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<cncuenta>>> Getcncuenta(string conexionName)
+        [HttpGet("{userConn}")]
+        public async Task<ActionResult<IEnumerable<cncuenta>>> Getcncuenta(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.cncuenta == null)
                     {
@@ -40,7 +38,7 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
                     var result = await _context.cncuenta.OrderByDescending(fechareg => fechareg.fechareg).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -51,12 +49,17 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
         }
 
         // GET: api/cncuenta/5
-        [HttpGet("{conexionName}/{codigo}")]
-        public async Task<ActionResult<cncuenta>> Getcncuenta(string conexionName, string codigo)
+        [HttpGet("{userConn}/{codigo}")]
+        public async Task<ActionResult<cncuenta>> Getcncuenta(string userConn, string codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.cncuenta == null)
                     {
@@ -71,7 +74,7 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
 
                     return Ok(cncuenta);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -81,12 +84,17 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
 
         // GET: api/catalogo
         [HttpGet]
-        [Route("catalogo/{conexionName}")]
-        public async Task<ActionResult<IEnumerable<cncuenta>>> Getcncuenta_catalogo(string conexionName)
+        [Route("catalogo/{userConn}")]
+        public async Task<ActionResult<IEnumerable<cncuenta>>> Getcncuenta_catalogo(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     var query = _context.cncuenta
                     .OrderBy(i => i.codigo)
@@ -104,7 +112,7 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
                     }
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
             }
             catch (Exception)
             {
@@ -116,10 +124,16 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
 
         // PUT: api/cncuenta/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Putcncuenta(string conexionName, string codigo, cncuenta cncuenta)
+        [Authorize]
+        [HttpPut("{userConn}/{codigo}")]
+        public async Task<IActionResult> Putcncuenta(string userConn, string codigo, cncuenta cncuenta)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (codigo != cncuenta.codigo)
                 {
@@ -134,7 +148,7 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!cncuentaExists(codigo))
+                    if (!cncuentaExists(codigo, _context))
                     {
                         return NotFound("No existe un registro con ese código");
                     }
@@ -146,17 +160,23 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
 
                 return Ok("Datos actualizados correctamente.");
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
 
 
         }
 
         // POST: api/cncuenta
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<cncuenta>> Postcncuenta(string conexionName, cncuenta cncuenta)
+        [Authorize]
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<cncuenta>> Postcncuenta(string userConn, cncuenta cncuenta)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            //var _context = _userConnectionManager.GetUserConnection(userId);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.cncuenta == null)
                 {
@@ -169,7 +189,7 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (cncuentaExists(cncuenta.codigo))
+                    if (cncuentaExists(cncuenta.codigo, _context))
                     {
                         return Conflict("Ya existe un registro con ese código");
                     }
@@ -182,16 +202,22 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
                 return Ok("Registrado con Exito :D");
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
+            
         }
 
         // DELETE: api/cncuenta/5
-        [HttpDelete("{conexionName}/{codigo}")]
-        public async Task<IActionResult> Deletecncuenta(string conexionName, string codigo)
+        [Authorize]
+        [HttpDelete("{userConn}/{codigo}")]
+        public async Task<IActionResult> Deletecncuenta(string userConn, string codigo)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.cncuenta == null)
                     {
@@ -208,7 +234,7 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
 
                     return Ok("Datos eliminados con exito");
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
+                
 
             }
             catch (Exception)
@@ -217,7 +243,7 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
             }
         }
 
-        private bool cncuentaExists(string codigo)
+        private bool cncuentaExists(string codigo, DBContext _context)
         {
             return (_context.cncuenta?.Any(e => e.codigo == codigo)).GetValueOrDefault();
 
