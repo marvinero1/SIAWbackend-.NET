@@ -46,7 +46,6 @@
     <Folder Include="Controllers\personal_planillas\transaccion\" />
     <Folder Include="Controllers\personal_planillas\operacion\" />
     <Folder Include="Controllers\ventas\modificacion\" />
-    <Folder Include="Controllers\ventas\transaccion\" />
     <Folder Include="Controllers\ventas\operacion\" />
   </ItemGroup>
 

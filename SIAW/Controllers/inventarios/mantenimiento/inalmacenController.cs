@@ -226,7 +226,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     }
                 }
 
-                return Ok("Datos actualizados correctamente.");
+                return Ok("206");   // actualizado con exito
             }
             
 
@@ -267,7 +267,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     }
                 }
 
-                return Ok("Registrado con Exito :D");
+                return Ok("204");   // creado con exito
 
             }
             
@@ -300,7 +300,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     _context.inalmacen.Remove(inalmacen);
                     await _context.SaveChangesAsync();
 
-                    return Ok("Datos eliminados con exito");
+                    return Ok("208");   // eliminado con exito
                 }
                 
 

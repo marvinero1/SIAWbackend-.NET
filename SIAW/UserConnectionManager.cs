@@ -19,5 +19,13 @@ namespace SIAW
             }
             return null; // Manejo de error si el contexto no se encuentra
         }
+
+        public void RemoveUserConnection(string userConn)
+        {
+            if (_userConnections.ContainsKey(userConn))
+            {
+                _userConnections.Remove(userConn);
+            }
+        }
     }
 }

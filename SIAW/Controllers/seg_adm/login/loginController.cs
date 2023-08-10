@@ -14,6 +14,7 @@ using System.Security.Claims;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
 
 namespace SIAW.Controllers
 {
@@ -23,24 +24,28 @@ namespace SIAW.Controllers
     {
         private static List<string> validTokens = new List<string>();
 
-        private readonly DBContext _context;
+        //private readonly DBContext _context;
         private readonly string connectionString;
-        private VerificaConexion verificador;
+        //private VerificaConexion verificador;
         private readonly IConfiguration _configuration;
 
         encriptacion encript = new encriptacion();
 
         private readonly UserConnectionManager _userConnectionManager;
 
-        public loginController(IConfiguration configuration, UserConnectionManager userConnectionManager)
+        public loginController(UserConnectionManager userConnectionManager, IConfiguration configuration)
         {
             connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
+           
+            
+            
+            //_context = DbContextFactory.Create(connectionString);
             _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            //verificador = new VerificaConexion(_configuration);
 
             _userConnectionManager = userConnectionManager;
         }
+
 
         /// <summary>
         /// Autenticación de usuario, devuelve token para consultas.
@@ -50,10 +55,10 @@ namespace SIAW.Controllers
         /// <returns></returns>
         /// <exception cref="HttpResponseException"></exception>
         [HttpPost]
-        [Route("authenticate/{conexionName}")]
-        public async Task<IActionResult> Authenticate(string conexionName, LoginRequest login)
+        [Route("authenticate/{userConn}")]
+        public async Task<IActionResult> Authenticate(string userConn, LoginRequest login)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            using (var _context = DbContextFactory.Create(connectionString))
             {
                 encriptacion encript = new encriptacion();
                 if (login == null)
@@ -92,7 +97,7 @@ namespace SIAW.Controllers
                     var jwtToken = GenerateToken(login, connectionString);
                     validTokens.Add(jwtToken);   //agrega token a la lista de validos
                     //return OK (token);
-                    guardaStringConection(login.userConn, connectionString);
+                    guardaStringConection(userConn, connectionString);
                     return Ok(new {token= jwtToken });                  //------Bienvenido
                 }
                 catch (Exception)
@@ -101,7 +106,6 @@ namespace SIAW.Controllers
                     throw;
                 }
             }
-            return BadRequest("Se perdio la conexion con el servidor");
 
         }
 
@@ -143,18 +147,19 @@ namespace SIAW.Controllers
         }
 
         [HttpPost]
-        [Route("eliminaToken")]
-        public async Task<IActionResult> InvalidateToken(string token)
+        [Route("logout/{userConn}/{token}")]
+        public async Task<IActionResult> InvalidateToken(string userConn, string token)
         {
             try
             {
                 // Remover el token de la lista blanca de tokens válidos
                 validTokens.Remove(token);
-                return Ok("Token eliminado");
+                _userConnectionManager.RemoveUserConnection(userConn);
+                return Ok("Logout exitoso");
             }
             catch (Exception)
             {
-                return BadRequest("No se pudo eliminar el token");
+                return BadRequest("No se pudo realizar el logout");
                 throw;
             }
             
@@ -186,8 +191,116 @@ namespace SIAW.Controllers
 
 
 
+        /// <summary>
+        /// Cambiar la contraseña del Usuario antes de Login
+        /// </summary>
+        /// <param name="userConn"></param>
+        /// <param name="login"></param>
+        /// <param name="usu"></param>
+        /// <returns></returns>
+        [HttpPost]
+        [Route("changePassword/{login}")]
+        public async Task<IActionResult> actualizarContraseña(string login, [FromBody] usuarioPassword usu)
+        {
+            using (var _context = DbContextFactory.Create(connectionString))
+            {
+                DateTime fechaActual = DateTime.Now;
+                var f = fechaActual.ToString("yyyy-MM-dd"); //importante
+                DateTime fechaHoy = DateTime.Parse(f);  //importante
 
-        
+                var usuario = _context.adusuario.FirstOrDefault(e => e.login == login);
+                if (usuario == null)
+                {
+                    return NotFound("No existe un registro con esa información");
+                }
+
+                var passAntEncrpt = encript.EncryptToMD5Base64(usu.passwordAnt);
+
+                var rolUser = _context.serol.FirstOrDefault(e => e.codigo == usuario.codrol);
+                if (rolUser == null)
+                {
+                    return NotFound("No se encontro un registro con los datos proporcionados (rol).");
+                }
+                if (passAntEncrpt != usuario.password_siaw)
+                {
+                    return Unauthorized("Su contraseña no corresponde a la actual que tiene.");
+                }
+                int longmin = (int)rolUser.long_minima;
+                bool num = (bool)rolUser.con_numeros;
+                bool let = (bool)rolUser.con_letras;
+                string pass = usu.passwordNew;
+                if (!controlPassword(longmin, num, let, pass))
+                {
+                    return Unauthorized("Su contraseña no cumple con requisitos de longitud, numeros o letras");
+                }
+
+
+                var passEncrpt = encript.EncryptToMD5Base64(pass);
+
+                if (passAntEncrpt == passEncrpt)
+                {
+                    return Unauthorized("Su nueva contraseña no debe ser igual a la anterior.");
+                }
+
+
+                usuario.password_siaw = passEncrpt;
+                usuario.fechareg_siaw = fechaHoy;
+
+
+                _context.Entry(usuario).State = EntityState.Modified;
+
+                try
+                {
+                    await _context.SaveChangesAsync();
+                }
+                catch (DbUpdateConcurrencyException)
+                {
+                    if (!adusuarioExists(login, _context))
+                    {
+                        return NotFound("No existe un registro con ese código");
+                    }
+                    else
+                    {
+                        return BadRequest("Existen problemas con el Servidor.");
+                        throw;
+                    }
+                }
+
+                return Ok(new { resp = "206" });
+            }
+        }
+
+        private bool adusuarioExists(string login, DBContext _context)
+        {
+            return (_context.adusuario?.Any(e => e.login == login)).GetValueOrDefault();
+
+        }
+        public static bool controlPassword(int longmin, bool num, bool letra, string password)
+        {
+            if (password.Length < longmin)
+            {
+                return false;
+            }
+            if (num)
+            {
+                bool contieneNumero = password.Any(char.IsDigit);
+                if (!contieneNumero)
+                {
+                    return false;
+                }
+            }
+            if (letra)
+            {
+                bool contieneLetra = password.Any(char.IsLetter);
+                if (!contieneLetra)
+                {
+                    return false;
+                }
+            }
+            return true;
+
+        }
+
 
 
     }

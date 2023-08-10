@@ -108,7 +108,7 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
                     }
                 }
 
-                return Ok("Datos actualizados correctamente.");
+                return Ok("206");   // actualizado con exito
             }
             return BadRequest("Se perdio la conexion con el servidor");
 
@@ -144,7 +144,7 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
                     }
                 }
 
-                return Ok("Registrado con Exito :D");
+                return Ok("204");   // creado con exito
 
             }
             return BadRequest("Se perdio la conexion con el servidor");
@@ -172,7 +172,7 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
                     _context.cnnumeracion.Remove(cnnumeracion);
                     await _context.SaveChangesAsync();
 
-                    return Ok("Datos eliminados con exito");
+                    return Ok("208");   // eliminado con exito
                 }
                 return BadRequest("Se perdio la conexion con el servidor");
 

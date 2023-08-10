@@ -81,6 +81,55 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
         }
 
+
+        /// <summary>
+        /// Obtiene codigos de almacenes permitidos para obtener saldos por usuario
+        /// </summary>
+        /// <param name="userConn"></param>
+        /// <param name="usuario"></param>
+        /// <returns></returns>
+        [HttpGet]
+        [Route("getalmsald/{userConn}/{usuario}")]
+        public async Task<ActionResult<IEnumerable<adusparametros>>> Getvenumeracion_getalmsald(string userConn, string usuario)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var adusparametros = await _context.adusparametros
+                    .Where(i => i.usuario == usuario)
+                    .Select(i => new
+                    {
+                        usuario = i.usuario,
+                        codalmsald1 = i.codalmsald1,
+                        codalmsald2 = i.codalmsald2,
+                        codalmsald3 = i.codalmsald3,
+                        codalmsald4 = i.codalmsald4,
+                        codalmsald5 = i.codalmsald5
+                    })
+                    .FirstOrDefaultAsync();
+
+
+                    if (adusparametros == null)
+                    {
+                        return Problem("Entidad adusparametros es null.");
+                    }
+                    return Ok(adusparametros);
+                }
+
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+        }
+
+
+
         // PUT: api/adusparametros/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [Authorize]
@@ -117,7 +166,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     }
                 }
 
-                return Ok("Datos actualizados correctamente.");
+                return Ok("206");   // actualizado con exito
             }
             
 
@@ -158,7 +207,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     }
                 }
 
-                return Ok("Registrado con Exito :D");
+                return Ok("204");   // creado con exito
 
             }
             
@@ -191,7 +240,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     _context.adusparametros.Remove(adusparametros);
                     await _context.SaveChangesAsync();
 
-                    return Ok("Datos eliminados con exito");
+                    return Ok("208");   // eliminado con exito
                 }
                 
 

@@ -121,7 +121,7 @@ namespace SIAW.Controllers.seg_adm.operacion
                     }
                 }
 
-                return Ok("Datos actualizados correctamente.");
+                return Ok("206");   // actualizado con exito
             }
             
 
@@ -162,7 +162,7 @@ namespace SIAW.Controllers.seg_adm.operacion
                     }
                 }
 
-                return Ok("Registrado con Exito :D");
+                return Ok("204");   // creado con exito
 
             }
             
@@ -195,7 +195,7 @@ namespace SIAW.Controllers.seg_adm.operacion
                     _context.semodulo.Remove(semodulo);
                     await _context.SaveChangesAsync();
 
-                    return Ok("Datos eliminados con exito");
+                    return Ok("208");   // eliminado con exito
                 }
                 
 
@@ -321,7 +321,7 @@ namespace SIAW.Controllers.seg_adm.operacion
                     }
                 }
 
-                return Ok("Datos actualizados correctamente.");
+                return Ok("206");   // actualizado con exito
             }
             
 
@@ -362,7 +362,7 @@ namespace SIAW.Controllers.seg_adm.operacion
                     }
                 }
 
-                return Ok("Registrado con Exito :D");
+                return Ok("204");   // creado con exito
 
             }
             
@@ -395,7 +395,7 @@ namespace SIAW.Controllers.seg_adm.operacion
                     _context.seclasificacion.Remove(seclasificacion);
                     await _context.SaveChangesAsync();
 
-                    return Ok("Datos eliminados con exito");
+                    return Ok("208");   // eliminado con exito
                 }
                 
 
@@ -537,7 +537,7 @@ namespace SIAW.Controllers.seg_adm.operacion
                     }
                 }
 
-                return Ok("Datos actualizados correctamente.");
+                return Ok("206");   // actualizado con exito
             }
             
 
@@ -578,7 +578,7 @@ namespace SIAW.Controllers.seg_adm.operacion
                     }
                 }
 
-                return Ok("Registrado con Exito :D");
+                return Ok("204");   // creado con exito
 
             }
             
@@ -611,7 +611,7 @@ namespace SIAW.Controllers.seg_adm.operacion
                     _context.seprograma.Remove(seprograma);
                     await _context.SaveChangesAsync();
 
-                    return Ok("Datos eliminados con exito");
+                    return Ok("208");   // eliminado con exito
                 }
                 
 
@@ -888,7 +888,7 @@ namespace SIAW.Controllers.seg_adm.operacion
                     }
                 }
 
-                return Ok("Datos actualizados correctamente.");
+                return Ok("206");   // actualizado con exito
             }
             
 
@@ -929,7 +929,7 @@ namespace SIAW.Controllers.seg_adm.operacion
                     }
                 }
 
-                return Ok("Registrado con Exito :D");
+                return Ok("204");   // creado con exito
 
             }
             
@@ -962,7 +962,7 @@ namespace SIAW.Controllers.seg_adm.operacion
                     _context.serolprogs.Remove(serolprogs);
                     await _context.SaveChangesAsync();
 
-                    return Ok("Datos eliminados con exito");
+                    return Ok("208");   // eliminado con exito
                 }
                 
 

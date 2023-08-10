@@ -113,7 +113,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     return BadRequest("Existen problemas con el Servidor.");
                 }
 
-                return Ok("Datos actualizados correctamente.");
+                return Ok("206");   // actualizado con exito
             }
             
         }
@@ -167,7 +167,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     return BadRequest("Existen problemas con el Servidor.");
                 }
 
-                return Ok("Datos actualizados correctamente.");
+                return Ok("206");   // actualizado con exito
             }
             
         }
@@ -201,7 +201,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     return BadRequest("Existen problemas con el Servidor.");
                 }
 
-                return Ok("Registrado con Exito :D");
+                return Ok("204");   // creado con exito
 
             }
             
@@ -234,7 +234,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     _context.inmatriz.Remove(inmatriz);
                     await _context.SaveChangesAsync();
 
-                    return Ok("Datos eliminados con exito");
+                    return Ok("208");   // eliminado con exito
                 }
                 
 

@@ -20,6 +20,8 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
         public adusuarioController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;
+
+
         }
 
         // GET: api/adusuario
@@ -151,7 +153,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     }
                 }
 
-                return Ok("Datos actualizados correctamente.");
+                return Ok("206");   // actualizado con exito
             }
             
 
@@ -213,7 +215,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     }
                 }
 
-                return Ok("Registrado con Exito :D");
+                return Ok("204");   // creado con exito
 
             }
             
@@ -246,7 +248,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     _context.adusuario.Remove(adusuario);
                     await _context.SaveChangesAsync();
 
-                    return Ok("Datos eliminados con exito");
+                    return Ok("208");   // eliminado con exito
                 }
                 
 
@@ -335,96 +337,14 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     }
                 }
 
-                return Ok("Datos actualizados correctamente.");
+                return Ok("206");   // actualizado con exito
             }
             
         }
 
 
 
-        /// <summary>
-        /// Cambiar la contraseña del Usuario 
-        /// </summary>
-        /// <param name="userConn"></param>
-        /// <param name="login"></param>
-        /// <param name="usu"></param>
-        /// <returns></returns>
-        [HttpPost]
-        [Route("adusuarioPassword/{userConn}/{login}")]
-        public async Task<IActionResult> actualizarContraseña(string userConn, string login, [FromBody] usuarioPassword usu)
-        {
-            // Obtener el contexto de base de datos correspondiente al usuario
-            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
-            using (var _context = DbContextFactory.Create(userConnectionString))
-            {
-                DateTime fechaActual = DateTime.Now;
-                var f = fechaActual.ToString("yyyy-MM-dd"); //importante
-                DateTime fechaHoy = DateTime.Parse(f);  //importante
-
-                var usuario = _context.adusuario.FirstOrDefault(e => e.login == login);
-                if (usuario == null)
-                {
-                    return NotFound("No existe un registro con esa información");
-                }
-
-                var passAntEncrpt = encript.EncryptToMD5Base64(usu.passwordAnt);
-
-                var rolUser = _context.serol.FirstOrDefault(e => e.codigo == usuario.codrol);
-                if (rolUser == null)
-                {
-                    return NotFound("No se encontro un registro con los datos proporcionados (rol).");
-                }
-                if (passAntEncrpt != usuario.password_siaw)
-                {
-                    return Unauthorized("Su contraseña no corresponde a la actual que tiene.");
-                }
-                int longmin = (int)rolUser.long_minima;
-                bool num = (bool)rolUser.con_numeros;
-                bool let = (bool)rolUser.con_letras;
-                string pass = usu.passwordNew;
-                if (!controlPassword(longmin, num, let, pass))
-                {
-                    return Unauthorized("Su contraseña no cumple con requisitos de longitud, numeros o letras");
-                }
-
-
-                var passEncrpt = encript.EncryptToMD5Base64(pass);
-
-                if (passAntEncrpt == passEncrpt)
-                {
-                    return Unauthorized("Su nueva contraseña no debe ser igual a la anterior.");
-                }
-
-
-                usuario.password_siaw = passEncrpt;
-                usuario.fechareg_siaw = fechaHoy;
-
-
-                _context.Entry(usuario).State = EntityState.Modified;
-
-                try
-                {
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!adusuarioExists(login, _context))
-                    {
-                        return NotFound("No existe un registro con ese código");
-                    }
-                    else
-                    {
-                        return BadRequest("Existen problemas con el Servidor.");
-                        throw;
-                    }
-                }
-
-                return Ok(new { resp = "Datos actualizados correctamente." });
-            }
-        }
+        
 
 
        
@@ -490,7 +410,6 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     throw;
                 }
             }
-            return BadRequest("Se perdio la conexion con el servencimiento_siawvidor");
         }
 
         /// <summary>

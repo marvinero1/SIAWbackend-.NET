@@ -158,7 +158,7 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
                     }
                 }
 
-                return Ok("Datos actualizados correctamente.");
+                return Ok("206");   // actualizado con exito
             }
             
 
@@ -199,7 +199,7 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
                     }
                 }
 
-                return Ok("Registrado con Exito :D");
+                return Ok("204");   // creado con exito
 
             }
             
@@ -232,7 +232,7 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
                     _context.cncuenta.Remove(cncuenta);
                     await _context.SaveChangesAsync();
 
-                    return Ok("Datos eliminados con exito");
+                    return Ok("208");   // eliminado con exito
                 }
                 
 

@@ -74,7 +74,7 @@ namespace SIAW.Controllers.seg_adm.logs
                     return BadRequest("Error en el Servidor");
                 }
 
-                return Ok("Registrado con Exito :D");
+                return Ok("204");   // creado con exito
 
             }
             

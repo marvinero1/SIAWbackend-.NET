@@ -169,7 +169,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     return BadRequest("Existen problemas con el Servidor.");
                 }
 
-                return Ok("Datos actualizados correctamente.");
+                return Ok("206");   // actualizado con exito
             }
             
 
@@ -203,7 +203,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     return BadRequest("Error en el Servidor");
                 }
 
-                return Ok("Registrado con Exito :D");
+                return Ok("204");   // creado con exito
 
             }
             
@@ -240,7 +240,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     return BadRequest("Error en el Servidor");
                 }
 
-                return Ok("Registrado con Exito :D");
+                return Ok("204");   // creado con exito
 
             }
             
@@ -276,7 +276,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     _context.adtipocambio.Remove(adtipocambio);
                     await _context.SaveChangesAsync();
 
-                    return Ok("Datos eliminados con exito");
+                    return Ok("208");   // eliminado con exito
                 }
                 
 

@@ -115,7 +115,7 @@ namespace SIAW.Controllers.activos_fijos.mantenimiento
                     }
                 }
 
-                return Ok("Datos actualizados correctamente.");
+                return Ok("206");   // actualizado con exito
             }
 
         }
@@ -150,11 +150,12 @@ namespace SIAW.Controllers.activos_fijos.mantenimiento
                     }
                     else
                     {
+                        return BadRequest("Error en el servidor");
                         throw;
                     }
                 }
 
-                return Ok("Registrado con Exito :D");
+                return Ok("204");   // creado con exito
 
             }
             
@@ -187,10 +188,8 @@ namespace SIAW.Controllers.activos_fijos.mantenimiento
                     _context.acaseguradora.Remove(acaseguradora);
                     await _context.SaveChangesAsync();
 
-                    return Ok("Datos eliminados con exito");
+                    return Ok("208");   // eliminado con exito
                 }
-                
-                
             }
             catch (Exception)
             {

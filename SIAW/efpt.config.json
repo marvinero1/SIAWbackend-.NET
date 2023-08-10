@@ -1,6 +1,6 @@
 ﻿{
    "CodeGenerationMode": 2,
-   "ContextClassName": "PSContext",
+   "ContextClassName": "DBContext",
    "ContextNamespace": "Data",
    "DefaultDacpacSchema": null,
    "FilterSchemas": false,
@@ -13,9 +13,14 @@
    "Schemas": null,
    "SelectedHandlebarsLanguage": 0,
    "SelectedToBeGenerated": 0,
+   "T4TemplatePath": null,
    "Tables": [
       {
          "Name": "[dbo].[acaseguradora]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[ad_conexion_vpn]",
          "ObjectType": 0
       },
       {
@@ -148,6 +153,10 @@
       },
       {
          "Name": "[dbo].[inrosca]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[instoactual]",
          "ObjectType": 0
       },
       {

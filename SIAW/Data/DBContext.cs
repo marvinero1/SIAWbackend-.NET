@@ -10,7 +10,7 @@ namespace SIAW.Data
 {
     public partial class DBContext : DbContext
     {
-        public DBContext(string _connectionString)
+        public DBContext()
         {
         }
 
@@ -20,6 +20,7 @@ namespace SIAW.Data
         }
 
         public virtual DbSet<acaseguradora> acaseguradora { get; set; }
+        public virtual DbSet<ad_conexion_vpn> ad_conexion_vpn { get; set; }
         public virtual DbSet<adarea> adarea { get; set; }
         public virtual DbSet<addepto> addepto { get; set; }
         public virtual DbSet<adempresa> adempresa { get; set; }
@@ -53,6 +54,7 @@ namespace SIAW.Data
         public virtual DbSet<inmatriz> inmatriz { get; set; }
         public virtual DbSet<inresistencia> inresistencia { get; set; }
         public virtual DbSet<inrosca> inrosca { get; set; }
+        public virtual DbSet<instoactual> instoactual { get; set; }
         public virtual DbSet<insubgrupo_vta> insubgrupo_vta { get; set; }
         public virtual DbSet<intarifa> intarifa { get; set; }
         public virtual DbSet<interminacion> interminacion { get; set; }
@@ -118,6 +120,42 @@ namespace SIAW.Data
                 entity.Property(e => e.usuarioreg)
                     .IsRequired()
                     .HasMaxLength(10);
+            });
+
+            modelBuilder.Entity<ad_conexion_vpn>(entity =>
+            {
+                entity.HasKey(e => e.agencia)
+                    .IsClustered(false);
+
+                entity.Property(e => e.agencia)
+                    .HasMaxLength(50)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.bd_sql)
+                    .HasMaxLength(50)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.contrasena_sql)
+                    .HasMaxLength(50)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.fechareg).HasColumnType("smalldatetime");
+
+                entity.Property(e => e.horareg)
+                    .HasMaxLength(5)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.servidor_sql)
+                    .HasMaxLength(50)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.usuario_sql)
+                    .HasMaxLength(15)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.usuarioreg)
+                    .HasMaxLength(10)
+                    .IsUnicode(false);
             });
 
             modelBuilder.Entity<adarea>(entity =>
@@ -743,6 +781,10 @@ namespace SIAW.Data
 
                 entity.Property(e => e.fechareg).HasColumnType("smalldatetime");
 
+                entity.Property(e => e.fechareg_siaw)
+                    .HasColumnType("smalldatetime")
+                    .HasDefaultValueSql("('')");
+
                 entity.Property(e => e.horareg)
                     .IsRequired()
                     .HasMaxLength(5);
@@ -750,6 +792,11 @@ namespace SIAW.Data
                 entity.Property(e => e.password)
                     .IsRequired()
                     .HasMaxLength(40);
+
+                entity.Property(e => e.password_siaw)
+                    .IsRequired()
+                    .HasMaxLength(40)
+                    .HasDefaultValueSql("('')");
 
                 entity.Property(e => e.usuarioreg)
                     .IsRequired()
@@ -1356,6 +1403,28 @@ namespace SIAW.Data
                 entity.Property(e => e.usuarioreg)
                     .IsRequired()
                     .HasMaxLength(10);
+            });
+
+            modelBuilder.Entity<instoactual>(entity =>
+            {
+                entity.HasKey(e => new { e.codalmacen, e.coditem })
+                    .IsClustered(false);
+
+                entity.Property(e => e.coditem).HasMaxLength(8);
+
+                entity.Property(e => e.cantidad).HasColumnType("decimal(18, 6)");
+
+                entity.Property(e => e.fecha).HasColumnType("smalldatetime");
+
+                entity.Property(e => e.pedido).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.porllegar).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.proformas).HasColumnType("decimal(18, 6)");
+
+                entity.Property(e => e.udm)
+                    .HasMaxLength(3)
+                    .IsUnicode(false);
             });
 
             modelBuilder.Entity<insubgrupo_vta>(entity =>

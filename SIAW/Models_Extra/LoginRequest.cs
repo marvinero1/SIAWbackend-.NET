@@ -9,7 +9,6 @@ namespace SIAW.Models
     {
         public string login { get; set; }
         public string password { get; set; }
-        public string userConn { get; set; }
         
     }
 }
