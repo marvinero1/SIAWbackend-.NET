@@ -247,5 +247,6 @@ namespace SIAW.Models
         public string pwd_certif_produccion { get; set; }
         public string dircertif_pruebas { get; set; }
         public string pwd_certif_pruebas { get; set; }
+        public int? codarea_empaque { get; set; }
     }
 }

@@ -52,6 +52,7 @@ namespace SIAW.Data
         public virtual DbSet<inkit> inkit { get; set; }
         public virtual DbSet<inlinea> inlinea { get; set; }
         public virtual DbSet<inmatriz> inmatriz { get; set; }
+        public virtual DbSet<inreserva> inreserva { get; set; }
         public virtual DbSet<inresistencia> inresistencia { get; set; }
         public virtual DbSet<inrosca> inrosca { get; set; }
         public virtual DbSet<instoactual> instoactual { get; set; }
@@ -77,6 +78,7 @@ namespace SIAW.Data
         public virtual DbSet<vedesextra> vedesextra { get; set; }
         public virtual DbSet<vedesitem> vedesitem { get; set; }
         public virtual DbSet<veempaque> veempaque { get; set; }
+        public virtual DbSet<veempaque1> veempaque1 { get; set; }
         public virtual DbSet<venumeracion> venumeracion { get; set; }
         public virtual DbSet<veplanpago> veplanpago { get; set; }
         public virtual DbSet<vevendedor> vevendedor { get; set; }
@@ -1357,6 +1359,15 @@ namespace SIAW.Data
                 entity.Property(e => e.M).HasMaxLength(10);
             });
 
+            modelBuilder.Entity<inreserva>(entity =>
+            {
+                entity.HasNoKey();
+
+                entity.Property(e => e.cantidad).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.coditem).HasMaxLength(8);
+            });
+
             modelBuilder.Entity<inresistencia>(entity =>
             {
                 entity.HasKey(e => e.codigo)
@@ -2290,6 +2301,16 @@ namespace SIAW.Data
                 entity.Property(e => e.usuarioreg)
                     .IsRequired()
                     .HasMaxLength(10);
+            });
+
+            modelBuilder.Entity<veempaque1>(entity =>
+            {
+                entity.HasKey(e => new { e.codempaque, e.item })
+                    .HasName("PK_velistaemp");
+
+                entity.Property(e => e.item).HasMaxLength(8);
+
+                entity.Property(e => e.cantidad).HasColumnType("decimal(18, 2)");
             });
 
             modelBuilder.Entity<venumeracion>(entity =>

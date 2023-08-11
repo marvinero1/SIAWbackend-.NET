@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SIAW.Models;
+using System.Text;
 
 namespace SIAW.Controllers.ventas
 {
@@ -30,13 +31,32 @@ namespace SIAW.Controllers.ventas
                 {
                     return null;
                 }
+
+                var passDesencript = XorString(ad_conexion_vpn.contrasena_sql, "vpn");
                 string cadConection = "Data Source=" + ad_conexion_vpn.servidor_sql +
                     ";User ID=" + ad_conexion_vpn.usuario_sql +
-                    ";Password=" + ad_conexion_vpn.contrasena_sql +
+                    ";Password=" + passDesencript +
                     ";Connect Timeout=30;Initial Catalog=" + ad_conexion_vpn.bd_sql + ";";
 
                 return cadConection;
             }
+        }
+
+        static string XorString(string targetString, string maskValue)
+        {
+            int index = 0;
+            StringBuilder returnValue = new StringBuilder();
+
+            foreach (char charValue in targetString.ToCharArray())
+            {
+                int maskCharCode = maskValue[index % maskValue.Length];
+                int xorResult = charValue ^ maskCharCode;
+                returnValue.Append((char)xorResult);
+
+                index = (index + 1) % maskValue.Length;
+            }
+
+            return returnValue.ToString();
         }
 
     }

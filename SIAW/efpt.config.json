@@ -148,6 +148,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[inreserva]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[inresistencia]",
          "ObjectType": 0
       },
@@ -245,6 +249,10 @@
       },
       {
          "Name": "[dbo].[veempaque]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[veempaque1]",
          "ObjectType": 0
       },
       {
