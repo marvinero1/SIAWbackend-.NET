@@ -148,6 +148,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[inreserva]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[inresistencia]",
          "ObjectType": 0
       },
@@ -257,6 +261,14 @@
       },
       {
          "Name": "[dbo].[veplanpago]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[veproforma]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[veproforma1]",
          "ObjectType": 0
       },
       {

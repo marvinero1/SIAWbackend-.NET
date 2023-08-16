@@ -81,6 +81,8 @@ namespace SIAW.Data
         public virtual DbSet<veempaque1> veempaque1 { get; set; }
         public virtual DbSet<venumeracion> venumeracion { get; set; }
         public virtual DbSet<veplanpago> veplanpago { get; set; }
+        public virtual DbSet<veproforma> veproforma { get; set; }
+        public virtual DbSet<veproforma1> veproforma1 { get; set; }
         public virtual DbSet<vevendedor> vevendedor { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -2361,6 +2363,177 @@ namespace SIAW.Data
                     .HasMaxLength(5);
 
                 entity.Property(e => e.moneda)
+                    .IsRequired()
+                    .HasMaxLength(3);
+            });
+
+            modelBuilder.Entity<veproforma>(entity =>
+            {
+                entity.HasKey(e => e.codigo);
+
+                entity.HasIndex(e => new { e.codalmacen, e.id, e.numeroid }, "inice_factura_id_nroid");
+
+                entity.Property(e => e.codcliente)
+                    .IsRequired()
+                    .HasMaxLength(10);
+
+                entity.Property(e => e.codcliente_real).HasMaxLength(10);
+
+                entity.Property(e => e.codmoneda)
+                    .IsRequired()
+                    .HasMaxLength(3);
+
+                entity.Property(e => e.complemento_ci)
+                    .HasMaxLength(5)
+                    .IsUnicode(false)
+                    .IsFixedLength();
+
+                entity.Property(e => e.contra_entrega).HasDefaultValueSql("((0))");
+
+                entity.Property(e => e.descuentos).HasColumnType("decimal(20, 2)");
+
+                entity.Property(e => e.direccion).HasMaxLength(200);
+
+                entity.Property(e => e.email).HasMaxLength(50);
+
+                entity.Property(e => e.estado_contra_entrega).HasMaxLength(30);
+
+                entity.Property(e => e.fecha).HasColumnType("smalldatetime");
+
+                entity.Property(e => e.fecha_inicial)
+                    .HasColumnType("smalldatetime")
+                    .HasDefaultValueSql("('20110101')");
+
+                entity.Property(e => e.fechaaut).HasColumnType("smalldatetime");
+
+                entity.Property(e => e.fechareg).HasColumnType("smalldatetime");
+
+                entity.Property(e => e.fletepor).HasMaxLength(20);
+
+                entity.Property(e => e.hora)
+                    .HasMaxLength(5)
+                    .IsUnicode(false)
+                    .IsFixedLength();
+
+                entity.Property(e => e.hora_inicial)
+                    .HasMaxLength(5)
+                    .IsUnicode(false)
+                    .HasDefaultValueSql("('00:00')");
+
+                entity.Property(e => e.horaaut)
+                    .HasMaxLength(5)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.horareg)
+                    .IsRequired()
+                    .HasMaxLength(5);
+
+                entity.Property(e => e.id)
+                    .IsRequired()
+                    .HasMaxLength(5);
+
+                entity.Property(e => e.idanticipo)
+                    .HasMaxLength(5)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.idpf_complemento).HasMaxLength(5);
+
+                entity.Property(e => e.idsoldesctos)
+                    .HasMaxLength(5)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.iva).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.monto_anticipo).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.nit).HasMaxLength(15);
+
+                entity.Property(e => e.niveles_descuento).HasMaxLength(12);
+
+                entity.Property(e => e.nombre_transporte).HasMaxLength(100);
+
+                entity.Property(e => e.nomcliente).HasMaxLength(200);
+
+                entity.Property(e => e.obs)
+                    .HasMaxLength(70)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.obs2)
+                    .HasMaxLength(30)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.odc).HasMaxLength(250);
+
+                entity.Property(e => e.peso).HasColumnType("decimal(18, 5)");
+
+                entity.Property(e => e.porceniva).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.preparacion)
+                    .HasMaxLength(30)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.recargos).HasColumnType("decimal(20, 2)");
+
+                entity.Property(e => e.subtotal).HasColumnType("decimal(20, 2)");
+
+                entity.Property(e => e.tdc).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.tipoentrega)
+                    .HasMaxLength(15)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.total).HasColumnType("decimal(20, 2)");
+
+                entity.Property(e => e.transporte)
+                    .HasMaxLength(250)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.ubicacion).HasMaxLength(30);
+
+                entity.Property(e => e.usuarioaut).HasMaxLength(30);
+
+                entity.Property(e => e.usuarioreg)
+                    .IsRequired()
+                    .HasMaxLength(10);
+            });
+
+            modelBuilder.Entity<veproforma1>(entity =>
+            {
+                entity.HasNoKey();
+
+                entity.Property(e => e.cantaut).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.cantidad).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.cantidad_pedida).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.coditem)
+                    .IsRequired()
+                    .HasMaxLength(8);
+
+                entity.Property(e => e.niveldesc)
+                    .HasMaxLength(1)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.obs).HasMaxLength(30);
+
+                entity.Property(e => e.peso)
+                    .HasColumnType("decimal(18, 7)")
+                    .HasDefaultValueSql("('0')");
+
+                entity.Property(e => e.porceniva).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.preciodesc).HasColumnType("decimal(18, 6)");
+
+                entity.Property(e => e.preciolista).HasColumnType("decimal(18, 6)");
+
+                entity.Property(e => e.precioneto).HasColumnType("decimal(18, 6)");
+
+                entity.Property(e => e.total).HasColumnType("decimal(20, 6)");
+
+                entity.Property(e => e.totalaut).HasColumnType("decimal(20, 6)");
+
+                entity.Property(e => e.udm)
                     .IsRequired()
                     .HasMaxLength(3);
             });

@@ -101,7 +101,6 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
                 //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.vecliente == null)
@@ -110,16 +109,18 @@ namespace SIAW.Controllers.ventas.mantenimiento
                     }
                     //var vecliente = await _context.vecliente.FindAsync(codigo);
                     var query = _context.vecliente
-                    .Where(c => IsNumeric(c.codigo))
                     .OrderBy(c => c.codigo)
+                    .ToList() // Cargamos todos los registros en memoria
+                    .Where(c => IsNumeric(c.codigo)) // Filtramos en memoria
                     .Select(c => new
                     {
-                        c.codigo,
-                        c.razonsocial,
-                        c.nit,
-                        c.habilitado,
-                        c.codvendedor,
-                        c.nombre_comercial
+                        codigo=c.codigo,
+                        nombre=c.nombre_comercial+" - "+c.razonsocial,
+                        nit=c.nit,
+                        habilitado = c.habilitado,
+                        codvendedor = c.codvendedor,
+                        nombre_comercial = c.nombre_comercial,
+                        direccion_titular = c.direccion_titular
                     });
 
                     var result = query.ToList();

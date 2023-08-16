@@ -264,6 +264,14 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[veproforma]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[veproforma1]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[vevendedor]",
          "ObjectType": 0
       }

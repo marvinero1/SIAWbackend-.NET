@@ -15,6 +15,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 
 namespace SIAW.Controllers
 {
@@ -181,7 +182,8 @@ namespace SIAW.Controllers
 
             var securityToken = new JwtSecurityToken(
                 claims: claims,
-                expires: DateTime.Now.AddDays(1),
+                //expires: DateTime.Now.AddDays(1),
+                expires: DateTime.Now.AddMinutes(5),
                 signingCredentials: creds);
 
             string token = new JwtSecurityTokenHandler().WriteToken(securityToken);

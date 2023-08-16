@@ -64,24 +64,21 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adtipocambio == null)
                     {
                         return Problem("Entidad adtipocambio es null.");
                     }
-                    //var adtipocambio = await _context.adtipocambio.FindAsync(codigo);
 
                     var adtipocambio = await _context.adtipocambio.Where(x => x.fecha == fecha).OrderByDescending(f => f.fecha).ToListAsync();
-
-                    if (adtipocambio.Count() == 0)
+                    var monedas = await getAllmoneda(userConnectionString);
+                    if (adtipocambio.Count() == 0 && monedas.Count()!=adtipocambio.Count())
                     {
-                        return NotFound("No se encontro un registro con este código");
+                        return Ok(false);
                     }
 
-                    return Ok(adtipocambio);
+                    return Ok(true);
                 }
                 
             }
@@ -286,6 +283,29 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 return BadRequest("Error en el servidor");
             }
         }
+
+
+
+
+
+
+
+
+
+
+        protected async Task<List<admoneda>> getAllmoneda(string userConnectionString)
+        {
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var result = await _context.admoneda.OrderByDescending(fechareg => fechareg.fechareg).ToListAsync();
+                return result;
+            }
+        }
+
+
+
+
+
 
     }
 }

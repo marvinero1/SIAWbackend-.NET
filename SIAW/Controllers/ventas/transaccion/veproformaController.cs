@@ -17,7 +17,7 @@ namespace SIAW.Controllers.ventas.transaccion
     {
 
         private readonly UserConnectionManager _userConnectionManager;
-        private get_ad_conexion_vpn conexion_vpn = new get_ad_conexion_vpn();
+        private empaquesFunciones empaque_func = new empaquesFunciones();
 
         public veproformaController(UserConnectionManager userConnectionManager)
         {
@@ -41,13 +41,13 @@ namespace SIAW.Controllers.ventas.transaccion
             try
             {
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-                var ad_conexion_vpnResult = conexion_vpn.Getad_conexion_vpnFromDatabase(userConnectionString, agencia);
+                var ad_conexion_vpnResult = empaque_func.Getad_conexion_vpnFromDatabase(userConnectionString, agencia);
                 if (ad_conexion_vpnResult == null)
                 {
                     return Problem("No se pudo obtener la cadena de conexión");
                 }
 
-                var instoactual = await GetSaldosActual(ad_conexion_vpnResult, codalmacen, coditem);
+                var instoactual = await empaque_func.GetSaldosActual(ad_conexion_vpnResult, codalmacen, coditem);
                 if (instoactual == null)
                 {
                     return NotFound("No existe un registro con esos datos");
@@ -80,7 +80,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                var instoactual = await GetSaldosActual(userConnectionString, codalmacen, coditem);
+                var instoactual = await empaque_func.GetSaldosActual(userConnectionString, codalmacen, coditem);
                 if (instoactual == null)
                 {
                     return NotFound("No existe un registro con esos datos");
@@ -92,6 +92,118 @@ namespace SIAW.Controllers.ventas.transaccion
                 return Problem("Error en el servidor");
             }
         }
+
+
+
+
+
+
+
+
+
+
+
+
+        /// <summary>
+        /// Obtiene saldos de manera completa
+        /// </summary>
+        /// <param name="userConn"></param>
+        /// <param name="codalmacen"></param>
+        /// <param name="coditem"></param>
+        /// <returns></returns>
+        // GET: api/ad_conexion_vpn/5
+        [HttpGet]
+        [Route("GetsaldosPrueba/{userConn}/{agencia}/{codalmacen}/{coditem}/{codempresa}")]
+        public async Task<ActionResult<instoactual>> Getsaldos(string userConn, string agencia, int codalmacen, string coditem, string codempresa)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                var conexion = userConnectionString;
+                bool obtener_cantidades_aprobadas_de_proformas = empaque_func.IfGetCantidadAprobadasProformas(userConnectionString, codempresa); // si se obtender las cantidades reservadas de las proformas o no
+                bool bandera = false;
+                // Falta validacion para saber si traera datos de manera local o por vpn
+                if (bandera)
+                {
+                    conexion = empaque_func.Getad_conexion_vpnFromDatabase(userConnectionString, agencia);
+                    if (conexion == null)
+                    {
+                        return Problem("No se pudo obtener la cadena de conexión");
+                    }
+                }
+                // obtiene saldos de agencia del item seleccionado
+                var instoactual = getEmpaquesItemSelect(conexion, coditem, codalmacen);
+                // obtiene reservas en proforma
+                
+                if (obtener_cantidades_aprobadas_de_proformas && bandera== true)
+                {
+                    var saldosReservProformas = empaque_func.GetSaldosReservaProforma(conexion,codalmacen,coditem).Result;
+                    return Ok(saldosReservProformas);
+                }
+                else
+                {
+                    var saldosReservProformas = empaque_func.GetSaldosReservaProformaFromInstoactual(conexion,codalmacen, coditem).Result;
+                    return Ok(saldosReservProformas);
+                }
+
+
+
+
+                //return Ok(instoactual);
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+            }
+        }
+
+
+
+
+
+
+
+
+        private async Task<instoactual> getEmpaquesItemSelect (string conexion, string coditem, int codalmacen)
+        {
+            instoactual instoactual = null;
+            var eskit = empaque_func.GetEsKit(conexion, coditem);
+
+            if (!eskit)  // como no es kit obtiene los datos de stock directamente
+            {
+                //verificar si el item tiene saldos para ese almacen
+                instoactual = await empaque_func.GetSaldosActual(conexion, codalmacen, coditem);
+            }
+            else // como es kit se debe buscar sus piezas sin importar la cantidad de estas que tenga
+            {
+                List<inkit> kitItems = await empaque_func.GetItemsKit(conexion, coditem);  // se tiene la lista de piezas
+                foreach (inkit kit in kitItems) // se recorre la lista de piezas para consultar sus saldos disponibles de cada una (SE DEBE BASAR EL STOCK EN BASE AL MENOR NUMERO)
+                {
+                    var pivot = await empaque_func.GetSaldosActual(conexion, codalmacen, kit.item);
+                    var cantDisp = pivot.cantidad / kit.cantidad;
+                    pivot.cantidad = cantDisp;
+                    if (instoactual == null)
+                    {
+                        instoactual = pivot;
+                    }
+                    else
+                    {
+                        if (instoactual.cantidad > cantDisp)
+                        {
+                            instoactual = pivot;
+                        }
+                    }
+                }
+                instoactual.coditem = coditem;
+            }
+
+            return instoactual;
+        }
+
+
+
+
 
 
         /// <summary>
@@ -143,32 +255,6 @@ namespace SIAW.Controllers.ventas.transaccion
                 throw;
             }
         }
-
-
-
-        private async Task<instoactual> GetSaldosActual(string userConnectionString, int codalmacen, string coditem)
-        {
-            using (var _context = DbContextFactory.Create(userConnectionString))
-            {
-                var instoactual = await _context.instoactual
-                                .Where(a => a.codalmacen == codalmacen && a.coditem == coditem)
-                                .Select(a => new instoactual
-                                {
-                                    codalmacen = a.codalmacen,
-                                    coditem = a.coditem,
-                                    cantidad = a.cantidad,
-                                    udm = a.udm,
-                                    porllegar = a.porllegar,
-                                    fecha = a.fecha,
-                                    pedido = a.pedido,
-                                    proformas = a.proformas
-                                })
-                                .FirstOrDefaultAsync();
-                return instoactual;
-            }
-                
-        }
-
 
 
 
