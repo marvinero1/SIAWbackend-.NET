@@ -190,6 +190,49 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
         }
 
+
+
+        // GET: api/catalogo
+        [HttpGet]
+        [Route("catalogo/{userConn}")]
+        public async Task<ActionResult<IEnumerable<inalmacen>>> Getinalmacen_catalogo(string userConn)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var query = _context.inalmacen
+                    .OrderBy(i => i.codigo)
+                    .Select(i => new
+                    {
+                        i.codigo,
+                        i.descripcion
+                    });
+
+                    var result = query.ToList();
+
+                    if (result.Count() == 0)
+                    {
+                        return Problem("No se encontraron registros con esos datos.");
+                    }
+                    return Ok(result);
+                }
+
+            }
+            catch (Exception)
+            {
+                return BadRequest("Error en el servidor");
+                throw;
+            }
+        }
+
+
+
         // PUT: api/inalmacen/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [Authorize]

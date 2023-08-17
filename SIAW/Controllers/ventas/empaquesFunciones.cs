@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json.Linq;
 using SIAW.Data;
 using SIAW.Models;
+using SIAW.Models_Extra;
+using System.Collections.Generic;
 using System.Text;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
@@ -93,6 +95,43 @@ namespace SIAW.Controllers.ventas
             }
         }
 
+        // para determinar si el item es parte de un kit o no
+        public int IteminKits(string userConnectionString, string coditem, int codalmacen)
+        {
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var result = _context.inctrlstock
+                    .Where(c => c.coditem == coditem)
+                    .Select(c => new { nro = c.coditem != null ? 1 : 0 })
+                    .Union(_context.inreserva
+                        .Where(r => r.coditem == coditem && r.codalmacen == codalmacen)
+                        .Select(r => new { nro = r.coditem != null ? 1 : 0 }))
+                    .Select(x => x.nro)
+                    .Sum();
+                return result;
+            }
+        }
+
+        // para obtener lo reservado de un item si forma parte de un kit
+        public async Task<List<instoactual>> ReservaItemsinKit(string userConnectionString, string coditem, int codalmacen)
+        {
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var result = await _context.instoactual
+                    .Where(i => i.codalmacen == codalmacen &&
+                                (i.coditem == coditem ||
+                                 _context.inkit.Any(k => k.codigo == coditem && k.item == i.coditem)))
+                    .Select(i => new instoactual
+                    {
+                        coditem = i.coditem,
+                        cantidad = i.cantidad
+                    })
+                    .ToListAsync();
+                return result;
+            }
+        }
+
+
         public async Task<List<inkit>> GetItemsKit(string userConnectionString, string coditem)
         {
             using (var _context = DbContextFactory.Create(userConnectionString))
@@ -143,11 +182,14 @@ namespace SIAW.Controllers.ventas
 
 
 
-        public async Task<List<object>> GetSaldosReservaProforma(string userConnectionString, int codalmacen, string coditem)
+        public async Task<List<saldosObj>> GetSaldosReservaProforma(string userConnectionString, int codalmacen, string coditem, bool eskit)
         {
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
-                var query = await _context.veproforma
+                List<saldosObj> query = null;
+                if (eskit)
+                {
+                    query = await _context.veproforma
                     .Join(_context.veproforma1, p1 => p1.codigo, p2 => p2.codproforma, (p1, p2) => new { p1, p2 })
                     .Join(_context.inkit, j => j.p2.coditem, p3 => p3.codigo, (j, p3) => new { j.p1, j.p2, p3 })
                     .Join(_context.inkit, j => j.p3.item, p4 => p4.item, (j, p4) => new { j.p1, j.p2, j.p3, p4 })
@@ -157,34 +199,69 @@ namespace SIAW.Controllers.ventas
                                 && j.p1.aprobada == true
                                 && j.p1.codalmacen == codalmacen)
                     .GroupBy(j => j.p3.item)
-                    .Select(g => new
+                    .Select(g => new saldosObj
                     {
-                        Item = g.Key,
-                        TotalP = g.Sum(x => x.p2.cantaut * x.p3.cantidad)
+                        coditem = g.Key,
+                        TotalP = (decimal)g.Sum(x => x.p2.cantaut * x.p3.cantidad)
                     })
                     .ToListAsync();
-                return query.Cast<object>().ToList();
+                }
+                else
+                {
+                    query = await _context.veproforma
+                    .Join(_context.veproforma1, p1 => p1.codigo, p2 => p2.codproforma, (p1, p2) => new { p1, p2 })
+                    .Join(_context.inkit, j => j.p2.coditem, p3 => p3.codigo, (j, p3) => new { j.p1, j.p2, p3 })
+                    .Where(j => j.p3.item == "06CT1C27"
+                        && _context.inkit.Where(k => k.item == "06CT1C27").Select(k => k.codigo).Contains(j.p2.coditem)
+                        && j.p1.anulada == false
+                        && j.p1.transferida == false
+                        && j.p1.aprobada == true
+                        && j.p1.codalmacen == 311)
+                    .GroupBy(j => j.p3.item)
+                    .Select(g => new saldosObj
+                    {
+                        coditem = g.Key,
+                        TotalP = (decimal)g.Sum(x => x.p2.cantaut * x.p3.cantidad)
+                    })
+                    .ToListAsync();
+                }
+                return query;
+
             }
         }
 
-        public async Task<List<object>> GetSaldosReservaProformaFromInstoactual(string userConnectionString, int codalmacen, string coditem)
+        public async Task<List<saldosObj>> GetSaldosReservaProformaFromInstoactual(string userConnectionString, int codalmacen, string coditem, bool eskit)
         {
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
-                var query = await _context.instoactual
+                List<saldosObj> query = null;
+                if (eskit)
+                {
+                    query = await _context.instoactual
                                 .Join(_context.inkit, s => s.coditem, k => k.item, (s, k) => new { s, k })
                 .Where(j => j.s.codalmacen == codalmacen &&
                             j.k.codigo == coditem)
-                .Select(j => new
+                .Select(j => new saldosObj
                 {
-                    j.s.coditem,
-                    Cantidad = j.s.cantidad / j.k.cantidad,
-                    TotalP = j.s.proformas.HasValue ? j.s.proformas.Value / j.k.cantidad : 0
+                    coditem = j.s.coditem,
+                    Cantidad = (decimal)(j.s.cantidad / j.k.cantidad),
+                    TotalP = (decimal)(j.s.proformas.HasValue ? j.s.proformas.Value / j.k.cantidad : 0)
                 })
                 .ToListAsync();
+                }
+                else
+                {
+                    query = await _context.instoactual
+                        .Where(i => i.coditem == coditem && i.codalmacen == codalmacen)
+                        .Select(i => new saldosObj
+                        {
+                            TotalP = i.proformas ?? 0,
+                            coditem = i.coditem
+                        })
+                        .ToListAsync(); 
+                }
 
-
-                return query.Cast<object>().ToList();
+                return query;
             }
         }
 

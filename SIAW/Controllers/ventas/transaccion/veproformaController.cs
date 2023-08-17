@@ -2,9 +2,11 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using NuGet.Configuration;
 using SIAW.Data;
 using SIAW.Models;
+using SIAW.Models_Extra;
 using System.Security.Policy;
 using System.Text;
 using System.Web.Http.Results;
@@ -23,6 +25,48 @@ namespace SIAW.Controllers.ventas.transaccion
         {
             _userConnectionManager = userConnectionManager;
         }
+
+
+
+
+        // GET: api/adsiat_tipodocidentidad
+        [HttpGet]
+        [Route("getTipoDocIdent/{userConn}")]
+        public async Task<ActionResult<IEnumerable<adsiat_tipodocidentidad>>> Getaadsiat_tipodocidentidad(string userConn)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    if (_context.adsiat_tipodocidentidad == null)
+                    {
+                        return Problem("Entidad adtipocambio es null.");
+                    }
+                    var result = await _context.adsiat_tipodocidentidad
+                        .OrderBy (t => t.codigoclasificador)
+                        .Select(t => new
+                        {
+                            t.codigoclasificador,
+                            t.descripcion
+                        })
+                        .ToListAsync();
+                    return Ok(result);
+                }
+
+            }
+            catch (Exception)
+            {
+                return BadRequest("Error en el servidor");
+            }
+
+
+        }
+
+
+
 
 
         /// <summary>
@@ -121,6 +165,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
                 var conexion = userConnectionString;
+                var eskit = empaque_func.GetEsKit(conexion, coditem);  // verifica si el item es kit o no
                 bool obtener_cantidades_aprobadas_de_proformas = empaque_func.IfGetCantidadAprobadasProformas(userConnectionString, codempresa); // si se obtender las cantidades reservadas de las proformas o no
                 bool bandera = false;
                 // Falta validacion para saber si traera datos de manera local o por vpn
@@ -133,24 +178,25 @@ namespace SIAW.Controllers.ventas.transaccion
                     }
                 }
                 // obtiene saldos de agencia del item seleccionado
-                var instoactual = getEmpaquesItemSelect(conexion, coditem, codalmacen);
+                instoactual instoactual = await getEmpaquesItemSelect(conexion, coditem, codalmacen, eskit);
                 // obtiene reservas en proforma
+                List<saldosObj> saldosReservProformas = await getReservasProf(conexion, coditem, codalmacen, obtener_cantidades_aprobadas_de_proformas, eskit); 
+
                 
-                if (obtener_cantidades_aprobadas_de_proformas && bandera== true)
+                string codigoBuscado = instoactual.coditem;
+
+                var reservaProf = saldosReservProformas.FirstOrDefault(obj => obj.coditem == codigoBuscado);
+                instoactual.coditem = coditem;
+
+                // devolver resultados finales
+                return Ok(new
                 {
-                    var saldosReservProformas = empaque_func.GetSaldosReservaProforma(conexion,codalmacen,coditem).Result;
-                    return Ok(saldosReservProformas);
-                }
-                else
-                {
-                    var saldosReservProformas = empaque_func.GetSaldosReservaProformaFromInstoactual(conexion,codalmacen, coditem).Result;
-                    return Ok(saldosReservProformas);
-                }
+                    saldoActual = instoactual,
+                    reservaProf = reservaProf
+                });
 
 
 
-
-                //return Ok(instoactual);
             }
             catch (Exception)
             {
@@ -162,13 +208,24 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
+        private async Task<List<saldosObj>> getReservasProf(string conexion, string coditem, int codalmacen, bool obtener_cantidades_aprobadas_de_proformas, bool eskit)
+        {
+            List<saldosObj> saldosReservProformas;
+            if (obtener_cantidades_aprobadas_de_proformas)
+            {
+                saldosReservProformas = await empaque_func.GetSaldosReservaProforma(conexion, codalmacen, coditem, eskit);
+            }
+            else
+            {
+                saldosReservProformas = await empaque_func.GetSaldosReservaProformaFromInstoactual(conexion, codalmacen, coditem, eskit);
+            }
+            return saldosReservProformas;
+        }
 
 
-
-        private async Task<instoactual> getEmpaquesItemSelect (string conexion, string coditem, int codalmacen)
+        private async Task<instoactual> getEmpaquesItemSelect (string conexion, string coditem, int codalmacen, bool eskit)
         {
             instoactual instoactual = null;
-            var eskit = empaque_func.GetEsKit(conexion, coditem);
 
             if (!eskit)  // como no es kit obtiene los datos de stock directamente
             {
@@ -195,7 +252,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         }
                     }
                 }
-                instoactual.coditem = coditem;
+                //instoactual.coditem = coditem;
             }
 
             return instoactual;

@@ -30,6 +30,7 @@ namespace SIAW.Data
         public virtual DbSet<adparametros_diasextranc> adparametros_diasextranc { get; set; }
         public virtual DbSet<adparametros_tarifasfact> adparametros_tarifasfact { get; set; }
         public virtual DbSet<adprovincia> adprovincia { get; set; }
+        public virtual DbSet<adsiat_tipodocidentidad> adsiat_tipodocidentidad { get; set; }
         public virtual DbSet<adtipocambio> adtipocambio { get; set; }
         public virtual DbSet<adunidad> adunidad { get; set; }
         public virtual DbSet<adusparametros> adusparametros { get; set; }
@@ -592,6 +593,29 @@ namespace SIAW.Data
                 entity.Property(e => e.usuarioreg)
                     .IsRequired()
                     .HasMaxLength(10);
+            });
+
+            modelBuilder.Entity<adsiat_tipodocidentidad>(entity =>
+            {
+                entity.HasKey(e => new { e.codigo, e.cuis, e.codigoclasificador })
+                    .HasName("PK_adsiat_tipodocidentidad_1");
+
+                entity.Property(e => e.codigo).ValueGeneratedOnAdd();
+
+                entity.Property(e => e.cuis).HasMaxLength(20);
+
+                entity.Property(e => e.descripcion)
+                    .IsRequired()
+                    .HasMaxLength(200);
+
+                entity.Property(e => e.fechareg).HasColumnType("smalldatetime");
+
+                entity.Property(e => e.horareg)
+                    .HasMaxLength(5)
+                    .IsUnicode(false)
+                    .IsFixedLength();
+
+                entity.Property(e => e.usuarioreg).HasMaxLength(30);
             });
 
             modelBuilder.Entity<adtipocambio>(entity =>

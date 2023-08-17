@@ -60,6 +60,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[adsiat_tipodocidentidad]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[adtipocambio]",
          "ObjectType": 0
       },
