@@ -56,8 +56,8 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
         /// <returns></returns>
         // GET: api/adtipocambio/5
         [HttpGet]
-        [Route("getTipocambioFecha/{userConn}/{fecha}")]
-        public async Task<ActionResult<adtipocambio>> Getadtipocambio(string userConn, DateTime fecha)
+        [Route("verificaTipocambioFecha/{userConn}/{fecha}")]
+        public async Task<ActionResult<adtipocambio>> Verificaadtipocambio(string userConn, DateTime fecha)
         {
             try
             {
@@ -81,6 +81,49 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     return Ok(true);
                 }
                 
+            }
+            catch (Exception)
+            {
+                return BadRequest("Error en el servidor");
+            }
+        }
+
+
+
+        /// <summary>
+        /// Obtiene los registros por fecha
+        /// </summary>
+        /// <param name="userConn"></param>
+        /// <param name="fecha"></param>
+        /// <returns></returns>
+        // GET: api/adtipocambio/5
+        [HttpGet]
+        [Route("getTipocambioFecha/{userConn}/{fecha}")]
+        public async Task<ActionResult<adtipocambio>> Getadtipocambio(string userConn, DateTime fecha)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    if (_context.adtipocambio == null)
+                    {
+                        return Problem("Entidad adtipocambio es null.");
+                    }
+
+                    var adtipocambio = await _context.adtipocambio
+                        .Where(x => x.fecha == fecha && x.moneda=="US")
+                        .FirstOrDefaultAsync();
+                    if (adtipocambio == null )
+                    {
+                        return NotFound("701");
+                    }
+
+                    return Ok(adtipocambio);
+                }
+
             }
             catch (Exception)
             {

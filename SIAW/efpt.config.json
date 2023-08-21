@@ -80,6 +80,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[adusuario_tarifa]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[cmtipocompra]",
          "ObjectType": 0
       },
@@ -153,6 +157,10 @@
       },
       {
          "Name": "[dbo].[inreserva]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[inreserva_area]",
          "ObjectType": 0
       },
       {
@@ -273,6 +281,14 @@
       },
       {
          "Name": "[dbo].[veproforma1]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[veptoventa]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[vetienda]",
          "ObjectType": 0
       },
       {

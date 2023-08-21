@@ -34,13 +34,20 @@ builder.Services.AddCors(options =>
     options.AddPolicy("NuevaPolitica", app =>
     {
         app.AllowAnyOrigin()
-        .AllowAnyHeader()
-        .AllowAnyMethod();
+        .AllowAnyMethod()
+        .AllowAnyHeader();
     });
 });
 
 //builder.Services.AddScoped<ICustomDbContextFactory, CustomDbContextFactory>();
 //builder.Services.AddHttpContextAccessor(); // Agregar esta línea
+
+builder.Services.Configure<IISServerOptions>(options =>
+{
+    options.AllowSynchronousIO = true; // Esto puede ser necesario en algunas situaciones
+    options.MaxRequestBodySize = null;
+});
+
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -80,6 +87,7 @@ if (app.Environment.IsProduction())
 app.UseCors("NuevaPolitica");
 app.UseAuthentication();
 
+
 app.UseHttpsRedirection();
 
 
@@ -88,6 +96,11 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+
+
+
+
+app.Run();
 
 using (var scope = app.Services.CreateScope())
 {
@@ -113,10 +126,6 @@ using (var scope = app.Services.CreateScope())
         Console.WriteLine(ex.Message);
     }
 }
-
-
-app.Run();
-
 
 public static class DbContextFactory
 {

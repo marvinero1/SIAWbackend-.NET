@@ -83,8 +83,8 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
         // GET: api/catalogo
         [HttpGet]
-        [Route("catalogo/{userConn}")]
-        public async Task<ActionResult<IEnumerable<intarifa>>> Getintarifa_catalogo(string userConn)
+        [Route("catalogo/{userConn}/{usuario}")]
+        public async Task<ActionResult<IEnumerable<intarifa>>> Getintarifa_catalogo(string userConn, string usuario)
         {
             try
             {
@@ -96,6 +96,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     var query = _context.intarifa
+                    .Where(t => _context.adusuario_tarifa.Any(at => at.usuario == usuario && at.codtarifa == t.codigo))
                     .OrderBy(i => i.codigo)
                     .Select(i => new
                     {

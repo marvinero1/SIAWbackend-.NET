@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.VisualBasic;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NuGet.Configuration;
@@ -165,9 +166,10 @@ namespace SIAW.Controllers.ventas.transaccion
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
                 var conexion = userConnectionString;
-                var eskit = empaque_func.GetEsKit(conexion, coditem);  // verifica si el item es kit o no
-                bool obtener_cantidades_aprobadas_de_proformas = empaque_func.IfGetCantidadAprobadasProformas(userConnectionString, codempresa); // si se obtender las cantidades reservadas de las proformas o no
+                bool eskit = await empaque_func.GetEsKit(conexion, coditem);  // verifica si el item es kit o no
+                bool obtener_cantidades_aprobadas_de_proformas = await empaque_func.IfGetCantidadAprobadasProformas(userConnectionString, codempresa); // si se obtender las cantidades reservadas de las proformas o no
                 bool bandera = false;
+                bool item_reserva_para_conjunto = false;  // ayuda a verificar si el item no kit es utilizado para armar conjuntos.
                 // Falta validacion para saber si traera datos de manera local o por vpn
                 if (bandera)
                 {
@@ -177,6 +179,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         return Problem("No se pudo obtener la cadena de conexión");
                     }
                 }
+                
                 // obtiene saldos de agencia del item seleccionado
                 instoactual instoactual = await getEmpaquesItemSelect(conexion, coditem, codalmacen, eskit);
                 // obtiene reservas en proforma
@@ -188,11 +191,61 @@ namespace SIAW.Controllers.ventas.transaccion
                 var reservaProf = saldosReservProformas.FirstOrDefault(obj => obj.coditem == codigoBuscado);
                 instoactual.coditem = coditem;
 
+
+                // obtiene items si no son kit, sus reservas para armar conjuntos.
+                List<inctrlstock> itemsinReserva = null;
+                decimal CANTIDAD_RESERVADA = 0;
+                if (!eskit)  // si no es kit debe verificar si el item es utilizado para armar conjuntos
+                {
+                    item_reserva_para_conjunto = await empaque_func.IteminKits(userConnectionString, coditem, codalmacen);
+                    if (item_reserva_para_conjunto)
+                    {
+                        //caso 3
+                        List<inreserva_area> reserva = await empaque_func.ReservaItemsinKit3(userConnectionString, coditem, codalmacen);
+                        if (reserva.Count > 0)
+                        {
+                            // ojo con este tiene validaciones
+                        }
+                        else
+                        {
+                            //caso 1 tuercas
+                            itemsinReserva = await empaque_func.ReservaItemsinKit1(userConnectionString, coditem);
+                            foreach (var item in itemsinReserva)
+                            {
+                                instoactual itemRef = await empaque_func.GetSaldosActual(userConnectionString, codalmacen, item.coditemcontrol);
+                                decimal cubrir_item = (decimal)(itemRef.cantidad * (item.porcentaje / 100));
+                                //cubrir_item = Math.Floor(cubrir_item);
+                                CANTIDAD_RESERVADA += cubrir_item;
+                            }
+                            if (CANTIDAD_RESERVADA < 0)
+                            {
+                                CANTIDAD_RESERVADA = 0;
+                            }
+
+                            //caso 2
+                            List<inreserva> reserva2 = await empaque_func.ReservaItemsinKit2(userConnectionString, coditem, codalmacen);
+                            if (reserva2.Count > 0)
+                            {
+                                decimal cubrir_item = (decimal)reserva2[0].cantidad;
+                                CANTIDAD_RESERVADA += cubrir_item;
+                            }
+                        }
+
+
+                        //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                        
+                    }
+                }
+
+
+
+
                 // devolver resultados finales
                 return Ok(new
                 {
                     saldoActual = instoactual,
-                    reservaProf = reservaProf
+                    reservaProf = reservaProf,
+                    reservaConj = CANTIDAD_RESERVADA
                 });
 
 
@@ -342,6 +395,25 @@ namespace SIAW.Controllers.ventas.transaccion
             }
         }
 
+
+        [HttpGet]
+        [Route("getMinimosItem/{userConn}/{coditem}/{codintarifa}/{codvedescuento}")]
+        public async Task<object> getMinimosItem(string userConn, string coditem, int codintarifa, int codvedescuento)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                float cantMin = await empaque_func.getEmpaqueMinimo(userConnectionString, coditem, codintarifa, codvedescuento);
+
+                return Ok(cantMin);
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+            
+        }
 
 
     }

@@ -35,6 +35,7 @@ namespace SIAW.Data
         public virtual DbSet<adunidad> adunidad { get; set; }
         public virtual DbSet<adusparametros> adusparametros { get; set; }
         public virtual DbSet<adusuario> adusuario { get; set; }
+        public virtual DbSet<adusuario_tarifa> adusuario_tarifa { get; set; }
         public virtual DbSet<cmtipocompra> cmtipocompra { get; set; }
         public virtual DbSet<cncuenta> cncuenta { get; set; }
         public virtual DbSet<cnnumeracion> cnnumeracion { get; set; }
@@ -54,6 +55,7 @@ namespace SIAW.Data
         public virtual DbSet<inlinea> inlinea { get; set; }
         public virtual DbSet<inmatriz> inmatriz { get; set; }
         public virtual DbSet<inreserva> inreserva { get; set; }
+        public virtual DbSet<inreserva_area> inreserva_area { get; set; }
         public virtual DbSet<inresistencia> inresistencia { get; set; }
         public virtual DbSet<inrosca> inrosca { get; set; }
         public virtual DbSet<instoactual> instoactual { get; set; }
@@ -84,6 +86,8 @@ namespace SIAW.Data
         public virtual DbSet<veplanpago> veplanpago { get; set; }
         public virtual DbSet<veproforma> veproforma { get; set; }
         public virtual DbSet<veproforma1> veproforma1 { get; set; }
+        public virtual DbSet<veptoventa> veptoventa { get; set; }
+        public virtual DbSet<vetienda> vetienda { get; set; }
         public virtual DbSet<vevendedor> vevendedor { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -833,6 +837,15 @@ namespace SIAW.Data
                 entity.Property(e => e.vencimiento).HasColumnType("smalldatetime");
             });
 
+            modelBuilder.Entity<adusuario_tarifa>(entity =>
+            {
+                entity.HasNoKey();
+
+                entity.Property(e => e.usuario)
+                    .HasMaxLength(10)
+                    .IsUnicode(false);
+            });
+
             modelBuilder.Entity<cmtipocompra>(entity =>
             {
                 entity.HasKey(e => e.id)
@@ -1392,6 +1405,21 @@ namespace SIAW.Data
                 entity.Property(e => e.cantidad).HasColumnType("decimal(18, 2)");
 
                 entity.Property(e => e.coditem).HasMaxLength(8);
+            });
+
+            modelBuilder.Entity<inreserva_area>(entity =>
+            {
+                entity.HasNoKey();
+
+                entity.Property(e => e.coditem).HasMaxLength(8);
+
+                entity.Property(e => e.porcenvta).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.promvta).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.saldo).HasColumnType("decimal(18, 6)");
+
+                entity.Property(e => e.smin).HasColumnType("decimal(18, 2)");
             });
 
             modelBuilder.Entity<inresistencia>(entity =>
@@ -2560,6 +2588,109 @@ namespace SIAW.Data
                 entity.Property(e => e.udm)
                     .IsRequired()
                     .HasMaxLength(3);
+            });
+
+            modelBuilder.Entity<veptoventa>(entity =>
+            {
+                entity.HasKey(e => e.codigo);
+
+                entity.Property(e => e.codigo).ValueGeneratedNever();
+
+                entity.Property(e => e.Usuarioreg)
+                    .IsRequired()
+                    .HasMaxLength(10);
+
+                entity.Property(e => e.abreviacion)
+                    .HasMaxLength(5)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.codprovincia)
+                    .IsRequired()
+                    .HasMaxLength(8);
+
+                entity.Property(e => e.descripcion)
+                    .IsRequired()
+                    .HasMaxLength(30);
+
+                entity.Property(e => e.fechareg).HasColumnType("smalldatetime");
+
+                entity.Property(e => e.horareg)
+                    .IsRequired()
+                    .HasMaxLength(5);
+
+                entity.Property(e => e.tipo).HasMaxLength(30);
+
+                entity.Property(e => e.ubicacion).HasMaxLength(15);
+            });
+
+            modelBuilder.Entity<vetienda>(entity =>
+            {
+                entity.HasKey(e => e.codigo)
+                    .IsClustered(false);
+
+                entity.Property(e => e.aclaracion_direccion)
+                    .HasMaxLength(254)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.celular).HasMaxLength(30);
+
+                entity.Property(e => e.celular_2)
+                    .HasMaxLength(30)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.celular_3).HasMaxLength(15);
+
+                entity.Property(e => e.celular_whatsapp).HasMaxLength(15);
+
+                entity.Property(e => e.codcliente)
+                    .IsRequired()
+                    .HasMaxLength(10);
+
+                entity.Property(e => e.direccion)
+                    .HasMaxLength(100)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.email).HasMaxLength(50);
+
+                entity.Property(e => e.fax).HasMaxLength(15);
+
+                entity.Property(e => e.fechareg).HasColumnType("smalldatetime");
+
+                entity.Property(e => e.horareg)
+                    .IsRequired()
+                    .HasMaxLength(5);
+
+                entity.Property(e => e.latitud)
+                    .HasMaxLength(25)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.longitud)
+                    .HasMaxLength(25)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.nomb_cel1).HasMaxLength(50);
+
+                entity.Property(e => e.nomb_cel2).HasMaxLength(50);
+
+                entity.Property(e => e.nomb_cel3).HasMaxLength(50);
+
+                entity.Property(e => e.nomb_telf1).HasMaxLength(50);
+
+                entity.Property(e => e.nomb_telf2).HasMaxLength(50);
+
+                entity.Property(e => e.nomb_whatsapp).HasMaxLength(50);
+
+                entity.Property(e => e.obs).HasMaxLength(50);
+
+                entity.Property(e => e.telefono).HasMaxLength(15);
+
+                entity.Property(e => e.telefono_2)
+                    .HasMaxLength(15)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.usuarioreg)
+                    .IsRequired()
+                    .HasMaxLength(10);
             });
 
             modelBuilder.Entity<vevendedor>(entity =>

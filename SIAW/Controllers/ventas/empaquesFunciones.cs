@@ -83,53 +83,106 @@ namespace SIAW.Controllers.ventas
             }
         }
 
-        public bool GetEsKit(string userConnectionString, string coditem)
+        public async Task<bool> GetEsKit(string userConnectionString, string coditem)
         {
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
-                var kit = _context.initem
+                var kit = await _context.initem
                                 .Where(a => a.codigo == coditem)
                                 .Select(a => new { kit = a.kit })
-                                .FirstOrDefault();
+                                .FirstOrDefaultAsync();
                 return kit.kit;
             }
         }
 
-        // para determinar si el item es parte de un kit o no
-        public int IteminKits(string userConnectionString, string coditem, int codalmacen)
+        // para determinar si el item es parte de un kit o no 
+        public async Task<bool> IteminKits(string userConnectionString, string coditem, int codalmacen)
         {
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
-                var result = _context.inctrlstock
+                var result = await _context.inctrlstock
                     .Where(c => c.coditem == coditem)
                     .Select(c => new { nro = c.coditem != null ? 1 : 0 })
                     .Union(_context.inreserva
                         .Where(r => r.coditem == coditem && r.codalmacen == codalmacen)
                         .Select(r => new { nro = r.coditem != null ? 1 : 0 }))
                     .Select(x => x.nro)
-                    .Sum();
-                return result;
+                    .SumAsync();
+                if (result > 0) { return true; }
+                return false;
             }
         }
 
-        // para obtener lo reservado de un item si forma parte de un kit
-        public async Task<List<instoactual>> ReservaItemsinKit(string userConnectionString, string coditem, int codalmacen)
+
+
+
+
+
+
+        // para obtener lo reservado de un item si forma parte de un kit  CASO TUERCA     CASO 1 SIA ANTIGUO
+        public async Task<List<inctrlstock>> ReservaItemsinKit1(string userConnectionString, string coditem)
         {
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
-                var result = await _context.instoactual
-                    .Where(i => i.codalmacen == codalmacen &&
-                                (i.coditem == coditem ||
-                                 _context.inkit.Any(k => k.codigo == coditem && k.item == i.coditem)))
-                    .Select(i => new instoactual
+                var result = await _context.inctrlstock
+                    .Where(c => c.coditem == coditem)
+                    .Select(c => new inctrlstock
                     {
-                        coditem = i.coditem,
-                        cantidad = i.cantidad
+                        coditemcontrol = c.coditemcontrol,
+                        porcentaje = c.porcentaje
                     })
                     .ToListAsync();
                 return result;
             }
         }
+
+
+
+        // para obtener lo reservado de un item si forma parte de un kit  2     CASO 2 SIA ANTIGUO
+        public async Task<List<inreserva>> ReservaItemsinKit2(string userConnectionString, string coditem, int codalmacen)
+        {
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var result = await _context.inreserva
+                    .Where(r => r.coditem == coditem && r.codalmacen == codalmacen)
+                    .ToListAsync();
+                return result;
+            }
+        }
+
+
+        // para obtener lo reservado de un item si forma parte de un kit  3     CASO 3 SIA ANTIGUO
+        public async Task<List<inreserva_area>> ReservaItemsinKit3(string userConnectionString, string coditem, int codalmacen)
+        {
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var subquery = await _context.inalmacen
+                    .Where(a => a.codigo == codalmacen)
+                    .Select(a => a.codarea)
+                    .FirstOrDefaultAsync();
+
+
+                var result = await _context.inreserva_area
+                    .Where(ra => ra.codarea == subquery && ra.coditem == coditem)
+                    .Select(ra => new inreserva_area
+                    {
+                        codarea = ra.codarea,
+                        coditem = ra.coditem,
+                        promvta = ra.promvta,
+                        smin = ra.smin,
+                        porcenvta = ra.porcenvta,
+                        saldo = ra.saldo
+                    })
+                    .ToListAsync();
+                return result;
+            }
+        }
+
+
+
+
+
+
 
 
         public async Task<List<inkit>> GetItemsKit(string userConnectionString, string coditem)
@@ -150,32 +203,16 @@ namespace SIAW.Controllers.ventas
             }
         }
 
-        public int GetItemReservaParaConjuntos(string userConnectionString, string coditem, int codalmacen)
-        {
-            using (var _context = DbContextFactory.Create(userConnectionString))
-            {
-                var total = _context.inctrlstock
-                             .Where(a => a.coditem == coditem)
-                             .Select(a => a.coditem)
-                             .DefaultIfEmpty()
-                             .Count() +
-                        _context.inreserva
-                             .Where(a => a.coditem == coditem && a.codalmacen == codalmacen)
-                             .Select(a => a.coditem)
-                             .DefaultIfEmpty()
-                             .Count();
-                return total;
-            }
-        }
+       
 
-        public bool IfGetCantidadAprobadasProformas(string userConnectionString, string codempresa)
+        public async Task<bool> IfGetCantidadAprobadasProformas(string userConnectionString, string codempresa)
         {
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
-                var adparametros = _context.adparametros
+                var adparametros = await _context.adparametros
                                 .Where(a => a.codempresa == codempresa)
                                 .Select(a => a.obtener_cantidades_aprobadas_de_proformas)
-                                .FirstOrDefault();
+                                .FirstOrDefaultAsync();
                 return (bool)adparametros;
             }
         }
@@ -211,12 +248,12 @@ namespace SIAW.Controllers.ventas
                     query = await _context.veproforma
                     .Join(_context.veproforma1, p1 => p1.codigo, p2 => p2.codproforma, (p1, p2) => new { p1, p2 })
                     .Join(_context.inkit, j => j.p2.coditem, p3 => p3.codigo, (j, p3) => new { j.p1, j.p2, p3 })
-                    .Where(j => j.p3.item == "06CT1C27"
-                        && _context.inkit.Where(k => k.item == "06CT1C27").Select(k => k.codigo).Contains(j.p2.coditem)
+                    .Where(j => j.p3.item == coditem
+                        && _context.inkit.Where(k => k.item == coditem).Select(k => k.codigo).Contains(j.p2.coditem)
                         && j.p1.anulada == false
                         && j.p1.transferida == false
                         && j.p1.aprobada == true
-                        && j.p1.codalmacen == 311)
+                        && j.p1.codalmacen == codalmacen)
                     .GroupBy(j => j.p3.item)
                     .Select(g => new saldosObj
                     {
@@ -262,6 +299,51 @@ namespace SIAW.Controllers.ventas
                 }
 
                 return query;
+            }
+        }
+
+        public async Task<float> getEmpaqueMinimo(string userConnectionString, string coditem, int codintarifa, int codvedescuento)
+        {
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                float canttarif, cantdesc = 0;
+                canttarif = (float)await _context.veempaque1
+                    .Join(_context.intarifa,
+                          e => e.codempaque,
+                          t => t.codempaque,
+                          (e, t) => new { e, t })
+                    .Where(j => j.e.item == coditem && j.t.codigo == codintarifa)
+                    .Select(j => j.e.cantidad)
+                    .FirstOrDefaultAsync();
+
+                cantdesc = (float)await _context.veempaque1
+                    .Join(_context.vedescuento,
+                          e => e.codempaque,
+                          d => d.codempaque,
+                          (e, d) => new { e, d })
+                    .Where(j => j.e.item == coditem && j.d.codigo == codvedescuento)
+                    .Select(j => j.e.cantidad)
+                    .FirstOrDefaultAsync();
+                if (cantdesc > canttarif)
+                {
+                    return cantdesc;
+                }
+                return canttarif;
+            }
+        }
+
+
+        public async Task<float> getPesoItem(string userConnectionString, string coditem)
+        {
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                float peso = 0;
+                peso = (float)await _context.initem
+                   .Where(item => item.codigo == coditem)
+                   .Select(item => item.peso)
+                   .FirstOrDefaultAsync();
+
+                return peso;
             }
         }
 

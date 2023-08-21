@@ -57,15 +57,13 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.inmatriz == null)
                     {
                         return Problem("Entidad inmatriz es null.");
                     }
-                    var inmatriz = _context.inmatriz.Where(objeto => objeto.hoja == hoja);
+                    var inmatriz = await _context.inmatriz.Where(objeto => objeto.hoja == hoja).ToListAsync();
 
                     if (inmatriz.Count() == 0)
                     {
@@ -74,7 +72,6 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                     return Ok(inmatriz);
                 }
-                
             }
             catch (Exception)
             {
