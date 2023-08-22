@@ -68,7 +68,11 @@ namespace SIAW.Controllers.ventas.mantenimiento
                     {
                         return Problem("Entidad vecliente es null.");
                     }
-                    var vecliente = await _context.vecliente.FindAsync(codigo);
+                    //var vecliente = await _context.vecliente.FindAsync(codigo);
+                    var vecliente = await _context.vecliente
+                        .Join(_context.vetienda, c => c.codigo, v => v.codcliente, (cliente, vivienda) => new { Cliente = cliente, Vivienda = vivienda })
+                        .Where(joined => joined.Cliente.codigo == codigo && joined.Vivienda.central == true)
+                        .FirstOrDefaultAsync();
 
                     if (vecliente == null)
                     {

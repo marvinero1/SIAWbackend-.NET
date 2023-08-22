@@ -397,15 +397,22 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
         [HttpGet]
-        [Route("getMinimosItem/{userConn}/{coditem}/{codintarifa}/{codvedescuento}")]
-        public async Task<object> getMinimosItem(string userConn, string coditem, int codintarifa, int codvedescuento)
+        [Route("getMinimosItem/{userConn}/{coditem}/{codintarifa}/{codvedescuento}/{codalmacen}")]
+        public async Task<object> getMinimosItem(string userConn, string coditem, int codintarifa, int codvedescuento, int codalmacen)
         {
             try
             {
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
                 float cantMin = await empaque_func.getEmpaqueMinimo(userConnectionString, coditem, codintarifa, codvedescuento);
+                float pesoMin = await empaque_func.getPesoItem(userConnectionString, coditem);
+                float porcenMaxVnta = await empaque_func.getPorcentMaxVenta(userConnectionString, coditem, codalmacen);
 
-                return Ok(cantMin);
+                return Ok(new
+                {
+                    cantMin = cantMin,
+                    pesoMin = pesoMin * cantMin,
+                    porcenMaxVnta = "Max Vta: "+ porcenMaxVnta + "% del saldo"
+                });
             }
             catch (Exception)
             {

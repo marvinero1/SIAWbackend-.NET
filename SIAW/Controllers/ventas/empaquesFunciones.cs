@@ -306,24 +306,40 @@ namespace SIAW.Controllers.ventas
         {
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
-                float canttarif, cantdesc = 0;
-                canttarif = (float)await _context.veempaque1
+                float canttarif = 0, cantdesc = 0;
+                
+                var resCanttarif = await _context.veempaque1
                     .Join(_context.intarifa,
                           e => e.codempaque,
                           t => t.codempaque,
                           (e, t) => new { e, t })
                     .Where(j => j.e.item == coditem && j.t.codigo == codintarifa)
-                    .Select(j => j.e.cantidad)
+                    .Select(j => new
+                    {
+                        cantidad = j.e.cantidad
+                    })
                     .FirstOrDefaultAsync();
-
-                cantdesc = (float)await _context.veempaque1
+                if (resCanttarif!=null)
+                {
+                    canttarif = (float)resCanttarif.cantidad;
+                }
+                var resCantdesc = await _context.veempaque1
                     .Join(_context.vedescuento,
                           e => e.codempaque,
                           d => d.codempaque,
                           (e, d) => new { e, d })
                     .Where(j => j.e.item == coditem && j.d.codigo == codvedescuento)
-                    .Select(j => j.e.cantidad)
+                    .Select(j => new
+                    {
+                        cantidad = j.e.cantidad
+                    })
                     .FirstOrDefaultAsync();
+                if (resCantdesc != null)
+                {
+                    cantdesc = (float)resCantdesc.cantidad;
+                }
+
+
                 if (cantdesc > canttarif)
                 {
                     return cantdesc;
@@ -338,14 +354,40 @@ namespace SIAW.Controllers.ventas
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 float peso = 0;
-                peso = (float)await _context.initem
+                var result = await _context.initem
                    .Where(item => item.codigo == coditem)
-                   .Select(item => item.peso)
+                   .Select(item => new
+                   {
+                       peso = item.peso
+                   })
                    .FirstOrDefaultAsync();
-
+                if (result != null)
+                {
+                    peso = (float)result.peso;
+                }
                 return peso;
             }
         }
 
+
+        public async Task<float> getPorcentMaxVenta(string userConnectionString, string coditem, int codalmacen)
+        {
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                float porcentaje = 0;
+                var result = await _context.initem_max_vta
+                   .Where(x => x.coditem == coditem && x.codalmacen == codalmacen)
+                   .Select(x => new
+                   {
+                       porcen_maximo = x.porcen_maximo
+                   })
+                   .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    porcentaje = (float)result.porcen_maximo;
+                }
+                return porcentaje;
+            }
+        }
     }
 }

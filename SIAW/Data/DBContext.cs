@@ -51,6 +51,7 @@ namespace SIAW.Data
         public virtual DbSet<initem> initem { get; set; }
         public virtual DbSet<initem_controltarifa> initem_controltarifa { get; set; }
         public virtual DbSet<initem_max> initem_max { get; set; }
+        public virtual DbSet<initem_max_vta> initem_max_vta { get; set; }
         public virtual DbSet<inkit> inkit { get; set; }
         public virtual DbSet<inlinea> inlinea { get; set; }
         public virtual DbSet<inmatriz> inmatriz { get; set; }
@@ -1320,6 +1321,15 @@ namespace SIAW.Data
                     .IsUnicode(false);
 
                 entity.Property(e => e.maximo).HasColumnType("decimal(18, 2)");
+            });
+
+            modelBuilder.Entity<initem_max_vta>(entity =>
+            {
+                entity.HasNoKey();
+
+                entity.Property(e => e.coditem).HasMaxLength(8);
+
+                entity.Property(e => e.porcen_maximo).HasColumnType("decimal(18, 2)");
             });
 
             modelBuilder.Entity<inkit>(entity =>

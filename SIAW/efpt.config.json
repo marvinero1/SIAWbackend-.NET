@@ -144,6 +144,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[initem_max_vta]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[inkit]",
          "ObjectType": 0
       },
