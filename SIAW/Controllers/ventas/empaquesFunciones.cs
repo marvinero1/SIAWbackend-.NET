@@ -6,7 +6,6 @@ using SIAW.Models;
 using SIAW.Models_Extra;
 using System.Collections.Generic;
 using System.Text;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace SIAW.Controllers.ventas
 {

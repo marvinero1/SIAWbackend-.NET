@@ -21,6 +21,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
         private readonly UserConnectionManager _userConnectionManager;
         private empaquesFunciones empaque_func = new empaquesFunciones();
+        private ClienteCasual validacionesCliente = new ClienteCasual();
 
         public veproformaController(UserConnectionManager userConnectionManager)
         {
@@ -422,6 +423,28 @@ namespace SIAW.Controllers.ventas.transaccion
             
         }
 
+        [HttpPost]
+        [Route("crearCliente/{userConn}/{codcliente}/{nit}/{tipo_doc_id_doc_id}")]
+        public async Task<object> crearCliente(string userConn, string codcliente, string nit, string tipo_doc_id_doc_id)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                string datosValidos = await validacionesCliente.validar_crear_cliente(userConnectionString, codcliente, nit, tipo_doc_id_doc_id);
+                if (datosValidos != "Ok")
+                {
+                    return BadRequest(datosValidos);
+                }
+
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+
+        }
 
     }
 }
