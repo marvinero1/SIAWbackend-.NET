@@ -59457,8 +59457,6 @@ namespace SIAW.Data
 
             modelBuilder.Entity<vecliente_conta>(entity =>
             {
-                entity.HasNoKey();
-
                 entity.Property(e => e.codcliente)
                     .HasMaxLength(10)
                     .IsUnicode(false);
@@ -59626,8 +59624,6 @@ namespace SIAW.Data
 
             modelBuilder.Entity<vecliente_desextra>(entity =>
             {
-                entity.HasNoKey();
-
                 entity.Property(e => e.codcliente)
                     .HasMaxLength(10)
                     .IsUnicode(false);
@@ -59782,8 +59778,6 @@ namespace SIAW.Data
 
             modelBuilder.Entity<veclienteprecio>(entity =>
             {
-                entity.HasNoKey();
-
                 entity.Property(e => e.codcliente)
                     .IsRequired()
                     .HasMaxLength(10);

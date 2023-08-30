@@ -46,5 +46,6 @@ namespace SIAW.Models
         public string cta_vtacontado_descto { get; set; }
         public string cta_vtacontado_descto_aux { get; set; }
         public int? cta_vtacontado_descto_cc { get; set; }
+        public int id { get; set; }
     }
 }

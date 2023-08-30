@@ -9,5 +9,6 @@ namespace SIAW.Models
     {
         public string codcliente { get; set; }
         public int codtarifa { get; set; }
+        public int id { get; set; }
     }
 }

@@ -1,9 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Humanizer.Localisation;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json.Linq;
 using SIAW.Data;
 using SIAW.Models;
 using SIAW.Models_Extra;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -128,7 +130,7 @@ namespace SIAW.Controllers.ventas
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     var resultados = await _context.vecliente
-                        .Where(v => v.nit == nit && v.codigo.All(char.IsDigit) && v.codigo != cod.codcliente_b)
+                        .Where(v => v.nit == nit && IsNumeric(v.codigo) && v.codigo != cod.codcliente_b)
                         .Select(v => new
                         {
                             v.codigo,
@@ -136,6 +138,7 @@ namespace SIAW.Controllers.ventas
                             v.nombre_comercial
                         })
                         .FirstOrDefaultAsync();
+
                     if(resultados != null)
                     {
                         cuantos++;
@@ -151,20 +154,28 @@ namespace SIAW.Controllers.ventas
         }
 
 
+        private static bool IsNumeric(string input)
+        {
+            return int.TryParse(input, out _);
+        }
+
         public async Task<List<veclientesiguales>> CodigosIguales(string userConnectionString, string codcliente)
         {
             string codigoPrincipal = await CodigoPrincipal(userConnectionString, codcliente);
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 var result = await _context.veclientesiguales
-                    .Where(v => v.codcliente_a == codigoPrincipal && v.codcliente_b.All(char.IsDigit))
+                    .Where(v => v.codcliente_a == codigoPrincipal)
                     .Select(v => new veclientesiguales
                     {
                         codcliente_a = v.codcliente_a,
                         codcliente_b = v.codcliente_b
                     })
                     .ToListAsync();
-                return result;
+
+                var filteredResult = result.Where(v => IsNumeric(v.codcliente_b)).ToList();
+
+                return filteredResult;
             }
         }
 
@@ -188,68 +199,227 @@ namespace SIAW.Controllers.ventas
             }
         }
 
-        // crear cliente casual
-        public async Task<bool> Crear_Cliente_Casual (string userConnectionString, int codalmacen, clienteCasual cliCasual)
+
+
+
+        /// ///////////////////////////////////////////////////////////////////////////////////////////////////////////        // crear cliente casual
+        public async Task<bool> Crear_Cliente_Casual (DBContext _context, clienteCasual cliCasual)
         {
             //string codpto_vta = await getCodArea(userConnectionString, codalmacen);
 
-            int v = int.Parse(await Ultimo_Codigo_Numerico(userConnectionString)) + 1;
+
+
+            int v = int.Parse(await Ultimo_Codigo_Numerico(_context)) + 1;
             string cod_cliente = v.ToString();
 
-            float limite_descto_deposito = await Porcentaje_Limite_Descuento_Deposito(userConnectionString, 0);
+            float limite_descto_deposito = await Porcentaje_Limite_Descuento_Deposito(_context, 0);
 
             // obtener datos de cliente
-            vecliente vecliente = await getDataClienteCasual(userConnectionString, cliCasual.codSN, cod_cliente, cliCasual.nomcliente_casual, cliCasual.nit_cliente_casual, cliCasual.email_cliente_casual, cliCasual.usuarioreg, cliCasual.celular_cliente_casual, limite_descto_deposito);
+            vecliente vecliente = await getDataClienteCasual(_context, cliCasual.codSN, cod_cliente, cliCasual.nomcliente_casual, cliCasual.nit_cliente_casual, cliCasual.email_cliente_casual, cliCasual.usuarioreg, cliCasual.celular_cliente_casual, limite_descto_deposito);
             // obtener datos de tienda
-            vetienda vetienda = await getDataClienteCasualTienda(userConnectionString, cod_cliente, codalmacen, cliCasual.nomcliente_casual, cliCasual.email_cliente_casual, cliCasual.celular_cliente_casual, vecliente.fechareg, vecliente.horareg, cliCasual.usuarioreg);
+            vetienda vetienda = await getDataClienteCasualTienda(_context, cod_cliente, cliCasual.codalmacen, cliCasual.nomcliente_casual, cliCasual.email_cliente_casual, cliCasual.celular_cliente_casual, vecliente.fechareg, vecliente.horareg, cliCasual.usuarioreg);
             //valida que datos no esten vacios
             if (vecliente  == null)
             {
                 return false;
             }
 
-            // crea cliente
-            using (var _context = DbContextFactory.Create(userConnectionString))
+            _context.vecliente.Add(vecliente);
+            await _context.SaveChangesAsync();
+            /*
+            try
             {
-                _context.vecliente.Add(vecliente);
-                try
-                {
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateException)
-                {
-                    return false;
-                }
+                await _context.SaveChangesAsync();
             }
-            // crea tienda
-            using (var _context = DbContextFactory.Create(userConnectionString))
+            catch (DbUpdateException)
             {
-                _context.vetienda.Add(vetienda);
-                try
-                {
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateException)
-                {
-                    return false;
-                }
-            }
+                return false;
+            }*/
 
-            if (!await AsignarCuentasCliente(userConnectionString, cod_cliente))
+            // crea tienda
+            _context.vetienda.Add(vetienda);
+            await _context.SaveChangesAsync();
+            /*
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                return false;
+            }*/
+
+            if (!await AsignarCuentasCliente(_context, cod_cliente))
             {
                 return false;
             }
 
+            if (!await AsignarGrupoComercial_Cliente_Nuevo(_context, cod_cliente, cod_cliente, cliCasual.codvendedor))
+            {
+                return false;
+            }
+            if (!await Asignar_Precios_Defecto_Cliente_Nuevo(_context, cod_cliente))
+            {
+                return false;
+            }
+            if (!await Asignar_Descuentos_Extra_Defecto_Cliente_Nuevo(_context, cod_cliente))
+            {
+                return false;
+            }
 
             return true;
         }
 
 
 
-        public async Task<bool> AsignarGrupoComercial_Cliente_Nuevo(string userConnectionString, string codcliente, string codcliente_casa_matriz, int codvendedor)
+        public async Task<bool> Asignar_Descuentos_Extra_Defecto_Cliente_Nuevo(DBContext _context, string codcliente)
         {
-            int almacen = await get_almacen_de_vendedor(userConnectionString, codvendedor);
-            bool creacion = await ClientesIguales_Insertar(userConnectionString, codcliente_casa_matriz, codcliente, almacen);
+            string dpto_cliente = await getdeptocliente(_context, codcliente);
+            var vecliente = await get_Vendedor_de_cliente_and_nit_fact_por_defecto(_context, codcliente);
+            if (vecliente == null)
+            {
+                return false;
+            }
+            int codvend = vecliente.codvendedor;
+
+            List<descExtra> descuentos = new List<descExtra>();
+            descuentos = await _context.vevendedor_desextra
+                    .Join(
+                        _context.vedesextra,
+                        p1 => p1.coddesextra,
+                        p2 => p2.codigo,
+                        (p1, p2) => new { p1, p2 })
+                    .Where(j => j.p1.codvendedor == codvend)
+                    .OrderBy(j => j.p1.coddesextra)
+                    .Select(j => new descExtra
+                    {
+                        codvendedor = (int)j.p1.codvendedor,
+                        coddesextra = (int)j.p1.coddesextra,
+                        maxpp = (int)j.p2.maxpp
+                    })
+                    .ToListAsync();
+            List<vecliente_desextra> datos = new List<vecliente_desextra>();
+            foreach (var desc in descuentos)
+            {
+                vecliente_desextra dato = new vecliente_desextra();
+                dato.codcliente = codcliente;
+                dato.coddesextra = desc.coddesextra;
+                dato.dias = desc.maxpp;
+                datos.Add(dato);
+            }
+
+            _context.vecliente_desextra.AddRange(datos);
+            await _context.SaveChangesAsync();
+            /*
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                return false;
+            }*/
+
+            return true;   // creado con exito
+
+        }
+
+
+
+        public async Task<bool> Asignar_Precios_Defecto_Cliente_Nuevo(DBContext _context, string codcliente)
+        {
+            string dpto_cliente = await getdeptocliente(_context, codcliente);
+            var vecliente = await get_Vendedor_de_cliente_and_nit_fact_por_defecto(_context, codcliente);
+            if (vecliente == null)
+            {
+                return false;
+            }
+            int codvend = vecliente.codvendedor;
+            //string nit_cliente = vecliente.nit_fact;
+            List<vevendedor_tarifa> tarifas = await get_vevendedor_tarifa(_context, codvend, dpto_cliente);
+            List<veclienteprecio> datos = new List<veclienteprecio>();
+
+            foreach (var item in tarifas)
+            {
+                veclienteprecio dato = new veclienteprecio();
+                dato.codcliente = codcliente;
+                dato.codtarifa = int.Parse(item.codtarifa);
+                datos.Add(dato);
+            }
+
+            _context.veclienteprecio.AddRange(datos);
+            await _context.SaveChangesAsync();
+            /*
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                return false;
+            }*/
+
+            return true;   // creado con exito
+        }
+
+
+        public async Task<List<vevendedor_tarifa>> get_vevendedor_tarifa(DBContext _context, int codvend, string dpto_cliente)
+        {
+            var query = await _context.vevendedor_tarifa
+                        .Where(vt => vt.codvendedor == codvend && vt.coddepto == dpto_cliente)
+                        .ToListAsync();
+            if (query.Count() == 0)
+            {
+                query = await _context.vevendedor_tarifa
+                    .Where(vt => vt.codvendedor == codvend && vt.coddepto == "")
+                    .ToListAsync();
+            }
+            return query;
+        }
+
+        public async Task<vecliente> get_Vendedor_de_cliente_and_nit_fact_por_defecto(DBContext _context, string codcliente)
+        {
+            var query = await _context.vecliente
+                        .Where(v => v.codigo == codcliente)
+                            .Select(v => new vecliente
+                            {
+                                codvendedor = v.codvendedor,
+                                nit_fact = v.nit_fact
+                            })
+                        .FirstOrDefaultAsync();
+            if (query == null)
+            {
+                return null;
+            }
+            return query;
+        }
+        public async Task<string> getdeptocliente(DBContext _context, string codcliente)
+        {
+            var coddepto = await _context.vetienda
+                    .Where(t => t.codcliente == codcliente && t.central == true)
+                    .Join(_context.veptoventa,
+                          t => t.codptoventa,
+                          p => p.codigo,
+                          (t, p) => new { t, p })
+                    .Join(_context.adprovincia,
+                          tp => tp.p.codprovincia,
+                          a => a.codigo,
+                          (tp, a) => new { tp, a })
+                    .Select(x => x.a.coddepto)
+                    .FirstOrDefaultAsync();
+            if (coddepto == null)
+            {
+                return "";
+            }
+            return coddepto;
+        }
+
+
+
+        public async Task<bool> AsignarGrupoComercial_Cliente_Nuevo(DBContext _context, string codcliente, string codcliente_casa_matriz, int codvendedor)
+        {
+            int almacen = await get_almacen_de_vendedor(_context, codvendedor);
+            bool creacion = await ClientesIguales_Insertar(_context, codcliente_casa_matriz, codcliente, almacen);
             if (!creacion)
             {
                 return false;
@@ -259,141 +429,134 @@ namespace SIAW.Controllers.ventas
 
 
 
-        public async Task<bool> ClientesIguales_Insertar(string userConnectionString, string codcliente_a, string codcliente_b, int almacen)
+        public async Task<bool> ClientesIguales_Insertar(DBContext _context, string codcliente_a, string codcliente_b, int almacen)
         {
             veclientesiguales veclientesiguales = new veclientesiguales();
             veclientesiguales.codcliente_a = codcliente_a;
             veclientesiguales.codcliente_b = codcliente_b;
             veclientesiguales.codalmacen = almacen;
 
-            using (var _context = DbContextFactory.Create(userConnectionString))
+            _context.veclientesiguales.Add(veclientesiguales);
+            await _context.SaveChangesAsync();
+            return true;
+            /*
+            try
             {
-                _context.veclientesiguales.Add(veclientesiguales);
-                try
-                {
-                    await _context.SaveChangesAsync();
-                    return true;
-                }
-                catch (DbUpdateException)
-                {
-                    return false;
-                }
+                await _context.SaveChangesAsync();
+                return true;
             }
+            catch (DbUpdateException)
+            {
+                return false;
+            }*/
         }
 
-        public async Task<int> get_almacen_de_vendedor(string userConnectionString, int codvendedor)
+        public async Task<int> get_almacen_de_vendedor(DBContext _context, int codvendedor)
         {
-            using (var _context = DbContextFactory.Create(userConnectionString))
-            {
-                var query = await _context.vevendedor
+            var query = await _context.vevendedor
                         .Where(v => v.codigo == codvendedor)
                             .Select(v => new
                             {
                                 almacen = v.almacen
                             })
                         .FirstOrDefaultAsync();
-                if (query == null)
-                {
-                    return 0;
-                }
-                return query.almacen;
-            }
-        }
-
-        public async Task<bool> AsignarCuentasCliente(string userConnectionString, string codclienteAct)
-        {
-            using (var _context = DbContextFactory.Create(userConnectionString))
+            if (query == null)
             {
-                var codcliente = await _context.vecliente.OrderBy(v => v.codigo).Select(v => v.codigo).FirstOrDefaultAsync();
-
-                var vecliente_conta = await _context.vecliente_conta
-                    .Where(vc => vc.codcliente == codcliente)
-                    .Select(vc => new vecliente_conta
-                    {
-                        codcliente = codclienteAct,
-                        codunidad = vc.codunidad,
-                        cta_vtacontado = vc.cta_vtacontado,
-                        cta_vtacontado_aux = vc.cta_vtacontado_aux,
-                        cta_vtacontado_cc = vc.cta_vtacontado_cc,
-                        cta_vtacredito = vc.cta_vtacredito,
-                        cta_vtacredito_aux = vc.cta_vtacredito_aux,
-                        cta_vtacredito_cc = vc.cta_vtacredito_cc,
-                        cta_porcobrar = vc.cta_porcobrar,
-                        cta_porcobrar_aux = vc.cta_porcobrar_aux,
-                        cta_porcobrar_cc = vc.cta_porcobrar_cc,
-                        cta_iva = vc.cta_iva,
-                        cta_iva_aux = vc.cta_iva_aux,
-                        cta_iva_cc = vc.cta_iva_cc,
-                        codalmacen = vc.codalmacen,
-                        cta_ivadebito = vc.cta_ivadebito,
-                        cta_ivadebito_aux = vc.cta_ivadebito_aux,
-                        cta_ivadebito_cc = vc.cta_ivadebito_cc,
-                        cta_anticipo = vc.cta_anticipo,
-                        cta_anticipo_aux = vc.cta_anticipo_aux,
-                        cta_anticipo_cc = vc.cta_anticipo_cc,
-                        cta_anticipo_contado = vc.cta_anticipo_contado,
-                        cta_anticipo_contado_aux = vc.cta_anticipo_contado_aux,
-                        cta_anticipo_contado_cc = vc.cta_anticipo_contado_cc,
-                        cta_diftdc = vc.cta_diftdc,
-                        cta_diftdc_aux = vc.cta_diftdc_aux,
-                        cta_diftdc_cc = vc.cta_diftdc_cc
-                    })
-                    .FirstOrDefaultAsync();
-
-                if (vecliente_conta != null)
-                {
-                    _context.vecliente_conta.Add(vecliente_conta);
-                    try
-                    {
-                        await _context.SaveChangesAsync();
-                        return true;
-                    }
-                    catch (Exception)
-                    {
-                        return false;
-                    }
-                    
-                }
-                return false;
+                return 0;
             }
-
+            return query.almacen;
         }
 
-        public async Task<float> Porcentaje_Limite_Descuento_Deposito(string userConnectionString, decimal subtotal_prof)
+        public async Task<bool> AsignarCuentasCliente(DBContext _context, string codclienteAct)
+        {
+            var codcliente = await _context.vecliente.OrderBy(v => v.codigo).Select(v => v.codigo).FirstOrDefaultAsync();
+
+            var vecliente_conta = await _context.vecliente_conta
+                .Where(vc => vc.codcliente == codcliente)
+                .Select(vc => new vecliente_conta
+                {
+                    codcliente = codclienteAct,
+                    codunidad = vc.codunidad,
+                    cta_vtacontado = vc.cta_vtacontado,
+                    cta_vtacontado_aux = vc.cta_vtacontado_aux,
+                    cta_vtacontado_cc = vc.cta_vtacontado_cc,
+                    cta_vtacredito = vc.cta_vtacredito,
+                    cta_vtacredito_aux = vc.cta_vtacredito_aux,
+                    cta_vtacredito_cc = vc.cta_vtacredito_cc,
+                    cta_porcobrar = vc.cta_porcobrar,
+                    cta_porcobrar_aux = vc.cta_porcobrar_aux,
+                    cta_porcobrar_cc = vc.cta_porcobrar_cc,
+                    cta_iva = vc.cta_iva,
+                    cta_iva_aux = vc.cta_iva_aux,
+                    cta_iva_cc = vc.cta_iva_cc,
+                    codalmacen = vc.codalmacen,
+                    cta_ivadebito = vc.cta_ivadebito,
+                    cta_ivadebito_aux = vc.cta_ivadebito_aux,
+                    cta_ivadebito_cc = vc.cta_ivadebito_cc,
+                    cta_anticipo = vc.cta_anticipo,
+                    cta_anticipo_aux = vc.cta_anticipo_aux,
+                    cta_anticipo_cc = vc.cta_anticipo_cc,
+                    cta_anticipo_contado = vc.cta_anticipo_contado,
+                    cta_anticipo_contado_aux = vc.cta_anticipo_contado_aux,
+                    cta_anticipo_contado_cc = vc.cta_anticipo_contado_cc,
+                    cta_diftdc = vc.cta_diftdc,
+                    cta_diftdc_aux = vc.cta_diftdc_aux,
+                    cta_diftdc_cc = vc.cta_diftdc_cc
+                })
+                .FirstOrDefaultAsync();
+
+            if (vecliente_conta != null)
+            {
+                _context.vecliente_conta.Add(vecliente_conta);
+                await _context.SaveChangesAsync();
+                return true;
+                /*
+                try
+                {
+                    await _context.SaveChangesAsync();
+                    return true;
+                }
+                catch (Exception)
+                {
+                    return false;
+                }*/
+            }
+            return false;
+        }
+
+        public async Task<float> Porcentaje_Limite_Descuento_Deposito(DBContext _context, decimal subtotal_prof)
         {
             float resultado = 0;
-            using (var _context = DbContextFactory.Create(userConnectionString))
-            {
-                var query = await _context.verango_descuento_deposito
+            var query = await _context.verango_descuento_deposito
                         .Where(descuento => subtotal_prof >= descuento.desde && subtotal_prof <= descuento.hasta)
                         .FirstOrDefaultAsync();
-                if (query == null)
-                {
-                    return 0;
-                }
-                if (query.porcentaje_limite != null)
-                {
-                    resultado = (float)query.porcentaje_limite;
-                }
-                return resultado;
+            if (query == null)
+            {
+                return 0;
             }
+            if (query.porcentaje_limite != null)
+            {
+                resultado = (float)query.porcentaje_limite;
+            }
+            return resultado;
         }
 
 
-        public async Task<vetienda> getDataClienteCasualTienda(string userConnectionString, string cod_cliente, int codalmacen,
+        public async Task<vetienda> getDataClienteCasualTienda(DBContext _context, string cod_cliente, int codalmacen,
             string nomcliente_casual, string email_cliente_casual, string celular_cliente_casual, DateTime fechareg, string horareg, string usuarioreg)
         {
             vetienda vetienda = new vetienda();
             vetienda.codcliente = cod_cliente;
 
-            vetienda.direccion = await getdireccionalmacen(userConnectionString, codalmacen);
+            vetienda.direccion = await getdireccionalmacen(_context, codalmacen);
             vetienda.telefono = "";
             vetienda.nomb_telf1 = "";
             vetienda.fax = "";
             vetienda.celular = celular_cliente_casual;
             vetienda.nomb_cel1 = nomcliente_casual;
             vetienda.email = email_cliente_casual;
-            vetienda.codptoventa = await getCodArea(userConnectionString, codalmacen);
+            vetienda.codptoventa = await getCodArea(_context, codalmacen);
+            vetienda.central = true;
             vetienda.obs = "";
 
             vetienda.fechareg = fechareg;
@@ -402,8 +565,8 @@ namespace SIAW.Controllers.ventas
 
             //crear la direcion del cliente con la direccion de la tienda donde se esta creando al cliente (por sugerencia de JRA)
             vetienda.aclaracion_direccion = "CASUAL";
-            vetienda.latitud = await getlatitudalmacen(userConnectionString, codalmacen);
-            vetienda.longitud = await getlongitudalmacen(userConnectionString, codalmacen);
+            vetienda.latitud = await getlatitudalmacen(_context, codalmacen);
+            vetienda.longitud = await getlongitudalmacen(_context, codalmacen);
 
             vetienda.telefono_2 = "";
             vetienda.nomb_telf2 = "";
@@ -419,193 +582,174 @@ namespace SIAW.Controllers.ventas
         }
 
 
-        public async Task<string> getdireccionalmacen(string userConnectionString, int codalmacen)
+        public async Task<string> getdireccionalmacen(DBContext _context, int codalmacen)
         {
-            using (var _context = DbContextFactory.Create(userConnectionString))
-            {
-                var result = await _context.inalmacen
+            var result = await _context.inalmacen
                     .Where(v => v.codigo == codalmacen)
                     .Select(parametro => new
                     {
                         direccion = parametro.direccion
                     })
                     .FirstOrDefaultAsync();
-                if (result == null)
-                {
-                    return "";
-                }
-                return result.direccion;
+            if (result == null)
+            {
+                return "";
             }
+            return result.direccion;
         }
 
-        public async Task<string> getlatitudalmacen(string userConnectionString, int codalmacen)
+        public async Task<string> getlatitudalmacen(DBContext _context, int codalmacen)
         {
-            using (var _context = DbContextFactory.Create(userConnectionString))
-            {
-                var result = await _context.inalmacen
+            var result = await _context.inalmacen
                     .Where(v => v.codigo == codalmacen)
                     .Select(parametro => new
                     {
                         latitud = parametro.latitud
                     })
                     .FirstOrDefaultAsync();
-                if (result == null)
-                {
-                    return "0";
-                }
-                return result.latitud;
+            if (result == null)
+            {
+                return "0";
             }
+            return result.latitud;
         }
 
-        public async Task<string> getlongitudalmacen(string userConnectionString, int codalmacen)
+        public async Task<string> getlongitudalmacen(DBContext _context, int codalmacen)
         {
-            using (var _context = DbContextFactory.Create(userConnectionString))
-            {
-                var result = await _context.inalmacen
+            var result = await _context.inalmacen
                     .Where(v => v.codigo == codalmacen)
                     .Select(parametro => new
                     {
                         longitud = parametro.longitud
                     })
                     .FirstOrDefaultAsync();
-                if (result == null)
-                {
-                    return "0";
-                }
-                return result.longitud;
+            if (result == null)
+            {
+                return "0";
             }
+            return result.longitud;
         }
         // este codigo en el sia antiguo era select p2.codigo as codarea,p2.descripcion,p1. * from inalmacen p1, adarea p2 where p1.codigo='311' and p1.codarea=p2.codigo 
         // solo utilizado para tener el codigo de area de la agencia, se simplifico a select codarea from inalmacen where codigo='311'
-        public async Task<int> getCodArea(string userConnectionString, int codalmacen)
+        public async Task<int> getCodArea(DBContext _context, int codalmacen)
         {
             int codpto_vta = 0;
-            using (var _context = DbContextFactory.Create(userConnectionString))
-            {
-                var result = await _context.inalmacen
+            var result = await _context.inalmacen
                     .Where(v => v.codigo == codalmacen)
                     .Select(parametro => new
                     {
                         codarea = parametro.codarea
                     })
                     .FirstOrDefaultAsync();
-                if (result != null)
-                {
-                    codpto_vta = result.codarea;
-                }
-                return codpto_vta;
+            if (result != null)
+            {
+                codpto_vta = result.codarea;
             }
+            return codpto_vta;
         }
 
 
         //devuelve nuevo codigo para cliente
-        public async Task<string> Ultimo_Codigo_Numerico(string userConnectionString)
+        public async Task<string> Ultimo_Codigo_Numerico(DBContext _context)
         {
-            int inicial = await getemp_numeracion_clientes_desde(userConnectionString);
-            int final = await getemp_numeracion_clientes_hasta(userConnectionString);
+            int inicial = await getemp_numeracion_clientes_desde(_context);
+            int final = await getemp_numeracion_clientes_hasta(_context);
 
 
-            using (var _context = DbContextFactory.Create(userConnectionString))
+            var data = await _context.vecliente
+                    .ToListAsync();
+
+            var result = data
+                .Where(c => IsNumeric(c.codigo) && !c.codigo.Contains("E"))
+                .Where(c => int.Parse(c.codigo) >= inicial && int.Parse(c.codigo) <= final)
+                .OrderByDescending(c => c.codigo)
+                .Select(c => c.codigo)
+                .FirstOrDefault();
+            if (result == null)
             {
-                var result = await _context.vecliente
-                    .Where(c => c.codigo.CompareTo(inicial) >= 0 && c.codigo.CompareTo(final) <= 0
-                                && c.codigo.All(char.IsDigit)
-                                && !c.codigo.Contains("E"))
-                    .OrderBy(c => c.codigo)
-                    .Select(c => c.codigo)
-                    .FirstOrDefaultAsync();
-                if (result == null)
-                {
-                    result = "0";
-                }
-                return result;
+                result = "0";
             }
+            return result;
         }
 
-        public async Task<int> getemp_numeracion_clientes_desde(string userConnectionString)
+        public async Task<int> getemp_numeracion_clientes_desde(DBContext _context)
         {
-            using (var _context = DbContextFactory.Create(userConnectionString))
-            {
-                var result = await _context.adparametros
+            var result = await _context.adparametros
                     .Select(parametro => parametro.numeracion_clientes_desde)
                     .FirstOrDefaultAsync();
-                
-                return (int)result;
-            }
+
+            return (int)result;
         }
-        public async Task<int> getemp_numeracion_clientes_hasta(string userConnectionString)
+        public async Task<int> getemp_numeracion_clientes_hasta(DBContext _context)
         {
-            using (var _context = DbContextFactory.Create(userConnectionString))
-            {
-                var result = await _context.adparametros
+            var result = await _context.adparametros
                     .Select(parametro => parametro.numeracion_clientes_hasta)
                     .FirstOrDefaultAsync();
 
-                return (int)result;
-            }
+            return (int)result;
         }
-        public async Task<vecliente> getDataClienteCasual(string userConnectionString, string codSN, string cod_cliente, string nomcliente_casual, string nit_cliente_casual, string email_cliente_casual, string usuarioreg,
+        public async Task<vecliente> getDataClienteCasual(DBContext _context, string codSN, string cod_cliente, string nomcliente_casual, string nit_cliente_casual, string email_cliente_casual, string usuarioreg,
             string celular_cliente_casual, float limite_descto_deposito)
         {
             string fechaDef = "1900-01-01";
             string fechaAc = getFechaActual();
             string horaAc = getHoraActual();
 
-            using (var _context = DbContextFactory.Create(userConnectionString))
-            {
-                var dt_SN = await _context.vecliente
+            var dt_SN = await _context.vecliente
                     .Where(c => c.codigo == codSN && _context.vecliente_sinnombre.Any(v => v.codcliente == c.codigo))
                     .FirstOrDefaultAsync();
 
-                if(dt_SN == null)
-                {
-                    return null;
-                }
-                dt_SN.codigo = cod_cliente;
-                dt_SN.razonsocial = nomcliente_casual;
-                dt_SN.nit = nit_cliente_casual;
-                dt_SN.credito = 0;
-
-                dt_SN.fvenccred = DateTime.Parse(fechaDef);  //enviar fecha
-
-                dt_SN.creditodisp = 0;
-
-                dt_SN.fapertura = DateTime.Parse(fechaAc); // enviar fecha actual
-
-                dt_SN.email = email_cliente_casual;
-
-
-
-                dt_SN.horareg = horaAc;  //enviar string la hora
-
-                dt_SN.fechareg = DateTime.Parse(fechaAc); // enviar fecha actual
-
-                dt_SN.usuarioreg = usuarioreg;
-                dt_SN.clasificacion = "Z";
-                dt_SN.controla_empaque_cerrado = true;
-                dt_SN.controla_precios = true;
-                dt_SN.permite_items_repetidos = false;
-                dt_SN.controla_empaque_minimo = true;
-                dt_SN.controla_monto_minimo = true;
-                dt_SN.es_cliente_final = false;
-                dt_SN.nombre_contrato = "";
-                dt_SN.nombre_fact = nomcliente_casual;
-                dt_SN.nit_fact = nit_cliente_casual;
-                dt_SN.nombre_comercial = nomcliente_casual;
-                dt_SN.es_empresa = false;
-                dt_SN.nropoder = "0";
-                dt_SN.ciudad_titular = "--";
-                dt_SN.direccion_titular = "-";
-                dt_SN.celular_titular = celular_cliente_casual;
-                dt_SN.latitud_titular = "0";
-                dt_SN.longitud_titular = "0";
-                dt_SN.obs_titular = "--";
-                dt_SN.cliente_pertec = false;
-                dt_SN.porcentaje_limite_descto_deposito = (decimal?)limite_descto_deposito;
-                dt_SN.casual = true;
-
-                return dt_SN;
+            if (dt_SN == null)
+            {
+                return null;
             }
+
+
+
+            dt_SN.codigo = cod_cliente;
+            dt_SN.razonsocial = nomcliente_casual;
+            dt_SN.nit = nit_cliente_casual;
+            dt_SN.credito = 0;
+
+            dt_SN.fvenccred = DateTime.Parse(fechaDef);  //enviar fecha
+
+            dt_SN.creditodisp = 0;
+
+            dt_SN.fapertura = DateTime.Parse(fechaAc); // enviar fecha actual
+
+            dt_SN.email = email_cliente_casual;
+
+
+
+            dt_SN.horareg = horaAc;  //enviar string la hora
+
+            dt_SN.fechareg = DateTime.Parse(fechaAc); // enviar fecha actual
+
+            dt_SN.usuarioreg = usuarioreg;
+            dt_SN.clasificacion = "Z";
+            dt_SN.controla_empaque_cerrado = true;
+            dt_SN.controla_precios = true;
+            dt_SN.permite_items_repetidos = false;
+            dt_SN.controla_empaque_minimo = true;
+            dt_SN.controla_monto_minimo = true;
+            dt_SN.es_cliente_final = false;
+            dt_SN.nombre_contrato = "";
+            dt_SN.nombre_fact = nomcliente_casual;
+            dt_SN.nit_fact = nit_cliente_casual;
+            dt_SN.nombre_comercial = nomcliente_casual;
+            dt_SN.es_empresa = false;
+            dt_SN.nropoder = "0";
+            dt_SN.ciudad_titular = "--";
+            dt_SN.direccion_titular = "-";
+            dt_SN.celular_titular = celular_cliente_casual;
+            dt_SN.latitud_titular = "0";
+            dt_SN.longitud_titular = "0";
+            dt_SN.obs_titular = "--";
+            dt_SN.cliente_pertec = false;
+            dt_SN.porcentaje_limite_descto_deposito = (decimal?)limite_descto_deposito;
+            dt_SN.casual = true;
+
+            return dt_SN;
         }
 
 

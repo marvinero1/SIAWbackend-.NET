@@ -10,5 +10,6 @@ namespace SIAW.Models
         public string codcliente { get; set; }
         public int? coddesextra { get; set; }
         public int? dias { get; set; }
+        public int id { get; set; }
     }
 }

@@ -21,7 +21,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
         private readonly UserConnectionManager _userConnectionManager;
         private empaquesFunciones empaque_func = new empaquesFunciones();
-        private ClienteCasual validacionesCliente = new ClienteCasual();
+        private ClienteCasual clienteCasual = new ClienteCasual();
 
         public veproformaController(UserConnectionManager userConnectionManager)
         {
@@ -424,24 +424,39 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
         [HttpPost]
-        [Route("crearCliente/{userConn}/{codcliente}/{nit}/{tipo_doc_id_doc_id}")]
-        public async Task<object> crearCliente(string userConn, string codcliente, string nit, string tipo_doc_id_doc_id)
+        [Route("crearCliente/{userConn}")]
+        public async Task<object> crearCliente(string userConn, clienteCasual cliCasual)
         {
-            try
-            {
-                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                string datosValidos = await validacionesCliente.validar_crear_cliente(userConnectionString, codcliente, nit, tipo_doc_id_doc_id);
-                if (datosValidos != "Ok")
+            string datosValidos = await clienteCasual.validar_crear_cliente(userConnectionString, cliCasual.codSN, cliCasual.nit_cliente_casual, cliCasual.tipo_doc_cliente_casual);
+            if (datosValidos != "Ok")
+            {
+                return BadRequest("Datos no validos verifique por favor!!!");
+            }
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                using (var dbContexTransaction = _context.Database.BeginTransaction())
                 {
-                    return BadRequest(datosValidos);
+                    try
+                    {
+                        bool crear_cli_casu = await clienteCasual.Crear_Cliente_Casual(_context, cliCasual);
+                        if (!crear_cli_casu)
+                        {
+                            return BadRequest("Error al crear el cliente");
+                        }
+                        dbContexTransaction.Commit();
+                        return Ok("Cliente creado exitosamente");
+
+                    }
+                    catch (Exception)
+                    {
+                        dbContexTransaction.Rollback();
+                        return Problem("Error en el servidor");
+                        throw;
+                    }
                 }
 
-            }
-            catch (Exception)
-            {
-                return Problem("Error en el servidor");
-                throw;
             }
 
         }
