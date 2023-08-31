@@ -115,7 +115,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                     var query = _context.vecliente
                     .OrderBy(c => c.codigo)
                     .ToList() // Cargamos todos los registros en memoria
-                    .Where(c => IsNumeric(c.codigo)) // Filtramos en memoria
+                    //.Where(c => IsNumeric(c.codigo)) // Filtramos en memoria
                     .Select(c => new
                     {
                         codigo=c.codigo,

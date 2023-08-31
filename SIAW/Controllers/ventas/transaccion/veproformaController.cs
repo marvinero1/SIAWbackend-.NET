@@ -456,10 +456,53 @@ namespace SIAW.Controllers.ventas.transaccion
                         throw;
                     }
                 }
-
             }
-
         }
 
+        [HttpPut]
+        [Route("actualizarCorreoCliente/{userConn}/{codcliente}/{email}")]
+        public async Task<object> actualizarCorreoCliente(string userConn, string codcliente, string email)
+        {
+
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            if (await clienteCasual.EsClienteSinNombre(userConnectionString, codcliente))
+            {
+                return "No se puede actualizar el correo de un codigo SIN NOMBRE!!!";
+            }
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                using (var dbContexTransaction = _context.Database.BeginTransaction())
+                {
+                    try
+                    {
+                        /////////      ACTUALIZAR DATOS DE CLIENTE Y DE TIENDA
+                        bool actualizaEmailClient = await clienteCasual.actualizarEmailCliente(_context, codcliente, email);
+                        if (!actualizaEmailClient)
+                        {
+                            return BadRequest("No se pudo actualizar el email del cliente");
+                        }
+
+                        bool actualizaEmailTienda = await clienteCasual.actualizarEmailClienteTienda(_context, codcliente, email);
+                        if (!actualizaEmailTienda)
+                        {
+                            return BadRequest("No se pudo actualizar el email del cliente (tienda)");
+                            throw new Exception();
+                        }
+
+                        dbContexTransaction.Commit();
+                        return Ok("Se ha actualizado exitosamente el email del cliente en sus Datos y en datos de la Tienda del Cliente.");
+
+                    }
+                    catch (Exception)
+                    {
+                        dbContexTransaction.Rollback();
+                        return Problem("Error en el servidor");
+                        throw;
+                    }
+                }
+            }
+        }
     }
 }

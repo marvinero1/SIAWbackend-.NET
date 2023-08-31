@@ -768,5 +768,47 @@ namespace SIAW.Controllers.ventas
             string horaAct = hora.ToString() + ":" + minutos.ToString();
             return horaAct;
         }
+
+
+
+
+
+        public async Task<bool> actualizarEmailCliente(DBContext _context, string codcliente, string email)
+        {
+            var consulta = await _context.vecliente
+                    .Where(p => p.codigo == codcliente)
+                    .Select(parametro => parametro)
+                    .FirstOrDefaultAsync();
+            if (consulta == null)
+            {
+                return false;
+            }
+            consulta.email = email;
+
+            _context.Entry(consulta).State = EntityState.Modified;
+            await _context.SaveChangesAsync();
+            return true;
+
+        }
+
+        public async Task<bool> actualizarEmailClienteTienda(DBContext _context, string codcliente, string email)
+        {
+            var consulta = await _context.vetienda
+                    .Where(p => p.codcliente == codcliente && p.central == true)
+                    .Select(parametro => parametro)
+                    .FirstOrDefaultAsync();
+            if (consulta == null)
+            {
+                return false;
+            }
+            consulta.email = email;
+
+            _context.Entry(consulta).State = EntityState.Modified;
+            await _context.SaveChangesAsync();
+            return true;
+
+        }
+
+
     }
 }
