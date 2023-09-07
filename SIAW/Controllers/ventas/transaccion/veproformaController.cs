@@ -33,6 +33,43 @@ namespace SIAW.Controllers.ventas.transaccion
 
         // GET: api/adsiat_tipodocidentidad
         [HttpGet]
+        [Route("catalogoNumProf/{userConn}/{codUsuario}")]
+        public async Task<ActionResult<IEnumerable<venumeracion>>> catalogoNumProf(string userConn, string codUsuario)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var resultado = await _context.venumeracion
+                        .Where(v => v.tipodoc == 2 && v.habilitado == true &&
+                                    _context.adusuario_idproforma
+                                        .Where(a => a.usuario == codUsuario)
+                                        .Select(a => a.idproforma)
+                                        .Contains(v.id))
+                        .OrderBy(v => v.id)
+                        .Select(v => new
+                        {
+                            codigo = v.id,
+                            descripcion = v.descripcion
+                        })
+                        .ToListAsync();
+                    return Ok(resultado);
+                }
+            }
+            catch (Exception)
+            {
+                return BadRequest("Error en el servidor");
+            }
+        }
+
+
+
+
+        // GET: api/adsiat_tipodocidentidad
+        [HttpGet]
         [Route("getTipoDocIdent/{userConn}")]
         public async Task<ActionResult<IEnumerable<adsiat_tipodocidentidad>>> Getaadsiat_tipodocidentidad(string userConn)
         {
@@ -63,8 +100,6 @@ namespace SIAW.Controllers.ventas.transaccion
             {
                 return BadRequest("Error en el servidor");
             }
-
-
         }
 
 
@@ -194,51 +229,31 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
                 // obtiene items si no son kit, sus reservas para armar conjuntos.
-                List<inctrlstock> itemsinReserva = null;
-                decimal CANTIDAD_RESERVADA = 0;
-                if (!eskit)  // si no es kit debe verificar si el item es utilizado para armar conjuntos
+                float CANTIDAD_RESERVADA = await getReservasCjtos(userConnectionString, coditem, codalmacen, codempresa, eskit, (float)instoactual.cantidad, (float)reservaProf.TotalP);
+
+                // obtiene el saldo minimo que debe mantenerse en agencia
+
+                float Saldo_Minimo_Item = await empaque_func.getSaldoMinimo(userConnectionString, coditem);
+
+
+                // obtiene reserva NM ingreso para sol-Urgente
+                bool validar_ingresos_solurgentes = await empaque_func.getValidaIngreSolurgente(userConnectionString, codempresa);
+                
+                float total_reservado = 0;  
+
+                if (validar_ingresos_solurgentes)
                 {
-                    item_reserva_para_conjunto = await empaque_func.IteminKits(userConnectionString, coditem, codalmacen);
-                    if (item_reserva_para_conjunto)
+                    //  RESTAR LAS CANTIDADES DE INGRESO POR NOTAS DE MOVIMIENTO URGENTES
+                    // de facturas que aun no estan aprobadas
+
+                    // verifica si es almacen o tienda
+                    bool esAlmacen = await empaque_func.esAlmacen(userConnectionString, codalmacen);
+                    if (esAlmacen)
                     {
-                        //caso 3
-                        List<inreserva_area> reserva = await empaque_func.ReservaItemsinKit3(userConnectionString, coditem, codalmacen);
-                        if (reserva.Count > 0)
-                        {
-                            // ojo con este tiene validaciones
-                        }
-                        else
-                        {
-                            //caso 1 tuercas
-                            itemsinReserva = await empaque_func.ReservaItemsinKit1(userConnectionString, coditem);
-                            foreach (var item in itemsinReserva)
-                            {
-                                instoactual itemRef = await empaque_func.GetSaldosActual(userConnectionString, codalmacen, item.coditemcontrol);
-                                decimal cubrir_item = (decimal)(itemRef.cantidad * (item.porcentaje / 100));
-                                //cubrir_item = Math.Floor(cubrir_item);
-                                CANTIDAD_RESERVADA += cubrir_item;
-                            }
-                            if (CANTIDAD_RESERVADA < 0)
-                            {
-                                CANTIDAD_RESERVADA = 0;
-                            }
 
-                            //caso 2
-                            List<inreserva> reserva2 = await empaque_func.ReservaItemsinKit2(userConnectionString, coditem, codalmacen);
-                            if (reserva2.Count > 0)
-                            {
-                                decimal cubrir_item = (decimal)reserva2[0].cantidad;
-                                CANTIDAD_RESERVADA += cubrir_item;
-                            }
-                        }
-
-
-                        //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-                        
                     }
+
                 }
-
-
 
 
                 // devolver resultados finales
@@ -246,7 +261,8 @@ namespace SIAW.Controllers.ventas.transaccion
                 {
                     saldoActual = instoactual,
                     reservaProf = reservaProf,
-                    reservaConj = CANTIDAD_RESERVADA
+                    reservaCjtos = CANTIDAD_RESERVADA,
+                    sldMinItem = Saldo_Minimo_Item
                 });
 
 
@@ -258,6 +274,88 @@ namespace SIAW.Controllers.ventas.transaccion
             }
         }
 
+
+        private async Task<float> getReservasCjtos(string userConnectionString, string coditem, int codalmacen, string codempresa, bool eskit, float _saldoActual, float reservaProf)
+        {
+            List<inctrlstock> itemsinReserva = null;
+            float CANTIDAD_RESERVADA = 0;
+            
+            if (!eskit)  // si no es kit debe verificar si el item es utilizado para armar conjuntos
+            {
+                // pregunta si incluye saldos a cubrir y si debe restringir venta suelta
+                // incluye saldos a cubrir esta por defecto en true en la funcion revisar bien
+                // restringir venta suelta eso varia dependiendo de items verificar mas
+                // if (include_saldos_a_cubrir && RESTRINGIR_VENTA_SUELTA){}
+                // lo siguiente debe estar dentro de esto
+
+                bool Reserva_Tuercas_En_Porcentaje = await empaque_func.reserv_tuer_porcen(userConnectionString, codempresa);
+
+                if (Reserva_Tuercas_En_Porcentaje)
+                {
+                    itemsinReserva = await empaque_func.ReservaItemsinKit1(userConnectionString, coditem);
+                    foreach (var item in itemsinReserva)
+                    {
+                        instoactual itemRef = await empaque_func.GetSaldosActual(userConnectionString, codalmacen, item.coditemcontrol);
+                        float cubrir_item = (float)(itemRef.cantidad * (item.porcentaje / 100));
+                        //cubrir_item = Math.Floor(cubrir_item);
+                        CANTIDAD_RESERVADA += cubrir_item;
+                    }
+                    if (CANTIDAD_RESERVADA < 0)
+                    {
+                        CANTIDAD_RESERVADA = 0;
+                    }
+                }
+                else
+                {
+                    List<inreserva> reserva2 = await empaque_func.ReservaItemsinKit2(userConnectionString, coditem, codalmacen);
+                    if (reserva2.Count > 0)
+                    {
+                        float cubrir_item = (float)reserva2[0].cantidad;
+                        CANTIDAD_RESERVADA += cubrir_item;
+                    }
+                    if (CANTIDAD_RESERVADA < 0)
+                    {
+                        CANTIDAD_RESERVADA = 0;
+                    }
+
+                    float resul = 0;
+                    float reserva_para_cjto = 0;
+                    float CANTIDAD_RESERVADA_DINAMICA = 0;
+
+                    inreserva_area reserva = await empaque_func.Obtener_Cantidad_Segun_SaldoActual_PromVta_SMin_PorcenVta(userConnectionString, coditem, codalmacen);
+
+
+                    if (reserva != null)
+                    {
+                        if ((float)reserva.porcenvta > 0.5)
+                        {
+                            reserva.porcenvta = (decimal)0.5;
+                        }
+
+                        if (_saldoActual >= (double)reserva.smin)
+                        {
+                            resul = (float)(reserva.porcenvta * reserva.promvta);
+                            resul = (float)Math.Round(resul, 2);
+                            reserva_para_cjto = _saldoActual - resul - reservaProf;
+                        }
+                        else
+                        {
+                            reserva_para_cjto = _saldoActual;
+                        }
+
+
+                        CANTIDAD_RESERVADA_DINAMICA = reserva_para_cjto;
+                        if (CANTIDAD_RESERVADA_DINAMICA > 0)
+                        {
+                            CANTIDAD_RESERVADA = (float)CANTIDAD_RESERVADA_DINAMICA;
+                        }
+                    }
+                }
+
+
+            }
+            return CANTIDAD_RESERVADA;
+        }
 
 
 
@@ -439,14 +537,14 @@ namespace SIAW.Controllers.ventas.transaccion
                 using (var dbContexTransaction = _context.Database.BeginTransaction())
                 {
                     try
-                    {
+                    { 
                         bool crear_cli_casu = await clienteCasual.Crear_Cliente_Casual(_context, cliCasual);
                         if (!crear_cli_casu)
                         {
-                            return BadRequest("Error al crear el cliente");
+                            return BadRequest(new { message = "Error al crear el cliente" });
                         }
                         dbContexTransaction.Commit();
-                        return Ok("Cliente creado exitosamente");
+                        return Ok(new { message = "Cliente creado exitosamente" });
 
                     }
                     catch (Exception)

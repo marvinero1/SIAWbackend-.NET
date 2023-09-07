@@ -116,6 +116,22 @@ namespace SIAW.Controllers.ventas
 
 
 
+        // para obtener lo reservado de un item si forma parte de un kit  CASO TUERCA     CASO 1 SIA ANTIGUO
+        public async Task<bool> reserv_tuer_porcen(string userConnectionString, string codempresa)
+        {
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var result = await _context.adparametros
+                    .Where(c => c.codempresa == codempresa)
+                    .Select(c => c.reservar_tuerca_en_porcentaje)
+                    .FirstOrDefaultAsync();
+                return (bool)result;
+            }
+        }
+
+
+
+
 
 
         // para obtener lo reservado de un item si forma parte de un kit  CASO TUERCA     CASO 1 SIA ANTIGUO
@@ -151,7 +167,7 @@ namespace SIAW.Controllers.ventas
 
 
         // para obtener lo reservado de un item si forma parte de un kit  3     CASO 3 SIA ANTIGUO
-        public async Task<List<inreserva_area>> ReservaItemsinKit3(string userConnectionString, string coditem, int codalmacen)
+        public async Task<inreserva_area> Obtener_Cantidad_Segun_SaldoActual_PromVta_SMin_PorcenVta(string userConnectionString, string coditem, int codalmacen)
         {
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
@@ -172,7 +188,7 @@ namespace SIAW.Controllers.ventas
                         porcenvta = ra.porcenvta,
                         saldo = ra.saldo
                     })
-                    .ToListAsync();
+                    .FirstOrDefaultAsync();
                 return result;
             }
         }
@@ -386,6 +402,53 @@ namespace SIAW.Controllers.ventas
                     porcentaje = (float)result.porcen_maximo;
                 }
                 return porcentaje;
+            }
+        }
+
+
+        public async Task<float> getSaldoMinimo(string userConnectionString, string coditem)
+        {
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var result = await _context.initem
+                   .Where(item => item.codigo == coditem)
+                   .Select(item => item.saldominimo)
+                   .FirstOrDefaultAsync();
+                
+                return (float)result;
+            }
+        }
+        public async Task<bool> getValidaIngreSolurgente(string userConnectionString, string codempresa)
+        {
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var result = await _context.adparametros
+                   .Where(item => item.codempresa == codempresa)
+                   .Select(item => item.validar_ingresos_solurgentes)
+                   .FirstOrDefaultAsync();
+
+                return (bool)result;
+            }
+        }
+
+        public async Task<bool> esAlmacen(string userConnectionString, int codalmacen)
+        {
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                bool esAlmacen = false;
+                var result = await _context.inalmacen
+                   .Where(item => item.codigo == codalmacen && item.tienda == true)
+                   .Select(item => new
+                   {
+                       item.codigo
+                   })
+                   .FirstOrDefaultAsync();
+                if(result == null)
+                {
+                    esAlmacen = true;
+                }
+
+                return esAlmacen;
             }
         }
     }

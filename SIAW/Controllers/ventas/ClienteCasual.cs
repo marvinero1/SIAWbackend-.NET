@@ -557,7 +557,7 @@ namespace SIAW.Controllers.ventas
             vetienda.email = email_cliente_casual;
             vetienda.codptoventa = await getCodArea(_context, codalmacen);
             vetienda.central = true;
-            vetienda.obs = "";
+            vetienda.obs = "CLIENTE CASUAL";
 
             vetienda.fechareg = fechareg;
             vetienda.horareg = horareg;
