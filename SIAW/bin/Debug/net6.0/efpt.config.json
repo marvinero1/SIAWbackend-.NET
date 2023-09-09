@@ -7478,6 +7478,30 @@
       {
          "Name": "[dbo].[yyy]",
          "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[SP001_Cantidad_Reservada_En_Proforma_Almacenes]",
+         "ObjectType": 1
+      },
+      {
+         "Name": "[dbo].[SP001_Cantidad_Reservada_En_Proforma_Tiendas]",
+         "ObjectType": 1
+      },
+      {
+         "Name": "[dbo].[SP001_SaldoReservadoNotasUrgente_Una_proforma_Almacenes]",
+         "ObjectType": 1
+      },
+      {
+         "Name": "[dbo].[SP001_SaldoReservadoNotasUrgente_Una_proforma_Tiendas]",
+         "ObjectType": 1
+      },
+      {
+         "Name": "[dbo].[SP001_SaldoReservadoNotasUrgentes_Almacenes]",
+         "ObjectType": 1
+      },
+      {
+         "Name": "[dbo].[SP001_SaldoReservadoNotasUrgentes_Tiendas]",
+         "ObjectType": 1
       }
    ],
    "UiHint": "rodrigo.PS.dbo",

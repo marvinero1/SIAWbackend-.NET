@@ -65333,6 +65333,7 @@ namespace SIAW.Data
                 entity.Property(e => e.uds).HasColumnType("decimal(18, 2)");
             });
 
+            OnModelCreatingGeneratedProcedures(modelBuilder);
             OnModelCreatingPartial(modelBuilder);
         }
 
