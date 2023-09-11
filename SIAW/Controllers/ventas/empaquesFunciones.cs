@@ -451,5 +451,27 @@ namespace SIAW.Controllers.ventas
                 return esAlmacen;
             }
         }
+
+
+        public async Task<bool> ve_detalle_saldo_variable(string userConnectionString, string usuario)
+        {
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                bool ve_detalle = false;
+                var result = await _context.adusparametros
+                   .Where(item => item.usuario == usuario)
+                   .Select(item => new
+                   {
+                       item.ver_detalle_saldo_variable
+                   })
+                   .FirstOrDefaultAsync();
+                if (result == null)
+                {
+                    return false;
+                }
+
+                return (bool)result.ver_detalle_saldo_variable;
+            }
+        }
     }
 }

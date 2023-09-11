@@ -85,5 +85,6 @@ namespace SIAW.Models
         public string idticket_cliente { get; set; }
         public bool? genera_esaldos_sinnombre { get; set; }
         public bool? habilitar_boton_grabar_aprobar { get; set; }
+        public bool? ver_detalle_saldo_variable { get; set; }
     }
 }
