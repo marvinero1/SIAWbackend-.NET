@@ -457,7 +457,6 @@ namespace SIAW.Controllers.ventas
         {
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
-                bool ve_detalle = false;
                 var result = await _context.adusparametros
                    .Where(item => item.usuario == usuario)
                    .Select(item => new
@@ -473,5 +472,46 @@ namespace SIAW.Controllers.ventas
                 return (bool)result.ver_detalle_saldo_variable;
             }
         }
+
+        public async Task<inreserva_area> get_inreserva_area(string userConnectionString, string coditem, int codalmacen)
+        {
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var codarea = await _context.inalmacen
+                    .Where(a => a.codigo == codalmacen)
+                    .Select(a => a.codarea)
+                    .FirstOrDefaultAsync();
+
+
+                var result = await _context.inreserva_area
+                   .Where(i => i.coditem == coditem && i.codarea == codarea)
+                   .Select(i => new inreserva_area
+                   {
+                       codarea = i.codarea,
+                       coditem = i.coditem,
+                       promvta = i.promvta,
+                       smin = i.smin,
+                       porcenvta = i.porcenvta,
+                       saldo = i.saldo
+                   })
+                   .FirstOrDefaultAsync();
+
+                return result;
+            }
+        }
+
+
+        /*
+         * var subquery = await _context.inalmacen
+                    .Where(a => a.codigo == codalmacen)
+                    .Select(a => a.codarea)
+                    .FirstOrDefaultAsync();
+         * 
+         * 
+         * 
+         * 
+         */
+
+
     }
 }

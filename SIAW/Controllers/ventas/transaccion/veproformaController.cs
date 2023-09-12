@@ -196,13 +196,14 @@ namespace SIAW.Controllers.ventas.transaccion
         /// <returns></returns>
         // GET: api/ad_conexion_vpn/5
         [HttpGet]
-        [Route("getsaldosCompleto/{userConn}/{agencia}/{codalmacen}/{coditem}/{codempresa}")]
-        public async Task<ActionResult<List<sldosItemCompleto>>> getsaldosCompleto(string userConn, string agencia, int codalmacen, string coditem, string codempresa)
+        [Route("getsaldosCompleto/{userConn}/{agencia}/{codalmacen}/{coditem}/{codempresa}/{usuario}")]
+        public async Task<ActionResult<List<sldosItemCompleto>>> getsaldosCompleto(string userConn, string agencia, int codalmacen, string coditem, string codempresa, string usuario)
         {
             try
             {
                 List< sldosItemCompleto > listaSaldos = new List< sldosItemCompleto>();
                 sldosItemCompleto saldoItemTotal = new sldosItemCompleto();
+                sldosItemCompleto var8 = new sldosItemCompleto();
                 saldoItemTotal.descripcion = "Total Saldo";
 
                 // Obtener el contexto de base de datos correspondiente al usuario
@@ -274,6 +275,12 @@ namespace SIAW.Controllers.ventas.transaccion
                 }
 
                 saldoItemTotal.valor -= (float)reservaProf.TotalP;  // reduce saldo total
+                var8.valor = saldoItemTotal.valor;
+
+
+
+
+
 
                 // pivote variable para agregar a la lista
                 sldosItemCompleto var1 = new sldosItemCompleto();
@@ -349,6 +356,55 @@ namespace SIAW.Controllers.ventas.transaccion
                     cantResProfAprob = total_proforma
 
                 });*/
+
+
+                // PARA LA SEGUNDA PESTAÑA (SALDO VARIABLE)
+                // Verifica si el usuario no tiene acceso devuelve la lista.
+                bool ver_detalle_saldo_variable = await empaque_func.ve_detalle_saldo_variable(userConnectionString, usuario);
+                if (!ver_detalle_saldo_variable)
+                {
+                    return Ok(listaSaldos);
+                }
+                // si el usuario tiene acceso se llenan los datos de la segunda tabla:
+                inreserva_area inreserva_Area = await empaque_func.get_inreserva_area(userConnectionString, coditem, codalmacen);
+                if (inreserva_Area == null)
+                {
+                    return Ok(listaSaldos);
+                }
+                // promedio de venta
+                sldosItemCompleto var6 = new sldosItemCompleto();
+                var6.descripcion = "Promedio de Vta.";
+                var6.valor = (float)inreserva_Area.promvta;
+                listaSaldos.Add(var6);
+
+                // stock minimo
+                sldosItemCompleto var7 = new sldosItemCompleto();
+                var7.descripcion = "Stock Mínimo.";
+                var7.valor = (float)inreserva_Area.smin;
+                listaSaldos.Add(var7);
+
+                // saldo actual (Saldo Seg Kardex - Cant Prof Ap)
+                var8.descripcion = "Saldo Actual (Saldo Seg Kardex - Cant Prof Ap)";
+                listaSaldos.Add(var8);
+
+                // % Vta Permitido: 0.53% pero solo se toma: 50%
+                sldosItemCompleto var9 = new sldosItemCompleto();
+                var9.descripcion = "% Vta Permitido: 0.53% pero solo se toma: 50%";
+                var9.valor = (float)inreserva_Area.porcenvta;
+                listaSaldos.Add(var9);
+
+                // Reserva para Vta en Cjto
+                sldosItemCompleto var10 = new sldosItemCompleto();
+                var10.descripcion = "Reserva para Vta en Cjto";
+                var10.valor = CANTIDAD_RESERVADA;
+                listaSaldos.Add(var10);
+
+                // Saldo para Vta sueltos
+                sldosItemCompleto var11 = new sldosItemCompleto();
+                var11.descripcion = "Saldo para Vta sueltos";
+                var11.valor = saldoItemTotal.valor;
+                listaSaldos.Add(var11);
+
 
                 return Ok(listaSaldos);
 
@@ -991,5 +1047,42 @@ namespace SIAW.Controllers.ventas.transaccion
                 return BadRequest("Error en el servidor");
             }
         }
-     }
+
+
+        /*
+
+        /// <summary>
+        /// Obtiene saldos de un item de una agencia de manera local
+        /// </summary>
+        /// <param name="userConn"></param>
+        /// <param name="codalmacen"></param>
+        /// <param name="coditem"></param>
+        /// <returns></returns>
+        // GET: api/ad_conexion_vpn/5
+        [HttpGet]
+        [Route("getsladovarfinal/{userConn}/{codalmacen}/{usuario}")]
+        public async Task<ActionResult<instoactual>> detallar_saldo_variable_final(string userConn, string usuario)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                bool ver_detalle_saldo_variable = await empaque_func.ve_detalle_saldo_variable(userConnectionString, usuario);
+                if (!ver_detalle_saldo_variable)
+                {
+                    return Ok("No tiene permiso para visualizar esta información.");
+                }
+                
+
+
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+            }
+        }
+
+        */
+    }
 }
