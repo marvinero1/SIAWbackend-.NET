@@ -1,0 +1,360 @@
+[1mdiff --git a/.vs/SIAW/DesignTimeBuild/.dtbcache.v2 b/.vs/SIAW/DesignTimeBuild/.dtbcache.v2[m
+[1mindex 8c87bb4..f41be34 100644[m
+Binary files a/.vs/SIAW/DesignTimeBuild/.dtbcache.v2 and b/.vs/SIAW/DesignTimeBuild/.dtbcache.v2 differ
+[1mdiff --git a/.vs/SIAW/FileContentIndex/308a6130-a0da-4b70-ab8b-d49dd0df8129.vsidx b/.vs/SIAW/FileContentIndex/308a6130-a0da-4b70-ab8b-d49dd0df8129.vsidx[m
+[1mdeleted file mode 100644[m
+[1mindex 37aeea9..0000000[m
+Binary files a/.vs/SIAW/FileContentIndex/308a6130-a0da-4b70-ab8b-d49dd0df8129.vsidx and /dev/null differ
+[1mdiff --git a/.vs/SIAW/FileContentIndex/50f8e08f-af28-4cfb-b026-31f6b916cf91.vsidx b/.vs/SIAW/FileContentIndex/50f8e08f-af28-4cfb-b026-31f6b916cf91.vsidx[m
+[1mdeleted file mode 100644[m
+[1mindex 51b96e3..0000000[m
+Binary files a/.vs/SIAW/FileContentIndex/50f8e08f-af28-4cfb-b026-31f6b916cf91.vsidx and /dev/null differ
+[1mdiff --git a/.vs/SIAW/FileContentIndex/6a12a66b-e4e4-4bf5-854c-15ca0d825902.vsidx b/.vs/SIAW/FileContentIndex/6a12a66b-e4e4-4bf5-854c-15ca0d825902.vsidx[m
+[1mdeleted file mode 100644[m
+[1mindex e10474e..0000000[m
+Binary files a/.vs/SIAW/FileContentIndex/6a12a66b-e4e4-4bf5-854c-15ca0d825902.vsidx and /dev/null differ
+[1mdiff --git a/.vs/SIAW/FileContentIndex/9038cca8-7736-429b-89c9-dff645002c7a.vsidx b/.vs/SIAW/FileContentIndex/9038cca8-7736-429b-89c9-dff645002c7a.vsidx[m
+[1mdeleted file mode 100644[m
+[1mindex 5f95277..0000000[m
+Binary files a/.vs/SIAW/FileContentIndex/9038cca8-7736-429b-89c9-dff645002c7a.vsidx and /dev/null differ
+[1mdiff --git a/.vs/SIAW/v17/.futdcache.v2 b/.vs/SIAW/v17/.futdcache.v2[m
+[1mindex 5db6cb8..16dbd52 100644[m
+Binary files a/.vs/SIAW/v17/.futdcache.v2 and b/.vs/SIAW/v17/.futdcache.v2 differ
+[1mdiff --git a/.vs/SIAW/v17/.suo b/.vs/SIAW/v17/.suo[m
+[1mindex 9d988c6..226e68d 100644[m
+Binary files a/.vs/SIAW/v17/.suo and b/.vs/SIAW/v17/.suo differ
+[1mdiff --git a/SIAW.sln b/SIAW.sln[m
+[1mindex ace4970..2ed6cee 100644[m
+[1m--- a/SIAW.sln[m
+[1m+++ b/SIAW.sln[m
+[36m@@ -3,7 +3,7 @@[m [mMicrosoft Visual Studio Solution File, Format Version 12.00[m
+ # Visual Studio Version 17[m
+ VisualStudioVersion = 17.5.33530.505[m
+ MinimumVisualStudioVersion = 10.0.40219.1[m
+[31m-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SIAW", "SIAW\SIAW.csproj", "{D6A98FF2-6849-49D0-B42D-5B719FBF3206}"[m
+[32m+[m[32mProject("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SIAW", "SIAW\SIAW.csproj", "{D6A98FF2-6849-49D0-B42D-5B719FBF3206}"[m
+ EndProject[m
+ Global[m
+ 	GlobalSection(SolutionConfigurationPlatforms) = preSolution[m
+[1mdiff --git a/SIAW/appsettings.json b/SIAW/appsettings.json[m
+[1mindex 4f3cf54..8d3aae6 100644[m
+[1m--- a/SIAW/appsettings.json[m
+[1m+++ b/SIAW/appsettings.json[m
+[36m@@ -7,9 +7,9 @@[m
+   },[m
+   "AllowedHosts": "*",[m
+   "ConnectionStrings": {[m
+[31m-    "310_PS": "Data Source=127.0.0.1;User ID=userPertec;Password=123456;Connect Timeout=30;Initial Catalog=PS;",[m
+[31m-    "311_PE": "Data Source=127.0.0.1;User ID=userPertec;Password=123456;Connect Timeout=30;Initial Catalog=PE;",[m
+[31m-    "PERTEC_Loc": "Data Source=127.0.0.1;User ID=userPertec;Password=123456;Connect Timeout=30;Initial Catalog=PERTEC;",[m
+[32m+[m[32m    "310_PS": "Data Source=192.168.31.240;User ID=userPertec;Password=123456;Connect Timeout=30;Initial Catalog=PS;",[m
+[32m+[m[32m    "311_PE": "Data Source=192.168.31.240;User ID=userPertec;Password=123456;Connect Timeout=30;Initial Catalog=PE;",[m
+[32m+[m[32m    "PERTEC_Loc": "Data Source=192.168.31.240;User ID=userPertec;Password=123456;Connect Timeout=30;Initial Catalog=PERTEC;",[m
+     "PERTEC_311": "Data Source=192.168.30.5;User ID=sa;Password=ayanami00;Connect Timeout=30;Initial Catalog=PERTEC;",[m
+     "PERTEC_310": "Data Source=192.168.30.6;User ID=sa;Password=ayanami00;Connect Timeout=30;Initial Catalog=PERTEC;",[m
+     "PERTEC_410": "Data Source=192.168.40.5;User ID=sa;Password=ayanami00;Connect Timeout=30;Initial Catalog=PERTEC;",[m
+[1mdiff --git a/SIAW/bin/Debug/net6.0/SIAW.dll b/SIAW/bin/Debug/net6.0/SIAW.dll[m
+[1mindex c533645..fdca075 100644[m
+Binary files a/SIAW/bin/Debug/net6.0/SIAW.dll and b/SIAW/bin/Debug/net6.0/SIAW.dll differ
+[1mdiff --git a/SIAW/bin/Debug/net6.0/SIAW.exe b/SIAW/bin/Debug/net6.0/SIAW.exe[m
+[1mindex 542790d..178bf0b 100644[m
+Binary files a/SIAW/bin/Debug/net6.0/SIAW.exe and b/SIAW/bin/Debug/net6.0/SIAW.exe differ
+[1mdiff --git a/SIAW/bin/Debug/net6.0/SIAW.pdb b/SIAW/bin/Debug/net6.0/SIAW.pdb[m
+[1mindex 4f371dc..b036f56 100644[m
+Binary files a/SIAW/bin/Debug/net6.0/SIAW.pdb and b/SIAW/bin/Debug/net6.0/SIAW.pdb differ
+[1mdiff --git a/SIAW/bin/Debug/net6.0/appsettings.json b/SIAW/bin/Debug/net6.0/appsettings.json[m
+[1mindex 4f3cf54..8d3aae6 100644[m
+[1m--- a/SIAW/bin/Debug/net6.0/appsettings.json[m
+[1m+++ b/SIAW/bin/Debug/net6.0/appsettings.json[m
+[36m@@ -7,9 +7,9 @@[m
+   },[m
+   "AllowedHosts": "*",[m
+   "ConnectionStrings": {[m
+[31m-    "310_PS": "Data Source=127.0.0.1;User ID=userPertec;Password=123456;Connect Timeout=30;Initial Catalog=PS;",[m
+[31m-    "311_PE": "Data Source=127.0.0.1;User ID=userPertec;Password=123456;Connect Timeout=30;Initial Catalog=PE;",[m
+[31m-    "PERTEC_Loc": "Data Source=127.0.0.1;User ID=userPertec;Password=123456;Connect Timeout=30;Initial Catalog=PERTEC;",[m
+[32m+[m[32m    "310_PS": "Data Source=192.168.31.240;User ID=userPertec;Password=123456;Connect Timeout=30;Initial Catalog=PS;",[m
+[32m+[m[32m    "311_PE": "Data Source=192.168.31.240;User ID=userPertec;Password=123456;Connect Timeout=30;Initial Catalog=PE;",[m
+[32m+[m[32m    "PERTEC_Loc": "Data Source=192.168.31.240;User ID=userPertec;Password=123456;Connect Timeout=30;Initial Catalog=PERTEC;",[m
+     "PERTEC_311": "Data Source=192.168.30.5;User ID=sa;Password=ayanami00;Connect Timeout=30;Initial Catalog=PERTEC;",[m
+     "PERTEC_310": "Data Source=192.168.30.6;User ID=sa;Password=ayanami00;Connect Timeout=30;Initial Catalog=PERTEC;",[m
+     "PERTEC_410": "Data Source=192.168.40.5;User ID=sa;Password=ayanami00;Connect Timeout=30;Initial Catalog=PERTEC;",[m
+[1mdiff --git a/SIAW/obj/Debug/net6.0/SIAW.GeneratedMSBuildEditorConfig.editorconfig b/SIAW/obj/Debug/net6.0/SIAW.GeneratedMSBuildEditorConfig.editorconfig[m
+[1mindex 643a2f0..172af7b 100644[m
+[1m--- a/SIAW/obj/Debug/net6.0/SIAW.GeneratedMSBuildEditorConfig.editorconfig[m
+[1m+++ b/SIAW/obj/Debug/net6.0/SIAW.GeneratedMSBuildEditorConfig.editorconfig[m
+[36m@@ -9,9 +9,9 @@[m [mbuild_property.EnforceExtendedAnalyzerRules =[m
+ build_property._SupportedPlatformList = Linux,macOS,Windows[m
+ build_property.RootNamespace = SIAW[m
+ build_property.RootNamespace = SIAW[m
+[31m-build_property.ProjectDir = C:\laragon\www\siawbackend-.net\SIAW\[m
+[32m+[m[32mbuild_property.ProjectDir = D:\Fuente SIAW2023\siawbackend-.net\SIAW\[m
+ build_property.RazorLangVersion = 6.0[m
+ build_property.SupportLocalizedComponentNames = [m
+ build_property.GenerateRazorMetadataSourceChecksumAttributes = [m
+[31m-build_property.MSBuildProjectDirectory = C:\laragon\www\siawbackend-.net\SIAW[m
+[32m+[m[32mbuild_property.MSBuildProjectDirectory = D:\Fuente SIAW2023\siawbackend-.net\SIAW[m
+ build_property._RazorSourceGeneratorDebug = [m
+[1mdiff --git a/SIAW/obj/Debug/net6.0/SIAW.assets.cache b/SIAW/obj/Debug/net6.0/SIAW.assets.cache[m
+[1mindex 0df9193..3856a88 100644[m
+Binary files a/SIAW/obj/Debug/net6.0/SIAW.assets.cache and b/SIAW/obj/Debug/net6.0/SIAW.assets.cache differ
+[1mdiff --git a/SIAW/obj/Debug/net6.0/SIAW.csproj.AssemblyReference.cache b/SIAW/obj/Debug/net6.0/SIAW.csproj.AssemblyReference.cache[m
+[1mindex 1e681bd..61d9c49 100644[m
+Binary files a/SIAW/obj/Debug/net6.0/SIAW.csproj.AssemblyReference.cache and b/SIAW/obj/Debug/net6.0/SIAW.csproj.AssemblyReference.cache differ
+[1mdiff --git a/SIAW/obj/Debug/net6.0/SIAW.csproj.CoreCompileInputs.cache b/SIAW/obj/Debug/net6.0/SIAW.csproj.CoreCompileInputs.cache[m
+[1mindex 1a74a5a..44851ba 100644[m
+[1m--- a/SIAW/obj/Debug/net6.0/SIAW.csproj.CoreCompileInputs.cache[m
+[1m+++ b/SIAW/obj/Debug/net6.0/SIAW.csproj.CoreCompileInputs.cache[m
+[36m@@ -1 +1 @@[m
+[31m-f7f986a113c22a5f3d4a687da2894b64905d6d97[m
+[32m+[m[32m28bf2a80fce158ae50adcf5a993de99b87706964[m
+[1mdiff --git a/SIAW/obj/Debug/net6.0/SIAW.csproj.FileListAbsolute.txt b/SIAW/obj/Debug/net6.0/SIAW.csproj.FileListAbsolute.txt[m
+[1mindex 4c4df58..9ad010c 100644[m
+[1m--- a/SIAW/obj/Debug/net6.0/SIAW.csproj.FileListAbsolute.txt[m
+[1m+++ b/SIAW/obj/Debug/net6.0/SIAW.csproj.FileListAbsolute.txt[m
+[36m@@ -505,3 +505,257 @@[m [mC:\laragon\www\siawbackend-.net\SIAW\obj\Debug\net6.0\SIAW.pdb[m
+ C:\laragon\www\siawbackend-.net\SIAW\obj\Debug\net6.0\SIAW.genruntimeconfig.cache[m
+ C:\laragon\www\siawbackend-.net\SIAW\obj\Debug\net6.0\ref\SIAW.dll[m
+ C:\laragon\www\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\appsettings.Development.json[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\appsettings.json[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\efpt.config.json[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\SIAW.exe[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\SIAW.deps.json[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\SIAW.runtimeconfig.json[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\SIAW.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\SIAW.pdb[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Humanizer.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\MessagePack.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\MessagePack.Annotations.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\System.Net.Http.Formatting.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\System.Web.Http.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.AspNetCore.Razor.Language.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.Bcl.AsyncInterfaces.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.Build.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.Build.Framework.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.CodeAnalysis.AnalyzerUtilities.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.CodeAnalysis.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.CodeAnalysis.CSharp.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.CodeAnalysis.CSharp.Features.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.CodeAnalysis.CSharp.Workspaces.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.CodeAnalysis.Features.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.CodeAnalysis.Razor.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.CodeAnalysis.Scripting.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.CodeAnalysis.Workspaces.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.Data.SqlClient.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.DiaSymReader.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.DotNet.Scaffolding.Shared.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.EntityFrameworkCore.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.EntityFrameworkCore.Abstractions.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.EntityFrameworkCore.Design.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.EntityFrameworkCore.Relational.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.EntityFrameworkCore.SqlServer.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.Extensions.Caching.Memory.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.Extensions.DependencyInjection.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.Identity.Client.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.IdentityModel.JsonWebTokens.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.IdentityModel.Logging.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.IdentityModel.Protocols.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.IdentityModel.Protocols.OpenIdConnect.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.IdentityModel.Tokens.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.NET.StringTools.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.OpenApi.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.VisualStudio.Debugger.Contracts.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.VisualStudio.Web.CodeGeneration.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.VisualStudio.Web.CodeGeneration.Core.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\dotnet-aspnet-codegenerator-design.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.VisualStudio.Web.CodeGeneration.EntityFrameworkCore.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.VisualStudio.Web.CodeGeneration.Templating.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.VisualStudio.Web.CodeGeneration.Utils.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.VisualStudio.Web.CodeGenerators.Mvc.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Microsoft.Win32.SystemEvents.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Newtonsoft.Json.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Newtonsoft.Json.Bson.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\NuGet.Common.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\NuGet.Configuration.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\NuGet.DependencyResolver.Core.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\NuGet.Frameworks.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\NuGet.LibraryModel.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\NuGet.Packaging.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\NuGet.ProjectModel.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\NuGet.Protocol.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\NuGet.Versioning.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Swashbuckle.AspNetCore.Swagger.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Swashbuckle.AspNetCore.SwaggerGen.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\Swashbuckle.AspNetCore.SwaggerUI.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\System.Composition.AttributedModel.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\System.Composition.Convention.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\System.Composition.Hosting.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\System.Composition.Runtime.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\System.Composition.TypedParts.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\System.Configuration.ConfigurationManager.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\System.Diagnostics.DiagnosticSource.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\System.Drawing.Common.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\System.IdentityModel.Tokens.Jwt.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\System.Reflection.MetadataLoadContext.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\System.Runtime.Caching.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\System.Security.Cryptography.ProtectedData.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\System.Security.Permissions.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\System.Windows.Extensions.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\af\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\ar\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\az\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\bg\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\bn-BD\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\cs\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\da\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\de\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\el\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\es\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\fa\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\fi-FI\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\fr\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\fr-BE\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\he\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\hr\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\hu\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\hy\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\id\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\is\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\it\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\ja\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\ko-KR\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\ku\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\lv\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\ms-MY\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\mt\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\nb\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\nb-NO\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\nl\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\pl\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\pt\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\ro\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\ru\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\sk\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\sl\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\sr\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\sr-Latn\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\sv\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\th-TH\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\tr\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\uk\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\uz-Cyrl-UZ\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\uz-Latn-UZ\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\vi\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\zh-CN\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\zh-Hans\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\zh-Hant\Humanizer.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\cs\Microsoft.CodeAnalysis.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\de\Microsoft.CodeAnalysis.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\es\Microsoft.CodeAnalysis.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\fr\Microsoft.CodeAnalysis.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\it\Microsoft.CodeAnalysis.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\ja\Microsoft.CodeAnalysis.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\ko\Microsoft.CodeAnalysis.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\pl\Microsoft.CodeAnalysis.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\pt-BR\Microsoft.CodeAnalysis.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\ru\Microsoft.CodeAnalysis.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\tr\Microsoft.CodeAnalysis.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\zh-Hans\Microsoft.CodeAnalysis.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\zh-Hant\Microsoft.CodeAnalysis.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\cs\Microsoft.CodeAnalysis.CSharp.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\de\Microsoft.CodeAnalysis.CSharp.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\es\Microsoft.CodeAnalysis.CSharp.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\fr\Microsoft.CodeAnalysis.CSharp.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\it\Microsoft.CodeAnalysis.CSharp.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\ja\Microsoft.CodeAnalysis.CSharp.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\ko\Microsoft.CodeAnalysis.CSharp.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\pl\Microsoft.CodeAnalysis.CSharp.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\pt-BR\Microsoft.CodeAnalysis.CSharp.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\ru\Microsoft.CodeAnalysis.CSharp.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\tr\Microsoft.CodeAnalysis.CSharp.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\zh-Hans\Microsoft.CodeAnalysis.CSharp.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\zh-Hant\Microsoft.CodeAnalysis.CSharp.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\cs\Microsoft.CodeAnalysis.CSharp.Features.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\de\Microsoft.CodeAnalysis.CSharp.Features.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\es\Microsoft.CodeAnalysis.CSharp.Features.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\fr\Microsoft.CodeAnalysis.CSharp.Features.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\it\Microsoft.CodeAnalysis.CSharp.Features.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\ja\Microsoft.CodeAnalysis.CSharp.Features.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\ko\Microsoft.CodeAnalysis.CSharp.Features.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\pl\Microsoft.CodeAnalysis.CSharp.Features.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\pt-BR\Microsoft.CodeAnalysis.CSharp.Features.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\ru\Microsoft.CodeAnalysis.CSharp.Features.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\tr\Microsoft.CodeAnalysis.CSharp.Features.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\zh-Hans\Microsoft.CodeAnalysis.CSharp.Features.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\zh-Hant\Microsoft.CodeAnalysis.CSharp.Features.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\cs\Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\de\Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\es\Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\fr\Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\it\Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\ja\Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\ko\Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\pl\Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\pt-BR\Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\ru\Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\tr\Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\zh-Hans\Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\zh-Hant\Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\cs\Microsoft.CodeAnalysis.Features.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\de\Microsoft.CodeAnalysis.Features.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\es\Microsoft.CodeAnalysis.Features.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\fr\Microsoft.CodeAnalysis.Features.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\it\Microsoft.CodeAnalysis.Features.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\ja\Microsoft.CodeAnalysis.Features.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\ko\Microsoft.CodeAnalysis.Features.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\pl\Microsoft.CodeAnalysis.Features.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\pt-BR\Microsoft.CodeAnalysis.Features.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\ru\Microsoft.CodeAnalysis.Features.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\tr\Microsoft.CodeAnalysis.Features.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\zh-Hans\Microsoft.CodeAnalysis.Features.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\zh-Hant\Microsoft.CodeAnalysis.Features.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\cs\Microsoft.CodeAnalysis.Scripting.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\de\Microsoft.CodeAnalysis.Scripting.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\es\Microsoft.CodeAnalysis.Scripting.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\fr\Microsoft.CodeAnalysis.Scripting.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\it\Microsoft.CodeAnalysis.Scripting.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\ja\Microsoft.CodeAnalysis.Scripting.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\ko\Microsoft.CodeAnalysis.Scripting.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\pl\Microsoft.CodeAnalysis.Scripting.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\pt-BR\Microsoft.CodeAnalysis.Scripting.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\ru\Microsoft.CodeAnalysis.Scripting.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\tr\Microsoft.CodeAnalysis.Scripting.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\zh-Hans\Microsoft.CodeAnalysis.Scripting.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\zh-Hant\Microsoft.CodeAnalysis.Scripting.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\cs\Microsoft.CodeAnalysis.Workspaces.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\de\Microsoft.CodeAnalysis.Workspaces.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\es\Microsoft.CodeAnalysis.Workspaces.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\fr\Microsoft.CodeAnalysis.Workspaces.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\it\Microsoft.CodeAnalysis.Workspaces.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\ja\Microsoft.CodeAnalysis.Workspaces.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\ko\Microsoft.CodeAnalysis.Workspaces.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\pl\Microsoft.CodeAnalysis.Workspaces.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\pt-BR\Microsoft.CodeAnalysis.Workspaces.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\ru\Microsoft.CodeAnalysis.Workspaces.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\tr\Microsoft.CodeAnalysis.Workspaces.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\zh-Hans\Microsoft.CodeAnalysis.Workspaces.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\zh-Hant\Microsoft.CodeAnalysis.Workspaces.resources.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\runtimes\unix\lib\netcoreapp3.1\Microsoft.Data.SqlClient.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\runtimes\win\lib\netcoreapp3.1\Microsoft.Data.SqlClient.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\runtimes\win-arm\native\Microsoft.Data.SqlClient.SNI.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\runtimes\win-arm64\native\Microsoft.Data.SqlClient.SNI.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\runtimes\win-x64\native\Microsoft.Data.SqlClient.SNI.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\runtimes\win-x86\native\Microsoft.Data.SqlClient.SNI.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\runtimes\win\lib\net6.0\Microsoft.Win32.SystemEvents.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\runtimes\unix\lib\net6.0\System.Drawing.Common.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\runtimes\win\lib\net6.0\System.Drawing.Common.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\runtimes\win\lib\netstandard2.0\System.Runtime.Caching.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\runtimes\win\lib\net6.0\System.Security.Cryptography.ProtectedData.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\runtimes\win\lib\net6.0\System.Windows.Extensions.dll[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\obj\Debug\net6.0\SIAW.csproj.AssemblyReference.cache[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\obj\Debug\net6.0\SIAW.GeneratedMSBuildEditorConfig.editorconfig[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\obj\Debug\net6.0\SIAW.AssemblyInfoInputs.cache[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\obj\Debug\net6.0\SIAW.AssemblyInfo.cs[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\obj\Debug\net6.0\SIAW.csproj.CoreCompileInputs.cache[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\obj\Debug\net6.0\SIAW.MvcApplicationPartsAssemblyInfo.cs[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\obj\Debug\net6.0\SIAW.MvcApplicationPartsAssemblyInfo.cache[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\obj\Debug\net6.0\staticwebassets\msbuild.SIAW.Microsoft.AspNetCore.StaticWebAssets.props[m
+[32m+[m[32mD:\Fuente SIAW2023\siawbackend-.net\SIAW\obj\Debug\net6.0\staticwebassets\msbuild.buil

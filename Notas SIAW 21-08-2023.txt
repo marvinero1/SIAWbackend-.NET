@@ -1,0 +1,13 @@
+Para hacer pruebas en el POSTMAN PRIMERO HACER ESTO 3 GET
+
+1.- 
+https://localhost:7145/api/Connection/connServers/PERTEC_Loc
+2.-
+https://localhost:7145/api/Connection/connDBs/PE
+3.-
+https://localhost:7145/api/seg_adm/login/authenticate/dpd3_310_PE
+ENVIAR EL JSON CON LOS DATOS QUE REQUIERA COPIAR DEL SWAGUER
+{
+  "login": "string",
+  "password": "string"
+}
