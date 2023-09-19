@@ -1,6 +1,10 @@
 {
   "version": 2,
+<<<<<<< Updated upstream
   "dgSpecHash": "RbKIV4cEcSshwwv/OlOw8OFkjseRN2HkUj64Qzly7EK16wplPrQk03ER5Id/ixqusjZjzf6iUKbVgOwncBFz0A==",
+=======
+  "dgSpecHash": "TmEz3UyF7arWc5RjhPGIXuLSBc0Uhlkzs7ylZvZBdzCob2yuGuGODOGIVfJJrLW4wlZhVFMEhCgLkL/OpGKL3g==",
+>>>>>>> Stashed changes
   "success": true,
   "projectFilePath": "C:\\laragon\\www\\siawbackend-.net\\SIAW\\SIAW.csproj",
   "expectedPackageFiles": [
