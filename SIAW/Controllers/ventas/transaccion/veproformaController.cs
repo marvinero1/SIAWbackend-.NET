@@ -1023,8 +1023,8 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
         [HttpGet]
-        [Route("getItemMatriz/{userConn}/{coditem}/{tarifa}/{descuento}")]
-        public async Task<ActionResult<itemDataMatriz>> getItemMatriz(string userConn, string coditem, int tarifa, int descuento)
+        [Route("getItemMatriz/{userConn}/{coditem}/{tarifa}/{descuento}/{cantidad}")]
+        public async Task<ActionResult<itemDataMatriz>> getItemMatriz(string userConn, string coditem, int tarifa, int descuento, float cantidad)
         {
             try
             {
@@ -1048,8 +1048,8 @@ namespace SIAW.Controllers.ventas.transaccion
                             medida = i.medida,
                             ud = i.unidad,
                             porcenIV = 0,
-                            pedido = 0,
-                            cantidad = 0,
+                            pedido = cantidad,
+                            cantidad = cantidad,
                             porcentSld = 0,
                             tp = tarifa,
                             de = descuento,
