@@ -1,5 +1,5 @@
 Para hacer pruebas en el POSTMAN PRIMERO HACER ESTO 3 GET
-
+---INICIAL
 1.- 
 https://localhost:7145/api/Connection/connServers/PERTEC_Loc
 2.-
@@ -11,3 +11,29 @@ ENVIAR EL JSON CON LOS DATOS QUE REQUIERA COPIAR DEL SWAGUER
   "login": "string",
   "password": "string"
 }
+
+---COMO ES AHORA
+1.- 
+https://localhost:7145/api/Connection/connServers/Loc
+2.-
+https://localhost:7145/api/Connection/connDBs/PS
+3.-
+https://localhost:7145/api/seg_adm/login/authenticate/dpd3_310_PS
+
+ENVIAR EL JSON CON LOS DATOS QUE REQUIERA COPIAR DEL SWAGUER
+{
+  "login": "string",
+  "password": "string"
+}
+
+---------------------
+---------------------
+bajar los cambios q tienes
+primero este      
+git config pull.rebase merges
+luego este         
+git pull --rebase --autostash
+luego
+git stash pop
+luego
+git pull
