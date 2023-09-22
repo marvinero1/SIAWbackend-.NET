@@ -7132,6 +7132,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[veproforma_valida]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[veproforma1]",
          "ObjectType": 0
       },

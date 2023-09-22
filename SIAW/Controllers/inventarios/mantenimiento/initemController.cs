@@ -38,54 +38,95 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     }
                     //var result = await _context.initem.OrderByDescending(fechareg => fechareg.fechareg).ToListAsync();
                     //return Ok(result);
-                    var result = from item in _context.initem
-                                 join udemed in _context.inudemed on item.unidad equals udemed.Codigo
-                                 join rosca in _context.inrosca on item.rosca equals rosca.codigo
-                                 join terminacion in _context.interminacion on item.terminacion equals terminacion.codigo
-                                 join resistencia in _context.inresistencia on item.codresistencia equals resistencia.codigo
-                                 join linea in _context.inlinea on item.codlinea equals linea.codigo
-                                 orderby item.codigo
-                                 select new
-                                 {
-                                     codigo = item.codigo,
-                                     descripcion = item.descripcion,
-                                     descripcorta = item.descripcorta,
-                                     descripabr = item.descripabr,
-                                     medida = item.medida,
-                                     unidad = item.unidad,
-                                     descUnidad = udemed.Descripcion,
-                                     rosca = item.rosca,
-                                     descRosca = rosca.descripcion,
-                                     terminacion = item.terminacion,
-                                     descTerminacion = terminacion.descripcion,
-                                     peso = item.peso,
-                                     codlinea = item.codlinea,
-                                     descLinea = linea.descripcion,
-                                     clasificacion = item.clasificacion,
-                                     kit = item.kit,
-                                     estadocv = item.estadocv,
-                                     costo = item.costo,
-                                     monedacosto = item.monedacosto,
-                                     codresistencia = item.codresistencia,
-                                     descResistencia = resistencia.descripcion,
-                                     horareg = item.horareg,
-                                     fechareg = item.fechareg,
-                                     usuarioreg = item.usuarioreg,
-                                     enlinea = item.enlinea,
-                                     saldominimo = item.saldominimo,
-                                     codigobarra = item.codigobarra,
-                                     reservastock = item.reservastock,
-                                     iva = item.iva,
-                                     codmoneda_valor_criterio = item.codmoneda_valor_criterio,
-                                     porcen_gac = item.porcen_gac,
-                                     nandina = item.nandina,
-                                     usar_en_movimiento = item.usar_en_movimiento,
-                                     paga_comision = item.paga_comision,
-                                     porcen_saldo_restringido = item.porcen_saldo_restringido,
-                                     controla_negativo = item.controla_negativo,
-                                     tipo = item.tipo,
-                                     codproducto_sin = item.codproducto_sin
-                                 };
+                    var result = _context.initem
+                        .Join(_context.inudemed, item => item.unidad, udemed => udemed.Codigo, (item, udemed) => new { item, udemed })
+                        .Join(_context.inrosca, combined => combined.item.rosca, rosca => rosca.codigo, (combined, rosca) => new { combined.item, combined.udemed, rosca })
+                        .Join(_context.interminacion, combined => combined.item.terminacion, terminacion => terminacion.codigo, (combined, terminacion) => new { combined.item, combined.udemed, combined.rosca, terminacion })
+                        .Join(_context.inresistencia, combined => combined.item.codresistencia, resistencia => resistencia.codigo, (combined, resistencia) => new { combined.item, combined.udemed, combined.rosca, combined.terminacion, resistencia })
+                        .Join(_context.inlinea, combined => combined.item.codlinea, linea => linea.codigo, (combined, linea) => new
+                        {
+                            combined.item.codigo,
+                            combined.item.descripcion,
+                            combined.item.descripcorta,
+                            combined.item.descripabr,
+                            combined.item.medida,
+                            combined.item.unidad,
+                            descUnidad = combined.udemed.Descripcion,
+                            combined.item.rosca,
+                            descRosca = combined.rosca.descripcion,
+                            combined.item.terminacion,
+                            descTerminacion = combined.terminacion.descripcion,
+                            combined.item.peso,
+                            combined.item.codlinea,
+                            descLinea = linea.descripcion,
+                            combined.item.clasificacion,
+                            combined.item.kit,
+                            combined.item.estadocv,
+                            combined.item.costo,
+                            combined.item.monedacosto,
+                            combined.item.codresistencia,
+                            descResistencia = combined.resistencia.descripcion,
+                            combined.item.horareg,
+                            combined.item.fechareg,
+                            combined.item.usuarioreg,
+                            combined.item.enlinea,
+                            combined.item.saldominimo,
+                            combined.item.codigobarra,
+                            combined.item.reservastock,
+                            combined.item.iva,
+                            combined.item.codmoneda_valor_criterio,
+                            combined.item.porcen_gac,
+                            combined.item.nandina,
+                            combined.item.usar_en_movimiento,
+                            combined.item.paga_comision,
+                            combined.item.porcen_saldo_restringido,
+                            combined.item.controla_negativo,
+                            combined.item.tipo,
+                            combined.item.codproducto_sin
+                        })
+                        .OrderBy(item => item.codigo)
+                        .Select(item => new
+                        {
+                            item.codigo,
+                            item.descripcion,
+                            item.descripcorta,
+                            item.descripabr,
+                            item.medida,
+                            item.unidad,
+                            item.descUnidad,
+                            item.rosca,
+                            item.descRosca,
+                            item.terminacion,
+                            item.descTerminacion,
+                            item.peso,
+                            item.codlinea,
+                            item.descLinea,
+                            item.clasificacion,
+                            item.kit,
+                            item.estadocv,
+                            item.costo,
+                            item.monedacosto,
+                            item.codresistencia,
+                            item.descResistencia,
+                            item.horareg,
+                            item.fechareg,
+                            item.usuarioreg,
+                            item.enlinea,
+                            item.saldominimo,
+                            item.codigobarra,
+                            item.reservastock,
+                            item.iva,
+                            item.codmoneda_valor_criterio,
+                            item.porcen_gac,
+                            item.nandina,
+                            item.usar_en_movimiento,
+                            item.paga_comision,
+                            item.porcen_saldo_restringido,
+                            item.controla_negativo,
+                            item.tipo,
+                            item.codproducto_sin
+                        })
+                        .ToList();     
 
 
                     return Ok(result);
@@ -119,63 +160,102 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     }
                     //var initem = await _context.initem.FindAsync(codigo);
 
-                    var resultado = from item in _context.initem
-                                    join udemed in _context.inudemed on item.unidad equals udemed.Codigo
-                                    join rosca in _context.inrosca on item.rosca equals rosca.codigo
-                                    join terminacion in _context.interminacion on item.terminacion equals terminacion.codigo
-                                    join resistencia in _context.inresistencia on item.codresistencia equals resistencia.codigo
-                                    join linea in _context.inlinea on item.codlinea equals linea.codigo
-                                    where item.codigo == codigo
-                                    select new
-                                    {
-                                        codigo = item.codigo,
-                                        descripcion = item.descripcion,
-                                        descripcorta = item.descripcorta,
-                                        descripabr = item.descripabr,
-                                        medida = item.medida,
-                                        unidad = item.unidad,
-                                        descUnidad = udemed.Descripcion,
-                                        rosca = item.rosca,
-                                        descRosca = rosca.descripcion,
-                                        terminacion = item.terminacion,
-                                        descTerminacion = terminacion.descripcion,
-                                        peso = item.peso,
-                                        codlinea = item.codlinea,
-                                        descLinea = linea.descripcion,
-                                        clasificacion = item.clasificacion,
-                                        kit = item.kit,
-                                        estadocv = item.estadocv,
-                                        costo = item.costo,
-                                        monedacosto = item.monedacosto,
-                                        codresistencia = item.codresistencia,
-                                        descResistencia = resistencia.descripcion,
-                                        horareg = item.horareg,
-                                        fechareg = item.fechareg,
-                                        usuarioreg = item.usuarioreg,
-                                        enlinea = item.enlinea,
-                                        saldominimo = item.saldominimo,
-                                        codigobarra = item.codigobarra,
-                                        reservastock = item.reservastock,
-                                        iva = item.iva,
-                                        codmoneda_valor_criterio = item.codmoneda_valor_criterio,
-                                        porcen_gac = item.porcen_gac,
-                                        nandina = item.nandina,
-                                        usar_en_movimiento = item.usar_en_movimiento,
-                                        paga_comision = item.paga_comision,
-                                        porcen_saldo_restringido = item.porcen_saldo_restringido,
-                                        controla_negativo = item.controla_negativo,
-                                        tipo = item.tipo,
-                                        codproducto_sin = item.codproducto_sin
-                                    };
-
-                    var initem = resultado.FirstOrDefault();
-
-                    if (initem == null)
+                    var result = _context.initem
+                        .Join(_context.inudemed, item => item.unidad, udemed => udemed.Codigo, (item, udemed) => new { item, udemed })
+                        .Join(_context.inrosca, combined => combined.item.rosca, rosca => rosca.codigo, (combined, rosca) => new { combined.item, combined.udemed, rosca })
+                        .Join(_context.interminacion, combined => combined.item.terminacion, terminacion => terminacion.codigo, (combined, terminacion) => new { combined.item, combined.udemed, combined.rosca, terminacion })
+                        .Join(_context.inresistencia, combined => combined.item.codresistencia, resistencia => resistencia.codigo, (combined, resistencia) => new { combined.item, combined.udemed, combined.rosca, combined.terminacion, resistencia })
+                        .Join(_context.inlinea, combined => combined.item.codlinea, linea => linea.codigo, (combined, linea) => new
+                        {
+                            combined.item.codigo,
+                            combined.item.descripcion,
+                            combined.item.descripcorta,
+                            combined.item.descripabr,
+                            combined.item.medida,
+                            combined.item.unidad,
+                            descUnidad = combined.udemed.Descripcion,
+                            combined.item.rosca,
+                            descRosca = combined.rosca.descripcion,
+                            combined.item.terminacion,
+                            descTerminacion = combined.terminacion.descripcion,
+                            combined.item.peso,
+                            combined.item.codlinea,
+                            descLinea = linea.descripcion,
+                            combined.item.clasificacion,
+                            combined.item.kit,
+                            combined.item.estadocv,
+                            combined.item.costo,
+                            combined.item.monedacosto,
+                            combined.item.codresistencia,
+                            descResistencia = combined.resistencia.descripcion,
+                            combined.item.horareg,
+                            combined.item.fechareg,
+                            combined.item.usuarioreg,
+                            combined.item.enlinea,
+                            combined.item.saldominimo,
+                            combined.item.codigobarra,
+                            combined.item.reservastock,
+                            combined.item.iva,
+                            combined.item.codmoneda_valor_criterio,
+                            combined.item.porcen_gac,
+                            combined.item.nandina,
+                            combined.item.usar_en_movimiento,
+                            combined.item.paga_comision,
+                            combined.item.porcen_saldo_restringido,
+                            combined.item.controla_negativo,
+                            combined.item.tipo,
+                            combined.item.codproducto_sin
+                        })
+                        .Where(item => item.codigo == codigo)
+                        .Select(item => new
+                        {
+                            item.codigo,
+                            item.descripcion,
+                            item.descripcorta,
+                            item.descripabr,
+                            item.medida,
+                            item.unidad,
+                            item.descUnidad,
+                            item.rosca,
+                            item.descRosca,
+                            item.terminacion,
+                            item.descTerminacion,
+                            item.peso,
+                            item.codlinea,
+                            item.descLinea,
+                            item.clasificacion,
+                            item.kit,
+                            item.estadocv,
+                            item.costo,
+                            item.monedacosto,
+                            item.codresistencia,
+                            item.descResistencia,
+                            item.horareg,
+                            item.fechareg,
+                            item.usuarioreg,
+                            item.enlinea,
+                            item.saldominimo,
+                            item.codigobarra,
+                            item.reservastock,
+                            item.iva,
+                            item.codmoneda_valor_criterio,
+                            item.porcen_gac,
+                            item.nandina,
+                            item.usar_en_movimiento,
+                            item.paga_comision,
+                            item.porcen_saldo_restringido,
+                            item.controla_negativo,
+                            item.tipo,
+                            item.codproducto_sin
+                        })
+                        .FirstOrDefault();
+                   
+                    if (result == null)
                     {
                         return NotFound("No se encontro un registro con este código");
                     }
 
-                    return Ok(initem);
+                    return Ok(result);
                 }
                 
             }

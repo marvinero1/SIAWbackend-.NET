@@ -40,54 +40,64 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     List<adarea> ladarea = _context.adarea.ToList();
                     List<peplanporcen> lpeplanporcen = _context.peplanporcen.ToList();
 
-                    var query = from alm in linalmacen
-                                join are in ladarea
-                                on alm.codarea equals are.codigo into table1
-                                from are in table1.DefaultIfEmpty()
-                                join plp in lpeplanporcen
-                                on alm.codplanporcen equals plp.codigo into table2
-                                from plp in table2.DefaultIfEmpty()
-                                orderby alm.fechareg descending
-                                select new 
-                                {
-                                    codigo = alm.codigo,
-                                    descripcion = alm.descripcion,
-                                    codarea = alm.codarea,
-                                    descarea = are.descripcion,
-                                    direccion = alm.direccion,
-                                    telefono = alm.telefono,
-                                    email = alm.email,
-                                    tienda = alm.tienda,
-                                    codplanporcen = alm.codplanporcen,
-                                    descplanporcen = plp.descripcion,
-                                    nropersonas = alm.nropersonas,
-                                    estandar = alm.estandar,
-                                    monestandar = alm.monestandar,
-                                    minimo = alm.minimo,
-                                    moneda = alm.moneda,
-                                    nropatronal = alm.nropatronal,
-                                    horareg = alm.horareg,
-                                    fechareg = alm.fechareg,
-                                    usuarioreg = alm.usuarioreg,
-                                    lugar = alm.lugar,
-                                    sucursallc = alm.sucursallc,
-                                    min_solurgente = alm.min_solurgente,
-                                    codmoneda_min_solurgente = alm.codmoneda_min_solurgente,
-                                    pesomin = alm.pesomin,
-                                    pesoest = alm.pesoest,
-                                    porcenmin = alm.porcenmin,
-                                    porcenmin_rendi = alm.porcenmin_rendi,
-                                    pesoest_rendi = alm.pesoest_rendi,
-                                    pesomin_rendi = alm.pesomin_rendi,
-                                    idcuenta_caja_mn = alm.idcuenta_caja_mn,
-                                    idcuenta_caja_me = alm.idcuenta_caja_me,
-                                    graficar = alm.graficar,
-                                    analizar_rendimiento = alm.analizar_rendimiento,
-                                    actividad = alm.actividad,
-                                    latitud = alm.latitud,
-                                    longitud = alm.longitud,
-                                    fax = alm.fax
-                                };
+                    var query = linalmacen
+                        .Join(
+                            ladarea,
+                            alm => alm.codarea,
+                            are => are.codigo,
+                            (alm, are) => new { alm, are }
+                        )
+                        .GroupJoin(
+                            lpeplanporcen,
+                            alm => alm.alm.codplanporcen,
+                            plp => plp.codigo,
+                            (alm, plp) => new { alm.alm, alm.are, plp }
+                        )
+                        .SelectMany(
+                            x => x.plp.DefaultIfEmpty(),
+                            (x, plp) => new
+                            {
+                                codigo = x.alm.codigo,
+                                descripcion = x.alm.descripcion,
+                                codarea = x.alm.codarea,
+                                descarea = x.are?.descripcion,
+                                direccion = x.alm.direccion,
+                                telefono = x.alm.telefono,
+                                email = x.alm.email,
+                                tienda = x.alm.tienda,
+                                codplanporcen = x.alm.codplanporcen,
+                                descplanporcen = plp?.descripcion,
+                                nropersonas = x.alm.nropersonas,
+                                estandar = x.alm.estandar,
+                                monestandar = x.alm.monestandar,
+                                minimo = x.alm.minimo,
+                                moneda = x.alm.moneda,
+                                nropatronal = x.alm.nropatronal,
+                                horareg = x.alm.horareg,
+                                fechareg = x.alm.fechareg,
+                                usuarioreg = x.alm.usuarioreg,
+                                lugar = x.alm.lugar,
+                                sucursallc = x.alm.sucursallc,
+                                min_solurgente = x.alm.min_solurgente,
+                                codmoneda_min_solurgente = x.alm.codmoneda_min_solurgente,
+                                pesomin = x.alm.pesomin,
+                                pesoest = x.alm.pesoest,
+                                porcenmin = x.alm.porcenmin,
+                                porcenmin_rendi = x.alm.porcenmin_rendi,
+                                pesoest_rendi = x.alm.pesoest_rendi,
+                                pesomin_rendi = x.alm.pesomin_rendi,
+                                idcuenta_caja_mn = x.alm.idcuenta_caja_mn,
+                                idcuenta_caja_me = x.alm.idcuenta_caja_me,
+                                graficar = x.alm.graficar,
+                                analizar_rendimiento = x.alm.analizar_rendimiento,
+                                actividad = x.alm.actividad,
+                                latitud = x.alm.latitud,
+                                longitud = x.alm.longitud,
+                                fax = x.alm.fax
+                            }
+                        )
+                        .OrderByDescending(x => x.fechareg)
+                        .ToList();                            
                     return Ok(query);
 
                 }
@@ -125,57 +135,68 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     List<adarea> ladarea = _context.adarea.ToList();
                     List<peplanporcen> lpeplanporcen = _context.peplanporcen.ToList();
 
-                    var query = from alm in linalmacen
-                                join are in ladarea
-                                on alm.codarea equals are.codigo into table1
-                                from are in table1.DefaultIfEmpty()
-                                join plp in lpeplanporcen
-                                on alm.codplanporcen equals plp.codigo into table2
-                                from plp in table2.DefaultIfEmpty()
-                                where alm.codigo == codigo
-                                select new 
-                                {
-                                    codigo = alm.codigo,
-                                    descripcion = alm.descripcion,
-                                    codarea = alm.codarea,
-                                    descarea = are.descripcion,
-                                    direccion = alm.direccion,
-                                    telefono = alm.telefono,
-                                    email = alm.email,
-                                    tienda = alm.tienda,
-                                    codplanporcen = alm.codplanporcen,
-                                    descplanporcen = plp.descripcion,
-                                    nropersonas = alm.nropersonas,
-                                    estandar = alm.estandar,
-                                    monestandar = alm.monestandar,
-                                    minimo = alm.minimo,
-                                    moneda = alm.moneda,
-                                    nropatronal = alm.nropatronal,
-                                    horareg = alm.horareg,
-                                    fechareg = alm.fechareg,
-                                    usuarioreg = alm.usuarioreg,
-                                    lugar = alm.lugar,
-                                    sucursallc = alm.sucursallc,
-                                    min_solurgente = alm.min_solurgente,
-                                    codmoneda_min_solurgente = alm.codmoneda_min_solurgente,
-                                    pesomin = alm.pesomin,
-                                    pesoest = alm.pesoest,
-                                    porcenmin = alm.porcenmin,
-                                    porcenmin_rendi = alm.porcenmin_rendi,
-                                    pesoest_rendi = alm.pesoest_rendi,
-                                    pesomin_rendi = alm.pesomin_rendi,
-                                    idcuenta_caja_mn = alm.idcuenta_caja_mn,
-                                    idcuenta_caja_me = alm.idcuenta_caja_me,
-                                    graficar = alm.graficar,
-                                    analizar_rendimiento = alm.analizar_rendimiento,
-                                    actividad = alm.actividad,
-                                    latitud = alm.latitud,
-                                    longitud = alm.longitud,
-                                    fax = alm.fax
-                                };
+                    var query = linalmacen
+                        .Join(
+                            ladarea,
+                            alm => alm.codarea,
+                            are => are.codigo,
+                            (alm, are) => new { alm, are }
+                        )
+                        .GroupJoin(
+                            lpeplanporcen,
+                            alm => alm.alm.codplanporcen,
+                            plp => plp.codigo,
+                            (alm, plp) => new { alm.alm, alm.are, plp }
+                        )
+                        .Where(x => x.alm.codigo==codigo)
+                        .SelectMany(
+                            x => x.plp.DefaultIfEmpty(),
+                            (x, plp) => new
+                            {
+                                codigo = x.alm.codigo,
+                                descripcion = x.alm.descripcion,
+                                codarea = x.alm.codarea,
+                                descarea = x.are?.descripcion,
+                                direccion = x.alm.direccion,
+                                telefono = x.alm.telefono,
+                                email = x.alm.email,
+                                tienda = x.alm.tienda,
+                                codplanporcen = x.alm.codplanporcen,
+                                descplanporcen = plp?.descripcion,
+                                nropersonas = x.alm.nropersonas,
+                                estandar = x.alm.estandar,
+                                monestandar = x.alm.monestandar,
+                                minimo = x.alm.minimo,
+                                moneda = x.alm.moneda,
+                                nropatronal = x.alm.nropatronal,
+                                horareg = x.alm.horareg,
+                                fechareg = x.alm.fechareg,
+                                usuarioreg = x.alm.usuarioreg,
+                                lugar = x.alm.lugar,
+                                sucursallc = x.alm.sucursallc,
+                                min_solurgente = x.alm.min_solurgente,
+                                codmoneda_min_solurgente = x.alm.codmoneda_min_solurgente,
+                                pesomin = x.alm.pesomin,
+                                pesoest = x.alm.pesoest,
+                                porcenmin = x.alm.porcenmin,
+                                porcenmin_rendi = x.alm.porcenmin_rendi,
+                                pesoest_rendi = x.alm.pesoest_rendi,
+                                pesomin_rendi = x.alm.pesomin_rendi,
+                                idcuenta_caja_mn = x.alm.idcuenta_caja_mn,
+                                idcuenta_caja_me = x.alm.idcuenta_caja_me,
+                                graficar = x.alm.graficar,
+                                analizar_rendimiento = x.alm.analizar_rendimiento,
+                                actividad = x.alm.actividad,
+                                latitud = x.alm.latitud,
+                                longitud = x.alm.longitud,
+                                fax = x.alm.fax
+                            }
+                        )
+                        .OrderByDescending(x => x.fechareg)
+                        .FirstOrDefault();
                     //return Request.CreateResponse(HttpStatusCode.OK, query);
 
-                    if (query.Count() == 0)
+                    if (query == null)
                     {
                         return NotFound("No se encontro un registro con este código");
                     }

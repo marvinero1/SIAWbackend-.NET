@@ -1799,6 +1799,7 @@ namespace SIAW.Data
         public virtual DbSet<veproforma_iva> veproforma_iva { get; set; }
         public virtual DbSet<veproforma_paquetes> veproforma_paquetes { get; set; }
         public virtual DbSet<veproforma_planpago> veproforma_planpago { get; set; }
+        public virtual DbSet<veproforma_valida> veproforma_valida { get; set; }
         public virtual DbSet<vepromventas_cfg> vepromventas_cfg { get; set; }
         public virtual DbSet<vepromventas_cfg1> vepromventas_cfg1 { get; set; }
         public virtual DbSet<vepromventas_clientes_unir> vepromventas_clientes_unir { get; set; }
@@ -62915,6 +62916,39 @@ namespace SIAW.Data
             modelBuilder.Entity<veproforma_planpago>(entity =>
             {
                 entity.HasNoKey();
+            });
+
+            modelBuilder.Entity<veproforma_valida>(entity =>
+            {
+                entity.HasKey(e => new { e.codproforma, e.codcontrol })
+                    .HasName("PK_veproforma2");
+
+                entity.Property(e => e.codcontrol).HasMaxLength(5);
+
+                entity.Property(e => e.clave_servicio).HasMaxLength(50);
+
+                entity.Property(e => e.datoa).HasMaxLength(200);
+
+                entity.Property(e => e.datob).HasColumnType("text");
+
+                entity.Property(e => e.descuentos).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.nit).HasMaxLength(30);
+
+                entity.Property(e => e.obsdetalle).HasColumnType("text");
+
+                entity.Property(e => e.observacion).HasColumnType("text");
+
+                entity.Property(e => e.recargos).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.subtotal).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.total).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.valido)
+                    .HasMaxLength(2)
+                    .IsUnicode(false)
+                    .IsFixedLength();
             });
 
             modelBuilder.Entity<vepromventas_cfg>(entity =>

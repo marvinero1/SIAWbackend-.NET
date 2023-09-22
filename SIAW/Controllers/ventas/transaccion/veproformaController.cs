@@ -7,6 +7,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NuGet.Configuration;
 using SIAW.Data;
+using SIAW.Funciones;
 using SIAW.Models;
 using SIAW.Models_Extra;
 using System.Data;
@@ -24,7 +25,13 @@ namespace SIAW.Controllers.ventas.transaccion
 
         private readonly UserConnectionManager _userConnectionManager;
         private empaquesFunciones empaque_func = new empaquesFunciones();
+        private datosProforma datos_proforma = new datosProforma();
         private ClienteCasual clienteCasual = new ClienteCasual();
+        private Cliente cliente = new Cliente();
+        private Empresa empresa = new Empresa();
+        private Saldos saldos = new Saldos();
+        private TipoCambio tipocambio = new TipoCambio();
+        private Ventas ventas = new Ventas();
 
         public veproformaController(UserConnectionManager userConnectionManager)
         {
@@ -911,28 +918,20 @@ namespace SIAW.Controllers.ventas.transaccion
             {
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                int nroactual = await datos_proforma.getNumActProd(userConnectionString, id);
 
-                using (var _context = DbContextFactory.Create(userConnectionString))
+                if (nroactual == null)
                 {
-                    var nroactual = await _context.venumeracion
-                        .Where(item => item.id == id)
-                        .Select(item => item.nroactual)
-                        .FirstOrDefaultAsync();
-
-                    if (nroactual == null)
-                    {
-                        return NotFound("No se encontro un registro con este código");
-                    }
-
-                    return Ok(nroactual + 1);
+                    return NotFound("No se encontro un registro con este código");
                 }
-
+                return Ok(nroactual);
             }
             catch (Exception)
             {
                 return BadRequest("Error en el servidor");
             }
         }
+
 
         [HttpPost]
         [Route("crearCliente/{userConn}")]
@@ -1023,21 +1022,60 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
         [HttpGet]
-        [Route("getItemMatriz/{userConn}/{coditem}/{tarifa}/{descuento}/{cantidad}")]
-        public async Task<ActionResult<itemDataMatriz>> getItemMatriz(string userConn, string coditem, int tarifa, int descuento, float cantidad)
+        [Route("getItemMatriz_Anadir/{userConn}/{coditem}/{tarifa}/{descuento}/{cantidad_pedida}/{cantidad}/{codcliente}/{opcion_nivel}/{codalmacen}/{desc_linea_seg_solicitud}/{codmoneda}/{fecha}")]
+        public async Task<ActionResult<itemDataMatriz>> getItemMatriz_Anadir(string userConn, string coditem, int tarifa, int descuento, decimal cantidad_pedida, decimal cantidad, string codcliente, string opcion_nivel, int codalmacen, string desc_linea_seg_solicitud, string codmoneda, DateTime fecha)
         {
             try
             {
+                //string nivel = "X";
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
+
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
+                    //precio unitario del item
                     var precioItem = await _context.intarifa1
                         .Where(i => i.codtarifa == tarifa && i.item == coditem)
                         .Select(i => i.precio)
                         .FirstOrDefaultAsync();
+                    //convertir a la moneda el precio item
+                    var monedabase = await ventas.monedabasetarifa(userConnectionString, tarifa);
+                    precioItem = await tipocambio.conversion(userConnectionString, codmoneda, monedabase, fecha, (decimal)precioItem);
+                    precioItem = await cliente.Redondear_5_Decimales(userConnectionString, (decimal)precioItem);
+                    //porcentaje de mercaderia
+                    decimal porcen_merca = 0;
+                    if (codalmacen > 0)
+                    {
+                        var controla_stok_seguridad = await empresa.ControlarStockSeguridad(userConnectionString, "PE");
+                        if (controla_stok_seguridad == true)
+                        {
+                            //List<sldosItemCompleto> sld_ctrlstock_para_vtas = await saldos.SaldoItem_CrtlStock_Para_Ventas(userConnectionString, "311", codalmacen, coditem, "PE", "dpd3");
+                            var sld_ctrlstock_para_vtas = await saldos.SaldoItem_CrtlStock_Para_Ventas(userConnectionString, "311", codalmacen, coditem, "PE", "dpd3");
+                            porcen_merca = cantidad * 100 / sld_ctrlstock_para_vtas;
+                        }
+                        else { porcen_merca = 0; }
+                    }
+                    else { porcen_merca = 0; }
 
+
+                    //descuento de nivel del cliente
+                    var niveldesc = await cliente.niveldesccliente(userConnectionString, codcliente, coditem, tarifa, opcion_nivel, false);
+
+                    //porcentaje de descuento de nivel del cliente
+                    var porcentajedesc = await cliente.porcendesccliente(userConnectionString, codcliente, coditem, tarifa, opcion_nivel, false);
+
+                    //preciodesc 
+                    var preciodesc = await cliente.Preciodesc(userConnectionString, codcliente, codalmacen, tarifa, coditem, desc_linea_seg_solicitud, niveldesc, opcion_nivel);
+                    preciodesc = await tipocambio.conversion(userConnectionString, codmoneda, monedabase, fecha, (decimal)preciodesc);
+                    preciodesc = await cliente.Redondear_5_Decimales(userConnectionString, preciodesc);
+                    //precioneto 
+                    var precioneto = await cliente.Preciocondescitem(userConnectionString, codcliente, codalmacen, tarifa, coditem, descuento, desc_linea_seg_solicitud, niveldesc, opcion_nivel);
+                    precioneto = await tipocambio.conversion(userConnectionString, codmoneda, monedabase, fecha, (decimal)precioneto);
+                    precioneto = await cliente.Redondear_5_Decimales(userConnectionString, precioneto);
+                    //total
+                    var total = cantidad * precioneto;
+                    total = await cliente.Redondear_5_Decimales(userConnectionString, total);
 
                     var item = await _context.initem
                         .Where(i => i.codigo == coditem)
@@ -1047,18 +1085,18 @@ namespace SIAW.Controllers.ventas.transaccion
                             descripcion = i.descripcion,
                             medida = i.medida,
                             ud = i.unidad,
-                            porcenIV = 0,
-                            pedido = cantidad,
-                            cantidad = cantidad,
-                            porcentSld = 0,
+                            porcenIV = (float)i.iva,
+                            pedido = (float)cantidad_pedida,
+                            cantidad = (float)cantidad,
+                            porcentSld = (float)porcen_merca,
                             tp = tarifa,
                             de = descuento,
                             pul = (float)precioItem,
-                            ni = "X",
-                            porcen = 0,
-                            pd = 0,
-                            pu = 0,
-                            total = 0
+                            ni = niveldesc,
+                            porcen = (float)porcentajedesc,
+                            pd = (float)preciodesc,
+                            pu = (float)precioneto,
+                            total = (float)total
 
                         })
                         .FirstOrDefaultAsync();
@@ -1079,40 +1117,236 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
 
-        /*
 
-        /// <summary>
-        /// Obtiene saldos de un item de una agencia de manera local
-        /// </summary>
-        /// <param name="userConn"></param>
-        /// <param name="codalmacen"></param>
-        /// <param name="coditem"></param>
-        /// <returns></returns>
-        // GET: api/ad_conexion_vpn/5
+        // GET: api/catalogo
         [HttpGet]
-        [Route("getsladovarfinal/{userConn}/{codalmacen}/{usuario}")]
-        public async Task<ActionResult<instoactual>> detallar_saldo_variable_final(string userConn, string usuario)
+        [Route("catalogoVetiposoldsctos/{userConn}")]
+        public async Task<ActionResult<IEnumerable<vetiposoldsctos>>> catalogoVetiposoldsctos(string userConn)
         {
             try
             {
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                bool ver_detalle_saldo_variable = await empaque_func.ve_detalle_saldo_variable(userConnectionString, usuario);
-                if (!ver_detalle_saldo_variable)
-                {
-                    return Ok("No tiene permiso para visualizar esta información.");
-                }
-                
+                //var _context = _userConnectionManager.GetUserConnection(userId);
 
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var result = _context.vetiposoldsctos
+                    .Select(i => new
+                    {
+                        codigo = i.id,
+                        descripcion = i.descripcion
+                    })
+                    .ToListAsync();
+
+                    return Ok(result);
+                }
 
             }
             catch (Exception)
             {
-                return Problem("Error en el servidor");
+                return BadRequest("Error en el servidor");
+                throw;
             }
         }
 
-        */
+        // GET: api/catalogo
+        [HttpGet]
+        [Route("catalogoVenumeracionProf/{userConn}")]
+        public async Task<ActionResult<IEnumerable<vetiposoldsctos>>> catalogoVenumeracionProf(string userConn)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var result = _context.venumeracion
+                    .Where(e => e.tipodoc == 2 && e.habilitado == true)
+                    .OrderBy(e => e.id)
+                    .Select(e => new
+                    {
+                        codigo = e.id,
+                        descripcion = e.descripcion
+                    })
+                    .ToListAsync();
+
+                    return Ok(result);
+                }
+
+            }
+            catch (Exception)
+            {
+                return BadRequest("Error en el servidor");
+                throw;
+            }
+        }
+
+
+
+        [HttpPost]
+        [Route("guardarProforma/{userConn}/{idProf}/{hora_inicial}/{fecha_inicial}")]
+        public async Task<object> guardarProforma(string userConn, string idProf, string hora_inicial, DateTime fecha_inicial, SaveProformaCompleta datosProforma)
+        {
+            veproforma veproforma = datosProforma.veproforma;
+            List<veproforma1> veproforma1 = datosProforma.veproforma1;
+            List<veproforma_valida> veproforma_valida = datosProforma.veproforma_valida;
+            veproforma_anticipo veproforma_anticipo = datosProforma.veproforma_anticipo;
+            List<vedesextraprof> vedesextraprof = datosProforma.vedesextraprof;
+            List<verecargoprof> verecargoprof = datosProforma.verecargoprof;
+            veproforma_iva veproforma_iva = datosProforma.veproforma_iva;
+
+
+
+
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            /*
+            string datosValidos = await clienteCasual.validar_crear_cliente(userConnectionString, cliCasual.codSN, cliCasual.nit_cliente_casual, cliCasual.tipo_doc_cliente_casual);
+            if (datosValidos != "Ok")
+            {
+                return BadRequest("Datos no validos verifique por favor!!!");
+            }
+            */
+
+            // validar detalle()
+            // validar datos()
+
+            //obtenemos numero actual de proforma de nuevo
+            int idnroactual = await datos_proforma.getNumActProd(userConnectionString, idProf);
+
+            if (idnroactual == 0)
+            {
+                return BadRequest("Error al obtener los datos de numero de proforma");
+            }
+            // valida si existe ya la proforma
+            if (await datos_proforma.existeProforma(userConnectionString, idProf, idnroactual))
+            {
+                return BadRequest("Ese numero de documento, ya existe, por favor consulte con el administrador del sistema.");
+            }
+
+            // obtener hora y fecha actual si es que la proforma no se importo
+            if (veproforma.hora_inicial == "")
+            {
+                veproforma.fecha_inicial = DateTime.Parse(datos_proforma.getFechaActual());
+                veproforma.hora_inicial = datos_proforma.getHoraActual();
+            }
+            // obtener ultimo codigo de proforma y aumentar + 1
+            int codigoProf = await datos_proforma.ultimoCodProf(userConnectionString) + 1;
+            
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                using (var dbContexTransaction = _context.Database.BeginTransaction())
+                {
+                    try
+                    {
+                        if (veproforma1.Count < 1)
+                        {
+                            return BadRequest("No se tiene detalle de la proforma");
+                        }
+                        // guarda cabecera (veproforma)
+                        _context.veproforma.Add(veproforma);
+                        await _context.SaveChangesAsync();
+
+
+                        // guarda detalle (veproforma1)
+                        _context.veproforma1.AddRange(veproforma1);
+                        await _context.SaveChangesAsync();
+
+                        // actualiza numero id
+                        var numeracion = _context.venumeracion.FirstOrDefault(n => n.id == idProf);
+                        numeracion.nroactual += 1;
+                        await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
+
+                        // guarda el detalle de validacion
+                        _context.veproforma_valida.AddRange(veproforma_valida);
+                        await _context.SaveChangesAsync();
+
+                        // grabar anticipos aplicados
+                        _context.veproforma_anticipo.Add(veproforma_anticipo);
+                        await _context.SaveChangesAsync();
+
+                        // grabar descto por deposito si hay descuentos
+                        Requestgrabardesextra requestgrabardesextra = new Requestgrabardesextra();
+                        requestgrabardesextra.context = _context;
+                        requestgrabardesextra.vedesextraprofList = vedesextraprof;
+                        if (vedesextraprof.Count > 0)
+                        {
+                            await grabardesextra(codigoProf, requestgrabardesextra);
+                        }
+
+                        // grabar recargo si hay recargos
+                        Requestgrabarrecargo requestgrabarrecargo = new Requestgrabarrecargo();
+                        requestgrabarrecargo.context = _context;
+                        requestgrabarrecargo.verecargoprof = verecargoprof;
+                        if (verecargoprof.Count > 0)
+                        {
+                            await grabarrecargo(codigoProf, requestgrabarrecargo);
+                        }
+                        
+
+                        return Ok("Se Grabo la Proforma de manera Exitosa");
+                    }
+                    catch (Exception)
+                    {
+                        dbContexTransaction.Rollback();
+                        return Problem("Error en el servidor");
+                        throw;
+                    }
+                }
+            }
+        }
+
+        private async Task grabardesextra(int codProf, Requestgrabardesextra requestgrabardesextra)
+        {
+            DBContext _context = requestgrabardesextra.context;
+            List<vedesextraprof> vedesextraprof = requestgrabardesextra.vedesextraprofList;
+            foreach (var item in vedesextraprof)
+            {
+                item.codproforma = codProf;
+                if (item.codcobranza == null)
+                {
+                    item.codproforma = 0;
+                }
+                if (item.codcobranza_contado == null)
+                {
+                    item.codcobranza_contado = 0;
+                }
+                if (item.codanticipo == null)
+                {
+                    item.codanticipo = 0;
+                }
+            }
+            _context.vedesextraprof.AddRange(vedesextraprof);
+            await _context.SaveChangesAsync();
+        }
+
+
+        private async Task grabarrecargo(int codProf, Requestgrabarrecargo requestgrabarrecargo)
+        {
+            List<verecargoprof> verecargoprof = requestgrabarrecargo.verecargoprof;
+            DBContext _context = requestgrabarrecargo.context;
+            foreach (var item in verecargoprof)
+            {
+                item.codproforma = codProf;
+            }
+            _context.verecargoprof.AddRange(verecargoprof);
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task grabariva(int codProf, Requestgrabariva requestgrabariva)
+        {
+            veproforma_iva veproforma_iva = requestgrabariva.veproforma_iva;
+            DBContext _context = requestgrabariva.context;
+            veproforma_iva.codproforma = codProf;
+            _context.veproforma_iva.Add(veproforma_iva);
+            await _context.SaveChangesAsync();
+        }
+
     }
 }
