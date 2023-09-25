@@ -3,9 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.CodeAnalysis.Scripting;
 using Microsoft.EntityFrameworkCore;
 using SIAW.Controllers.seg_adm.login;
-using SIAW.Data;
-using SIAW.Models;
-using SIAW.Models_Extra;
+using siaw_DBContext.Data;
+using siaw_DBContext.Models;
+using siaw_DBContext.Models_Extra;
 using System.Net;
 using Microsoft.AspNetCore.Authorization;
 

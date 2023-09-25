@@ -2,8 +2,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NuGet.Configuration;
-using SIAW.Data;
-using SIAW.Models;
+using siaw_DBContext.Data;
+using siaw_DBContext.Models;
 using System.Net;
 using Microsoft.AspNetCore.Authorization;
 

@@ -57,4 +57,9 @@
     <Folder Include="Controllers\ventas\operacion\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\siaw_DBContext\siaw_DBContext.csproj" />
+    <ProjectReference Include="..\siaw_funciones\siaw_funciones.csproj" />
+  </ItemGroup>
+
 </Project>

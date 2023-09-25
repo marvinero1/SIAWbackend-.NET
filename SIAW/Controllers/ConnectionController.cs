@@ -3,7 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
-using SIAW.Data;
+//using SIAW.Data;
+using siaw_DBContext.Data;
 
 namespace SIAW.Controllers
 {

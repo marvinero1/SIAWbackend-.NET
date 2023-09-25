@@ -1,9 +1,9 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using SIAW.Data;
-using SIAW.Models;
-using SIAW.Models_Extra;
+using siaw_DBContext.Data;
+using siaw_DBContext.Models;
+using siaw_DBContext.Models_Extra;
 using System.Net;
 
 namespace SIAW.Controllers.seg_adm.operacion

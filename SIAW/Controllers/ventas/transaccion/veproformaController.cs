@@ -6,15 +6,18 @@ using Microsoft.VisualBasic;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NuGet.Configuration;
-using SIAW.Data;
-using SIAW.Funciones;
-using SIAW.Models;
-using SIAW.Models_Extra;
+//using SIAW.Data;
+//using SIAW.Models;
+//using SIAW.Models_Extra;
+using siaw_DBContext.Data;
+using siaw_DBContext.Models;
+using siaw_DBContext.Models_Extra;
 using System.Data;
 using System.Drawing;
 using System.Security.Policy;
 using System.Text;
 using System.Web.Http.Results;
+using siaw_funciones;
 
 namespace SIAW.Controllers.ventas.transaccion
 {
@@ -24,14 +27,14 @@ namespace SIAW.Controllers.ventas.transaccion
     {
 
         private readonly UserConnectionManager _userConnectionManager;
-        private empaquesFunciones empaque_func = new empaquesFunciones();
-        private datosProforma datos_proforma = new datosProforma();
-        private ClienteCasual clienteCasual = new ClienteCasual();
-        private Cliente cliente = new Cliente();
-        private Empresa empresa = new Empresa();
-        private Saldos saldos = new Saldos();
-        private TipoCambio tipocambio = new TipoCambio();
-        private Ventas ventas = new Ventas();
+        private siaw_funciones.empaquesFunciones empaque_func = new siaw_funciones.empaquesFunciones();
+        private siaw_funciones.datosProforma datos_proforma = new siaw_funciones.datosProforma();
+        private siaw_funciones.ClienteCasual clienteCasual = new siaw_funciones.ClienteCasual();
+        private siaw_funciones.Cliente cliente = new siaw_funciones.Cliente();
+        private siaw_funciones.Empresa empresa = new siaw_funciones.Empresa();
+        private siaw_funciones.Saldos saldos = new siaw_funciones.Saldos();
+        private siaw_funciones.TipoCambio tipocambio = new siaw_funciones.TipoCambio();
+        private siaw_funciones.Ventas ventas = new siaw_funciones.Ventas();
 
         public veproformaController(UserConnectionManager userConnectionManager)
         {

@@ -1,15 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using SIAW.Models;
+using siaw_DBContext.Models;
 using Microsoft.AspNetCore.Mvc;
-using SIAW.Data;
+using siaw_DBContext.Data;
 using SIAW.Controllers.seg_adm.login;
 using System.Net;
 
 
 // para generar token
-using SIAW.Models_Extra;
+using siaw_DBContext.Models_Extra;
 using System.Security.Claims;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;

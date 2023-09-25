@@ -759,3 +759,7 @@ D:\Fuente SIAW2023\siawbackend-.net\SIAW\obj\Debug\net6.0\refint\SIAW.dll
 D:\Fuente SIAW2023\siawbackend-.net\SIAW\obj\Debug\net6.0\SIAW.pdb
 D:\Fuente SIAW2023\siawbackend-.net\SIAW\obj\Debug\net6.0\SIAW.genruntimeconfig.cache
 D:\Fuente SIAW2023\siawbackend-.net\SIAW\obj\Debug\net6.0\ref\SIAW.dll
+D:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\siaw_DBContext.dll
+D:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\siaw_DBContext.pdb
+D:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\siaw_funciones.dll
+D:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Debug\net6.0\siaw_funciones.pdb

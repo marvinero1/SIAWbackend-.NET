@@ -1,0 +1,14 @@
+D:\Fuente SIAW2023\SIAWbackend-.NET\sia_DBContex\obj\Release\net6.0\sia_DBContex.csproj.AssemblyReference.cache
+D:\Fuente SIAW2023\SIAWbackend-.NET\sia_DBContex\obj\Release\net6.0\sia_DBContex.GeneratedMSBuildEditorConfig.editorconfig
+D:\Fuente SIAW2023\SIAWbackend-.NET\sia_DBContex\obj\Release\net6.0\sia_DBContex.AssemblyInfoInputs.cache
+D:\Fuente SIAW2023\SIAWbackend-.NET\sia_DBContex\obj\Release\net6.0\sia_DBContex.AssemblyInfo.cs
+D:\Fuente SIAW2023\SIAWbackend-.NET\sia_DBContex\obj\Release\net6.0\sia_DBContex.csproj.CoreCompileInputs.cache
+D:\Fuente SIAW2023\SIAWbackend-.NET\sia_DBContex\bin\Release\net6.0\sia_DBContex.deps.json
+D:\Fuente SIAW2023\SIAWbackend-.NET\sia_DBContex\bin\Release\net6.0\sia_DBContex.runtimeconfig.json
+D:\Fuente SIAW2023\SIAWbackend-.NET\sia_DBContex\bin\Release\net6.0\sia_DBContex.dll
+D:\Fuente SIAW2023\SIAWbackend-.NET\sia_DBContex\bin\Release\net6.0\sia_DBContex.pdb
+D:\Fuente SIAW2023\SIAWbackend-.NET\sia_DBContex\obj\Release\net6.0\sia_DBContex.dll
+D:\Fuente SIAW2023\SIAWbackend-.NET\sia_DBContex\obj\Release\net6.0\refint\sia_DBContex.dll
+D:\Fuente SIAW2023\SIAWbackend-.NET\sia_DBContex\obj\Release\net6.0\sia_DBContex.pdb
+D:\Fuente SIAW2023\SIAWbackend-.NET\sia_DBContex\obj\Release\net6.0\sia_DBContex.genruntimeconfig.cache
+D:\Fuente SIAW2023\SIAWbackend-.NET\sia_DBContex\obj\Release\net6.0\ref\sia_DBContex.dll

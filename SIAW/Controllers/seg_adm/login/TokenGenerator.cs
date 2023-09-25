@@ -4,12 +4,12 @@ using System.Configuration;
 using System.Linq;
 using System.Web;
 // para generar token
-using SIAW.Models_Extra;
+using siaw_DBContext.Models_Extra;
 using System.Security.Claims;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
-using SIAW.Models;
+using siaw_DBContext.Models;
 
 namespace ApiBackend.Controllers
 {
