@@ -1,0 +1,17 @@
+C:\laragon\www\siawbackend-.net\siaw_funciones\bin\Release\net6.0\siaw_funciones.deps.json
+C:\laragon\www\siawbackend-.net\siaw_funciones\bin\Release\net6.0\siaw_funciones.runtimeconfig.json
+C:\laragon\www\siawbackend-.net\siaw_funciones\bin\Release\net6.0\siaw_funciones.dll
+C:\laragon\www\siawbackend-.net\siaw_funciones\bin\Release\net6.0\siaw_funciones.pdb
+C:\laragon\www\siawbackend-.net\siaw_funciones\bin\Release\net6.0\siaw_DBContext.dll
+C:\laragon\www\siawbackend-.net\siaw_funciones\bin\Release\net6.0\siaw_DBContext.pdb
+C:\laragon\www\siawbackend-.net\siaw_funciones\obj\Release\net6.0\siaw_funciones.csproj.AssemblyReference.cache
+C:\laragon\www\siawbackend-.net\siaw_funciones\obj\Release\net6.0\siaw_funciones.GeneratedMSBuildEditorConfig.editorconfig
+C:\laragon\www\siawbackend-.net\siaw_funciones\obj\Release\net6.0\siaw_funciones.AssemblyInfoInputs.cache
+C:\laragon\www\siawbackend-.net\siaw_funciones\obj\Release\net6.0\siaw_funciones.AssemblyInfo.cs
+C:\laragon\www\siawbackend-.net\siaw_funciones\obj\Release\net6.0\siaw_funciones.csproj.CoreCompileInputs.cache
+C:\laragon\www\siawbackend-.net\siaw_funciones\obj\Release\net6.0\siaw_funciones.csproj.CopyComplete
+C:\laragon\www\siawbackend-.net\siaw_funciones\obj\Release\net6.0\siaw_funciones.dll
+C:\laragon\www\siawbackend-.net\siaw_funciones\obj\Release\net6.0\refint\siaw_funciones.dll
+C:\laragon\www\siawbackend-.net\siaw_funciones\obj\Release\net6.0\siaw_funciones.pdb
+C:\laragon\www\siawbackend-.net\siaw_funciones\obj\Release\net6.0\siaw_funciones.genruntimeconfig.cache
+C:\laragon\www\siawbackend-.net\siaw_funciones\obj\Release\net6.0\ref\siaw_funciones.dll

@@ -5,6 +5,7 @@ using siaw_DBContext.Data;
 using siaw_DBContext.Models;
 using System.Net;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Data.SqlClient;
 
 namespace SIAW.Controllers.seg_adm.mantenimiento
 {
@@ -170,6 +171,51 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     return Ok(resultado);
                 }
                 
+            }
+            catch (Exception)
+            {
+                return BadRequest("Error en el servidor");
+            }
+        }
+
+
+
+        /// <summary>
+        /// Obtiene una El valor de la moneda
+        /// </summary>
+        /// <returns></returns>
+        // GET: api/adtipocambio/5
+        [HttpGet]
+        [Route("getmonedaValor/{userConn}/{monBase}/{moneda}/{fecha}")]
+        public async Task<ActionResult<adtipocambio>> getmonedaValor(string userConn, string monBase, string moneda, DateTime fecha)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    //var respuesta = new SqlParameter("@respuesta", System.Data.SqlDbType.Decimal);
+                    SqlParameter resultado = new SqlParameter("@v_resultado", System.Data.SqlDbType.Decimal);
+                    resultado.Direction = System.Data.ParameterDirection.Output;
+                    resultado.Precision = 18;
+                    resultado.Scale = 2;
+
+                    // Llama al procedimiento almacenado
+                    await _context.Database.ExecuteSqlRawAsync(
+                        "EXEC SIA00002_TipoCambio @v_resultado OUTPUT, @p_monBase, @p_moneda, @p_fecha",
+                        resultado,
+                        new SqlParameter("@p_monBase", monBase),
+                        new SqlParameter("@p_moneda", moneda),
+                        new SqlParameter("@p_fecha", fecha));
+
+                    return Ok(new { valor = resultado.Value });
+
+
+                }
+
             }
             catch (Exception)
             {

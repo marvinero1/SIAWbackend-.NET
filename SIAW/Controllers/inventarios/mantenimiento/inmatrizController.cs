@@ -5,6 +5,7 @@ using siaw_DBContext.Data;
 using siaw_DBContext.Models;
 using System.Net;
 using Microsoft.AspNetCore.Authorization;
+using siaw_funciones;
 
 namespace SIAW.Controllers.inventarios.mantenimiento
 {
@@ -12,6 +13,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
     [ApiController]
     public class inmatrizController : ControllerBase
     {
+        private readonly Saldos saldos = new Saldos();
         private readonly UserConnectionManager _userConnectionManager;
         public inmatrizController(UserConnectionManager userConnectionManager)
         {
@@ -78,6 +80,56 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 return BadRequest("Error en el servidor");
             }
         }
+
+
+        // GET: api/inmatriz/5
+        [HttpGet]
+        [Route("infoItemRes/{userConn}/{codalmacen}/{coditem}")]
+        public async Task<ActionResult<object>> infoItemRes(string userConn, int codalmacen, string coditem)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    float porcen_maximo = await saldos.get_Porcentaje_Maximo_de_Venta_Respecto_Del_Saldo(_context, codalmacen, coditem);
+                    string porcen_maximo_text = "";
+                    if (porcen_maximo >= 100)
+                    {
+                        porcen_maximo_text = "NO RESERVA SALDO";
+                    }
+                    else
+                    {
+                        porcen_maximo_text = "VTA HASTA:" + porcen_maximo + "% DEL SALDO";
+                    }
+                    var initem = await _context.initem
+                        .Where(i => i.codigo == coditem)
+                        .Select(i => new
+                        {
+                            codigo = i.codigo,
+                            descripcion = i.descripcion,
+                            medida = i.medida,
+                            porcen_maximo = porcen_maximo_text
+                        })
+                        .FirstOrDefaultAsync();
+
+                    if (initem == null)
+                    {
+                        return NotFound("No se encontro un registro con este código");
+                    }
+
+                    return Ok(initem);
+                }
+            }
+            catch (Exception)
+            {
+                return BadRequest("Error en el servidor");
+            }
+        }
+
+
 
         // PUT: api/inmatriz/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754

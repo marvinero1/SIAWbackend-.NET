@@ -1,4 +1,4 @@
-﻿namespace siaw_DBContext.Models_Stored_Procedures
+﻿namespace SIAW.Models_Stored_Procedures
 {
     public class SaldoReservadoResult
     {

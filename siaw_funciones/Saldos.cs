@@ -559,5 +559,23 @@ namespace siaw_funciones
             }
         }
 
+
+
+
+        public async Task<float> get_Porcentaje_Maximo_de_Venta_Respecto_Del_Saldo(DBContext _context, int codalmacen, string coditem)
+        {
+            var porcen_maximo = await _context.initem_max_vta
+                    .Where(item => item.codalmacen == codalmacen && item.coditem == coditem)
+                    .Select(item => item.porcen_maximo)
+                    .FirstOrDefaultAsync();
+
+            if (porcen_maximo == null)
+            {
+                return 0;
+            }
+
+            return (float)porcen_maximo;
+        }
+
     }
 }

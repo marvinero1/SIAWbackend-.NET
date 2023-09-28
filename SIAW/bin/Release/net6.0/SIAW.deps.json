@@ -14,7 +14,8 @@
           "Microsoft.EntityFrameworkCore.Tools": "6.0.18",
           "Microsoft.VisualStudio.Web.CodeGeneration.Design": "6.0.14",
           "Swashbuckle.AspNetCore": "6.2.3",
-          "sia_DBContext": "1.0.0"
+          "siaw_DBContext": "1.0.0",
+          "siaw_funciones": "1.0.0"
         },
         "runtime": {
           "SIAW.dll": {}
@@ -618,6 +619,17 @@
             "assemblyVersion": "6.0.20.0",
             "fileVersion": "6.0.2023.32106"
           }
+        }
+      },
+      "Microsoft.AspNetCore.Http.Abstractions/2.2.0": {
+        "dependencies": {
+          "Microsoft.AspNetCore.Http.Features": "2.2.0",
+          "System.Text.Encodings.Web": "6.0.0"
+        }
+      },
+      "Microsoft.AspNetCore.Http.Features/2.2.0": {
+        "dependencies": {
+          "Microsoft.Extensions.Primitives": "6.0.0"
         }
       },
       "Microsoft.AspNetCore.Razor.Language/6.0.0": {
@@ -2569,14 +2581,27 @@
           "System.Xml.ReaderWriter": "4.3.0"
         }
       },
-      "sia_DBContext/1.0.0": {
+      "siaw_DBContext/1.0.0": {
         "dependencies": {
+          "Microsoft.AspNetCore.Http.Abstractions": "2.2.0",
           "Microsoft.EntityFrameworkCore": "6.0.18",
           "Microsoft.EntityFrameworkCore.SqlServer": "6.0.18",
           "Microsoft.VisualStudio.Web.CodeGeneration.Design": "6.0.14"
         },
         "runtime": {
-          "sia_DBContext.dll": {}
+          "siaw_DBContext.dll": {}
+        }
+      },
+      "siaw_funciones/1.0.0": {
+        "dependencies": {
+          "Microsoft.AspNetCore.Http.Abstractions": "2.2.0",
+          "Microsoft.EntityFrameworkCore": "6.0.18",
+          "Microsoft.EntityFrameworkCore.SqlServer": "6.0.18",
+          "Microsoft.VisualStudio.Web.CodeGeneration.Design": "6.0.14",
+          "siaw_DBContext": "1.0.0"
+        },
+        "runtime": {
+          "siaw_funciones.dll": {}
         }
       }
     }
@@ -2978,6 +3003,20 @@
       "sha512": "sha512-+h9mLcUvoCafhAInfALHd2H1oelu3F31GbY83dEkJzqCKdP34x6hSvB5uj9wF/JowLosD6+ZMcPlU+nogka+mg==",
       "path": "microsoft.aspnetcore.authentication.jwtbearer/6.0.20",
       "hashPath": "microsoft.aspnetcore.authentication.jwtbearer.6.0.20.nupkg.sha512"
+    },
+    "Microsoft.AspNetCore.Http.Abstractions/2.2.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-Nxs7Z1q3f1STfLYKJSVXCs1iBl+Ya6E8o4Oy1bCxJ/rNI44E/0f6tbsrVqAWfB7jlnJfyaAtIalBVxPKUPQb4Q==",
+      "path": "microsoft.aspnetcore.http.abstractions/2.2.0",
+      "hashPath": "microsoft.aspnetcore.http.abstractions.2.2.0.nupkg.sha512"
+    },
+    "Microsoft.AspNetCore.Http.Features/2.2.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-ziFz5zH8f33En4dX81LW84I6XrYXKf9jg6aM39cM+LffN9KJahViKZ61dGMSO2gd3e+qe5yBRwsesvyqlZaSMg==",
+      "path": "microsoft.aspnetcore.http.features/2.2.0",
+      "hashPath": "microsoft.aspnetcore.http.features.2.2.0.nupkg.sha512"
     },
     "Microsoft.AspNetCore.Razor.Language/6.0.0": {
       "type": "package",
@@ -4162,7 +4201,12 @@
       "path": "system.xml.xdocument/4.3.0",
       "hashPath": "system.xml.xdocument.4.3.0.nupkg.sha512"
     },
-    "sia_DBContext/1.0.0": {
+    "siaw_DBContext/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "siaw_funciones/1.0.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""
