@@ -35,6 +35,7 @@ namespace SIAW.Controllers.ventas.transaccion
         private siaw_funciones.Saldos saldos = new siaw_funciones.Saldos();
         private siaw_funciones.TipoCambio tipocambio = new siaw_funciones.TipoCambio();
         private siaw_funciones.Ventas ventas = new siaw_funciones.Ventas();
+        private siaw_funciones.Items items = new siaw_funciones.Items();
 
         public veproformaController(UserConnectionManager userConnectionManager)
         {
@@ -910,7 +911,24 @@ namespace SIAW.Controllers.ventas.transaccion
                 return BadRequest("Error en el servidor");
             }
         }
-
+        //Para obtener si un item esta habilitado para ventas o no
+        [HttpGet]
+        [Route("getItemParaVta/{userConn}/{coditem}")]
+        public async Task<bool> getItemParaVta(string userConn, int codalmacen, string coditem)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                var habilitado = await items.itemventa(userConnectionString, coditem);
+                return habilitado;
+                //if (habilitado == false) { return false; } else{ return true; }
+                
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
 
 
         [HttpGet]

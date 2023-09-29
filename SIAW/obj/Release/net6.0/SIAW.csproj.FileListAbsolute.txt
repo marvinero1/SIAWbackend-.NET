@@ -738,8 +738,6 @@ D:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Release\net6.0\runtimes\win\lib\net
 D:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Release\net6.0\runtimes\win\lib\netstandard2.0\System.Runtime.Caching.dll
 D:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Release\net6.0\runtimes\win\lib\net6.0\System.Security.Cryptography.ProtectedData.dll
 D:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Release\net6.0\runtimes\win\lib\net6.0\System.Windows.Extensions.dll
-D:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Release\net6.0\sia_DBContext.dll
-D:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Release\net6.0\sia_DBContext.pdb
 D:\Fuente SIAW2023\siawbackend-.net\SIAW\obj\Release\net6.0\SIAW.csproj.AssemblyReference.cache
 D:\Fuente SIAW2023\siawbackend-.net\SIAW\obj\Release\net6.0\SIAW.GeneratedMSBuildEditorConfig.editorconfig
 D:\Fuente SIAW2023\siawbackend-.net\SIAW\obj\Release\net6.0\SIAW.AssemblyInfoInputs.cache
@@ -765,3 +763,7 @@ C:\laragon\www\siawbackend-.net\SIAW\bin\Release\net6.0\siaw_DBContext.dll
 C:\laragon\www\siawbackend-.net\SIAW\bin\Release\net6.0\siaw_funciones.dll
 C:\laragon\www\siawbackend-.net\SIAW\bin\Release\net6.0\siaw_DBContext.pdb
 C:\laragon\www\siawbackend-.net\SIAW\bin\Release\net6.0\siaw_funciones.pdb
+D:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Release\net6.0\siaw_DBContext.dll
+D:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Release\net6.0\siaw_funciones.dll
+D:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Release\net6.0\siaw_DBContext.pdb
+D:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Release\net6.0\siaw_funciones.pdb

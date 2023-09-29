@@ -8,10 +8,12 @@
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <FileAlignment>512</FileAlignment>
+    <Optimize>True</Optimize>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <FileAlignment>512</FileAlignment>
+    <Optimize>False</Optimize>
   </PropertyGroup>
 
   <ItemGroup>
