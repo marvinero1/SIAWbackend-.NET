@@ -303,5 +303,67 @@ namespace siaw_funciones
                 return -1;
             }
         }
+
+
+        public async Task<string> TipoSegunClientesIguales(string userConnectionString, string codcliente)
+        {
+            string codigo_principal = await CodigoPrincipal(userConnectionString, codcliente);
+            string nit1 = await NIT(userConnectionString, codigo_principal);
+            string nit2 = await NIT(userConnectionString, codcliente);
+            string resultado = "";
+            if (codigo_principal.Trim() == codcliente.Trim())
+            {
+                resultado = "Casa Matriz de: " + codcliente;
+            }
+            else
+            {
+                if (nit1.Trim() == nit2.Trim())
+                {
+                    //si es mismo NIT es sucursal
+                    resultado = "Sucursal de: " + codigo_principal;
+                }
+                else
+                {
+                    resultado = "Parte del Grupo Cial. Con Casa Matriz: " + codigo_principal;
+                }
+            }
+            return resultado;
+        }
+
+
+        public async Task<string> CodigoPrincipal(string userConnectionString, string codcliente)
+        {
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var codcliente_a = await _context.veclientesiguales
+                    .Where(item => item.codcliente_b == codcliente)
+                    .Select(item => item.codcliente_a)
+                    .FirstOrDefaultAsync();
+
+                if (codcliente_a == null)
+                {
+                    return "";
+                }
+                return codcliente_a;
+            }
+        }
+
+        public async Task<string> NIT(string userConnectionString, string codcliente)
+        {
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var nit = await _context.vecliente
+                    .Where(item => item.codigo == codcliente)
+                    .Select(item => item.nit)
+                    .FirstOrDefaultAsync();
+
+                if (nit == null)
+                {
+                    return "";
+                }
+                return nit;
+            }
+        }
+
     }
 }

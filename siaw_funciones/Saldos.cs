@@ -28,6 +28,7 @@ namespace siaw_funciones
         }
 
         private empaquesFunciones empaque_func = new empaquesFunciones();
+        private Empresa empresa = new Empresa();
         public async Task<decimal> SaldoItem_CrtlStock_Para_Ventas(string userConnectionString, string agencia, int codalmacen, string coditem, string codempresa, string usuario)
         {
             List<sldosItemCompleto> saldos;
@@ -350,18 +351,21 @@ namespace siaw_funciones
                 sldosItemCompleto var8 = new sldosItemCompleto();
                 saldoItemTotal.descripcion = "Total Saldo";
 
-                // Obtener el contexto de base de datos correspondiente al usuario
+               
+
                 //string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
                 var conexion = userConnectionString;
-                bool eskit = await empaque_func.GetEsKit(conexion, coditem);  // verifica si el item es kit o no
+                bool eskit = await empaque_func.GetEsKit(conexion, coditem);  // verifica si el item es kit o no 
                 bool obtener_cantidades_aprobadas_de_proformas = await empaque_func.IfGetCantidadAprobadasProformas(userConnectionString, codempresa); // si se obtender las cantidades reservadas de las proformas o no
-                bool bandera = false;
                 bool item_reserva_para_conjunto = false;  // ayuda a verificar si el item no kit es utilizado para armar conjuntos.
 
-
+                string codItemVta = "";
 
                 // Falta validacion para saber si traera datos de manera local o por vpn
-                if (bandera)
+                // Obtener el contexto de base de datos correspondiente al usuario
+                bool usar_bd_opcional = await get_usar_bd_opcional(userConnectionString, usuario);
+
+                if (usar_bd_opcional)
                 {
                     conexion = empaque_func.Getad_conexion_vpnFromDatabase(userConnectionString, agencia);
                     if (conexion == null)
@@ -372,9 +376,14 @@ namespace siaw_funciones
 
 
 
+
+
+
+
+
                 // obtiene saldos de agencia del item seleccionado
                 instoactual instoactual = await getEmpaquesItemSelect(conexion, coditem, codalmacen, eskit);
-
+                codItemVta = instoactual.coditem;
                 if (eskit)
                 {
                     //saldosDetalleItem.txtReservaProf = "(-) PROFORMAS APROBADAS ITEM(" + instoactual.coditem + ") DEL CJTO(" + coditem + ")";
@@ -420,6 +429,36 @@ namespace siaw_funciones
 
                 saldoItemTotal.valor -= (float)reservaProf.TotalP;  // reduce saldo total
                 var8.valor = saldoItemTotal.valor;
+
+
+
+                // (-) RESERVA STOCK MINIMO DE TIENDAS
+                bool Reserva_Stock_Max_Min = await get_if_reservaStock_item(userConnectionString, coditem);
+                bool ctrlSeguridad = await empresa.ControlarStockSeguridad(userConnectionString, codempresa);
+                if (Reserva_Stock_Max_Min && ctrlSeguridad)
+                {
+                    float STOCK_MINIMO = 0;
+                    if (eskit) 
+                    {
+                        STOCK_MINIMO = await get_stock_Para_Tiendas(userConnectionString, codItemVta, codalmacen);
+                    }
+                    else
+                    {
+                        STOCK_MINIMO = await get_stock_Para_Tiendas(userConnectionString, codItemVta, codalmacen);
+                    }
+                    sldosItemCompleto saldoReserStockMaxMinTienda = new sldosItemCompleto();
+                    saldoReserStockMaxMinTienda.descripcion = "(-) RESERVA STOCK MINIMO DE TIENDAS";
+                    saldoReserStockMaxMinTienda.valor = STOCK_MINIMO * -1;
+                    listaSaldos.Add(saldoReserStockMaxMinTienda);
+                    saldoItemTotal.valor -= STOCK_MINIMO;  // reduce saldo total
+
+                }
+
+
+
+
+
+
 
 
 
@@ -560,6 +599,49 @@ namespace siaw_funciones
         }
 
 
+        public async Task<float> get_stock_Para_Tiendas(string userConnectionString, string coditem, int codalmacen)
+        {
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var respuesta = new SqlParameter("@cantidad", SqlDbType.Float)
+                {
+                    Direction = ParameterDirection.Output,
+                    Precision = 18,
+                    //Scale = 2
+                };
+
+                var resultado = await _context.Database
+                    .ExecuteSqlRawAsync("EXEC stock_para_tiendas @codigo, @codalmacen, @cantidad OUTPUT",
+                        new SqlParameter("@codigo", SqlDbType.NVarChar) { Value = coditem },
+                        new SqlParameter("@codalmacen", SqlDbType.Int) { Value = codalmacen },
+                        respuesta);
+
+                return Convert.ToSingle(respuesta.Value);
+            }
+
+        }
+
+
+
+
+        public async Task<bool> get_if_reservaStock_item(string userConnectionString, string coditem)
+        {
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var porcen_maximo = await _context.initem
+                    .Where(item => item.codigo == coditem)
+                    .Select(item => item.reservastock)
+                    .FirstOrDefaultAsync();
+
+                if (porcen_maximo == null)
+                {
+                    return false;
+                }
+
+                return (bool)porcen_maximo;
+            }
+
+        }
 
 
         public async Task<float> get_Porcentaje_Maximo_de_Venta_Respecto_Del_Saldo(DBContext _context, int codalmacen, string coditem)
@@ -575,6 +657,26 @@ namespace siaw_funciones
             }
 
             return (float)porcen_maximo;
+        }
+
+         
+        public async Task<bool> get_usar_bd_opcional(string userConnectionString, string usuario)
+        {
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var usar_bd_opcional = await _context.adusparametros
+                    .Where(item => item.usuario == usuario)
+                    .Select(item => item.usar_bd_opcional)
+                    .FirstOrDefaultAsync();
+
+                if (usar_bd_opcional == null)
+                {
+                    return false;
+                }
+
+                return usar_bd_opcional;
+            }
+                
         }
 
     }

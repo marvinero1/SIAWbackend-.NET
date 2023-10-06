@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using siaw_DBContext.Data;
 using siaw_DBContext.Models;
 using Microsoft.AspNetCore.Authorization;
+using siaw_funciones;
 
 namespace SIAW.Controllers.ventas.mantenimiento
 {
@@ -12,6 +13,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
     public class veclienteController : ControllerBase
     {
         private readonly UserConnectionManager _userConnectionManager;
+        private readonly Cliente cliente = new Cliente();
         public veclienteController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;
@@ -88,6 +90,32 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 return BadRequest("Error en el servidor");
             }
         }
+
+
+
+
+        // GET: api/vecliente/5
+        [HttpGet]
+        [Route("getTipoSegunClientesIguales/{userConn}/{codcliente}")]
+        public async Task<ActionResult<vecliente>> getTipoSegunClientesIguales(string userConn, string codcliente)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                string resultado = await cliente.TipoSegunClientesIguales(userConnectionString, codcliente);
+
+                return Ok(new { resultado = resultado});
+
+            }
+            catch (Exception)
+            {
+                return BadRequest("Error en el servidor");
+            }
+        }
+
+
 
         /// <summary>
         /// Obtiene algunos datos de todos los registros de la tabla vecliente para catalogo
@@ -184,8 +212,6 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 return Ok("206");   // actualizado con exito
             }
             
-
-
         }
 
         // POST: api/vecliente
