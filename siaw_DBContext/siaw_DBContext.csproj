@@ -8,7 +8,6 @@
 
   <ItemGroup>
     <Folder Include="Models\" />
-    <Folder Include="Models_Extra\" />
     <Folder Include="Models_Stored_Procedures\" />
   </ItemGroup>
 

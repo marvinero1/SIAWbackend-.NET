@@ -9,6 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using System.Runtime.Intrinsics.Arm;
 
 
 namespace siaw_funciones
@@ -370,7 +371,7 @@ namespace siaw_funciones
                     conexion = empaque_func.Getad_conexion_vpnFromDatabase(userConnectionString, agencia);
                     if (conexion == null)
                     {
-                        return null;
+                        conexion = userConnectionString;
                     }
                 }
 
@@ -678,6 +679,69 @@ namespace siaw_funciones
             }
                 
         }
+
+
+        public async Task<object> infoitem(string userConnectionString, string codItem, string descripcorta, string medida, string codempresa, string usuario)
+        {
+            // cabecera de texto
+            string cabecera1 = "Item: " + codItem + " " + descripcorta + " " + medida;
+
+            // esta parte en el sia (F9) en proforma ver si se usa o nada, por ahora no se toca tiene solo info del 2012 y no todo. siempre da vacio
+            string cabecera2 = "MERCADERIA POR LLEGAR";
+
+
+
+
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+
+                var stockActual = await _context.instoactual
+                    .Where(item => item.coditem == codItem)
+                    .OrderBy(item => item.codalmacen)
+                    .Select(item => new
+                    {
+                        almacen = item.codalmacen,
+                        cantidad = item.cantidad,
+                        udm = item.udm
+                    })
+                    .ToListAsync();
+
+                // Luego, crea una lista para almacenar los resultados de SaldosCompleto
+                var saldosCompleto = new List<Double>();
+
+                // Itera sobre los resultados de la consulta principal y llama a SaldosCompleto para obtener los valores
+                foreach (var stock in stockActual)
+                {
+                    var saldos = await SaldosCompleto(userConnectionString, "", stock.almacen, codItem, codempresa, usuario);
+                    var sld = saldos.Last();
+                    
+                    //stock.cantidad = sld.descripcion.ToString();
+
+                    saldosCompleto.Add(saldos.Last().valor);
+                }
+
+                // Combina los resultados
+                var resultadoFinal = stockActual.Zip(saldosCompleto, (stock, sldReal) => new
+                {
+                    almacen = stock.almacen,
+                    cantidad = sldReal.ToString() + " " + stock.udm
+                });
+                
+
+
+                var respuesta = new
+                {
+                    cabecera = cabecera1,
+                    saldosComp = resultadoFinal.ToList()
+            };
+
+                return respuesta;
+            }
+
+        }
+
+
 
     }
 }

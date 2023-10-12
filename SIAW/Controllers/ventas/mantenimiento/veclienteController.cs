@@ -173,6 +173,48 @@ namespace SIAW.Controllers.ventas.mantenimiento
         }
 
 
+
+
+        // GET: api/vecliente/5
+        [HttpGet]
+        [Route("mostrar_rutas/{userConn}/{codcliente}")]
+        public async Task<ActionResult<vecliente>> mostrar_rutas(string userConn, string codcliente)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var resultado = await _context.veruta
+                    .Join(_context.veruta_cliente, p1 => p1.codigo, p2 => p2.codruta, (p1, p2) => new { p1, p2 })
+                    .Where(joinResult => joinResult.p2.codcliente == "300012")
+                    .OrderBy(joinResult => joinResult.p1.semana)
+                    .ThenBy(joinResult => joinResult.p1.dia)
+                    .Select(joinResult => new
+                    {
+                        codruta = joinResult.p2.codruta,
+                        descruta = joinResult.p1.descripcion,
+                        joinResult.p1.semana,
+                        joinResult.p1.dia
+                    })
+                    .ToListAsync();
+
+                    return Ok(resultado);   // actualizado con exito
+                }
+
+            }
+            catch (Exception)
+            {
+                return BadRequest("Error en el servidor");
+            }
+        }
+
+
+
+
+
         // PUT: api/vecliente/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [Authorize]
