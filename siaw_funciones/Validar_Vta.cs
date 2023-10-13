@@ -235,7 +235,7 @@ namespace siaw_funciones
             switch (_codcontrol)
             {
                 case "00001":
-                    Control_Valido_C00001Async(userConnectionString,regcontrol, DVTA);
+                    _ = Control_Valido_C00001Async(userConnectionString, regcontrol, DVTA);
                     break;
                 case "00002":
                     // Control_Valido_C00002(regcontrol, DVTA);

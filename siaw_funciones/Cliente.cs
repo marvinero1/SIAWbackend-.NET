@@ -303,7 +303,89 @@ namespace siaw_funciones
                 return -1;
             }
         }
+        public async Task<bool> EsClienteCompetencia(string userConnectionString, string nit_cliente)
+        {
+            try
+            {
+                bool resultado = false;
+                string codcliente_seg_nit = await Cliente_Segun_Nit(userConnectionString, nit_cliente);
+                string cadena_nit = ("'" + nit_cliente + "'");
+                //1ro del nit saco su cod cliente
+                string maincode = await CodigoPrincipal(userConnectionString, codcliente_seg_nit);
+                //2do veo todos los codigos iguales
+                string samecode = await CodigosIguales(userConnectionString, maincode);
 
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var cadena_nits = await _context.vecliente
+                                     .Where(v => samecode.Contains(v.codigo))
+                                     .Select(v => v.nit)
+                                     .ToListAsync();
+
+                    if (cadena_nits.Any())
+                    {
+                        cadena_nit = "'" + string.Join("','", cadena_nits) + "'";
+                    }
+
+
+                    var nitsArray = cadena_nit.Split(',').Select(n => n.Trim()).ToArray();
+
+                    var query = await _context.cpcompetencia
+                                        .Join(_context.vecompetencia_control,
+                                              p1 => p1.codgrupo_control,
+                                              p2 => p2.codigo,
+                                              (p1, p2) => new { cpcompetencia = p1, vecompetencia_control = p2 })
+                                        .Where(x => nitsArray.Contains(x.cpcompetencia.nit))
+                                        .ToListAsync();
+
+                    //resultado = query.Any();
+                    if (query.Any())
+                    {
+                        resultado = true;
+                    }
+                    else
+                    {
+                        resultado = false;
+                    }
+                    return resultado;
+                }
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+
+        }
+        public async Task<string> Cliente_Segun_Nit(string userConnectionString, string nit)
+        {
+            try
+            {
+                string resultado = "";
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var result = await _context.vecliente
+                        .Where(cliente => cliente.nit == nit.Trim() && cliente.codigo.All(char.IsDigit))
+                        .OrderBy(cliente => cliente.codigo)
+                        .Select(cliente => new vecliente
+                        {
+                            codigo = cliente.codigo,
+                            razonsocial = cliente.razonsocial,
+                            nit = cliente.nit
+                        })
+                       .FirstOrDefaultAsync();
+                    if (result != null)
+                    {
+                        resultado = result.nit;
+                    }
+                    return resultado;
+                }
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+
+        }
 
         public async Task<string> TipoSegunClientesIguales(string userConnectionString, string codcliente)
         {
@@ -333,21 +415,69 @@ namespace siaw_funciones
 
         public async Task<string> CodigoPrincipal(string userConnectionString, string codcliente)
         {
-            using (var _context = DbContextFactory.Create(userConnectionString))
+            try
             {
-                var codcliente_a = await _context.veclientesiguales
-                    .Where(item => item.codcliente_b == codcliente)
-                    .Select(item => item.codcliente_a)
-                    .FirstOrDefaultAsync();
-
-                if (codcliente_a == null)
+                string resultado = "";
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
-                    return "";
+                    var result = await _context.veclientesiguales
+                        .Where(cliente => cliente.codcliente_b == codcliente.Trim())
+                        .OrderBy(cliente => cliente.codcliente_a)
+                        .Select(cliente => cliente.codcliente_a)
+                       .FirstOrDefaultAsync();
+                    if (result != null)
+                    {
+                        resultado = result;
+                    }
+                    return resultado;
                 }
-                return codcliente_a;
             }
-        }
+            catch (Exception)
+            {
+                return "";
+            }
 
+        }
+        public async Task<string> CodigosIguales(string userConnectionString, string codcliente)
+        {
+            try
+            {
+                string resultado = "";
+                string maincode = await CodigoPrincipal(userConnectionString, codcliente);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    //var result = await _context.veclientesiguales
+                    //var dt = from v in _context.veclientesiguales
+                    //         where v.codcliente_a == maincode && v.codcliente_b.All(char.IsDigit)
+                    //         select v.codcliente_b;
+
+                    //if (!dt.Any())
+                    //{
+                    //    resultado = "'" + codcliente + "'";
+                    //}
+                    //else
+                    //{
+                    //    resultado = "'" + string.Join("','", dt) + "'";
+                    //}
+
+                    var clientesIguales = await _context.veclientesiguales
+                                     .Where(v => v.codcliente_a == maincode && v.codcliente_b.All(char.IsDigit))
+                                     .Select(v => v.codcliente_b)
+                                     .ToListAsync();
+
+                    if (clientesIguales.Any())
+                    {
+                        resultado = "'" + string.Join("','", clientesIguales) + "'";
+                    }
+                    return resultado;
+                }
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+
+        }
         public async Task<string> NIT(string userConnectionString, string codcliente)
         {
             using (var _context = DbContextFactory.Create(userConnectionString))

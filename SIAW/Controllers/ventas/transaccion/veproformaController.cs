@@ -18,6 +18,7 @@ using System.Security.Policy;
 using System.Text;
 using System.Web.Http.Results;
 using siaw_funciones;
+using static siaw_funciones.Validar_Vta;
 
 namespace SIAW.Controllers.ventas.transaccion
 {
@@ -36,6 +37,7 @@ namespace SIAW.Controllers.ventas.transaccion
         private siaw_funciones.TipoCambio tipocambio = new siaw_funciones.TipoCambio();
         private siaw_funciones.Ventas ventas = new siaw_funciones.Ventas();
         private siaw_funciones.Items items = new siaw_funciones.Items();
+        private siaw_funciones.Validar_Vta validar_Vta = new siaw_funciones.Validar_Vta();
 
         public veproformaController(UserConnectionManager userConnectionManager)
         {
@@ -989,6 +991,70 @@ namespace SIAW.Controllers.ventas.transaccion
                 }
             }
         }
+
+        [HttpPost]
+        [Route("validarProforma/{userConn}/{cadena_controles}/{entidad}/{opcion_validar}")]
+        //Task<ActionResult<itemDataMatriz>>
+        //Task<object> ValidarProforma
+        //para opcion_validar
+        //grabar
+        //grabar_aprobar
+        //para entidad
+        //proforma
+        //remision no se usa
+        //factura
+        //para cadena_controles
+        // vacio si no va controlar controles en especifico
+        // cadena con el siguiente formato 00001+00002+00003 con los controles en especifico que se quiere controlar
+        public async Task<ActionResult<List<Controles>>> ValidarProforma(string userConn, string cadena_controles, string entidad, string opcion_validar, RequestValidacion RequestValidacion)
+        {
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+            DatosDocVta datosDocVta = new DatosDocVta();
+            List<itemDataMatriz> itemDataMatriz = new List<itemDataMatriz>();
+            List<vedesextraDatos> vedesextraDatos = new List<vedesextraDatos>();
+            List<vedetalleEtiqueta> vedetalleEtiqueta = new List<vedetalleEtiqueta>();
+            List<vedetalleanticipoProforma> vedetalleanticipoProforma = new List<vedetalleanticipoProforma>();
+            List<verecargosDatos> verecargosDatos = new List<verecargosDatos>();
+
+            datosDocVta = RequestValidacion.datosDocVta;
+            itemDataMatriz = RequestValidacion.detalleItemsProf;
+            vedesextraDatos = RequestValidacion.detalleDescuentos;
+            vedetalleEtiqueta = RequestValidacion.detalleEtiqueta;
+            vedetalleanticipoProforma = RequestValidacion.detalleAnticipos;
+            verecargosDatos = RequestValidacion.detalleRecargos;
+
+
+            var resultado = await validar_Vta.DocumentoValido(userConnectionString, cadena_controles, entidad, opcion_validar, datosDocVta, itemDataMatriz, vedesextraDatos, vedetalleEtiqueta, vedetalleanticipoProforma, verecargosDatos);
+            if ("ok" != "Ok")
+            {
+                return BadRequest("Datos no validos verifique por favor!!!");
+            }
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                using (var dbContexTransaction = _context.Database.BeginTransaction())
+                {
+                    try
+                    {
+                        bool crear_cli_casu = false; //await clienteCasual.Crear_Cliente_Casual(_context, cliCasual);
+                        if (!crear_cli_casu)
+                        {
+                            return BadRequest(new { message = "Error al crear el cliente" });
+                        }
+                        dbContexTransaction.Commit();
+                        return Ok(new { message = "Cliente creado exitosamente" });
+
+                    }
+                    catch (Exception)
+                    {
+                        dbContexTransaction.Rollback();
+                        return Problem("Error en el servidor");
+                        throw;
+                    }
+                }
+            }
+        }
+
+
 
         [HttpPut]
         [Route("actualizarCorreoCliente/{userConn}")]

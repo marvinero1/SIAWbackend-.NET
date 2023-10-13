@@ -1886,6 +1886,7 @@ namespace siaw_DBContext.Data
         public virtual DbSet<wb_sl_traslado_activo_det> wb_sl_traslado_activo_det { get; set; }
         public virtual DbSet<wb_sl_vacacion> wb_sl_vacacion { get; set; }
         public virtual DbSet<yyy> yyy { get; set; }
+        public virtual DbSet<vetipo_control_vtas> vetipo_control_vtas { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -65365,6 +65366,26 @@ namespace siaw_DBContext.Data
                     .IsUnicode(false);
 
                 entity.Property(e => e.uds).HasColumnType("decimal(18, 2)");
+            });
+
+            modelBuilder.Entity<vetipo_control_vtas>(entity =>
+            {
+                entity.HasNoKey();
+
+                entity.Property(e => e.codigo).ValueGeneratedOnAdd();
+
+                entity.Property(e => e.orden).HasMaxLength(50);
+
+                entity.Property(e => e.codcontrol).HasMaxLength(200);
+
+                entity.Property(e => e.grabar);
+                entity.Property(e => e.grabar_aprobar).HasColumnType("text");
+                entity.Property(e => e.habilitado_pf);
+                entity.Property(e => e.habilitado_nr);
+                entity.Property(e => e.habilitado_fc);
+                entity.Property(e => e.descripcion).HasColumnType("text");
+
+                entity.Property(e => e.codservicio).HasColumnType("text");
             });
 
             OnModelCreatingGeneratedProcedures(modelBuilder);
