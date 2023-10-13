@@ -681,13 +681,13 @@ namespace siaw_funciones
         }
 
 
-        public async Task<object> infoitem(string userConnectionString, string codItem, string descripcorta, string medida, string codempresa, string usuario)
+        public async Task<object> infoitem(string userConnectionString, string codItem, string codempresa, string usuario)
         {
             // cabecera de texto
-            string cabecera1 = "Item: " + codItem + " " + descripcorta + " " + medida;
+            // string cabecera1 = "Item: " + codItem + " " + descripcorta + " " + medida;
 
             // esta parte en el sia (F9) en proforma ver si se usa o nada, por ahora no se toca tiene solo info del 2012 y no todo. siempre da vacio
-            string cabecera2 = "MERCADERIA POR LLEGAR";
+            // string cabecera2 = "MERCADERIA POR LLEGAR";
 
 
 
@@ -729,14 +729,15 @@ namespace siaw_funciones
                 });
                 
 
-
+                /*
                 var respuesta = new
                 {
                     cabecera = cabecera1,
                     saldosComp = resultadoFinal.ToList()
-            };
+                };
+                */
 
-                return respuesta;
+                return resultadoFinal;
             }
 
         }

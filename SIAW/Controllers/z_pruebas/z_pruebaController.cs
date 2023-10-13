@@ -35,7 +35,7 @@ namespace SIAW.Controllers.z_pruebas
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                var infoitem = await saldos.infoitem(userConnectionString, codItem, descripcorta, medida, codempresa, usuario);
+                var infoitem = await saldos.infoitem(userConnectionString, codItem, codempresa, usuario);
 
                 return Ok(infoitem);
             }

@@ -1369,5 +1369,28 @@ namespace SIAW.Controllers.ventas.transaccion
             await _context.SaveChangesAsync();
         }
 
+        // POST: api/acaseguradora
+        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        //[Authorize]
+        [HttpGet]
+        [Route("getdetalleSldsAgs/{userConn}/{codItem}/{codempresa}/{usuario}")]
+        public async Task<ActionResult<acaseguradora>> getdetalleSldsAgs(string userConn, string codItem, string codempresa, string usuario)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                var infoitem = await saldos.infoitem(userConnectionString, codItem, codempresa, usuario);
+
+                return Ok(infoitem);
+            }
+            catch (Exception)
+            {
+                return BadRequest("Error en el servidor");
+            }
+        }
+
+
     }
 }
