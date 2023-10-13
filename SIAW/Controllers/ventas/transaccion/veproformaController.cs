@@ -19,6 +19,7 @@ using System.Text;
 using System.Web.Http.Results;
 using siaw_funciones;
 using static siaw_funciones.Validar_Vta;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace SIAW.Controllers.ventas.transaccion
 {
@@ -1008,50 +1009,40 @@ namespace SIAW.Controllers.ventas.transaccion
         // cadena con el siguiente formato 00001+00002+00003 con los controles en especifico que se quiere controlar
         public async Task<ActionResult<List<Controles>>> ValidarProforma(string userConn, string cadena_controles, string entidad, string opcion_validar, RequestValidacion RequestValidacion)
         {
-            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-            DatosDocVta datosDocVta = new DatosDocVta();
-            List<itemDataMatriz> itemDataMatriz = new List<itemDataMatriz>();
-            List<vedesextraDatos> vedesextraDatos = new List<vedesextraDatos>();
-            List<vedetalleEtiqueta> vedetalleEtiqueta = new List<vedetalleEtiqueta>();
-            List<vedetalleanticipoProforma> vedetalleanticipoProforma = new List<vedetalleanticipoProforma>();
-            List<verecargosDatos> verecargosDatos = new List<verecargosDatos>();
-
-            datosDocVta = RequestValidacion.datosDocVta;
-            itemDataMatriz = RequestValidacion.detalleItemsProf;
-            vedesextraDatos = RequestValidacion.detalleDescuentos;
-            vedetalleEtiqueta = RequestValidacion.detalleEtiqueta;
-            vedetalleanticipoProforma = RequestValidacion.detalleAnticipos;
-            verecargosDatos = RequestValidacion.detalleRecargos;
-
-
-            var resultado = await validar_Vta.DocumentoValido(userConnectionString, cadena_controles, entidad, opcion_validar, datosDocVta, itemDataMatriz, vedesextraDatos, vedetalleEtiqueta, vedetalleanticipoProforma, verecargosDatos);
-            if ("ok" != "Ok")
+            try
             {
-                return BadRequest("Datos no validos verifique por favor!!!");
-            }
-            using (var _context = DbContextFactory.Create(userConnectionString))
-            {
-                using (var dbContexTransaction = _context.Database.BeginTransaction())
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                DatosDocVta datosDocVta = new DatosDocVta();
+                List<itemDataMatriz> itemDataMatriz = new List<itemDataMatriz>();
+                List<vedesextraDatos> vedesextraDatos = new List<vedesextraDatos>();
+                List<vedetalleEtiqueta> vedetalleEtiqueta = new List<vedetalleEtiqueta>();
+                List<vedetalleanticipoProforma> vedetalleanticipoProforma = new List<vedetalleanticipoProforma>();
+                List<verecargosDatos> verecargosDatos = new List<verecargosDatos>();
+
+                datosDocVta = RequestValidacion.datosDocVta;
+                itemDataMatriz = RequestValidacion.detalleItemsProf;
+                vedesextraDatos = RequestValidacion.detalleDescuentos;
+                vedetalleEtiqueta = RequestValidacion.detalleEtiqueta;
+                vedetalleanticipoProforma = RequestValidacion.detalleAnticipos;
+                verecargosDatos = RequestValidacion.detalleRecargos;
+
+
+                var resultado = await validar_Vta.DocumentoValido(userConnectionString, cadena_controles, entidad, opcion_validar, datosDocVta, itemDataMatriz, vedesextraDatos, vedetalleEtiqueta, vedetalleanticipoProforma, verecargosDatos);
+                if (resultado != null)
                 {
-                    try
-                    {
-                        bool crear_cli_casu = false; //await clienteCasual.Crear_Cliente_Casual(_context, cliCasual);
-                        if (!crear_cli_casu)
-                        {
-                            return BadRequest(new { message = "Error al crear el cliente" });
-                        }
-                        dbContexTransaction.Commit();
-                        return Ok(new { message = "Cliente creado exitosamente" });
+                    ///
+                    string jsonResult = JsonConvert.SerializeObject(resultado);
 
-                    }
-                    catch (Exception)
-                    {
-                        dbContexTransaction.Rollback();
-                        return Problem("Error en el servidor");
-                        throw;
-                    }
+                    return Ok(jsonResult);
                 }
+                else { return BadRequest("No se pudo validar el documento."); }
             }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+
         }
 
 

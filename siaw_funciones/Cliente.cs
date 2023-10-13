@@ -1,10 +1,12 @@
-﻿using Microsoft.Data.SqlClient;
+﻿using MessagePack;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Internal;
 using siaw_DBContext.Data;
 using siaw_DBContext.Models;
 using siaw_DBContext.Models_Extra;
 using System.Data;
+using System.Text.RegularExpressions;
 
 namespace siaw_funciones
 {
@@ -309,7 +311,7 @@ namespace siaw_funciones
             {
                 bool resultado = false;
                 string codcliente_seg_nit = await Cliente_Segun_Nit(userConnectionString, nit_cliente);
-                string cadena_nit = ("'" + nit_cliente + "'");
+                string cadena_nit = nit_cliente;
                 //1ro del nit saco su cod cliente
                 string maincode = await CodigoPrincipal(userConnectionString, codcliente_seg_nit);
                 //2do veo todos los codigos iguales
@@ -324,7 +326,8 @@ namespace siaw_funciones
 
                     if (cadena_nits.Any())
                     {
-                        cadena_nit = "'" + string.Join("','", cadena_nits) + "'";
+                        //cadena_nit = "'" + string.Join("','", cadena_nits) + "'";
+                        cadena_nit = "" + string.Join(",", cadena_nits) + "";
                     }
 
 
@@ -361,10 +364,15 @@ namespace siaw_funciones
             try
             {
                 string resultado = "";
+                var regex = new Regex(@"^\d+$"); // Expresión regular para verificar si la cadena contiene solo dígitos
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     var result = await _context.vecliente
-                        .Where(cliente => cliente.nit == nit.Trim() && cliente.codigo.All(char.IsDigit))
+                    .Where(cliente => cliente.nit == nit.Trim())
+                    .ToListAsync(); // Cargar datos en memoria
+
+                    var filteredResult = result
+                        .Where(cliente => regex.IsMatch(cliente.codigo))
                         .OrderBy(cliente => cliente.codigo)
                         .Select(cliente => new vecliente
                         {
@@ -372,10 +380,47 @@ namespace siaw_funciones
                             razonsocial = cliente.razonsocial,
                             nit = cliente.nit
                         })
-                       .FirstOrDefaultAsync();
-                    if (result != null)
+                        .FirstOrDefault();
+
+                    if (filteredResult != null)
                     {
-                        resultado = result.nit;
+                        resultado = filteredResult.codigo;
+                    }
+                    return resultado;
+                }
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+
+        }
+        public async Task<string> CodigosIguales(string userConnectionString, string codcliente)
+        {
+            try
+            {
+                string resultado = "";
+                var regex = new Regex(@"^\d+$"); // Expresión regular para verificar si la cadena contiene solo dígitos
+                string maincode = await CodigoPrincipal(userConnectionString, codcliente);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var clientesIguales = await _context.veclientesiguales
+                    .Where(cliente => cliente.codcliente_a == maincode)
+                    .ToListAsync(); // Cargar datos en memoria
+
+                    var filteredResult = clientesIguales
+                        .Where(cliente => regex.IsMatch(cliente.codcliente_b))
+                        .OrderBy(cliente => cliente.codcliente_b)
+                        .Select(cliente => cliente.codcliente_b)
+                        .ToList();
+
+                    if (filteredResult != null)
+                    {
+                        if (filteredResult.Any())
+                        {
+                            //resultado = "'" + string.Join("','", filteredResult) + "'";
+                            resultado = "" + string.Join(",", filteredResult) + "";
+                        }
                     }
                     return resultado;
                 }
@@ -438,46 +483,7 @@ namespace siaw_funciones
             }
 
         }
-        public async Task<string> CodigosIguales(string userConnectionString, string codcliente)
-        {
-            try
-            {
-                string resultado = "";
-                string maincode = await CodigoPrincipal(userConnectionString, codcliente);
-                using (var _context = DbContextFactory.Create(userConnectionString))
-                {
-                    //var result = await _context.veclientesiguales
-                    //var dt = from v in _context.veclientesiguales
-                    //         where v.codcliente_a == maincode && v.codcliente_b.All(char.IsDigit)
-                    //         select v.codcliente_b;
-
-                    //if (!dt.Any())
-                    //{
-                    //    resultado = "'" + codcliente + "'";
-                    //}
-                    //else
-                    //{
-                    //    resultado = "'" + string.Join("','", dt) + "'";
-                    //}
-
-                    var clientesIguales = await _context.veclientesiguales
-                                     .Where(v => v.codcliente_a == maincode && v.codcliente_b.All(char.IsDigit))
-                                     .Select(v => v.codcliente_b)
-                                     .ToListAsync();
-
-                    if (clientesIguales.Any())
-                    {
-                        resultado = "'" + string.Join("','", clientesIguales) + "'";
-                    }
-                    return resultado;
-                }
-            }
-            catch (Exception)
-            {
-                return "";
-            }
-
-        }
+       
         public async Task<string> NIT(string userConnectionString, string codcliente)
         {
             using (var _context = DbContextFactory.Create(userConnectionString))
