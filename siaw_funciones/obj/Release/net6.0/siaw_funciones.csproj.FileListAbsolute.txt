@@ -32,3 +32,5 @@ D:\Fuente SIAW2023\siawbackend-.net\siaw_funciones\obj\Release\net6.0\refint\sia
 D:\Fuente SIAW2023\siawbackend-.net\siaw_funciones\obj\Release\net6.0\siaw_funciones.pdb
 D:\Fuente SIAW2023\siawbackend-.net\siaw_funciones\obj\Release\net6.0\siaw_funciones.genruntimeconfig.cache
 D:\Fuente SIAW2023\siawbackend-.net\siaw_funciones\obj\Release\net6.0\ref\siaw_funciones.dll
+C:\laragon\www\siawbackend-.net\siaw_funciones\obj\Release\net6.0\siaw_funciones.Properties.Resources.resources
+C:\laragon\www\siawbackend-.net\siaw_funciones\obj\Release\net6.0\siaw_funciones.csproj.GenerateResource.cache
