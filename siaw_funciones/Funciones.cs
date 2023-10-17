@@ -21,6 +21,18 @@ namespace siaw_funciones
                 return new DBContext(optionsBuilder.Options);
             }
         }
+        // Encriptaciones
+        public async Task<string> EncriptarMD5(string clearString)
+        {
+            System.Text.UnicodeEncoding uEncode = new System.Text.UnicodeEncoding();
+            byte[] bytClearString = uEncode.GetBytes(clearString);
+            System.Security.Cryptography.MD5CryptoServiceProvider sha = new System.Security.Cryptography.MD5CryptoServiceProvider();
+            byte[] hash = sha.ComputeHash(bytClearString);
+            return Convert.ToBase64String(hash);
+        }
+
+
+
 
         public async Task<string> SP(DateTime fecha, int hora, int codalmacen, string dato_a, string dato_b, string servicio)
         {

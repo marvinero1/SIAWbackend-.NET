@@ -36,8 +36,6 @@ namespace SIAW.Controllers.seg_adm.operacion
             {
                 return BadRequest("Error en el servidor");
             }
-
-
         }
 
     }
