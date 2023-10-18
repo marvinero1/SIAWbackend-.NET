@@ -9,5 +9,7 @@ namespace siaw_DBContext.Models
     {
         public string usuario { get; set; }
         public string idproforma { get; set; }
+        public string grupo { get; set; }
+        public int id { get; set; }
     }
 }

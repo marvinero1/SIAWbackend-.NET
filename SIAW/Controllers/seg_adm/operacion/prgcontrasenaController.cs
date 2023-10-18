@@ -40,7 +40,7 @@ namespace SIAW.Controllers.seg_adm.operacion
                 {
                     return NotFound("713");
                 }
-                return Ok(respuesta);
+                return Ok(new {cod = 712, resp = respuesta });
             }
             catch (Exception)
             {

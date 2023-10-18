@@ -183,7 +183,6 @@ namespace siaw_DBContext.Models
         public int? dias_plazo_tareas_automaticas { get; set; }
         public int? dias_plazo_casos { get; set; }
         public int? crm_ta_dias_antes_de_vencer { get; set; }
-        public int? crm_ta_proximos_vencimientos { get; set; }
         public bool? revertir_creditos_caducos { get; set; }
         public int? maxurgentes_dia { get; set; }
         public int? dias_previos_alerta_vence_credito { get; set; }
@@ -249,5 +248,6 @@ namespace siaw_DBContext.Models
         public string pwd_certif_pruebas { get; set; }
         public int? codarea_empaque { get; set; }
         public bool? obtener_cantidades_aprobadas_de_proformas { get; set; }
+        public bool? crm_ta_proximos_vencimientos { get; set; }
     }
 }

@@ -1852,6 +1852,7 @@ namespace siaw_DBContext.Data
         public virtual DbSet<vetienda> vetienda { get; set; }
         public virtual DbSet<vetienda2> vetienda2 { get; set; }
         public virtual DbSet<vetipo_comprobante> vetipo_comprobante { get; set; }
+        public virtual DbSet<vetipo_control_vtas> vetipo_control_vtas { get; set; }
         public virtual DbSet<vetipo_identidad> vetipo_identidad { get; set; }
         public virtual DbSet<vetipocredito> vetipocredito { get; set; }
         public virtual DbSet<vetipogarantia> vetipogarantia { get; set; }
@@ -1886,7 +1887,6 @@ namespace siaw_DBContext.Data
         public virtual DbSet<wb_sl_traslado_activo_det> wb_sl_traslado_activo_det { get; set; }
         public virtual DbSet<wb_sl_vacacion> wb_sl_vacacion { get; set; }
         public virtual DbSet<yyy> yyy { get; set; }
-        public virtual DbSet<vetipo_control_vtas> vetipo_control_vtas { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -7732,7 +7732,7 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<adusuario_idproforma>(entity =>
             {
-                entity.HasNoKey();
+                entity.Property(e => e.grupo).HasMaxLength(30);
 
                 entity.Property(e => e.idproforma).HasMaxLength(5);
 
@@ -64170,6 +64170,26 @@ namespace siaw_DBContext.Data
                     .IsUnicode(false);
             });
 
+            modelBuilder.Entity<vetipo_control_vtas>(entity =>
+            {
+                entity.HasNoKey();
+
+                entity.Property(e => e.codcontrol).HasMaxLength(5);
+
+                entity.Property(e => e.codigo).ValueGeneratedOnAdd();
+
+                entity.Property(e => e.codservicio)
+                    .HasMaxLength(10)
+                    .IsUnicode(false)
+                    .IsFixedLength();
+
+                entity.Property(e => e.descripcion).HasMaxLength(300);
+
+                entity.Property(e => e.grabar_aprobar)
+                    .HasMaxLength(10)
+                    .IsFixedLength();
+            });
+
             modelBuilder.Entity<vetipo_identidad>(entity =>
             {
                 entity.HasKey(e => e.codigo)
@@ -65366,26 +65386,6 @@ namespace siaw_DBContext.Data
                     .IsUnicode(false);
 
                 entity.Property(e => e.uds).HasColumnType("decimal(18, 2)");
-            });
-
-            modelBuilder.Entity<vetipo_control_vtas>(entity =>
-            {
-                entity.HasNoKey();
-
-                entity.Property(e => e.codigo).ValueGeneratedOnAdd();
-
-                entity.Property(e => e.orden).HasMaxLength(50);
-
-                entity.Property(e => e.codcontrol).HasMaxLength(200);
-
-                entity.Property(e => e.grabar);
-                entity.Property(e => e.grabar_aprobar).HasColumnType("text");
-                entity.Property(e => e.habilitado_pf);
-                entity.Property(e => e.habilitado_nr);
-                entity.Property(e => e.habilitado_fc);
-                entity.Property(e => e.descripcion).HasColumnType("text");
-
-                entity.Property(e => e.codservicio).HasColumnType("text");
             });
 
             OnModelCreatingGeneratedProcedures(modelBuilder);

@@ -30,7 +30,7 @@ namespace SIAW.Controllers.seg_adm.operacion
                 DateTime fechaAct = DateTime.Now;
                 int hora = fechaAct.Hour;
                 string pass = await funciones.SP(fechaAct, hora, codalmacen, dato_a, dato_b, servicio);
-                return Ok(pass);
+                return Ok(new {resp = pass});
             }
             catch (Exception)
             {

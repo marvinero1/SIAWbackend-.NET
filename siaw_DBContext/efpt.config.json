@@ -7348,6 +7348,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[vetipo_control_vtas]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[vetipo_identidad]",
          "ObjectType": 0
       },

@@ -174,7 +174,7 @@ namespace siaw_funciones
                                  .Select(vc => new Controles
                                  {
                                      Codigo = vc.codigo,
-                                     Orden = vc.orden,
+                                     Orden = (int)vc.orden,
                                      CodControl = vc.codcontrol,
                                      Grabar = vc.grabar,
                                      GrabarAprobar = vc.grabar_aprobar,
