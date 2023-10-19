@@ -9,5 +9,6 @@ namespace siaw_DBContext.Models
     {
         public string usuario { get; set; }
         public int? codtarifa { get; set; }
+        public int id { get; set; }
     }
 }

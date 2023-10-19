@@ -7741,8 +7741,6 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<adusuario_tarifa>(entity =>
             {
-                entity.HasNoKey();
-
                 entity.Property(e => e.usuario)
                     .HasMaxLength(10)
                     .IsUnicode(false);

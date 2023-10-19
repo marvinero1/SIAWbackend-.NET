@@ -50,9 +50,54 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
         }
 
 
+
+
+        // GET: api/catalogo
+        [HttpGet]
+        [Route("catalogoVenumeracionProf/{userConn}")]
+        public async Task<ActionResult<IEnumerable<venumeracion>>> catalogoVenumeracionProf(string userConn)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var query = _context.venumeracion
+                    .Where(i => i.tipodoc == 2 && i.habilitado == true)
+                    .OrderBy(i => i.id)
+                    .Select(i => new
+                    {
+                        id = i.id,
+                        descrip = i.descripcion
+                    });
+
+                    var result = query.ToList();
+
+                    if (result.Count() == 0)
+                    {
+                        return Problem("Entidad venumeracion-proforma es null.");
+                    }
+                    return Ok(result);
+                }
+
+            }
+            catch (Exception)
+            {
+                return BadRequest("Error en el servidor");
+                throw;
+            }
+        }
+
+
+
+
         // POST: api/adusuario_idproforma
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        //[Authorize]
+        [Authorize]
         [HttpPost("{userConn}")]
         public async Task<ActionResult<adusuario_idproforma>> Postadusuario_idproforma(string userConn, adusuario_idproforma adusuario_idproforma)
         {
@@ -62,12 +107,12 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             string id_asignado = await if_id_asignado(userConnectionString, adusuario_idproforma.idproforma);
             if (id_asignado != "aceptado")
             {
-                return Ok(id_asignado);
+                return Ok(new { codigo = 706,resul = id_asignado});
             }
             string usuario_idasignado = await usuario_tienen_id_asignado(userConnectionString, adusuario_idproforma.usuario);
             if (usuario_idasignado != "aceptado")
             {
-                return Ok(usuario_idasignado);
+                return Ok(new { codigo = 708, resul = usuario_idasignado });
             }
 
             using (var _context = DbContextFactory.Create(userConnectionString))
@@ -111,15 +156,13 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
         // DELETE: api/adusuario_idproforma/5
         [Authorize]
-        [HttpDelete("{userConn}/{codigo}")]
-        public async Task<IActionResult> Deleteadusuario_idproforma(string userConn, string codigo)
+        [HttpDelete("{userConn}/{id}")]
+        public async Task<IActionResult> Deleteadusuario_idproforma(string userConn, int id)
         {
             try
             {
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-
-                //var _context = _userConnectionManager.GetUserConnection(userId);
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
@@ -127,7 +170,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     {
                         return Problem("Entidad adusuario_idproforma es null.");
                     }
-                    var adusuario_idproforma = await _context.adusuario_idproforma.FindAsync(codigo);
+                    var adusuario_idproforma = await _context.adusuario_idproforma.FindAsync(id);
                     if (adusuario_idproforma == null)
                     {
                         return NotFound("No existe un registro con ese código");
@@ -138,8 +181,6 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                     return Ok("208");   // eliminado con exito
                 }
-
-
             }
             catch (Exception)
             {
