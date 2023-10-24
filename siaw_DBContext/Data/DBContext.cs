@@ -6051,7 +6051,10 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<adautorizacion_deshabilitadas>(entity =>
             {
-                entity.HasNoKey();
+                entity.HasKey(e => e.nivel)
+                    .HasName("PK_adautorizacion_deshabilitadas_nivel");
+
+                entity.Property(e => e.nivel).ValueGeneratedNever();
 
                 entity.Property(e => e.descripcion)
                     .HasMaxLength(150)

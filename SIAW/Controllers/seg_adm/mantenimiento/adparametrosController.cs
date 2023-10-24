@@ -57,8 +57,6 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adparametros == null)
@@ -73,14 +71,14 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     }
 
                     return Ok(adparametros);
-                }
-                
+                } 
             }
             catch (Exception)
             {
                 return BadRequest("Error en el servidor");
             }
         }
+
 
         // PUT: api/adparametros/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
@@ -120,10 +118,50 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                 return Ok("206");   // actualizado con exito
             }
-            
-
-
         }
+
+
+
+
+        // PUT: api/adparametros/5
+        [Authorize]
+        [HttpPut("updateCierresDiarios/{userConn}/{codempresa}/{cierres_diarios}")]
+        public async Task<ActionResult<adparametros>> updateCierresDiarios(string userConn, string codempresa, bool cierres_diarios)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    if (_context.adparametros == null)
+                    {
+                        return Problem("Entidad adparametros es null.");
+                    }
+                    var adparametros = await _context.adparametros.FindAsync(codempresa);
+
+                    if (adparametros == null)
+                    {
+                        return NotFound("No se encontro un registro con este código");
+                    }
+                    adparametros.cierres_diarios = cierres_diarios;
+                    _context.Entry(adparametros).State = EntityState.Modified;
+                    await _context.SaveChangesAsync();
+
+
+                    return Ok("206");   // actualizado con exito
+                }
+
+            }
+            catch (Exception)
+            {
+                return BadRequest("Error en el servidor");
+            }
+        }
+
+
+
 
         // POST: api/adparametros
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754

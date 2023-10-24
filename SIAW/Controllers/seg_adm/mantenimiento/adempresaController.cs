@@ -81,6 +81,45 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
         }
 
+
+        // GET: api/adempresa/5
+        [HttpGet]
+        [Route("getNomEmpresa/{userConn}/{codigo}")]
+        public async Task<ActionResult<adempresa>> getNomEmpresa(string userConn, string codigo)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var adempresa = await _context.adempresa
+                        .Where(i => i.codigo == codigo)
+                        .Select(i => new
+                        {
+                            nombre = i.descripcion
+                        })
+                        .FirstOrDefaultAsync();
+
+                    if (adempresa == null)
+                    {
+                        return NotFound("No se encontro un registro con este código");
+                    }
+
+                    return Ok(adempresa);
+                }
+            }
+            catch (Exception)
+            {
+                return BadRequest("Error en el servidor");
+            }
+        }
+
+
+
+
+
         // PUT: api/adempresa/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [Authorize]

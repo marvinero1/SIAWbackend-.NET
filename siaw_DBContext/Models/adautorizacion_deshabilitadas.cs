@@ -7,7 +7,7 @@ namespace siaw_DBContext.Models
 {
     public partial class adautorizacion_deshabilitadas
     {
-        public int? nivel { get; set; }
+        public int nivel { get; set; }
         public string descripcion { get; set; }
         public DateTime? fechareg { get; set; }
     }

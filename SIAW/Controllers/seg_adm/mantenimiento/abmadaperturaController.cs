@@ -87,7 +87,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
         }
 
 
-        // GET: api/semodulo
+        // GET: api/getdetalle
         [HttpGet]
         [Route("getdetalle/{userConn}/{codigo}")]
         public async Task<ActionResult<IEnumerable<semodulo>>> getdetalle(string userConn, int codigo)
@@ -121,6 +121,56 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
         }
 
+
+
+
+
+        // POST: api/adapertura
+        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        //[Authorize]
+        [HttpPost("{userConn}/{codigo}")]
+        public async Task<ActionResult<adapertura>> Postadapertura(string userConn, int codigo, List<adapertura1> adapertura1)
+        {
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                using (var dbContexTransaction = _context.Database.BeginTransaction())
+                {
+                    try
+                    {
+                        // Consulta para obtener los registros que deseas eliminar.
+                        var registrosAEliminar = _context.adapertura1.Where(p => p.codigo == codigo);
+
+                        // Marcar los registros como eliminados.
+                        foreach (var registro in registrosAEliminar)
+                        {
+                            _context.adapertura1.Remove(registro);
+                        }
+                        // Confirmar los cambios en la base de datos.
+                        await _context.SaveChangesAsync();
+
+                        // agregar los nuevos campos
+                        _context.adapertura1.AddRange(adapertura1);
+
+                        await _context.SaveChangesAsync();
+
+                        dbContexTransaction.Commit();
+                        return Ok("204");   // creado con exito
+                    }
+                    catch (Exception)
+                    {
+                        dbContexTransaction.Rollback();
+                        return Problem("Error en el servidor");
+                        throw;
+                    }
+                }
+                    
+
+            }
+
+        }
 
 
     }
