@@ -46,8 +46,6 @@ namespace SIAW.Controllers.seg_adm.operacion
             {
                 return BadRequest("Error en el servidor");
             }
-
-
         }
 
         // GET: api/semodulo/5

@@ -37,17 +37,43 @@ namespace SIAW.Controllers.seg_adm.logs
                     var result = await _context.selog.Where(x => x.fecha == fecha).OrderByDescending(f => f.hora).ToListAsync();
                     return Ok(result);
                 }
-                
             }
             catch (Exception)
             {
                 return BadRequest("Error en el servidor");
             }
-
-
         }
 
-       
+
+        // GET: api/selog
+        [HttpGet]
+        [Route("getseloguserfecha/{userConn}/{usuario}/{fecha}")]
+        public async Task<ActionResult<IEnumerable<selog>>> getseloguserfecha(string userConn, string usuario, DateTime fecha)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    if (_context.selog == null)
+                    {
+                        return Problem("Entidad selog es null.");
+                    }
+                    var result = await _context.selog.Where(x => x.fecha == fecha && x.usuario == usuario).OrderByDescending(f => f.hora).ToListAsync();
+                    return Ok(result);
+                }
+            }
+            catch (Exception)
+            {
+                return BadRequest("Error en el servidor");
+            }
+        }
+
+
         // POST: api/selog
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost("{userConn}")]

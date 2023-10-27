@@ -81,6 +81,49 @@ namespace SIAW.Controllers.personal_planillas.mantenimiento
             }
         }
 
+
+
+        // GET: api/catalogo
+        [HttpGet]
+        [Route("catalogo/{userConn}")]
+        public async Task<ActionResult<IEnumerable<pepersona>>> Getpepersona_catalogo_resumido(string userConn)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var query = _context.pepersona
+                    .OrderBy(i => i.codigo)
+                    .Select(i => new
+                    {
+                        codigo = i.codigo,
+                        descrip = i.nombre1 + " " + i.apellido1 + " " + i.apellido2
+                    });
+
+                    var result = query.ToList();
+
+                    if (result.Count() == 0)
+                    {
+                        return Problem("Entidad pepersona es null.");
+                    }
+                    return Ok(result);
+                }
+
+            }
+            catch (Exception)
+            {
+                return BadRequest("Error en el servidor");
+                throw;
+            }
+        }
+
+
+
         // PUT: api/pepersona/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [Authorize]

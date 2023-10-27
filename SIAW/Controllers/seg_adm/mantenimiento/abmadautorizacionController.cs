@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using siaw_DBContext.Data;
 using siaw_DBContext.Models;
 using Microsoft.AspNetCore.Authorization;
+using siaw_funciones;
 
 namespace SIAW.Controllers.seg_adm.mantenimiento
 {
@@ -12,6 +13,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
     public class abmadautorizacionController : ControllerBase
     {
         private readonly UserConnectionManager _userConnectionManager;
+        private readonly Funciones funciones = new Funciones();
         public abmadautorizacionController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;
@@ -149,14 +151,14 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
-                if (codigo != adautorizacion.codigo)
-                {
-                    return BadRequest("Error con Id en datos proporcionados.");
-                }
+                var password = await _context.adautorizacion
+                    .Where(i => i.codigo == codigo)
+                    .Select(i => i.password)
+                    .FirstOrDefaultAsync();
+
+                adautorizacion.password = password;
 
                 _context.Entry(adautorizacion).State = EntityState.Modified;
 
@@ -178,9 +180,6 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                 return Ok("206");   // actualizado con exito
             }
-
-
-
         }
 
         // POST: api/adautorizacion
@@ -193,14 +192,16 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.adautorizacion == null)
                 {
                     return Problem("Entidad adautorizacion es null.");
                 }
+
+                var passEncript = await funciones.EncriptarMD5(adautorizacion.password);
+                adautorizacion.password = passEncript;
+
                 _context.adautorizacion.Add(adautorizacion);
                 try
                 {
@@ -305,7 +306,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     }
                 }
 
-                return Ok("204");   // creado con exito
+                return Ok(new { resp = "204" });   // creado con exito
 
             }
 
