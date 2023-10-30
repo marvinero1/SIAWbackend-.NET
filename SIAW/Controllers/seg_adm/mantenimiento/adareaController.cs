@@ -43,8 +43,6 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             {
                 return BadRequest("Error en el servidor");
             }
-
-
         }
 
         // GET: api/adarea/5
@@ -90,8 +88,6 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (codigo != adarea.codigo)
@@ -119,9 +115,6 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                 return Ok("206");   // actualizado con exito
             }
-            
-
-
         }
 
         // POST: api/adarea
