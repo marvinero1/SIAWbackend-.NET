@@ -55,7 +55,6 @@
     <Folder Include="Controllers\importaciones\operacion\" />
     <Folder Include="Controllers\inventarios\modificacion\" />
     <Folder Include="Controllers\inventarios\transaccion\" />
-    <Folder Include="Controllers\inventarios\operacion\" />
     <Folder Include="Controllers\personal_planillas\modificacion\" />
     <Folder Include="Controllers\personal_planillas\transaccion\" />
     <Folder Include="Controllers\personal_planillas\operacion\" />

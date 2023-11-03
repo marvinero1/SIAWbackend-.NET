@@ -183,8 +183,6 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                     return Ok("208");   // eliminado con exito
                 }
-                
-
             }
             catch (Exception)
             {
