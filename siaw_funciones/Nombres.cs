@@ -74,5 +74,54 @@ namespace siaw_funciones
             resultado = descripcion;
             return resultado;
         }
+
+
+        public async Task<string> nombre_almacen(string userConnectionString, int codigo)
+        {
+            string resultado;
+            string descripcion = "";
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var result = await _context.inalmacen
+                    .Where(v => v.codigo == codigo)
+                    .Select(parametro => new
+                    {
+                        parametro.descripcion
+                    })
+                    .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    descripcion = result.descripcion;
+                }
+
+            }
+            resultado = descripcion;
+            return resultado;
+        }
+
+
+        public async Task<string> nombre_persona(string userConnectionString, int codigo)
+        {
+            string resultado;
+            string descripcion = "";
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var result = await _context.pepersona
+                    .Where(v => v.codigo ==codigo)
+                    .Select(parametro => new
+                    {
+                        descripcion = parametro.nombre1 + " " + parametro.apellido1
+                    })
+                    .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    descripcion = result.descripcion;
+                }
+
+            }
+            resultado = descripcion;
+            return resultado;
+        }
+
     }
 }

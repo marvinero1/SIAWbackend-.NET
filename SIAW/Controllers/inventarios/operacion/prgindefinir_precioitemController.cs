@@ -63,7 +63,7 @@ namespace SIAW.Controllers.inventarios.operacion
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [Authorize]
         [HttpPut]
-        [Route("updateTarifa1{userConn}")]
+        [Route("updateTarifa1/{userConn}")]
         public async Task<IActionResult> updateTarifa1(string userConn, intarifa1 intarifa1)
         {
             // Obtener el contexto de base de datos correspondiente al usuario

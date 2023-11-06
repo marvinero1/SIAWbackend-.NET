@@ -37,6 +37,17 @@ namespace siaw_funciones
                 return false;
             }
         }
+        public async Task<bool> InventarioFisicoConsolidadoEstaAbierto(string userConnectionString, int codigo)
+        {
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var ininvconsol = await _context.ininvconsol
+                    .Where(i => i.codigo == codigo)
+                    .Select(i => i.abierto)
+                    .FirstOrDefaultAsync();
 
+                return (bool)ininvconsol;
+            }
+        }
     }
 }
