@@ -14,5 +14,6 @@ namespace siaw_DBContext.Models
         public decimal cantrevis { get; set; }
         public short fase { get; set; }
         public string codzona { get; set; }
+        public int id { get; set; }
     }
 }

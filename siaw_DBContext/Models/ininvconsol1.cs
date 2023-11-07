@@ -13,5 +13,6 @@ namespace siaw_DBContext.Models
         public decimal cantsist { get; set; }
         public decimal dif { get; set; }
         public string udm { get; set; }
+        public int id { get; set; }
     }
 }

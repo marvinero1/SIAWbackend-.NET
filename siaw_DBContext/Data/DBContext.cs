@@ -20576,8 +20576,6 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<infisico1>(entity =>
             {
-                entity.HasNoKey();
-
                 entity.Property(e => e.cantidad).HasColumnType("decimal(20, 6)");
 
                 entity.Property(e => e.cantrevis).HasColumnType("decimal(20, 6)");
@@ -20698,9 +20696,8 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<ingrupoper>(entity =>
             {
-                entity.HasNoKey();
-
-                entity.Property(e => e.codigo).ValueGeneratedOnAdd();
+                entity.HasKey(e => e.codigo)
+                    .HasName("PK__ingrupop__40F9A20789B353FA");
 
                 entity.Property(e => e.fechareg).HasColumnType("smalldatetime");
 
@@ -20751,8 +20748,6 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<ininvconsol1>(entity =>
             {
-                entity.HasNoKey();
-
                 entity.Property(e => e.cantreal).HasColumnType("decimal(20, 6)");
 
                 entity.Property(e => e.cantsist).HasColumnType("decimal(20, 6)");

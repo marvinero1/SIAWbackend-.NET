@@ -63,7 +63,7 @@ namespace SIAW.Controllers.inventarios.operacion
         // GET: api/cargarCabecera
         [HttpGet]
         [Route("cargarCabecera/{userConn}/{id}/{numeroid}")]
-        public async Task<ActionResult<bool>> cargarCabecera(string userConn, string id, int numeroid)
+        public async Task<ActionResult<data_ininvconsol_cab>> cargarCabecera(string userConn, string id, int numeroid)
         {
             try
             {
@@ -116,7 +116,7 @@ namespace SIAW.Controllers.inventarios.operacion
         // GET: api/mostrardetalle
         [HttpGet]
         [Route("mostrardetalle/{userConn}/{codigo}")]
-        public async Task<ActionResult<bool>> mostrardetalle(string userConn, int codigo)
+        public async Task<ActionResult<List<ininvconsol1>>> mostrardetalle(string userConn, int codigo)
         {
             try
             {
@@ -199,6 +199,80 @@ namespace SIAW.Controllers.inventarios.operacion
         }
 
 
+
+        // DELETE: api/adarea/5
+        [Authorize]
+        [HttpDelete]
+        [Route("deleteDocInvFisc/{userConn}/{codigo}")]
+        public async Task<IActionResult> deleteDocInvFisc(string userConn, int codigo)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    using (var dbContexTransaction = _context.Database.BeginTransaction())
+                    {
+                        try
+                        {
+                            // Eliminar infisico1
+                            var subquery = await _context.infisico
+                                .Where(i => i.codinvconsol == codigo)
+                                .Select(i => i.codigo)
+                                .ToListAsync();
+
+                            var infisico1 = await _context.infisico1
+                                .Where(f => subquery.Contains(f.codfisico))
+                                .ToListAsync();
+
+
+                            //var infisico1 = await _context.infisico1.FindAsync(codigo);
+                            _context.infisico1.RemoveRange(infisico1);
+                            await _context.SaveChangesAsync();
+
+
+
+                            // Eliminar infisico
+                            var infisico = await _context.infisico.Where(i => i.codinvconsol == codigo).ToListAsync();
+                            _context.infisico.RemoveRange(infisico);
+                            await _context.SaveChangesAsync();
+
+                            // Eliminar ingrupoper
+                            var ingrupoper = await _context.ingrupoper.Where(i => i.codinvconsol == codigo).ToListAsync();
+                            _context.ingrupoper.RemoveRange(ingrupoper);
+                            await _context.SaveChangesAsync();
+
+                            // Eliminar ininvconsol1
+                            var ininvconsol1 = await _context.ininvconsol1.Where(i => i.codinvconsol == codigo).ToListAsync();
+                            _context.ininvconsol1.RemoveRange(ininvconsol1);
+                            await _context.SaveChangesAsync();
+
+                            // Eliminar ininvconsol
+                            var ininvconsol = await _context.ininvconsol.Where(i => i.codigo == codigo).ToListAsync();
+                            _context.ininvconsol.RemoveRange(ininvconsol);
+                            await _context.SaveChangesAsync();
+
+
+
+                            dbContexTransaction.Commit();
+                            return Ok("208");   // eliminado con exito
+                        }
+                        catch (Exception)
+                        {
+                            dbContexTransaction.Rollback();
+                            return Problem("Error en el servidor");
+                            throw;
+                        }
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                return BadRequest("Error en el servidor");
+            }
+        }
 
 
 
