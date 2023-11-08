@@ -275,6 +275,105 @@ namespace SIAW.Controllers.inventarios.operacion
         }
 
 
+        // POST: api/ininvconsol1
+        [Authorize]
+        [HttpPost]
+        [Route("addDataininvconsol1/{userConn}/{codigo}")]
+        public async Task<ActionResult<object>> addDataininvconsol1(string userConn, int codigo, List<ininvconsol1> ininvconsol1)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                bool resp = await addData(userConnectionString, codigo, ininvconsol1); 
+                if (resp)
+                {
+                    return Ok("204");   // creado con exito
+                }
+                return BadRequest(new {resp = "Error al guardar los datos" });
+
+
+            }
+            catch (Exception)
+            {
+                return BadRequest("Error en el servidor");
+            }
+        }
+
+
+        // PUT: api/ininvconsol1
+        [Authorize]
+        [HttpPut]
+        [Route("limpiarDataininvconsol1/{userConn}/{codigo}")]
+        public async Task<ActionResult<object>> limpiarDataininvconsol1(string userConn, int codigo, List<ininvconsol1> ininvconsol1)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                bool resp = await addData(userConnectionString, codigo, ininvconsol1);
+
+                if (resp)
+                {
+                    using (var _context = DbContextFactory.Create(userConnectionString))
+                    {
+                        var registrosAActualizar = await _context.infisico
+                            .Where(registro => registro.codinvconsol == codigo)
+                            .ToListAsync();
+
+                        foreach (var registro in registrosAActualizar)
+                        {
+                            registro.consolidado = false;
+                        }
+                        await _context.SaveChangesAsync();
+
+                        return Ok("206");   // actualizado con exito
+                    }
+                }
+
+                return BadRequest(new { resp = "Error al guardar los datos" });
+
+
+            }
+            catch (Exception)
+            {
+                return BadRequest("Error en el servidor");
+            }
+        }
+
+
+
+        private async Task<bool> addData(string userConnectionString, int codigo, List<ininvconsol1> ininvconsol1)
+        {
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                using (var dbContexTransaction = _context.Database.BeginTransaction())
+                {
+                    try
+                    {
+                        // Eliminar ininvconsol1
+                        var ininvconsol1Del = await _context.ininvconsol1.Where(i => i.codinvconsol == codigo).ToListAsync();
+                        if (ininvconsol1Del.Count > 0)
+                        {
+                            _context.ininvconsol1.RemoveRange(ininvconsol1Del);
+                            await _context.SaveChangesAsync();
+                        }
+
+                        await _context.ininvconsol1.AddRangeAsync(ininvconsol1);
+                        await _context.SaveChangesAsync();
+
+
+                        dbContexTransaction.Commit();
+                        return true;   // Insersiones con exito
+                    }
+                    catch (Exception)
+                    {
+                        dbContexTransaction.Rollback();
+                        return false; // Fallo en insertar
+                    }
+                }
+            }
+        }
 
     }
 
