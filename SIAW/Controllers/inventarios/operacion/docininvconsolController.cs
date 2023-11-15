@@ -330,10 +330,7 @@ namespace SIAW.Controllers.inventarios.operacion
                         return Ok("206");   // actualizado con exito
                     }
                 }
-
                 return BadRequest(new { resp = "Error al guardar los datos" });
-
-
             }
             catch (Exception)
             {

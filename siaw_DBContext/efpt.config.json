@@ -7560,6 +7560,10 @@
          "ObjectType": 1
       },
       {
+         "Name": "[dbo].[Redondeo_Decimales_SIA_0_decimales_SQL]",
+         "ObjectType": 1
+      },
+      {
          "Name": "[dbo].[Redondeo_Decimales_SIA_5_decimales_SQL]",
          "ObjectType": 1
       },

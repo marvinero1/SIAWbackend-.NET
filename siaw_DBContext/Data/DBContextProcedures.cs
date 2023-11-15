@@ -881,6 +881,45 @@ namespace siaw_DBContext.Data
             return _;
         }
 
+        public virtual async Task<int> Redondeo_Decimales_SIA_0_decimales_SQLAsync(decimal? minumero, OutputParameter<decimal?> resultado, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default)
+        {
+            var parameterresultado = new SqlParameter
+            {
+                ParameterName = "resultado",
+                Precision = 18,
+                Scale = 9,
+                Direction = System.Data.ParameterDirection.InputOutput,
+                Value = resultado?._value ?? Convert.DBNull,
+                SqlDbType = System.Data.SqlDbType.Decimal,
+            };
+            var parameterreturnValue = new SqlParameter
+            {
+                ParameterName = "returnValue",
+                Direction = System.Data.ParameterDirection.Output,
+                SqlDbType = System.Data.SqlDbType.Int,
+            };
+
+            var sqlParameters = new []
+            {
+                new SqlParameter
+                {
+                    ParameterName = "minumero",
+                    Precision = 18,
+                    Scale = 9,
+                    Value = minumero ?? Convert.DBNull,
+                    SqlDbType = System.Data.SqlDbType.Decimal,
+                },
+                parameterresultado,
+                parameterreturnValue,
+            };
+            var _ = await _context.Database.ExecuteSqlRawAsync("EXEC @returnValue = [dbo].[Redondeo_Decimales_SIA_0_decimales_SQL] @minumero, @resultado OUTPUT", sqlParameters, cancellationToken);
+
+            resultado.SetValue(parameterresultado.Value);
+            returnValue?.SetValue(parameterreturnValue.Value);
+
+            return _;
+        }
+
         public virtual async Task<int> Redondeo_Decimales_SIA_5_decimales_SQLAsync(decimal? minumero, OutputParameter<decimal?> resultado, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default)
         {
             var parameterresultado = new SqlParameter
