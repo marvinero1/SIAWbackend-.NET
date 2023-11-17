@@ -39,14 +39,11 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                         .ToListAsync();
                     return Ok(result);
                 }
-
             }
             catch (Exception)
             {
                 return BadRequest("Error en el servidor");
             }
-
-
         }
 
 

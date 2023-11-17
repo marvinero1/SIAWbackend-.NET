@@ -5,6 +5,7 @@ using siaw_DBContext.Models;
 using siaw_funciones;
 using Microsoft.AspNetCore.Authorization;
 using System.Web.Http.Results;
+using siaw_DBContext.Models_Extra;
 
 namespace SIAW.Controllers.inventarios.operacion
 {
@@ -116,7 +117,7 @@ namespace SIAW.Controllers.inventarios.operacion
         // GET: api/mostrardetalle
         [HttpGet]
         [Route("mostrardetalle/{userConn}/{codigo}")]
-        public async Task<ActionResult<List<ininvconsol1>>> mostrardetalle(string userConn, int codigo)
+        public async Task<ActionResult<List<detalleIninvconsol1>>> mostrardetalle(string userConn, int codigo)
         {
             try
             {
@@ -132,16 +133,16 @@ namespace SIAW.Controllers.inventarios.operacion
                     })
                     .Where(x => x.c.codinvconsol == codigo)
                     .OrderBy(x => x.c.coditem)
-                    .Select(x => new
+                    .Select(x => new detalleIninvconsol1
                     {
-                        x.c.codinvconsol,
-                        x.c.coditem,
-                        x.i.descripcion,
-                        x.i.medida,
-                        x.c.cantreal,
-                        x.c.udm,
-                        x.c.cantsist,
-                        x.c.dif
+                        codinvconsol = x.c.codinvconsol,
+                        coditem = x.c.coditem,
+                        descripcion = x.i.descripcion,
+                        medida = x.i.medida,
+                        cantreal = x.c.cantreal,
+                        udm = x.c.udm,
+                        cantsist = x.c.cantsist,
+                        dif = x.c.dif
                     })
                     .ToListAsync();
 
