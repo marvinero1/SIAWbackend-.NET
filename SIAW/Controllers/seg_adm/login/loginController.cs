@@ -85,8 +85,8 @@ namespace SIAW.Controllers
                     var rolUser = _context.serol.FirstOrDefault(e => e.codigo == data.codrol);
                     if (rolUser == null)
                     {
-                        return NotFound("No se encontro un registro con los datos proporcionados (rol).");
-                    }
+                        return NotFound("213");                //-----No se encontro un registro con los datos proporcionados (rol).
+                    }  
 
                     int dias = (int)rolUser.dias_cambio;
 
@@ -213,7 +213,7 @@ namespace SIAW.Controllers
                 var usuario = _context.adusuario.FirstOrDefault(e => e.login == login);
                 if (usuario == null)
                 {
-                    return NotFound("No existe un registro con esa información");
+                    return NotFound("201");         //-----No se encontro un registro con los datos proporcionados (usuario).
                 }
 
                 var passAntEncrpt = encript.EncryptToMD5Base64(usu.passwordAnt);
@@ -221,11 +221,11 @@ namespace SIAW.Controllers
                 var rolUser = _context.serol.FirstOrDefault(e => e.codigo == usuario.codrol);
                 if (rolUser == null)
                 {
-                    return NotFound("No se encontro un registro con los datos proporcionados (rol).");
+                    return Unauthorized("213");        //-----No se encontro un registro con los datos proporcionados (rol).
                 }
                 if (passAntEncrpt != usuario.password_siaw)
                 {
-                    return Unauthorized("Su contraseña no corresponde a la actual que tiene.");
+                    return Unauthorized("203");    //-----Contraseña Erronea.
                 }
                 int longmin = (int)rolUser.long_minima;
                 bool num = (bool)rolUser.con_numeros;
@@ -233,7 +233,7 @@ namespace SIAW.Controllers
                 string pass = usu.passwordNew;
                 if (!controlPassword(longmin, num, let, pass))
                 {
-                    return Unauthorized("Su contraseña no cumple con requisitos de longitud, numeros o letras");
+                    return Unauthorized("209");    //-----Su contraseña no cumple con requisitos de longitud, numeros o letras
                 }
 
 
@@ -241,7 +241,7 @@ namespace SIAW.Controllers
 
                 if (passAntEncrpt == passEncrpt)
                 {
-                    return Unauthorized("Su nueva contraseña no debe ser igual a la anterior.");
+                    return Unauthorized("211");    //-----Su nueva contraseña no debe ser igual a la anterior.
                 }
 
 
@@ -263,7 +263,7 @@ namespace SIAW.Controllers
                     }
                     else
                     {
-                        return BadRequest("Existen problemas con el Servidor.");
+                        return Problem("Existen problemas con el Servidor.");
                         throw;
                     }
                 }

@@ -302,6 +302,35 @@ namespace SIAW.Controllers.inventarios.operacion
         }
 
 
+        // POST: api/ininvconsol1
+        [Authorize]
+        [HttpPost]
+        [Route("addConsolidacionInv/{userConn}/{codigo}")]
+        public async Task<ActionResult<object>> addConsolidacionInv(string userConn, int codigo, List<ininvconsol1> ininvconsol1)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                bool resp = await addData(userConnectionString, codigo, ininvconsol1);
+                if (resp)
+                {
+                    return Ok("204");   // creado con exito
+                }
+                return BadRequest(new { resp = "Error al guardar los datos" });
+
+
+            }
+            catch (Exception)
+            {
+                return BadRequest("Error en el servidor");
+            }
+        }
+
+
+
+
+
         // PUT: api/ininvconsol1
         [Authorize]
         [HttpPut]

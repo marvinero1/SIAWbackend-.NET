@@ -200,8 +200,6 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             {
                 return BadRequest("Error en el servidor");
             }
-
-
         }
 
 
@@ -213,8 +211,6 @@ namespace SIAW.Controllers.inventarios.mantenimiento
         {
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-
-            //var _context = _userConnectionManager.GetUserConnection(userId);
 
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
@@ -231,18 +227,15 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 {
                     if (ingrupoper1Exists(ingrupoper1.codgrupoper, ingrupoper1.codpersona, _context))
                     {
-                        return Conflict("Ya existe un registro con ese código");
+                        return Conflict("715");
                     }
                     else
                     {
                         throw;
                     }
                 }
-
                 return Ok("204");   // creado con exito
-
             }
-
         }
 
         // DELETE: api/ingrupoper1/5
