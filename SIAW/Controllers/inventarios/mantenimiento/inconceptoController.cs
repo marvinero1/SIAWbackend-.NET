@@ -100,7 +100,9 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     .Select(i => new
                     {
                         i.codigo,
-                        i.descripcion
+                        i.descripcion,
+                        i.factor,
+                        i.traspaso
                     });
 
                     var result = query.ToList();

@@ -49,5 +49,26 @@ namespace siaw_funciones
                 return (bool)ininvconsol;
             }
         }
+
+        public async Task<decimal> Peso_Movimiento(DBContext _context, int codmovimiento)
+        {
+            try
+            {
+                var resultado = await _context.inmovimiento1
+                .Where(d => d.codmovimiento == codmovimiento)
+                .Join(
+                    _context.initem,
+                    d => d.coditem,
+                    i => i.codigo,
+                    (d, i) => d.cantidad * i.peso
+                )
+                .SumAsync();
+                return (decimal)resultado;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
     }
 }
