@@ -84,8 +84,21 @@ namespace siaw_funciones
 
         }
 
-
-
+        public async Task<bool> AutorizacionEstaHabilitada(string userConnectionString, int nivel)
+        {
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var autorizacion_deshabilitado = await _context.adautorizacion_deshabilitadas
+                    .Where(i => i.nivel == nivel)
+                    .FirstOrDefaultAsync();
+                if (autorizacion_deshabilitado != null)
+                {
+                    return false;   /// la autorizacion esta en la tabla de deshabilitados
+                }
+                return true;
+            }
+                
+        }
 
     }
 }

@@ -21354,8 +21354,6 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<inmovimiento1>(entity =>
             {
-                entity.HasNoKey();
-
                 entity.Property(e => e.cantidad).HasColumnType("decimal(20, 6)");
 
                 entity.Property(e => e.codaduana)

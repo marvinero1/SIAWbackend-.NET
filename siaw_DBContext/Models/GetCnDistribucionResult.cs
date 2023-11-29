@@ -10,6 +10,7 @@ namespace siaw_DBContext.Models
         public string codcuenta { get; set; }
         public int? centrocosto_origen { get; set; }
         public int? centrocosto_destino { get; set; }
+        [Column("porcentaje", TypeName = "decimal(18,2)")]
         public decimal? porcentaje { get; set; }
         public int? mes { get; set; }
     }

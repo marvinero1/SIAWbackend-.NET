@@ -7,6 +7,7 @@ namespace siaw_DBContext.Models
 {
     public partial class PesoProfResult
     {
+        [Column("peso", TypeName = "decimal(38,9)")]
         public decimal? peso { get; set; }
     }
 }

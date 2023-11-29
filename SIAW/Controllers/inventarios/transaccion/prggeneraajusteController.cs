@@ -25,8 +25,8 @@ namespace SIAW.Controllers.inventarios.transaccion
 
         // POST: api/
         [Authorize]
-        [HttpPost("{userConn}/{codigo}/{codalmacen}")]
-        public async Task<ActionResult<string>> generaAjustes(string userConn, int codigo, int codalmacen, ListAjusteInmov listAjusteInmov)
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<string>> generaAjustes(string userConn, ListAjusteInmov listAjusteInmov)
         {
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
@@ -39,6 +39,11 @@ namespace SIAW.Controllers.inventarios.transaccion
                         // insertar cabecera de nota de movimiento
                         inmovimiento inmovimiento = listAjusteInmov.inmovimientoCab;
                         int CodCabinMovi = await addCabInmovi(_context, inmovimiento);
+                        if (CodCabinMovi==-1)
+                        {
+                            dbContexTransaction.Rollback();
+                            return BadRequest("Ya existe una nota de movimiento con ese id y numero id");
+                        }
                         
                         // añadir detalle nota de movimiento
                         List<detalleIninvconsol1> detalleInvConsol = listAjusteInmov.detalleInvConsol;
@@ -76,9 +81,16 @@ namespace SIAW.Controllers.inventarios.transaccion
         {
             try
             {
-                await _context.inmovimiento.AddAsync(inmovimiento);
-                await _context.SaveChangesAsync();
-                return inmovimiento.codigo;   // Agregado con exito
+                var intipomovimiento = await _context.inmovimiento
+                    .Where(i => i.id==inmovimiento.id && i.numeroid == inmovimiento.numeroid)
+                    .FirstOrDefaultAsync();
+                if (intipomovimiento == null)
+                {
+                    await _context.inmovimiento.AddAsync(inmovimiento);
+                    await _context.SaveChangesAsync();
+                    return inmovimiento.codigo;   // Agregado con exito
+                }
+                return -1;
             }
             catch (Exception)
             {

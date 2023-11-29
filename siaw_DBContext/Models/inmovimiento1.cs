@@ -13,5 +13,6 @@ namespace siaw_DBContext.Models
         public string udm { get; set; }
         public string codaduana { get; set; }
         public decimal? peso { get; set; }
+        public int id { get; set; }
     }
 }

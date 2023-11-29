@@ -7,6 +7,7 @@ namespace siaw_DBContext.Models
 {
     public partial class SIA00002_TipoCambioResult
     {
+        [Column("TDC", TypeName = "decimal(18,8)")]
         public decimal? TDC { get; set; }
     }
 }

@@ -50,6 +50,23 @@ namespace siaw_funciones
             }
         }
 
+        public async Task<bool> RegistroInventarioExiste(string userConnectionString, int codinventario, int codgrupo)
+        {
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var infisico = await _context.infisico
+                    .Where(i => i.codinvconsol == codinventario && i.codgrupoper== codgrupo)
+                    .FirstOrDefaultAsync();
+                if (infisico != null)
+                {
+                    return true;  // hay inventario registrado
+                }
+                return false;   // no hay inventario registrado
+            }
+        }
+
+
+
         public async Task<decimal> Peso_Movimiento(DBContext _context, int codmovimiento)
         {
             try

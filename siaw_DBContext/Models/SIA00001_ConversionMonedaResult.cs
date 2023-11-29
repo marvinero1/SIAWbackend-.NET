@@ -7,6 +7,7 @@ namespace siaw_DBContext.Models
 {
     public partial class SIA00001_ConversionMonedaResult
     {
+        [Column("TDC", TypeName = "decimal(18,8)")]
         public decimal? TDC { get; set; }
     }
 }
