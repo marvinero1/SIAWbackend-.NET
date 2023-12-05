@@ -3,9 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using siaw_DBContext.Data;
 using siaw_DBContext.Models;
-using siaw_DBContext.Models_Extra;
+using Microsoft.AspNetCore.Authorization;
 using siaw_funciones;
-using System.Net;
+using siaw_DBContext.Models_Extra;
 
 namespace SIAW.Controllers.seg_adm.operacion
 {
@@ -60,8 +60,9 @@ namespace SIAW.Controllers.seg_adm.operacion
 
 
         // POST: api/
+        [Authorize]
         [HttpPost]
-        [Route("verifPermisoEsp/{userConn}/{servicio}/{codpersona}")]
+        [Route("verifPermisoEsp/{userConn}/{servicio}/{codpersona}/{password}/{codalmacen}/{dato_a}/{dato_b}")]
         public async Task<ActionResult<bool>> verifPermisoEsp(string userConn, int servicio, int codpersona, string password, int codalmacen, string dato_a, string dato_b)
         {
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
@@ -94,11 +95,10 @@ namespace SIAW.Controllers.seg_adm.operacion
                     throw;
                 }
             }
-                
         }
 
 
-        public async Task<string> genSpecialAut(int codalmacen, string dato_a, string dato_b, string servicio)
+        private async Task<string> genSpecialAut(int codalmacen, string dato_a, string dato_b, string servicio)
         {
             try
             {

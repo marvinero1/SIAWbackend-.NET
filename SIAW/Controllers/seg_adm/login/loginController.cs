@@ -182,8 +182,8 @@ namespace SIAW.Controllers
 
             var securityToken = new JwtSecurityToken(
                 claims: claims,
-                //expires: DateTime.Now.AddDays(1),
-                expires: DateTime.Now.AddMinutes(30),
+                expires: DateTime.Now.AddDays(1),
+                //expires: DateTime.Now.AddMinutes(30),
                 signingCredentials: creds);
 
             string token = new JwtSecurityTokenHandler().WriteToken(securityToken);

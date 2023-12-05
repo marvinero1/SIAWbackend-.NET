@@ -47,6 +47,56 @@ namespace SIAW.Controllers.inventarios.mantenimiento
         }
 
 
+        // GET: api/ingrupoper
+        [HttpGet]
+        [Route("getObs/{userConn}/{id}/{numeroid}/{nro}")]
+        public async Task<ActionResult<IEnumerable<ingrupoper>>> GetingrupoperObs(string userConn, string id, int numeroid, int nro)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    try
+                    {
+                        var result = await _context.ininvconsol
+                        .Where(i => i.id == id && i.numeroid == numeroid)
+                        .FirstOrDefaultAsync();
+                        if (result == null)
+                        {
+                            return BadRequest("Ese documento de inventario no existe (Doc Inventario)");
+                        }
+                        int res_codinvconsol = result.codigo;
+                        var dataGroup = await _context.ingrupoper
+                            .Where(i => i.codinvconsol == res_codinvconsol && i.nro == nro)
+                            .Select(i => new
+                            {
+                                codinvconsol = res_codinvconsol,
+                                codgrupo = i.codigo,
+                                obs = i.obs
+                            })
+                            .FirstOrDefaultAsync();
+                        if (dataGroup == null)
+                        {
+                            return BadRequest("Ese documento de inventario no existe (Grupo)");
+                        }
+                        return Ok(dataGroup);
+                    }
+                    catch (Exception)
+                    {
+                        return Problem("Error en el servidor");
+                        throw;
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                return BadRequest("Error en el servidor");
+            }
+        }
+
 
         // POST: api/ingrupoper
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754

@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using siaw_DBContext.Data;
 using siaw_DBContext.Models;
 using Microsoft.AspNetCore.Authorization;
+using siaw_funciones;
 
 namespace SIAW.Controllers.seg_adm.mantenimiento
 {
@@ -12,6 +13,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
     public class abmadaperturaController : ControllerBase
     {
         private readonly UserConnectionManager _userConnectionManager;
+        private readonly Seguridad seguridad = new Seguridad();
         public abmadaperturaController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;
@@ -127,7 +129,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
         // POST: api/adapertura
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        //[Authorize]
+        [Authorize]
         [HttpPost("{userConn}/{codigo}")]
         public async Task<ActionResult<adapertura>> Postadapertura(string userConn, int codigo, List<adapertura1> adapertura1)
         {
@@ -172,6 +174,31 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
         }
 
+        // GET: api/
+        [HttpGet]
+        [Route("verifPeriodoAbierto/{userConn}/{fecha}/{modulo}")]
+        public async Task<ActionResult<bool>> verifPeriodoAbierto(string userConn, DateTime fecha, int modulo)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
+                try
+                {
+                    bool periodoAbierto = await seguridad.periodo_fechaabierta(userConnectionString, fecha, modulo);
+                    return Ok(periodoAbierto);
+                }
+                catch (Exception)
+                {
+                    return Problem("Error en el Servidor");
+                    throw;
+                }
+            }
+            catch (Exception)
+            {
+                return BadRequest("Error en el servidor");
+            }
+        }
     }
 }

@@ -129,7 +129,12 @@ namespace SIAW.Controllers.inventarios.transaccion
                 foreach (var item in detalleInvConsol)
                 {
                     var query = await _context.instoactual.Where(i => i.coditem == item.coditem && i.codalmacen == almacen).FirstOrDefaultAsync();
-                    query.cantidad = query.cantidad + item.dif;
+                    // dif = cant sist - conteo 
+                    // si son negativos (se ebe aumentar porque son ingresos)
+                    // si son positivos (se debe restar ya que son egresos)
+
+                    query.cantidad = query.cantidad + (item.dif * (-1));
+                    
                     _context.Entry(query).State = EntityState.Modified;
                     await _context.SaveChangesAsync();
                 }

@@ -77,11 +77,10 @@ namespace siaw_funciones
 
                 if (count > 0)
                 {
-                    return false;
+                    return false;   // si hay registro quiere decir que esta cerrado
                 }
-                return true;
+                return true;   // esta abierto no hay registro
             }
-
         }
 
         public async Task<bool> AutorizacionEstaHabilitada(string userConnectionString, int nivel)

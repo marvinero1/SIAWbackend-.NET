@@ -87,5 +87,29 @@ namespace siaw_funciones
                 return 0;
             }
         }
+
+        public async Task<DateTime> InventarioFecha(string userConnectionString, int codinvconsol)
+        {
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var infisico = await _context.ininvconsol
+                    .Where(i => i.codigo == codinvconsol)
+                    .Select(i => i.fechainicio)
+                    .FirstOrDefaultAsync();
+                return infisico;
+            }
+        }
+        public async Task<bool> Usar_Item_En_Notas_Movto(DBContext _context, string coditem)
+        {
+            var codigo = await _context.initem
+                    .Where(i => i.codigo == coditem && i.usar_en_movimiento == true)
+                    .Select(i => i.codigo)
+                    .FirstOrDefaultAsync();
+            if (codigo == null)
+            {
+                return false;
+            }
+            return true;
+        }
     }
 }

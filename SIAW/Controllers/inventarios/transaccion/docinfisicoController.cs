@@ -6,6 +6,7 @@ using siaw_DBContext.Models;
 using Microsoft.AspNetCore.Authorization;
 using siaw_funciones;
 using siaw_DBContext.Models_Extra;
+using System.Runtime.Intrinsics.X86;
 
 namespace SIAW.Controllers.inventarios.transaccion
 {
@@ -15,15 +16,17 @@ namespace SIAW.Controllers.inventarios.transaccion
     {
         private readonly UserConnectionManager _userConnectionManager;
         private readonly Inventario inventario = new Inventario();
+        private readonly Seguridad seguridad = new Seguridad();
         public docinfisicoController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;
         }
 
-        // GET: api/
-        [HttpGet]
-        [Route("verifInvGrup/{userConn}/{id}/{numeroid}/{nro}")]
-        public async Task<ActionResult<bool>> verifInvGrup(string userConn, string id, int numeroid, int nro)
+        // POST: api/
+        [Authorize]
+        [HttpPost]
+        [Route("validaInvGrup/{userConn}/{id}/{numeroid}/{nro}/{horareg}/{fechareg}/{usureg}")]
+        public async Task<ActionResult<bool>> validaInvGrup(string userConn, string id, int numeroid, int nro, string horareg, DateTime fechareg, string usureg)
         {
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
@@ -47,7 +50,42 @@ namespace SIAW.Controllers.inventarios.transaccion
                         return BadRequest("Ese documento de inventario no existe (Grupo)");
                     }
                     int res_codgrupo = dataGroup.codigo;
-                    return Ok(new {codinvconsol = res_codinvconsol, codgrupo = res_codgrupo});
+
+                    ///////////// 2da parte de validacion
+
+                    bool existe = await inventario.RegistroInventarioExiste(userConnectionString, res_codinvconsol, res_codgrupo);
+                    if (existe)
+                    {
+                        return BadRequest(new { resp = "Ya se registro esa toma de inventario, Para llevar a cabo modificaciones por favor entre a Revision de Toma de Inventario." });
+                    }
+
+                    DateTime fecha_inv = await inventario.InventarioFecha(userConnectionString, res_codinvconsol);
+                    bool ifAbierto = await seguridad.periodo_fechaabierta(userConnectionString, fecha_inv, 2);
+
+                    if (!ifAbierto)
+                    {
+                        return BadRequest(new { resp = "No puede crear documentos para ese periodo de fechas. Periodo Cerrado" });
+                    }
+
+
+                    // CREAMOS CABECERA DE DOCUMENTO
+                    var infisico = new infisico();
+                    infisico.codinvconsol = res_codinvconsol;
+                    infisico.codgrupoper = res_codgrupo;
+                    infisico.consolidado = false;
+                    infisico.horareg = horareg;
+                    infisico.fechareg = fechareg;
+                    infisico.usuarioreg = usureg;
+
+
+                    await _context.infisico.AddAsync(infisico);
+                    await _context.SaveChangesAsync();
+                    //return infisico.codigo;   // Agregado con exito
+
+                    return Ok(new { resp = "aceptado" });
+
+
+                    //return Ok(new {codinvconsol = res_codinvconsol, codgrupo = res_codgrupo});
                 }
                 catch (Exception)
                 {
@@ -57,28 +95,115 @@ namespace SIAW.Controllers.inventarios.transaccion
             }
         }
 
+
+
         // GET: api/
         [HttpGet]
-        [Route("verifRegInvExist/{userConn}/{id}/{numeroid}/{nro}")]
-        public async Task<ActionResult<bool>> verifRegInvExist(string userConn, int codinventario, int codgrupo)
+        [Route("datosCabecera/{userConn}/{codinventario}/{codgrupo}")]
+        public async Task<ActionResult<string>> datosCabecera(string userConn, int codinventario, int codgrupo)
         {
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
             try
             {
-                bool existe = await inventario.RegistroInventarioExiste(userConnectionString, codinventario, codgrupo);
-                if (existe)
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
-                    return Ok(new { resp = "Ya se registro esa toma de inventario, Para llevar a cabo modificaciones por favor entre a Revision de Toma de Inventario." });
+                    var ininvconsol = _context.ininvconsol
+                        .Where(i => i.codigo == codinventario)
+                        .FirstOrDefault();
+
+
+                    var ingrupoper = _context.ingrupoper
+                        .Where(i => i.codigo == codgrupo)
+                        .FirstOrDefault();
+
+                    return Ok(new
+                    {
+                        id = ininvconsol.id,
+                        numeroid = ininvconsol.numeroid,
+                        nrogrupo = ingrupoper.nro,
+                        obsgrupo = ingrupoper.obs
+                    });
                 }
             }
             catch (Exception)
             {
+                return Problem("Error en el servidor.");
+                throw;
+            }
+        }
 
+        // GET: api/
+        [HttpGet]
+        [Route("validardetalle/{userConn}/{codinventario}/{codgrupo}")]
+        public async Task<ActionResult<string>> validardetalle(string userConn, int codinventario, int codgrupo, List<string> codItems)
+        {
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+            List<string> itemsObs = new List<string>();
+            try
+            {
+                bool existe = await inventario.RegistroInventarioExiste(userConnectionString, codinventario, codgrupo);
+                if (existe)
+                {
+                    return BadRequest(new { resp = "Ya se registro esa toma de inventario, Para llevar a cabo modificaciones por favor entre a Revision de Toma de Inventario." });
+                }
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    foreach (var item in codItems)
+                    {
+                        bool resultado_c = await inventario.Usar_Item_En_Notas_Movto(_context, item);
+                        if (!resultado_c)
+                        {
+                            itemsObs.Add(item);
+                        }
+                    }
+                    if (itemsObs.Count() > 0)
+                    {
+                        return BadRequest(new
+                        {
+                            resp = "los siguientes items no estan habilitados para movimientos: ",
+                            list = itemsObs
+                        });
+                    }
+                    return Ok(new { resp = "Todo Valido" });
+                }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor.");
                 throw;
             }
         }
 
 
+        // POST: api/
+        [HttpPost]
+        [Route("guardardetalle/{userConn}")]
+        public async Task<ActionResult<string>> guardardetalle(string userConn, infisico infisico)
+        {
+            
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+         
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                using (var dbContexTransaction = _context.Database.BeginTransaction())
+                {
+                    try
+                    {
+
+                        dbContexTransaction.Commit();
+                        return Ok(new { resp = "Datos guardados con Exito" });
+                    }
+                    catch (DbUpdateException)
+                    {
+                        dbContexTransaction.Rollback();
+                        return Problem("Error en el servidor");
+                    }
+                }
+                    
+            }
+        }
+
     }
+
 }
