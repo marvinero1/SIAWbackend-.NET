@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using siaw_funciones;
 using siaw_DBContext.Models_Extra;
 using System.Runtime.Intrinsics.X86;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace SIAW.Controllers.inventarios.transaccion
 {
@@ -178,18 +179,40 @@ namespace SIAW.Controllers.inventarios.transaccion
 
         // POST: api/
         [HttpPost]
-        [Route("guardardetalle/{userConn}")]
-        public async Task<ActionResult<string>> guardardetalle(string userConn, infisico infisico)
+        [Route("guardardetalle/{userConn}/{codinfisico}")]
+        public async Task<ActionResult<string>> guardardetalle(string userConn, int codinfisico, List<detalleInfisico> infisicoDetalle)
         {
             
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-         
+
+            var infisico1 = infisicoDetalle
+                .Select(i => new infisico1
+                {
+                    codfisico = codinfisico,
+                    coditem = i.coditem,
+                    cantidad = i.cantidad,
+                    udm = i.udm,
+                    cantrevis = i.cantidad,
+                    fase = 0,
+                    codzona = i.codzona
+                })
+                .ToList();
+
+
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 using (var dbContexTransaction = _context.Database.BeginTransaction())
                 {
                     try
                     {
+                        var valida = await _context.infisico1.Where(i => i.codfisico == codinfisico).ToListAsync();
+                        if (valida.Count > 0)
+                        {
+                            _context.infisico1.RemoveRange(valida);
+                            await _context.SaveChangesAsync();
+                        }
+                        _context.infisico1.AddRange(infisico1);
+                        await _context.SaveChangesAsync();
 
                         dbContexTransaction.Commit();
                         return Ok(new { resp = "Datos guardados con Exito" });
@@ -200,10 +223,20 @@ namespace SIAW.Controllers.inventarios.transaccion
                         return Problem("Error en el servidor");
                     }
                 }
-                    
             }
         }
 
+    }
+
+
+    public class detalleInfisico
+    {
+        public string coditem { get; set; }
+        public string codzona { get; set; }
+        public string descripcion { get; set; }
+        public string medida { get; set; }
+        public string udm { get; set; }
+        public decimal cantidad { get; set; }
     }
 
 }
