@@ -8,94 +8,88 @@ using siaw_funciones;
 using siaw_DBContext.Models_Extra;
 using System.Runtime.Intrinsics.X86;
 using Microsoft.EntityFrameworkCore.Storage;
-
 namespace SIAW.Controllers.inventarios.transaccion
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class docinfisicoController : ControllerBase
+    public class docinfisicorevController : ControllerBase
     {
         private readonly UserConnectionManager _userConnectionManager;
         private readonly Inventario inventario = new Inventario();
         private readonly Seguridad seguridad = new Seguridad();
-        public docinfisicoController(UserConnectionManager userConnectionManager)
+        public docinfisicorevController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;
         }
 
-
         // POST: api/
         [Authorize]
         [HttpPost]
-        [Route("validaInvGrup/{userConn}/{id}/{numeroid}/{nro}/{horareg}/{fechareg}/{usureg}")]
-        public async Task<ActionResult<bool>> validaInvGrup(string userConn, string id, int numeroid, int nro, string horareg, DateTime fechareg, string usureg)
+        [Route("validaInvGrup/{userConn}/{id}/{numeroid}/{nro}")]
+        public async Task<ActionResult<bool>> validaInvGrup(string userConn, string id, int numeroid, int nro)
         {
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
-                try
+                using (var dbContexTransaction = _context.Database.BeginTransaction())
                 {
-                    var result = await _context.ininvconsol
-                        .Where(i => i.id == id && i.numeroid == numeroid)
-                        .FirstOrDefaultAsync();
-                    if (result == null)
+                    try
                     {
-                        return BadRequest("Ese documento de inventario no existe (Doc Inventario)");
+                        var result = await _context.ininvconsol
+                            .Where(i => i.id == id && i.numeroid == numeroid)
+                            .FirstOrDefaultAsync();
+                        if (result == null)
+                        {
+                            return BadRequest("Ese documento de inventario no existe (Doc Inventario)");
+                        }
+                        int res_codinvconsol = result.codigo;
+                        var dataGroup = await _context.ingrupoper
+                            .Where(i => i.codinvconsol == res_codinvconsol && i.nro == nro)
+                            .FirstOrDefaultAsync();
+                        if (dataGroup == null)
+                        {
+                            return BadRequest("Ese documento de inventario no existe (Grupo)");
+                        }
+                        int res_codgrupo = dataGroup.codigo;
+
+                        ///////////// 2da parte de validacion
+
+                        bool existe = await inventario.RegistroInventarioExiste(userConnectionString, res_codinvconsol, res_codgrupo);
+                        if (!existe)
+                        {
+                            return BadRequest(new { resp = "El grupo elegido no existe o no fue registrado aun." });
+                        }
+
+                        DateTime fecha_inv = await inventario.InventarioFecha(userConnectionString, res_codinvconsol);
+                        bool ifAbierto = await seguridad.periodo_fechaabierta(userConnectionString, fecha_inv, 2);
+
+                        if (!ifAbierto)
+                        {
+                            return BadRequest(new { resp = "No puede crear documentos para ese periodo de fechas. Periodo Cerrado" });
+                        }
+
+                        await inventario.DesconsolidarTomaInventario(_context, res_codinvconsol, res_codgrupo);
+                        dbContexTransaction.Commit();
+                        return Ok(new { resp = "aceptado" });
+
+                        
+
+
+
+                        //return Ok(new {codinvconsol = res_codinvconsol, codgrupo = res_codgrupo});
                     }
-                    int res_codinvconsol = result.codigo;
-                    var dataGroup = await _context.ingrupoper
-                        .Where(i => i.codinvconsol == res_codinvconsol && i.nro == nro)
-                        .FirstOrDefaultAsync();
-                    if (dataGroup == null)
+                    catch (Exception)
                     {
-                        return BadRequest("Ese documento de inventario no existe (Grupo)");
+                        dbContexTransaction.Rollback();
+                        Problem("Error en el servidor");
+                        throw;
                     }
-                    int res_codgrupo = dataGroup.codigo;
-
-                    ///////////// 2da parte de validacion
-
-                    bool existe = await inventario.RegistroInventarioExiste(userConnectionString, res_codinvconsol, res_codgrupo);
-                    if (existe)
-                    {
-                        return BadRequest(new { resp = "Ya se registro esa toma de inventario, Para llevar a cabo modificaciones por favor entre a Revision de Toma de Inventario." });
-                    }
-
-                    DateTime fecha_inv = await inventario.InventarioFecha(userConnectionString, res_codinvconsol);
-                    bool ifAbierto = await seguridad.periodo_fechaabierta(userConnectionString, fecha_inv, 2);
-
-                    if (!ifAbierto)
-                    {
-                        return BadRequest(new { resp = "No puede crear documentos para ese periodo de fechas. Periodo Cerrado" });
-                    }
-
-
-                    // CREAMOS CABECERA DE DOCUMENTO
-                    var infisico = new infisico();
-                    infisico.codinvconsol = res_codinvconsol;
-                    infisico.codgrupoper = res_codgrupo;
-                    infisico.consolidado = false;
-                    infisico.horareg = horareg;
-                    infisico.fechareg = fechareg;
-                    infisico.usuarioreg = usureg;
-
-
-                    await _context.infisico.AddAsync(infisico);
-                    await _context.SaveChangesAsync();
-                    //return infisico.codigo;   // Agregado con exito
-
-                    return Ok(new { resp = "aceptado" });
-
-
-                    //return Ok(new {codinvconsol = res_codinvconsol, codgrupo = res_codgrupo});
                 }
-                catch (Exception)
-                {
-                    Problem("Error en el servidor");
-                    throw;
-                }
+                   
             }
         }
+
 
 
 
@@ -134,6 +128,8 @@ namespace SIAW.Controllers.inventarios.transaccion
                 throw;
             }
         }
+
+
 
         // GET: api/
         [HttpGet]
@@ -178,12 +174,14 @@ namespace SIAW.Controllers.inventarios.transaccion
         }
 
 
+
+
         // POST: api/
         [HttpPost]
         [Route("guardardetalle/{userConn}/{codinfisico}")]
         public async Task<ActionResult<string>> guardardetalle(string userConn, int codinfisico, List<detalleInfisico> infisicoDetalle)
         {
-            
+
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
             var infisico1 = infisicoDetalle
@@ -228,16 +226,4 @@ namespace SIAW.Controllers.inventarios.transaccion
         }
 
     }
-
-
-    public class detalleInfisico
-    {
-        public string coditem { get; set; }
-        public string codzona { get; set; }
-        public string descripcion { get; set; }
-        public string medida { get; set; }
-        public string udm { get; set; }
-        public decimal cantidad { get; set; }
-    }
-
 }

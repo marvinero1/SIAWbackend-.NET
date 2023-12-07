@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using siaw_DBContext.Data;
+using siaw_DBContext.Models;
 
 namespace siaw_funciones
 {
@@ -111,5 +112,51 @@ namespace siaw_funciones
             }
             return true;
         }
+
+
+        public async Task<bool> DesconsolidarTomaInventario(DBContext _context, int codinventario, int codgrupo)
+        {
+            // obtener el codigo del inventario
+            var infisico = await _context.infisico
+                    .Where(i => i.codinvconsol == codinventario && i.codgrupoper == codgrupo && i.consolidado == true)
+                    .FirstOrDefaultAsync();
+
+
+            // restar las cantidades del inventario si son negativas sumar
+
+            if (infisico != null)
+            {
+                int codigo = infisico.codigo;
+                var infisico1 = await _context.infisico1
+                    .Where(i => i.codfisico == codigo)
+                    .ToListAsync();
+
+                foreach (var item in infisico1)
+                {
+                    var ininvconsol1 = await _context.ininvconsol1
+                        .Where(i => i.codinvconsol == codinventario && i.coditem == item.coditem)
+                        .FirstOrDefaultAsync() ;
+
+                    if (item.cantrevis > 0)
+                    {
+                        ininvconsol1.cantreal = ininvconsol1.cantreal - item.cantrevis;
+                    }
+                    else
+                    {
+                        ininvconsol1.cantreal = ininvconsol1.cantreal - Math.Abs(item.cantrevis);
+                    }
+                    ininvconsol1.dif = ininvconsol1.cantsist - ininvconsol1.cantreal;
+                    _context.Entry(ininvconsol1).State = EntityState.Modified;
+                    await _context.SaveChangesAsync();
+                }
+                infisico.consolidado = false;
+                _context.Entry(infisico).State = EntityState.Modified;
+                await _context.SaveChangesAsync();
+            }
+
+            return true;
+        }
+
+
     }
 }

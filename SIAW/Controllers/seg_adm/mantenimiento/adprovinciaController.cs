@@ -81,6 +81,53 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
         }
 
+
+
+        // GET: api/catalogo
+        [HttpGet]
+        [Route("catalogo_depto/{userConn}")]
+        public async Task<ActionResult<IEnumerable<adprovincia>>> Getadprovincia_depto_catalogo(string userConn)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                //var _context = _userConnectionManager.GetUserConnection(userId);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var query = _context.adprovincia
+                    .Join(
+                        _context.addepto,
+                        p => p.coddepto,
+                        d => d.codigo,
+                        (p, d) => new { p.codigo, p.nombre, nombreDept = d.nombre }
+                    )
+                    .OrderBy(x => x.nombre)
+                    .ThenBy(x => x.codigo)
+                    .Select(x => new { dato1 = x.codigo, dato2 = x.nombre, dato3 = x.nombreDept });
+
+                    var result = query.ToList();
+
+                    if (result.Count() == 0)
+                    {
+                        return Problem("No se encontraron registros con esos datos.");
+                    }
+                    return Ok(result);
+                }
+
+            }
+            catch (Exception)
+            {
+                return BadRequest("Error en el servidor");
+                throw;
+            }
+        }
+
+
+
+
         // PUT: api/adprovincia/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [Authorize]
