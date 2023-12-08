@@ -116,7 +116,7 @@ namespace siaw_funciones
 
         public async Task<bool> DesconsolidarTomaInventario(DBContext _context, int codinventario, int codgrupo)
         {
-            // obtener el codigo del inventario
+            // obtener el codigo del inventario fisico
             var infisico = await _context.infisico
                     .Where(i => i.codinvconsol == codinventario && i.codgrupoper == codgrupo && i.consolidado == true)
                     .FirstOrDefaultAsync();

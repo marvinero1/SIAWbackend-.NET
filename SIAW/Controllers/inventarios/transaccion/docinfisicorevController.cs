@@ -10,7 +10,7 @@ using System.Runtime.Intrinsics.X86;
 using Microsoft.EntityFrameworkCore.Storage;
 namespace SIAW.Controllers.inventarios.transaccion
 {
-    [Route("api/[controller]")]
+    [Route("api/inventario/transac/[controller]")]
     [ApiController]
     public class docinfisicorevController : ControllerBase
     {
@@ -22,9 +22,9 @@ namespace SIAW.Controllers.inventarios.transaccion
             _userConnectionManager = userConnectionManager;
         }
 
-        // POST: api/
+        // PUT: api/
         [Authorize]
-        [HttpPost]
+        [HttpPut]
         [Route("validaInvGrup/{userConn}/{id}/{numeroid}/{nro}")]
         public async Task<ActionResult<bool>> validaInvGrup(string userConn, string id, int numeroid, int nro)
         {

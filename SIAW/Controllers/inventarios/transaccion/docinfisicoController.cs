@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 
 namespace SIAW.Controllers.inventarios.transaccion
 {
-    [Route("api/[controller]")]
+    [Route("api/inventario/transac/[controller]")]
     [ApiController]
     public class docinfisicoController : ControllerBase
     {
