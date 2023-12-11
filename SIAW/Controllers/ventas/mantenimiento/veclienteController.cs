@@ -20,39 +20,6 @@ namespace SIAW.Controllers.ventas.mantenimiento
         }
 
 
-        // GET: api/vecliente
-        /*
-        [HttpGet("{userConn}")]
-        public async Task<ActionResult<IEnumerable<vecliente>>> Getvecliente(string userConn)
-        {
-            try
-            {
-                // Obtener el contexto de base de datos correspondiente al usuario
-                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
-                using (var _context = DbContextFactory.Create(userConnectionString))
-                {
-                    if (_context.vecliente == null)
-                    {
-                        return Problem("Entidad vecliente es null.");
-                    }
-                    var result = await _context.vecliente.OrderByDescending(fechareg => fechareg.fechareg).ToListAsync();
-                    return Ok(result);
-                }
-                
-            }
-            catch (Exception)
-            {
-                return BadRequest("Error en el servidor");
-            }
-
-
-        }
-        */
-
-
         // GET: api/vecliente/5
         [HttpGet("{userConn}/{codigo}")]
         public async Task<ActionResult<vecliente>> Getvecliente(string userConn, string codigo)
@@ -250,11 +217,45 @@ namespace SIAW.Controllers.ventas.mantenimiento
                         throw;
                     }
                 }
-
                 return Ok("206");   // actualizado con exito
             }
-            
         }
+
+
+
+        // PUT: api/vecliente/5
+        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [Authorize]
+        [HttpPut]
+        [Route("clienteCasual/{userConn}/{codigo}/{casual}")]
+        public async Task<IActionResult> PutClienteCasual(string userConn, string codigo, bool casual)
+        {
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var vecliente = await _context.vecliente.Where(i => i.codigo == codigo).FirstOrDefaultAsync();
+                if (vecliente == null)
+                {
+                    return NotFound("No existe un registro con ese código");
+                }
+                vecliente.casual = casual;
+                _context.Entry(vecliente).State = EntityState.Modified;
+
+                try
+                {
+                    await _context.SaveChangesAsync();
+                }
+                catch (DbUpdateConcurrencyException)
+                {
+                    return Problem("Error en el servidor");
+                }
+                return Ok("206");   // actualizado con exito
+            }
+        }
+
+
 
         // POST: api/vecliente
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
