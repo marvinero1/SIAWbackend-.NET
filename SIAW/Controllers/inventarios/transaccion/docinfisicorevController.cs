@@ -73,9 +73,6 @@ namespace SIAW.Controllers.inventarios.transaccion
                         dbContexTransaction.Commit();
                         return Ok(new { resp = "aceptado" });
 
-                        
-
-
 
                         //return Ok(new {codinvconsol = res_codinvconsol, codgrupo = res_codgrupo});
                     }
@@ -177,6 +174,7 @@ namespace SIAW.Controllers.inventarios.transaccion
 
 
         // POST: api/
+        [Authorize]
         [HttpPost]
         [Route("guardardetalle/{userConn}/{codinfisico}")]
         public async Task<ActionResult<string>> guardardetalle(string userConn, int codinfisico, List<detalleInfisico> infisicoDetalle)

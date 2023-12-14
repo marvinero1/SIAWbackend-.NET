@@ -17,5 +17,8 @@ namespace siaw_DBContext.Models
         public string horareg { get; set; }
         public DateTime fechareg { get; set; }
         public string usuarioreg { get; set; }
+        public bool? habilitado { get; set; }
+        public DateTime? desde_fecha { get; set; }
+        public DateTime? hasta_fecha { get; set; }
     }
 }

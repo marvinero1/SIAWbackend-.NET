@@ -34,7 +34,49 @@ namespace SIAW.Controllers.ventas.mantenimiento
                     {
                         return Problem("Entidad vedescuento es null.");
                     }
-                    var result = await _context.vedescuento.OrderBy(codigo => codigo.codigo).ToListAsync();
+
+
+
+                    var result = await _context.vedescuento
+                        .Join(
+                            _context.veempaque,
+                            vd => vd.codempaque,
+                            ve => ve.codigo,
+                            (vd, ve) => new { vd, ve }
+                        )
+                        .Join(
+                            _context.admoneda,
+                            x => x.vd.moneda,
+                            am => am.codigo,
+                            (x, am) => new { x.vd, x.ve, am }
+                        )
+                        .OrderBy(x => x.vd.codigo)
+                        .Select(x => new
+                        {
+                            codigo = x.vd.codigo,
+                            descripcion = x.vd.descripcion,
+                            codempaque = x.vd.codempaque,
+                            empaqueDescrip = x.ve.descripcion,
+
+                            monto = x.vd.monto,
+                            moneda = x.vd.moneda,
+
+                            monedaDescrip = x.am.descripcion,
+
+                            descuento = x.vd.descuento,
+                            ultimos = x.vd.ultimos,
+                            horareg = x.vd.horareg,
+                            fechareg = x.vd.fechareg,
+                            usuarioreg = x.vd.usuarioreg,
+                            habilitado = x.vd.habilitado,
+                            desde_fecha = x.vd.desde_fecha,
+                            hasta_fecha = x.vd.hasta_fecha
+                        })
+                        .ToListAsync();
+
+
+
+
                     return Ok(result);
                 }
                 
@@ -64,7 +106,42 @@ namespace SIAW.Controllers.ventas.mantenimiento
                     {
                         return Problem("Entidad vedescuento es null.");
                     }
-                    var vedescuento = await _context.vedescuento.FindAsync(codigo);
+                    var vedescuento = await _context.vedescuento
+                        .Where(i => i.codigo == codigo)
+                        .Join(
+                            _context.veempaque,
+                            vd => vd.codempaque,
+                            ve => ve.codigo,
+                            (vd, ve) => new { vd, ve }
+                        )
+                        .Join(
+                            _context.admoneda,
+                            x => x.vd.moneda,
+                            am => am.codigo,
+                            (x, am) => new { x.vd, x.ve, am }
+                        )
+                        .Select(x => new
+                        {
+                            codigo = x.vd.codigo,
+                            descripcion = x.vd.descripcion,
+                            codempaque = x.vd.codempaque,
+                            empaqueDescrip = x.ve.descripcion,
+
+                            monto = x.vd.monto,
+                            moneda = x.vd.moneda,
+
+                            monedaDescrip = x.am.descripcion,
+
+                            descuento = x.vd.descuento,
+                            ultimos = x.vd.ultimos,
+                            horareg = x.vd.horareg,
+                            fechareg = x.vd.fechareg,
+                            usuarioreg = x.vd.usuarioreg,
+                            habilitado = x.vd.habilitado,
+                            desde_fecha = x.vd.desde_fecha,
+                            hasta_fecha = x.vd.hasta_fecha
+                        })
+                        .FirstOrDefaultAsync();
 
                     if (vedescuento == null)
                     {
@@ -73,7 +150,6 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
                     return Ok(vedescuento);
                 }
-                
             }
             catch (Exception)
             {

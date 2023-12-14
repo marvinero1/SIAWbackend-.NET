@@ -198,12 +198,8 @@ namespace SIAW.Controllers.ventas.mantenimiento
                         throw;
                     }
                 }
-
                 return Ok("206");   // actualizado con exito
             }
-
-
-
         }
 
         // POST: api/vetienda

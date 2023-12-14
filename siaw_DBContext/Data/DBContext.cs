@@ -60116,7 +60116,11 @@ namespace siaw_DBContext.Data
                     .IsRequired()
                     .HasMaxLength(30);
 
+                entity.Property(e => e.desde_fecha).HasColumnType("smalldatetime");
+
                 entity.Property(e => e.fechareg).HasColumnType("smalldatetime");
+
+                entity.Property(e => e.hasta_fecha).HasColumnType("smalldatetime");
 
                 entity.Property(e => e.horareg)
                     .IsRequired()

@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using siaw_DBContext.Data;
+using siaw_DBContext.Models;
 
 namespace siaw_funciones
 {
@@ -34,6 +35,20 @@ namespace siaw_funciones
                 resultado = (bool)stock_seguridad;
             }
             return resultado;
+        }
+
+
+        public async Task<int> CodAlmacen(string userConnectionString, string codigoempresa)
+        {
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                //precio unitario del item
+                int codalmacen = (int)await _context.adempresa
+                    .Where(i => i.codigo == codigoempresa)
+                    .Select(i => i.codalmacen)
+                    .FirstOrDefaultAsync();
+                return codalmacen;
+            }
         }
     }
 }

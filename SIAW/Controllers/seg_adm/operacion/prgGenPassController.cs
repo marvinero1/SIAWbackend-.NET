@@ -16,6 +16,7 @@ namespace SIAW.Controllers.seg_adm.operacion
         private readonly UserConnectionManager _userConnectionManager;
         private readonly Funciones funciones = new Funciones();
         private readonly Seguridad seguridad = new Seguridad();
+        private readonly Empresa empresa = new Empresa();   
         public prgGenPassController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;
@@ -62,10 +63,11 @@ namespace SIAW.Controllers.seg_adm.operacion
         // POST: api/
         [Authorize]
         [HttpPost]
-        [Route("verifPermisoEsp/{userConn}/{servicio}/{codpersona}/{password}/{codalmacen}/{dato_a}/{dato_b}")]
-        public async Task<ActionResult<bool>> verifPermisoEsp(string userConn, int servicio, int codpersona, string password, int codalmacen, string dato_a, string dato_b)
+        [Route("verifPermisoEsp/{userConn}/{servicio}/{codpersona}/{password}/{codempresa}/{dato_a}/{dato_b}")]
+        public async Task<ActionResult<bool>> verifPermisoEsp(string userConn, int servicio, int codpersona, string password, string codempresa, string dato_a, string dato_b)
         {
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+            int codalmacen = await empresa.CodAlmacen(userConnectionString, codempresa);
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 try
