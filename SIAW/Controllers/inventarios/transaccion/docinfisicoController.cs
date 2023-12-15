@@ -226,7 +226,6 @@ namespace SIAW.Controllers.inventarios.transaccion
                 }
             }
         }
-
     }
 
 
@@ -239,5 +238,4 @@ namespace SIAW.Controllers.inventarios.transaccion
         public string udm { get; set; }
         public decimal cantidad { get; set; }
     }
-
 }

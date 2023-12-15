@@ -60166,7 +60166,7 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<vedescuento_tarifa>(entity =>
             {
-                entity.HasNoKey();
+                entity.HasKey(e => new { e.coddescuento, e.codtarifa });
             });
 
             modelBuilder.Entity<vedesextra>(entity =>
@@ -60444,14 +60444,15 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<vedesnivel_clasificacion>(entity =>
             {
-                entity.HasNoKey();
-
-                entity.Property(e => e.clasificacion)
-                    .HasMaxLength(5)
-                    .IsUnicode(false);
+                entity.HasKey(e => new { e.codvedesnivel, e.clasificacion })
+                    .HasName("PK_MiTabla");
 
                 entity.Property(e => e.codvedesnivel)
                     .HasMaxLength(1)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.clasificacion)
+                    .HasMaxLength(5)
                     .IsUnicode(false);
             });
 

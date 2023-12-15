@@ -183,7 +183,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
                     if (veclientesiguales == null)
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound("No existe un registro con los datos proporcionados");
                     }
 
                     _context.veclientesiguales.Remove(veclientesiguales);

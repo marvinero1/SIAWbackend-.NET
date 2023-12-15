@@ -26,16 +26,12 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.vedescuento == null)
                     {
                         return Problem("Entidad vedescuento es null.");
                     }
-
-
 
                     var result = await _context.vedescuento
                         .Join(
@@ -180,11 +176,6 @@ namespace SIAW.Controllers.ventas.mantenimiento
                     });
 
                     var result = query.ToList();
-
-                    if (result.Count() == 0)
-                    {
-                        return Problem("Entidad vedescuento es null.");
-                    }
                     return Ok(result);
                 }
                 
@@ -204,8 +195,6 @@ namespace SIAW.Controllers.ventas.mantenimiento
         {
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-
-            //var _context = _userConnectionManager.GetUserConnection(userId);
 
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
@@ -322,5 +311,340 @@ namespace SIAW.Controllers.ventas.mantenimiento
             return (_context.vedescuento?.Any(e => e.codigo == codigo)).GetValueOrDefault();
 
         }
+
+
+
+
+        // GET: api/vedescuento
+        [HttpGet]
+        [Route("vedescuento_tarifa/{userConn}/{coddescuento}")]
+        public async Task<ActionResult<IEnumerable<vedescuento_tarifa>>> Getvedescuento_tarifa(string userConn, int coddescuento)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    if (_context.vedescuento == null)
+                    {
+                        return Problem("Entidad vedescuento es null.");
+                    }
+
+                    var result = await _context.vedescuento_tarifa
+                        .Where(i => i.coddescuento == coddescuento)
+                        .Join(
+                            _context.intarifa,
+                            c => c.codtarifa,
+                            t => t.codigo,
+                            (c, t) => new { c, t }
+                        )
+                        .OrderBy(x => x.c.codtarifa)
+                        .Select(x => new
+                        {
+                            coddescuento = x.c.coddescuento,
+                            codtarifa = x.c.codtarifa,
+                            descripcion = x.t.descripcion
+                        })
+                        .ToListAsync();
+
+                    return Ok(result);
+                }
+            }
+            catch (Exception)
+            {
+                return BadRequest("Error en el servidor");
+            }
+
+
+        }
+
+
+
+        // POST: api/vedescuento_tarifa
+        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [Authorize]
+        [HttpPost]
+        [Route("vedescuento_tarifa/{userConn}")]
+        public async Task<ActionResult<vedescuento_tarifa>> Postvedescuento_tarifa(string userConn, vedescuento_tarifa vedescuento_tarifa)
+        {
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var valida = await _context.vedescuento_tarifa
+                    .Where(i => i.coddescuento == vedescuento_tarifa.coddescuento && i.codtarifa == vedescuento_tarifa.codtarifa)
+                    .FirstOrDefaultAsync();
+                if (valida != null)
+                {
+                    return Conflict("Ya existe un registro con los datos proporcionados");
+                }
+                _context.vedescuento_tarifa.Add(vedescuento_tarifa);
+                try
+                {
+                    await _context.SaveChangesAsync();
+                }
+                catch (DbUpdateException)
+                {
+                    return Problem("Error en el servidor");
+                }
+
+                return Ok("204");   // creado con exito
+            }
+        }
+
+        // DELETE: api/vedescuento_tarifa/5
+        [Authorize]
+        [HttpDelete]
+        [Route("vedescuento_tarifa/{userConn}/{coddescuento}/{codtarifa}")]
+        public async Task<IActionResult> Deletevedescuento_tarifa(string userConn, int coddescuento, int codtarifa)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var vedescuento_tarifa = await _context.vedescuento_tarifa
+                        .Where(i => i.coddescuento == coddescuento && i.codtarifa == codtarifa)
+                        .FirstOrDefaultAsync();
+                    if (vedescuento_tarifa == null)
+                    {
+                        return NotFound("No existe un registro con los datos proporcionados");
+                    }
+
+                    _context.vedescuento_tarifa.Remove(vedescuento_tarifa);
+                    await _context.SaveChangesAsync();
+
+                    return Ok("208");   // eliminado con exito
+                }
+            }
+            catch (Exception)
+            {
+                return BadRequest("Error en el servidor");
+            }
+        }
+
+
+
+        // DELETE: api/vedescuento_tarifa/5
+        [Authorize]
+        [HttpDelete]
+        [Route("deleteTodo_vedescuento_tarifa/{userConn}/{coddescuento}")]
+        public async Task<IActionResult> deleteTodo_vedescuento_tarifa(string userConn, int coddescuento)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var vedescuento_tarifa = await _context.vedescuento_tarifa
+                        .Where(i => i.coddescuento == coddescuento)
+                        .ToListAsync();
+                    if (vedescuento_tarifa.Count() > 0)
+                    {
+                        _context.vedescuento_tarifa.RemoveRange(vedescuento_tarifa);
+                        await _context.SaveChangesAsync();
+                        return Ok("208");   // eliminado con exito
+
+                    }
+                    return NotFound("No existe ningun registro con los datos proporcionados");
+                }
+            }
+            catch (Exception)
+            {
+                return BadRequest("Error en el servidor");
+            }
+        }
+
+
+
+
+        // GET: api/vedescuento1
+        [HttpGet]
+        [Route("vedescuento1/{userConn}/{coddescuento}")]
+        public async Task<ActionResult<IEnumerable<vedescuento1>>> Getvedescuento1(string userConn, int coddescuento)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    if (_context.vedescuento == null)
+                    {
+                        return Problem("Entidad vedescuento es null.");
+                    }
+
+                    var result = await _context.vedescuento1
+                        .Join(
+                            _context.inlinea,
+                            d => d.codlinea,
+                            l => l.codigo,
+                            (d, l) => new
+                            {
+                                d.codigo,
+                                d.coddescuento,
+                                d.codlinea,
+                                d.descuento,
+                                l.descripcion
+                            }
+                        )
+                        .Where(x => x.coddescuento == coddescuento)
+                        .OrderBy(x => x.codlinea)
+                        .ToListAsync();
+
+                    return Ok(result);
+                }
+            }
+            catch (Exception)
+            {
+                return BadRequest("Error en el servidor");
+            }
+
+
+        }
+
+
+
+
+        // POST: api/vedescuento1
+        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [Authorize]
+        [HttpPost]
+        [Route("vedescuento1/{userConn}")]
+        public async Task<ActionResult<vedescuento1>> Postvedescuento1(string userConn, vedescuento1 vedescuento1)
+        {
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var valida = await _context.vedescuento1
+                    .Where(i => i.codlinea == vedescuento1.codlinea && i.coddescuento == vedescuento1.coddescuento)
+                    .FirstOrDefaultAsync();
+                if (valida != null)
+                {
+                    return Conflict("Ya existe un registro con los datos proporcionados");
+                }
+                _context.vedescuento1.Add(vedescuento1);
+                try
+                {
+                    await _context.SaveChangesAsync();
+                }
+                catch (DbUpdateException)
+                {
+                    return Problem("Error en el servidor");
+                }
+
+                return Ok("204");   // creado con exito
+            }
+        }
+
+
+
+
+
+
+
+        // DELETE: api/vedescuento1/5
+        [Authorize]
+        [HttpDelete]
+        [Route("vedescuento1/{userConn}/{coddescuento1}")]
+        public async Task<IActionResult> vedescuento1(string userConn, int coddescuento1)
+        {
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                using (var dbContexTransaction = _context.Database.BeginTransaction())
+                {
+                    try
+                    {
+                        // delete vedecuento 1
+                        var vedescuento1 = await _context.vedescuento1
+                        .Where(i => i.codigo == coddescuento1)
+                        .FirstOrDefaultAsync();
+                        if (vedescuento1 == null)
+                        {
+                            return NotFound("No existe ningun registro con los datos proporcionados");
+                        }
+                        _context.vedescuento1.Remove(vedescuento1);
+                        await _context.SaveChangesAsync();
+
+
+                        // delete vedescuento2
+                        var vedescuento2 = await _context.vedescuento2
+                        .Where(i => i.coddescuento1 == coddescuento1)
+                        .ToListAsync();
+                        if (vedescuento2.Count() > 0)
+                        {
+                            _context.vedescuento2.RemoveRange(vedescuento2);
+                            await _context.SaveChangesAsync();
+                        }
+
+                        
+
+                        dbContexTransaction.Commit();
+                        return Ok("208");   // eliminado con exito
+                    }
+                    catch (Exception)
+                    {
+                        dbContexTransaction.Rollback();
+                        return BadRequest("Error en el servidor");
+                        throw;
+                    }
+                }
+
+            }
+        }
+
+
+
+
+
+
+
+
+        // REVISAR Y VALIUDA  BOTON LIMPIAR
+        // DELETE: api/vedescuento1/5
+        [Authorize]
+        [HttpDelete]
+        [Route("deleteTodo_vedescuento1/{userConn}/{coddescuento}")]
+        public async Task<IActionResult> deleteTodo_vedescuento1(string userConn, int coddescuento)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var vedescuento_tarifa = await _context.vedescuento_tarifa
+                        .Where(i => i.coddescuento == coddescuento)
+                        .ToListAsync();
+                    if (vedescuento_tarifa.Count() > 0)
+                    {
+                        _context.vedescuento_tarifa.RemoveRange(vedescuento_tarifa);
+                        await _context.SaveChangesAsync();
+                        return Ok("208");   // eliminado con exito
+
+                    }
+                    return NotFound("No existe ningun registro con los datos proporcionados");
+                }
+            }
+            catch (Exception)
+            {
+                return BadRequest("Error en el servidor");
+            }
+        }
+
     }
 }
