@@ -70,10 +70,12 @@ namespace SIAW.Controllers
                 try
                 {
                     var data = _context.adusuario.FirstOrDefault(e => e.login == login.login);
+
                     if (data == null)
                     {
                         return NotFound("201");         //-----No se encontro un registro con los datos proporcionados (usuario).
                     }
+
                     if (data.password_siaw != encript.EncryptToMD5Base64(login.password))
                     {
                         return Unauthorized("203");           //-----Contraseña Erronea.
@@ -82,14 +84,19 @@ namespace SIAW.Controllers
                     {
                         return Unauthorized("207");           //-----Usuario no activo.
                     }
+                    if (!verificaVencimiento(data.vencimiento))
+                    {
+                        return Unauthorized("215");          //------Su cuenta vencio
+                    }
                     var rolUser = _context.serol.FirstOrDefault(e => e.codigo == data.codrol);
                     if (rolUser == null)
                     {
                         return NotFound("213");                //-----No se encontro un registro con los datos proporcionados (rol).
-                    }  
+                    }
+                    
 
                     int dias = (int)rolUser.dias_cambio;
-
+                    
                     if (!verificaFechaPass(data.fechareg_siaw, dias))
                     {
                         return Unauthorized("205");          //------Su contraseña ya venció, registre una nueva.
@@ -113,6 +120,19 @@ namespace SIAW.Controllers
         private void guardaStringConection(string userConn, string connectioString)
         {
             _userConnectionManager.SetUserConnection(userConn, connectioString);
+        }
+
+        public static bool verificaVencimiento(DateTime vencimiento)
+        {
+            DateTime fechaActual = DateTime.Now;
+            var f = fechaActual.ToString("yyyy-MM-dd"); //importante
+            DateTime fechaHoy = DateTime.Parse(f);  //importante
+
+            if (vencimiento < fechaHoy)
+            {
+                return false;
+            }
+            return true;
         }
 
         public static bool verificaFechaPass(DateTime fechareg, int dias)
