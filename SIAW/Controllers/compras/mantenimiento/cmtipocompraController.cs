@@ -26,13 +26,11 @@ namespace SIAW.Controllers.compras.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.cmtipocompra == null)
                     {
-                        return Problem("Entidad cmtipocompra es null.");
+                        return BadRequest(new { resp = "Entidad cmtipocompra es null." });
                     }
                     var result = await _context.cmtipocompra.OrderBy(id => id.id).ToListAsync();
                     return Ok(result);
@@ -41,7 +39,7 @@ namespace SIAW.Controllers.compras.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
 
 
@@ -56,19 +54,17 @@ namespace SIAW.Controllers.compras.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.cmtipocompra == null)
                     {
-                        return Problem("Entidad cmtipocompra es null.");
+                        return BadRequest(new { resp = "Entidad cmtipocompra es null." });
                     }
                     var cmtipocompra = await _context.cmtipocompra.FindAsync(id);
 
                     if (cmtipocompra == null)
                     {
-                        return NotFound("No se encontro un registro con este código");
+                        return NotFound( new { resp = "No se encontro un registro con este código" });
                     }
 
                     return Ok(cmtipocompra);
@@ -77,7 +73,7 @@ namespace SIAW.Controllers.compras.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -90,13 +86,11 @@ namespace SIAW.Controllers.compras.mantenimiento
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (id != cmtipocompra.id)
                 {
-                    return BadRequest("Error con Id en datos proporcionados.");
+                    return BadRequest( new { resp = "Error con Id en datos proporcionados." });
                 }
 
                 _context.Entry(cmtipocompra).State = EntityState.Modified;
@@ -109,7 +103,7 @@ namespace SIAW.Controllers.compras.mantenimiento
                 {
                     if (!cmtipocompraExists(id, _context))
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
                     else
                     {
@@ -117,7 +111,7 @@ namespace SIAW.Controllers.compras.mantenimiento
                     }
                 }
 
-                return Ok("206");   // actualizado con exito
+                return Ok( new { resp = "206" });   // actualizado con exito
             }
             
 
@@ -133,13 +127,11 @@ namespace SIAW.Controllers.compras.mantenimiento
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.cmtipocompra == null)
                 {
-                    return Problem("Entidad cmtipocompra es null.");
+                    return BadRequest(new { resp = "Entidad cmtipocompra es null." });
                 }
                 _context.cmtipocompra.Add(cmtipocompra);
                 try
@@ -150,7 +142,7 @@ namespace SIAW.Controllers.compras.mantenimiento
                 {
                     if (cmtipocompraExists(cmtipocompra.id, _context))
                     {
-                        return Conflict("Ya existe un registro con ese código");
+                        return Conflict( new { resp = "Ya existe un registro con ese código" });
                     }
                     else
                     {
@@ -158,7 +150,7 @@ namespace SIAW.Controllers.compras.mantenimiento
                     }
                 }
 
-                return Ok("204");   // creado con exito
+                return Ok( new { resp = "204" });   // creado con exito
 
             }
             
@@ -174,31 +166,29 @@ namespace SIAW.Controllers.compras.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.cmtipocompra == null)
                     {
-                        return Problem("Entidad cmtipocompra es null.");
+                        return BadRequest(new { resp = "Entidad cmtipocompra es null." });
                     }
                     var cmtipocompra = await _context.cmtipocompra.FindAsync(id);
                     if (cmtipocompra == null)
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
 
                     _context.cmtipocompra.Remove(cmtipocompra);
                     await _context.SaveChangesAsync();
 
-                    return Ok("208");   // eliminado con exito
+                    return Ok( new { resp = "208" });   // eliminado con exito
                 }
                 
 
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 

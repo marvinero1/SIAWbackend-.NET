@@ -38,13 +38,13 @@ namespace SIAW.Controllers.seg_adm.operacion
                 string respuesta = await verificar(userConnectionString, codempresa, servicio, fechaAct, password);
                 if (respuesta == "")
                 {
-                    return NotFound("713");
+                    return NotFound( new { resp = "713" });
                 }
                 return Ok(new {cod = 712, resp = respuesta });
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 

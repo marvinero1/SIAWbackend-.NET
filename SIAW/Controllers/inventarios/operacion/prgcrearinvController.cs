@@ -45,14 +45,14 @@ namespace SIAW.Controllers.inventarios.operacion
 
                     if (result.Count() == 0)
                     {
-                        return Problem("Entidad intipoinv es null.");
+                        return BadRequest(new { resp = "Entidad intipoinv es null." });
                     }
                     return Ok(result);
                 }
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
                 throw;
             }
         }
@@ -73,18 +73,18 @@ namespace SIAW.Controllers.inventarios.operacion
 
             if (existeinv)
             {
-                return Ok(new {resp = "Ya existe un Inventario con ese Id y Numero Id" });
+                return Conflict(new {resp = "Ya existe un Inventario con ese Id y Numero Id" });
             }
             if (!periodo_fechaabierta)
             {
-                return Ok(new { resp = "No puede crear documentos para ese periodo de fechas. Periodo Cerrado" });
+                return Conflict(new { resp = "No puede crear documentos para ese periodo de fechas. Periodo Cerrado" });
             }
 
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.ininvconsol == null)
                 {
-                    return Problem("Entidad ininvconsol es null.");
+                    return BadRequest(new { resp = "Entidad ininvconsol es null." });
                 }
                 using (var dbContexTransaction = _context.Database.BeginTransaction())
                 {
@@ -100,7 +100,7 @@ namespace SIAW.Controllers.inventarios.operacion
                         await _context.SaveChangesAsync();
 
                         dbContexTransaction.Commit();
-                        return Ok("204");   // creado con exito
+                        return Ok( new { resp = "204" });   // creado con exito
                     }
                     catch (Exception)
                     {

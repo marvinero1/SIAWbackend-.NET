@@ -57,7 +57,7 @@ namespace SIAW.Controllers.inventarios.operacion
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -149,8 +149,7 @@ namespace SIAW.Controllers.inventarios.operacion
                     {
                         return Ok(dataconsol);
                     }
-                    return BadRequest("Problema al guardar los datos");
-
+                    return BadRequest( new { resp = "Problema al guardar los datos" });
                 }
                 catch (Exception)
                 {

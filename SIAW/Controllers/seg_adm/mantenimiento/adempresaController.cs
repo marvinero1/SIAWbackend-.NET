@@ -26,13 +26,11 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adempresa == null)
                     {
-                        return Problem("Entidad adempresa es null.");
+                        return BadRequest(new { resp = "Entidad adempresa es null." });
                     }
                     var result = await _context.adempresa.OrderByDescending(fechareg => fechareg.Fechareg).ToListAsync();
                     return Ok(result);
@@ -41,7 +39,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
 
 
@@ -56,19 +54,17 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adempresa == null)
                     {
-                        return Problem("Entidad adempresa es null.");
+                        return BadRequest(new { resp = "Entidad adempresa es null." });
                     }
                     var adempresa = await _context.adempresa.FindAsync(codigo);
 
                     if (adempresa == null)
                     {
-                        return NotFound("No se encontro un registro con este código");
+                        return NotFound( new { resp = "No se encontro un registro con este código" });
                     }
 
                     return Ok(adempresa);
@@ -77,7 +73,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -104,7 +100,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                     if (adempresa == null)
                     {
-                        return NotFound("No se encontro un registro con este código");
+                        return NotFound( new { resp = "No se encontro un registro con este código" });
                     }
 
                     return Ok(adempresa);
@@ -112,7 +108,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -129,13 +125,11 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (codigo != adempresa.codigo)
                 {
-                    return BadRequest("Error con Id en datos proporcionados.");
+                    return BadRequest( new { resp = "Error con Id en datos proporcionados." });
                 }
 
                 _context.Entry(adempresa).State = EntityState.Modified;
@@ -148,15 +142,16 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 {
                     if (!adempresaExists(codigo, _context))
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
                     else
                     {
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
 
-                return Ok("206");   // actualizado con exito
+                return Ok( new { resp = "206" });   // actualizado con exito
             }
             
 
@@ -172,13 +167,11 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.adempresa == null)
                 {
-                    return Problem("Entidad adempresa es null.");
+                    return BadRequest(new { resp = "Entidad adempresa es null." });
                 }
                 _context.adempresa.Add(adempresa);
                 try
@@ -189,15 +182,16 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 {
                     if (adempresaExists(adempresa.codigo, _context))
                     {
-                        return Conflict("Ya existe un registro con ese código");
+                        return Conflict( new { resp = "Ya existe un registro con ese código" });
                     }
                     else
                     {
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
 
-                return Ok("204");   // creado con exito
+                return Ok( new { resp = "204" });   // creado con exito
 
             }
             
@@ -213,31 +207,27 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adempresa == null)
                     {
-                        return Problem("Entidad adempresa es null.");
+                        return BadRequest(new { resp = "Entidad adempresa es null." });
                     }
                     var adempresa = await _context.adempresa.FindAsync(codigo);
                     if (adempresa == null)
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
 
                     _context.adempresa.Remove(adempresa);
                     await _context.SaveChangesAsync();
 
-                    return Ok("208");   // eliminado con exito
+                    return Ok( new { resp = "208" });   // eliminado con exito
                 }
-                
-
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -257,8 +247,6 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             {
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-
-                //var _context = _userConnectionManager.GetUserConnection(userId);
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
@@ -296,7 +284,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                     if (query.Count() == 0)
                     {
-                        return Problem("Revise los datos ingresados.");
+                        return NotFound(new { resp = "No se encontraron registros." });
                     }
                     return Ok(query);
                 }
@@ -304,7 +292,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
                 throw;
             }
         }
@@ -319,8 +307,6 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             {
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-
-                //var _context = _userConnectionManager.GetUserConnection(userId);
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
@@ -359,7 +345,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                     if (query == null)
                     {
-                        return Problem("Revise los datos ingresados.");
+                        return NotFound(new { resp = "No existe un registro con esa información" });
                     }
                     return Ok(query);
                 }
@@ -367,7 +353,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
                 throw;
             }
         }

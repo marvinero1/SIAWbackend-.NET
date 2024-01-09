@@ -38,7 +38,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                     if (adautorizacion_deshabilitadas.Count() == 0)
                     {
-                        return NotFound("No se encontro un registro con este código");
+                        return NotFound( new { resp = "No se encontro un registro con este código" });
                     }
 
                     return Ok(adautorizacion_deshabilitadas);
@@ -46,7 +46,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -83,7 +83,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                     if (adautorizacion == null)
                     {
-                        return NotFound("No se encontro un registro con este código");
+                        return NotFound( new { resp = "No se encontro un registro con este código" });
                     }
 
                     return Ok(adautorizacion);
@@ -91,7 +91,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -126,7 +126,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                     if (adautorizacion.Count() == 0)
                     {
-                        return NotFound("No se encontro un registro con este código");
+                        return NotFound( new { resp = "No se encontro un registro con este código" });
                     }
 
                     return Ok(adautorizacion);
@@ -134,7 +134,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -170,15 +170,16 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 {
                     if (!adautorizacionExists(codigo, _context))
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
                     else
                     {
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
 
-                return Ok("206");   // actualizado con exito
+                return Ok( new { resp = "206" });   // actualizado con exito
             }
         }
 
@@ -196,7 +197,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             {
                 if (_context.adautorizacion == null)
                 {
-                    return Problem("Entidad adautorizacion es null.");
+                    return BadRequest(new { resp = "Entidad adautorizacion es null." });
                 }
 
                 var passEncript = await funciones.EncriptarMD5(adautorizacion.password);
@@ -211,15 +212,16 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 {
                     if (adautorizacionExists(adautorizacion.codigo, _context))
                     {
-                        return Conflict("Ya existe un registro con ese código");
+                        return Conflict( new { resp = "Ya existe un registro con ese código" });
                     }
                     else
                     {
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
 
-                return Ok("204");   // creado con exito
+                return Ok( new { resp = "204" });   // creado con exito
 
             }
 
@@ -236,31 +238,29 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adautorizacion == null)
                     {
-                        return Problem("Entidad adautorizacion es null.");
+                        return BadRequest(new { resp = "Entidad adautorizacion es null." });
                     }
                     var adautorizacion = await _context.adautorizacion.FindAsync(codigo);
                     if (adautorizacion == null)
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
 
                     _context.adautorizacion.Remove(adautorizacion);
                     await _context.SaveChangesAsync();
 
-                    return Ok("208");   // eliminado con exito
+                    return Ok( new { resp = "208" });   // eliminado con exito
                 }
 
 
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -287,7 +287,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             {
                 if (_context.adautorizacion_deshabilitadas == null)
                 {
-                    return Problem("Entidad adautorizacion_deshabilitadas es null.");
+                    return BadRequest(new { resp = "Entidad adautorizacion_deshabilitadas es null." });
                 }
                 _context.adautorizacion_deshabilitadas.Add(adautorizacion_deshabilitadas);
                 try
@@ -298,10 +298,11 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 {
                     if (adautorizacion_deshabilitadasExists(adautorizacion_deshabilitadas.nivel, _context))
                     {
-                        return Conflict("Ya existe un registro con ese código");
+                        return Conflict( new { resp = "Ya existe un registro con ese código" });
                     }
                     else
                     {
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
@@ -323,31 +324,27 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adautorizacion_deshabilitadas == null)
                     {
-                        return Problem("Entidad adautorizacion_deshabilitadas es null.");
+                        return BadRequest(new { resp = "Entidad adautorizacion_deshabilitadas es null." });
                     }
                     var adautorizacion_deshabilitadas = await _context.adautorizacion_deshabilitadas.FindAsync(nivel);
                     if (adautorizacion_deshabilitadas == null)
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
 
                     _context.adautorizacion_deshabilitadas.Remove(adautorizacion_deshabilitadas);
                     await _context.SaveChangesAsync();
 
-                    return Ok("208");   // eliminado con exito
+                    return Ok( new { resp = "208" });   // eliminado con exito
                 }
-
-
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 

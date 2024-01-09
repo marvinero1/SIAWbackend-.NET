@@ -51,7 +51,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                     if (result.Count == 0)
                     {
-                        return Ok("No se encontraron datos");
+                        return BadRequest(new { resp = "No se encontraron registros." });
                     }
                     return Ok(result);
                 }
@@ -59,7 +59,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
 
 
@@ -84,7 +84,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -119,7 +119,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -159,7 +159,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                         await _context.SaveChangesAsync();
 
                         dbContexTransaction.Commit();
-                        return Ok("204");   // creado con exito
+                        return Ok( new { resp = "204" });   // creado con exito
                     }
                     catch (Exception)
                     {
@@ -179,25 +179,18 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
         [Route("verifPeriodoAbierto/{userConn}/{fecha}/{modulo}")]
         public async Task<ActionResult<bool>> verifPeriodoAbierto(string userConn, DateTime fecha, int modulo)
         {
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
             try
             {
-                // Obtener el contexto de base de datos correspondiente al usuario
-                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-
-                try
-                {
-                    bool periodoAbierto = await seguridad.periodo_fechaabierta(userConnectionString, fecha, modulo);
-                    return Ok(periodoAbierto);
-                }
-                catch (Exception)
-                {
-                    return Problem("Error en el Servidor");
-                    throw;
-                }
+                bool periodoAbierto = await seguridad.periodo_fechaabierta(userConnectionString, fecha, modulo);
+                return Ok(periodoAbierto);
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el Servidor");
+                throw;
             }
         }
     }

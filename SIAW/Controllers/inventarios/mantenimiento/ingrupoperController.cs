@@ -31,7 +31,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 {
                     if (_context.ingrupoper == null)
                     {
-                        return Problem("Entidad ingrupoper es null.");
+                        return BadRequest(new { resp = "Entidad ingrupoper es null." });
                     }
                     var result = await _context.ingrupoper
                         .Where(i => i.codinvconsol == codinvconsol)
@@ -42,7 +42,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -64,7 +64,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     .FirstOrDefaultAsync();
                     if (result == null)
                     {
-                        return BadRequest("Ese documento de inventario no existe (Doc Inventario)");
+                        return BadRequest(new { resp = "Ese documento de inventario no existe (Doc Inventario)" });
                     }
                     int res_codinvconsol = result.codigo;
                     var dataGroup = await _context.ingrupoper
@@ -78,7 +78,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                         .FirstOrDefaultAsync();
                     if (dataGroup == null)
                     {
-                        return BadRequest("Ese documento de inventario no existe (Grupo)");
+                        return BadRequest(new { resp = "Ese documento de inventario no existe (Grupo)" });
                     }
                     return Ok(dataGroup);
                 }
@@ -100,13 +100,11 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.ingrupoper == null)
                 {
-                    return Problem("Entidad ingrupoper es null.");
+                    return BadRequest(new { resp = "Entidad ingrupoper es null." });
                 }
                 _context.ingrupoper.Add(ingrupoper);
                 try
@@ -117,15 +115,16 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 {
                     if (ingrupoperExists(ingrupoper.codigo, _context))
                     {
-                        return Conflict("Ya existe un registro con ese código");
+                        return Conflict( new { resp = "Ya existe un registro con ese código" });
                     }
                     else
                     {
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
 
-                return Ok("204");   // creado con exito
+                return Ok( new { resp = "204" });   // creado con exito
 
             }
 
@@ -149,7 +148,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                         var ingrupoper = await _context.ingrupoper.FindAsync(codigo);
                         if (ingrupoper == null)
                         {
-                            return NotFound("No existe un registro con ese código");
+                            return NotFound( new { resp = "No existe un registro con ese código" });
                         }
                         _context.ingrupoper.Remove(ingrupoper);
                         await _context.SaveChangesAsync();
@@ -166,7 +165,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                         }
                        
                         dbContexTransaction.Commit();
-                        return Ok("208");   // eliminado con exito
+                        return Ok( new { resp = "208" });   // eliminado con exito
                     }
                     catch (Exception)
                     {
@@ -217,7 +216,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 {
                     if (_context.ingrupoper1 == null)
                     {
-                        return Problem("Entidad ingrupoper1 es null.");
+                        return BadRequest(new { resp = "Entidad ingrupoper1 es null." });
                     }
                     var result = await _context.ingrupoper1
                         .Join(
@@ -241,7 +240,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -259,7 +258,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             {
                 if (_context.ingrupoper1 == null)
                 {
-                    return Problem("Entidad ingrupoper1 es null.");
+                    return BadRequest(new { resp = "Entidad ingrupoper1 es null." });
                 }
                 _context.ingrupoper1.Add(ingrupoper1);
                 try
@@ -270,14 +269,15 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 {
                     if (ingrupoper1Exists(ingrupoper1.codgrupoper, ingrupoper1.codpersona, _context))
                     {
-                        return Conflict("715");
+                        return Conflict( new { resp = "715" });
                     }
                     else
                     {
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
-                return Ok("204");   // creado con exito
+                return Ok( new { resp = "204" });   // creado con exito
             }
         }
 
@@ -291,33 +291,31 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.ingrupoper1 == null)
                     {
-                        return Problem("Entidad ingrupoper1 es null.");
+                        return BadRequest(new { resp = "Entidad ingrupoper1 es null." });
                     }
                     var ingrupoper1 = await _context.ingrupoper1
                         .Where(i => i.codgrupoper==codgrupoper && i.codpersona == codpersona)
                         .FirstOrDefaultAsync();
                     if (ingrupoper1 == null)
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
 
                     _context.ingrupoper1.Remove(ingrupoper1);
                     await _context.SaveChangesAsync();
 
-                    return Ok("208");   // eliminado con exito
+                    return Ok( new { resp = "208" });   // eliminado con exito
                 }
 
 
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 

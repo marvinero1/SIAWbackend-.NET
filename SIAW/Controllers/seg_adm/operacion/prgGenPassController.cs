@@ -34,7 +34,7 @@ namespace SIAW.Controllers.seg_adm.operacion
                 return Ok(new { resp = pass });
             }
 
-            return BadRequest("Error en el servidor");
+            return Problem("Error en el servidor");
         }
 
 
@@ -55,7 +55,7 @@ namespace SIAW.Controllers.seg_adm.operacion
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -82,14 +82,14 @@ namespace SIAW.Controllers.seg_adm.operacion
                         {
                             return Ok(new { resp = autoriza.obs }); ///  autorizado a cierta persona
                         }
-                        return BadRequest("La contraseña no es correcta para su usuario");
+                        return BadRequest( new { resp = "La contraseña no es correcta para su usuario" });
                     }
                     string pass = await genSpecialAut(codalmacen, dato_a, dato_b, servicio.ToString());
                     if (pass == password)
                     {
                         return Ok(new { resp = "Autorizado" });
                     }
-                    return BadRequest("La contraseña no es correcta");
+                    return BadRequest(new { resp = "La contraseña no es correcta" });
                 }
                 catch (Exception)
                 {

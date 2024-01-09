@@ -30,8 +30,6 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     var query = _context.inzonaalmacen
@@ -47,7 +45,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                     if (result.Count() == 0)
                     {
-                        return Problem("Entidad inzonaalmacen es null.");
+                        return BadRequest(new { resp = "Entidad inzonaalmacen es null." });
                     }
                     return Ok(result);
                 }
@@ -55,7 +53,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
                 throw;
             }
         }

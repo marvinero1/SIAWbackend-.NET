@@ -45,14 +45,14 @@ namespace SIAW.Controllers.inventarios.operacion
 
                     if (result == null)
                     {
-                        return NotFound("No se encontraron registros con los datos proporcionados.");
+                        return NotFound( new { resp = "No se encontraron registros con los datos proporcionados." });
                     }
                     return Ok(result);
                 }
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
                 throw;
             }
         }
@@ -74,7 +74,7 @@ namespace SIAW.Controllers.inventarios.operacion
                 var newTarifa1 = await _context.intarifa1.Where(i => i.codtarifa == intarifa1.codtarifa && i.item == intarifa1.item).FirstOrDefaultAsync();
                 if(newTarifa1 == null)
                 {
-                    return NotFound("No se Encontraron registros con los datos proporcionados.");
+                    return NotFound( new { resp = "No se encontraron registros con los datos proporcionados." });
                 }
                 
                 newTarifa1.precio = intarifa1.precio;
@@ -89,7 +89,7 @@ namespace SIAW.Controllers.inventarios.operacion
                     return Problem("Error en el Servidor.");
                 }
 
-                return Ok("206");   // actualizado con exito
+                return Ok( new { resp = "206" });   // actualizado con exito
             }
         }
 

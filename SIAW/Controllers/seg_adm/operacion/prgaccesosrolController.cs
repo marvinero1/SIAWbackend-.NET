@@ -29,13 +29,11 @@ namespace SIAW.Controllers.seg_adm.operacion
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.semodulo == null)
                     {
-                        return Problem("Entidad semodulo es null.");
+                        return BadRequest(new { resp = "Entidad semodulo es null." });
                     }
                     var result = await _context.semodulo.OrderBy(codigo => codigo.codigo).ToListAsync();
                     return Ok(result);
@@ -44,7 +42,7 @@ namespace SIAW.Controllers.seg_adm.operacion
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -58,19 +56,17 @@ namespace SIAW.Controllers.seg_adm.operacion
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.semodulo == null)
                     {
-                        return Problem("Entidad semodulo es null.");
+                        return BadRequest(new { resp = "Entidad semodulo es null." });
                     }
                     var semodulo = await _context.semodulo.FindAsync(codigo);
 
                     if (semodulo == null)
                     {
-                        return NotFound("No se encontro un registro con este código");
+                        return NotFound( new { resp = "No se encontro un registro con este código" });
                     }
 
                     return Ok(semodulo);
@@ -79,7 +75,7 @@ namespace SIAW.Controllers.seg_adm.operacion
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -92,13 +88,11 @@ namespace SIAW.Controllers.seg_adm.operacion
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (codigo != semodulo.codigo)
                 {
-                    return BadRequest("Error con Id en datos proporcionados.");
+                    return BadRequest( new { resp = "Error con Id en datos proporcionados." });
                 }
 
                 _context.Entry(semodulo).State = EntityState.Modified;
@@ -111,15 +105,16 @@ namespace SIAW.Controllers.seg_adm.operacion
                 {
                     if (!semoduloExists(codigo, _context))
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
                     else
                     {
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
 
-                return Ok("206");   // actualizado con exito
+                return Ok( new { resp = "206" });   // actualizado con exito
             }
             
 
@@ -135,13 +130,11 @@ namespace SIAW.Controllers.seg_adm.operacion
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.semodulo == null)
                 {
-                    return Problem("Entidad semodulo es null.");
+                    return BadRequest(new { resp = "Entidad semodulo es null." });
                 }
                 _context.semodulo.Add(semodulo);
                 try
@@ -152,15 +145,16 @@ namespace SIAW.Controllers.seg_adm.operacion
                 {
                     if (semoduloExists(semodulo.codigo, _context))
                     {
-                        return Conflict("Ya existe un registro con ese código");
+                        return Conflict( new { resp = "Ya existe un registro con ese código" });
                     }
                     else
                     {
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
 
-                return Ok("204");   // creado con exito
+                return Ok( new { resp = "204" });   // creado con exito
 
             }
             
@@ -176,31 +170,29 @@ namespace SIAW.Controllers.seg_adm.operacion
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.semodulo == null)
                     {
-                        return Problem("Entidad semodulo es null.");
+                        return BadRequest(new { resp = "Entidad semodulo es null." });
                     }
                     var semodulo = await _context.semodulo.FindAsync(codigo);
                     if (semodulo == null)
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
 
                     _context.semodulo.Remove(semodulo);
                     await _context.SaveChangesAsync();
 
-                    return Ok("208");   // eliminado con exito
+                    return Ok( new { resp = "208" });   // eliminado con exito
                 }
                 
 
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -227,13 +219,11 @@ namespace SIAW.Controllers.seg_adm.operacion
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.seclasificacion == null)
                     {
-                        return Problem("Entidad seclasificacion es null.");
+                        return BadRequest(new { resp = "Entidad seclasificacion es null." });
                     }
                     var result = await _context.seclasificacion.OrderBy(codigo => codigo.codigo).ToListAsync();
                     return Ok(result);
@@ -242,7 +232,7 @@ namespace SIAW.Controllers.seg_adm.operacion
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
 
 
@@ -258,19 +248,17 @@ namespace SIAW.Controllers.seg_adm.operacion
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.seclasificacion == null)
                     {
-                        return Problem("Entidad seclasificacion es null.");
+                        return BadRequest(new { resp = "Entidad seclasificacion es null." });
                     }
                     var seclasificacion = await _context.seclasificacion.FindAsync(codigo);
 
                     if (seclasificacion == null)
                     {
-                        return NotFound("No se encontro un registro con este código");
+                        return NotFound( new { resp = "No se encontro un registro con este código" });
                     }
 
                     return Ok(seclasificacion);
@@ -279,7 +267,7 @@ namespace SIAW.Controllers.seg_adm.operacion
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -292,13 +280,11 @@ namespace SIAW.Controllers.seg_adm.operacion
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (codigo != seclasificacion.codigo)
                 {
-                    return BadRequest("Error con Id en datos proporcionados.");
+                    return BadRequest( new { resp = "Error con Id en datos proporcionados." });
                 }
 
                 _context.Entry(seclasificacion).State = EntityState.Modified;
@@ -311,15 +297,16 @@ namespace SIAW.Controllers.seg_adm.operacion
                 {
                     if (!seclasificacionExists(codigo, _context))
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
                     else
                     {
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
 
-                return Ok("206");   // actualizado con exito
+                return Ok( new { resp = "206" });   // actualizado con exito
             }
             
 
@@ -335,13 +322,11 @@ namespace SIAW.Controllers.seg_adm.operacion
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.seclasificacion == null)
                 {
-                    return Problem("Entidad seclasificacion es null.");
+                    return BadRequest(new { resp = "Entidad seclasificacion es null." });
                 }
                 _context.seclasificacion.Add(seclasificacion);
                 try
@@ -352,15 +337,16 @@ namespace SIAW.Controllers.seg_adm.operacion
                 {
                     if (seclasificacionExists(seclasificacion.codigo, _context))
                     {
-                        return Conflict("Ya existe un registro con ese código");
+                        return Conflict( new { resp = "Ya existe un registro con ese código" });
                     }
                     else
                     {
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
 
-                return Ok("204");   // creado con exito
+                return Ok( new { resp = "204" });   // creado con exito
 
             }
             
@@ -376,31 +362,29 @@ namespace SIAW.Controllers.seg_adm.operacion
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.seclasificacion == null)
                     {
-                        return Problem("Entidad seclasificacion es null.");
+                        return BadRequest(new { resp = "Entidad seclasificacion es null." });
                     }
                     var seclasificacion = await _context.seclasificacion.FindAsync(codigo);
                     if (seclasificacion == null)
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
 
                     _context.seclasificacion.Remove(seclasificacion);
                     await _context.SaveChangesAsync();
 
-                    return Ok("208");   // eliminado con exito
+                    return Ok( new { resp = "208" });   // eliminado con exito
                 }
                 
 
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -425,13 +409,11 @@ namespace SIAW.Controllers.seg_adm.operacion
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.seprograma == null)
                     {
-                        return Problem("Entidad seprograma es null.");
+                        return BadRequest(new { resp = "Entidad seprograma es null." });
                     }
                     var result = await _context.seprograma.OrderBy(codigo => codigo.codigo).ToListAsync();
                     return Ok(result);
@@ -440,7 +422,7 @@ namespace SIAW.Controllers.seg_adm.operacion
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -461,13 +443,11 @@ namespace SIAW.Controllers.seg_adm.operacion
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.seprograma == null)
                     {
-                        return Problem("Entidad seprograma es null.");
+                        return BadRequest(new { resp = "Entidad seprograma es null." });
                     }
 
                     var programas = _context.seprograma
@@ -484,7 +464,7 @@ namespace SIAW.Controllers.seg_adm.operacion
 
                     if (programas.Count() == 0)
                     {
-                        return NotFound("No se encontro un registro con los datos proporcionados.");
+                        return NotFound(new { resp = "No se encontraron registros con los datos proporcionados." });
                     }
 
                     return Ok(programas);
@@ -493,7 +473,7 @@ namespace SIAW.Controllers.seg_adm.operacion
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -508,13 +488,11 @@ namespace SIAW.Controllers.seg_adm.operacion
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (codigo != seprograma.codigo)
                 {
-                    return BadRequest("Error con Id en datos proporcionados.");
+                    return BadRequest( new { resp = "Error con Id en datos proporcionados." });
                 }
 
                 _context.Entry(seprograma).State = EntityState.Modified;
@@ -527,15 +505,16 @@ namespace SIAW.Controllers.seg_adm.operacion
                 {
                     if (!seprogramaExists(codigo, _context))
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
                     else
                     {
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
 
-                return Ok("206");   // actualizado con exito
+                return Ok( new { resp = "206" });   // actualizado con exito
             }
             
 
@@ -551,13 +530,11 @@ namespace SIAW.Controllers.seg_adm.operacion
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.seprograma == null)
                 {
-                    return Problem("Entidad seprograma es null.");
+                    return BadRequest(new { resp = "Entidad seprograma es null." });
                 }
                 _context.seprograma.Add(seprograma);
                 try
@@ -568,15 +545,16 @@ namespace SIAW.Controllers.seg_adm.operacion
                 {
                     if (seprogramaExists(seprograma.codigo, _context))
                     {
-                        return Conflict("Ya existe un registro con ese código");
+                        return Conflict( new { resp = "Ya existe un registro con ese código" });
                     }
                     else
                     {
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
 
-                return Ok("204");   // creado con exito
+                return Ok( new { resp = "204" });   // creado con exito
 
             }
             
@@ -592,31 +570,27 @@ namespace SIAW.Controllers.seg_adm.operacion
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.seprograma == null)
                     {
-                        return Problem("Entidad seprograma es null.");
+                        return BadRequest(new { resp = "Entidad seprograma es null." });
                     }
                     var seprograma = await _context.seprograma.FindAsync(codigo);
                     if (seprograma == null)
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
 
                     _context.seprograma.Remove(seprograma);
                     await _context.SaveChangesAsync();
 
-                    return Ok("208");   // eliminado con exito
+                    return Ok( new { resp = "208" });   // eliminado con exito
                 }
-                
-
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -639,13 +613,11 @@ namespace SIAW.Controllers.seg_adm.operacion
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.serolprogs == null)
                     {
-                        return Problem("Entidad serolprogs es null.");
+                        return BadRequest(new { resp = "Entidad serolprogs es null." });
                     }
                     var result = await _context.serolprogs.OrderBy(codigo => codigo.codigo).ToListAsync();
                     return Ok(result);
@@ -654,7 +626,7 @@ namespace SIAW.Controllers.seg_adm.operacion
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -668,19 +640,17 @@ namespace SIAW.Controllers.seg_adm.operacion
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.serolprogs == null)
                     {
-                        return Problem("Entidad serolprogs es null.");
+                        return BadRequest(new { resp = "Entidad serolprogs es null." });
                     }
                     var serolprogs = await _context.serolprogs.FindAsync(codigo);
 
                     if (serolprogs == null)
                     {
-                        return NotFound("No se encontro un registro con este código");
+                        return NotFound( new { resp = "No se encontro un registro con este código" });
                     }
 
                     return Ok(serolprogs);
@@ -689,7 +659,7 @@ namespace SIAW.Controllers.seg_adm.operacion
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -709,13 +679,11 @@ namespace SIAW.Controllers.seg_adm.operacion
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.serolprogs == null)
                     {
-                        return Problem("Entidad serolprogs es null.");
+                        return BadRequest(new { resp = "Entidad serolprogs es null." });
                     }
                     //var serolprogs = await _context.serolprogs.FindAsync(codigo);
                     var codProgramas = from serolprogs in _context.serolprogs
@@ -725,7 +693,7 @@ namespace SIAW.Controllers.seg_adm.operacion
 
                     if (codProgramas == null)
                     {
-                        return NotFound("No se encontro un registro con este código");
+                        return NotFound( new { resp = "No se encontro un registro con este código" });
                     }
 
                     return Ok(codProgramas);
@@ -734,7 +702,7 @@ namespace SIAW.Controllers.seg_adm.operacion
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -758,8 +726,6 @@ namespace SIAW.Controllers.seg_adm.operacion
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     var programas = _context.seprograma
@@ -773,7 +739,6 @@ namespace SIAW.Controllers.seg_adm.operacion
                         })
                         .ToList();
 
-                    //var serolprogs = await _context.serolprogs.FindAsync(codigo);
                     var codProgramas = from serolprogs in _context.serolprogs
                                        where serolprogs.codrol == codRol
                                        select serolprogs.codprograma;
@@ -789,7 +754,7 @@ namespace SIAW.Controllers.seg_adm.operacion
 
                     if (resultado == null)
                     {
-                        return NotFound("No se encontro un registro con este código");
+                        return NotFound( new { resp = "No se encontro un registro con este código" });
                     }
 
                     return Ok(resultado);
@@ -798,7 +763,7 @@ namespace SIAW.Controllers.seg_adm.operacion
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -820,8 +785,6 @@ namespace SIAW.Controllers.seg_adm.operacion
             {
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-
-                //var _context = _userConnectionManager.GetUserConnection(userId);
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
@@ -859,13 +822,11 @@ namespace SIAW.Controllers.seg_adm.operacion
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (codigo != serolprogs.codigo)
                 {
-                    return BadRequest("Error con Id en datos proporcionados.");
+                    return BadRequest( new { resp = "Error con Id en datos proporcionados." });
                 }
 
                 _context.Entry(serolprogs).State = EntityState.Modified;
@@ -878,15 +839,16 @@ namespace SIAW.Controllers.seg_adm.operacion
                 {
                     if (!serolprogsExists(codigo, _context))
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
                     else
                     {
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
 
-                return Ok("206");   // actualizado con exito
+                return Ok( new { resp = "206" });   // actualizado con exito
             }
             
 
@@ -902,13 +864,11 @@ namespace SIAW.Controllers.seg_adm.operacion
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.serolprogs == null)
                 {
-                    return Problem("Entidad serolprogs es null.");
+                    return BadRequest(new { resp = "Entidad serolprogs es null." });
                 }
                 _context.serolprogs.Add(serolprogs);
                 try
@@ -919,15 +879,16 @@ namespace SIAW.Controllers.seg_adm.operacion
                 {
                     if (serolprogsExists(serolprogs.codigo, _context))
                     {
-                        return Conflict("Ya existe un registro con ese código");
+                        return Conflict( new { resp = "Ya existe un registro con ese código" });
                     }
                     else
                     {
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
 
-                return Ok("204");   // creado con exito
+                return Ok( new { resp = "204" });   // creado con exito
 
             }
             
@@ -943,31 +904,29 @@ namespace SIAW.Controllers.seg_adm.operacion
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.serolprogs == null)
                     {
-                        return Problem("Entidad serolprogs es null.");
+                        return BadRequest(new { resp = "Entidad serolprogs es null." });
                     }
                     var serolprogs = await _context.serolprogs.FindAsync(codigo);
                     if (serolprogs == null)
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
 
                     _context.serolprogs.Remove(serolprogs);
                     await _context.SaveChangesAsync();
 
-                    return Ok("208");   // eliminado con exito
+                    return Ok( new { resp = "208" });   // eliminado con exito
                 }
                 
 
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 

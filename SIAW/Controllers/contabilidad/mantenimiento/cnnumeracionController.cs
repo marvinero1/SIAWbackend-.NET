@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using siaw_DBContext.Data;
 using siaw_DBContext.Models;
+using System.Net;
 using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.contabilidad.mantenimiento
@@ -11,83 +12,84 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
     [ApiController]
     public class cnnumeracionController : ControllerBase
     {
-        private readonly DBContext _context;
-        private readonly string connectionString;
-        private VerificaConexion verificador;
-        private readonly IConfiguration _configuration;
-        public cnnumeracionController(IConfiguration configuration)
+        private readonly UserConnectionManager _userConnectionManager;
+        public cnnumeracionController(UserConnectionManager userConnectionManager)
         {
-            connectionString = ConnectionController.ConnectionString;
-            _context = DbContextFactory.Create(connectionString);
-            _configuration = configuration;
-            verificador = new VerificaConexion(_configuration);
+            _userConnectionManager = userConnectionManager;
         }
 
         // GET: api/cnnumeracion
-        [HttpGet("{conexionName}")]
-        public async Task<ActionResult<IEnumerable<cnnumeracion>>> Getcnnumeracion(string conexionName)
+        [HttpGet("{userConn}")]
+        public async Task<ActionResult<IEnumerable<cnnumeracion>>> Getcnnumeracion(string userConn)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.cnnumeracion == null)
                     {
-                        return Problem("Entidad cnnumeracion es null.");
+                        return BadRequest(new { resp = "Entidad cnnumeracion es null." });
                     }
                     var result = await _context.cnnumeracion.OrderBy(id => id.id).ToListAsync();
                     return Ok(result);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
 
 
         }
 
         // GET: api/cnnumeracion/5
-        [HttpGet("{conexionName}/{id}")]
-        public async Task<ActionResult<cnnumeracion>> Getcnnumeracion(string conexionName, string id)
+        [HttpGet("{userConn}/{id}")]
+        public async Task<ActionResult<cnnumeracion>> Getcnnumeracion(string userConn, string id)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.cnnumeracion == null)
                     {
-                        return Problem("Entidad cnnumeracion es null.");
+                        return BadRequest(new { resp = "Entidad cnnumeracion es null." });
                     }
                     var cnnumeracion = await _context.cnnumeracion.FindAsync(id);
 
                     if (cnnumeracion == null)
                     {
-                        return NotFound("No se encontro un registro con este código");
+                        return NotFound( new { resp = "No se encontro un registro con este código" });
                     }
 
                     return Ok(cnnumeracion);
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
         // PUT: api/cnnumeracion/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [Authorize]
-        [HttpPut("{conexionName}/{id}")]
-        public async Task<IActionResult> Putcnnumeracion(string conexionName, string id, cnnumeracion cnnumeracion)
+        [HttpPut("{userConn}/{id}")]
+        public async Task<IActionResult> Putcnnumeracion(string userConn, string id, cnnumeracion cnnumeracion)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (id != cnnumeracion.id)
                 {
-                    return BadRequest("Error con Id en datos proporcionados.");
+                    return BadRequest( new { resp = "Error con Id en datos proporcionados." });
                 }
 
                 _context.Entry(cnnumeracion).State = EntityState.Modified;
@@ -98,9 +100,9 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!cnnumeracionExists(id))
+                    if (!cnnumeracionExists(id, _context))
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
                     else
                     {
@@ -108,24 +110,24 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
                     }
                 }
 
-                return Ok("206");   // actualizado con exito
+                return Ok( new { resp = "206" });   // actualizado con exito
             }
-            return BadRequest("Se perdio la conexion con el servidor");
-
-
         }
 
         // POST: api/cnnumeracion
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [Authorize]
-        [HttpPost("{conexionName}")]
-        public async Task<ActionResult<cnnumeracion>> Postcnnumeracion(string conexionName, cnnumeracion cnnumeracion)
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<cnnumeracion>> Postcnnumeracion(string userConn, cnnumeracion cnnumeracion)
         {
-            if (verificador.VerConnection(conexionName, connectionString))
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.cnnumeracion == null)
                 {
-                    return Problem("Entidad cnnumeracion es null.");
+                    return BadRequest(new { resp = "Entidad cnnumeracion es null." });
                 }
                 _context.cnnumeracion.Add(cnnumeracion);
                 try
@@ -134,9 +136,9 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (cnnumeracionExists(cnnumeracion.id))
+                    if (cnnumeracionExists(cnnumeracion.id, _context))
                     {
-                        return Conflict("Ya existe un registro con ese código");
+                        return Conflict( new { resp = "Ya existe un registro con ese código" });
                     }
                     else
                     {
@@ -144,46 +146,46 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
                     }
                 }
 
-                return Ok("204");   // creado con exito
+                return Ok( new { resp = "204" });   // creado con exito
 
             }
-            return BadRequest("Se perdio la conexion con el servidor");
         }
 
         // DELETE: api/cnnumeracion/5
         [Authorize]
-        [HttpDelete("{conexionName}/{id}")]
-        public async Task<IActionResult> Deletecnnumeracion(string conexionName, string id)
+        [HttpDelete("{userConn}/{id}")]
+        public async Task<IActionResult> Deletecnnumeracion(string userConn, string id)
         {
             try
             {
-                if (verificador.VerConnection(conexionName, connectionString))
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.cnnumeracion == null)
                     {
-                        return Problem("Entidad cnnumeracion es null.");
+                        return BadRequest(new { resp = "Entidad cnnumeracion es null." });
                     }
                     var cnnumeracion = await _context.cnnumeracion.FindAsync(id);
                     if (cnnumeracion == null)
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
 
                     _context.cnnumeracion.Remove(cnnumeracion);
                     await _context.SaveChangesAsync();
 
-                    return Ok("208");   // eliminado con exito
+                    return Ok( new { resp = "208" });   // eliminado con exito
                 }
-                return BadRequest("Se perdio la conexion con el servidor");
-
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
-        private bool cnnumeracionExists(string id)
+        private bool cnnumeracionExists(string id, DBContext _context)
         {
             return (_context.cnnumeracion?.Any(e => e.id == id)).GetValueOrDefault();
 

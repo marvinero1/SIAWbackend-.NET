@@ -49,11 +49,11 @@ namespace SIAW.Controllers
 
                 if (string.IsNullOrEmpty(FirstConnectionString))
                 {
-                    return BadRequest("Nombre de conexion invalido");
+                    return BadRequest(new { resp = "Nombre de conexion invalido" });
                 }
                 if (!VerificarConexion(FirstConnectionString))
                 {
-                    return BadRequest("No se puede establecer conexión con este Servidor");
+                    return BadRequest(new { resp = "No se puede establecer conexión con este Servidor" });
                 }
 
                 string query = "SELECT codigo, descripcion, orden FROM adempresa";
@@ -92,7 +92,7 @@ namespace SIAW.Controllers
             }
             catch (Exception)
             {
-                return BadRequest("Ocurrio un Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -107,11 +107,11 @@ namespace SIAW.Controllers
                 var connectionString = "";
                 if (string.IsNullOrEmpty(FirstConnectionString))
                 {
-                    return BadRequest("Nombre de conexion invalido");
+                    return BadRequest(new { resp = "Nombre de conexion invalido" });
                 }
                 if (!VerificarConexion(FirstConnectionString))
                 {
-                    return BadRequest("No se puede establecer conexión con este Servidor");
+                    return BadRequest(new { resp = "No se puede establecer conexión con este Servidor" });
                 }
 
                 string query = "SELECT conexion FROM adempresa WHERE codigo='" + codigo + "'";
@@ -136,11 +136,11 @@ namespace SIAW.Controllers
 
                 if (string.IsNullOrEmpty(connectionString))
                 {
-                    return BadRequest("Nombre de conexion invalido");
+                    return BadRequest(new { resp = "Nombre de conexion invalido" });
                 }
                 if (!VerificarConexion(connectionString))
                 {
-                    return BadRequest("No se puede establecer conexión con este Servidor");
+                    return BadRequest(new { resp = "No se puede establecer conexión con este Servidor" });
                 }
                 ConnectionController.ConnectionString = connectionString;
                 return Ok(true);

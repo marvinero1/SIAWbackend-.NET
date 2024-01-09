@@ -80,7 +80,7 @@ namespace SIAW.Controllers.seg_adm.operacion
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 

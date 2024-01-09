@@ -26,13 +26,11 @@ namespace SIAW.Controllers.seg_adm.logs
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.selog == null)
                     {
-                        return Problem("Entidad selog es null.");
+                        return BadRequest(new { resp = "Entidad selog es null." });
                     }
                     var result = await _context.selog.Where(x => x.fecha == fecha).OrderByDescending(f => f.hora).ToListAsync();
                     return Ok(result);
@@ -40,7 +38,7 @@ namespace SIAW.Controllers.seg_adm.logs
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -55,13 +53,11 @@ namespace SIAW.Controllers.seg_adm.logs
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.selog == null)
                     {
-                        return Problem("Entidad selog es null.");
+                        return BadRequest(new { resp = "Entidad selog es null." });
                     }
                     var result = await _context.selog.Where(x => x.fecha == fecha && x.usuario == usuario).OrderByDescending(f => f.hora).ToListAsync();
                     return Ok(result);
@@ -69,7 +65,7 @@ namespace SIAW.Controllers.seg_adm.logs
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -82,13 +78,11 @@ namespace SIAW.Controllers.seg_adm.logs
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.selog == null)
                 {
-                    return Problem("Entidad selog es null.");
+                    return BadRequest(new { resp = "Entidad selog es null." });
                 }
                 _context.selog.Add(selog);
                 try
@@ -97,10 +91,10 @@ namespace SIAW.Controllers.seg_adm.logs
                 }
                 catch (DbUpdateException)
                 {
-                    return BadRequest("Error en el Servidor");
+                    return Problem("Error en el servidor");
                 }
 
-                return Ok("204");   // creado con exito
+                return Ok( new { resp = "204" });   // creado con exito
 
             }
             

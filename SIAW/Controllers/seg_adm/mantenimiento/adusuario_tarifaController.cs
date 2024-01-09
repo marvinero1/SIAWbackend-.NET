@@ -27,13 +27,11 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adusuario_tarifa == null)
                     {
-                        return Problem("Entidad adusuario_tarifa es null.");
+                        return BadRequest(new { resp = "Entidad adusuario_tarifa es null." });
                     }
                     var result = await _context.adusuario_tarifa
                         .OrderBy(x => x.usuario)
@@ -45,7 +43,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -71,7 +69,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             {
                 if (_context.adusuario_tarifa == null)
                 {
-                    return Problem("Entidad adusuario_tarifa es null.");
+                    return BadRequest(new { resp = "Entidad adusuario_tarifa es null." });
                 }
 
                 _context.adusuario_tarifa.Add(adusuario_tarifa);
@@ -83,17 +81,17 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 {
                     if (adusuario_tarifaExists(adusuario_tarifa.id, _context))
                     {
-                        return Conflict("Ya existe un registro con ese código");
+                        return Conflict( new { resp = "Ya existe un registro con ese código" });
                     }
                     else
                     {
-                        return BadRequest("Error en el servidor");
+                        return Problem("Error en el servidor");
                         throw;
                     }
 
                 }
 
-                return Ok("204");   // creado con exito
+                return Ok( new { resp = "204" });   // creado con exito
 
             }
 
@@ -120,23 +118,23 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 {
                     if (_context.adusuario_tarifa == null)
                     {
-                        return Problem("Entidad adusuario_tarifa es null.");
+                        return BadRequest(new { resp = "Entidad adusuario_tarifa es null." });
                     }
                     var adusuario_tarifa = await _context.adusuario_tarifa.FindAsync(id);
                     if (adusuario_tarifa == null)
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
 
                     _context.adusuario_tarifa.Remove(adusuario_tarifa);
                     await _context.SaveChangesAsync();
 
-                    return Ok("208");   // eliminado con exito
+                    return Ok( new { resp = "208" });   // eliminado con exito
                 }
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 

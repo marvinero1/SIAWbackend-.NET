@@ -30,7 +30,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 {
                     if (_context.vetipocredito == null)
                     {
-                        return Problem("Entidad vetipocredito es null.");
+                        return BadRequest(new { resp = "Entidad vetipocredito es null." });
                     }
                     var result = await _context.vetipocredito.OrderBy(codigo => codigo.codigo).ToListAsync();
                     return Ok(result);
@@ -39,7 +39,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
 
 
@@ -58,20 +58,20 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 {
                     if (_context.vetipocredito == null)
                     {
-                        return Problem("Entidad vetipocredito es null.");
+                        return BadRequest(new { resp = "Entidad vetipocredito es null." });
                     }
                     var vetipocredito = await _context.vetipocredito.FindAsync(codigo);
 
                     if (vetipocredito == null)
                     {
-                        return NotFound("No se encontro un registro con este código");
+                        return NotFound( new { resp = "No se encontro un registro con este código" });
                     }
                     return Ok(vetipocredito);
                 }
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -99,14 +99,14 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
                     if (result.Count() == 0)
                     {
-                        return Problem("Entidad vetipocredito es null.");
+                        return BadRequest(new { resp = "Entidad vetipocredito es null." });
                     }
                     return Ok(result);
                 }
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
                 throw;
             }
         }
@@ -124,11 +124,11 @@ namespace SIAW.Controllers.ventas.mantenimiento
             {
                 if (codigo != vetipocredito.codigo)
                 {
-                    return BadRequest("Error con Id en datos proporcionados.");
+                    return BadRequest( new { resp = "Error con Id en datos proporcionados." });
                 }
                 if (!vetipocreditoExists(codigo, _context))
                 {
-                    return NotFound("No existe un registro con ese código");
+                    return NotFound( new { resp = "No existe un registro con ese código" });
                 }
                 _context.Entry(vetipocredito).State = EntityState.Modified;
 
@@ -142,7 +142,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                     throw;
                     
                 }
-                return Ok("206");   // actualizado con exito
+                return Ok( new { resp = "206" });   // actualizado con exito
             }
         }
 
@@ -159,11 +159,11 @@ namespace SIAW.Controllers.ventas.mantenimiento
             {
                 if (_context.vetipocredito == null)
                 {
-                    return BadRequest("Entidad vetipocredito es null.");
+                    return BadRequest(new { resp = "Entidad vetipocredito es null." });
                 }
                 if (vetipocreditoExists(vetipocredito.codigo, _context))
                 {
-                    return Conflict("Ya existe un registro con ese código");
+                    return Conflict( new { resp = "Ya existe un registro con ese código" });
                 }
                 _context.vetipocredito.Add(vetipocredito);
                 try
@@ -175,7 +175,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                     return Problem("Error en el servidor");
                     throw;
                 }
-                return Ok("204");   // creado con exito
+                return Ok( new { resp = "204" });   // creado con exito
             }
         }
 
@@ -193,21 +193,21 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 {
                     if (_context.vetipocredito == null)
                     {
-                        return Problem("Entidad vetipocredito es null.");
+                        return BadRequest(new { resp = "Entidad vetipocredito es null." });
                     }
                     var vetipocredito = await _context.vetipocredito.FindAsync(codigo);
                     if (vetipocredito == null)
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
                     _context.vetipocredito.Remove(vetipocredito);
                     await _context.SaveChangesAsync();
-                    return Ok("208");   // eliminado con exito
+                    return Ok( new { resp = "208" });   // eliminado con exito
                 }
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 

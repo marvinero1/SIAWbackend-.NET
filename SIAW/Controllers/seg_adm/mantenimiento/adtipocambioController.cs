@@ -6,6 +6,7 @@ using siaw_DBContext.Models;
 using System.Net;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Data.SqlClient;
+using System.Collections.Generic;
 
 namespace SIAW.Controllers.seg_adm.mantenimiento
 {
@@ -28,13 +29,11 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adtipocambio == null)
                     {
-                        return Problem("Entidad adtipocambio es null.");
+                        return BadRequest(new { resp = "Entidad adtipocambio es null." });
                     }
                     var result = await _context.adtipocambio.ToListAsync();
                     return Ok(result);
@@ -43,7 +42,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
 
 
@@ -69,7 +68,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 {
                     if (_context.adtipocambio == null)
                     {
-                        return Problem("Entidad adtipocambio es null.");
+                        return BadRequest(new { resp = "Entidad adtipocambio es null." });
                     }
 
                     var adtipocambio = await _context.adtipocambio.Where(x => x.fecha == fecha).OrderByDescending(f => f.fecha).ToListAsync();
@@ -85,7 +84,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -111,24 +110,21 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 {
                     if (_context.adtipocambio == null)
                     {
-                        return Problem("Entidad adtipocambio es null.");
+                        return BadRequest(new { resp = "Entidad adtipocambio es null." });
                     }
-
                     var adtipocambio = await _context.adtipocambio
-                        .Where(x => x.fecha == fecha && x.moneda=="US")
-                        .FirstOrDefaultAsync();
+                        .Where(x => x.fecha == fecha)
+                        .ToListAsync();
                     if (adtipocambio == null )
                     {
-                        return NotFound("701");
+                        return NotFound( new { resp = "701" });
                     }
-
                     return Ok(adtipocambio);
                 }
-
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -148,13 +144,11 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adtipocambio == null)
                     {
-                        return Problem("Entidad adtipocambio es null.");
+                        return BadRequest(new { resp = "Entidad adtipocambio es null." });
                     }
                     DateTime fechaActual = DateTime.Now;
                     var f = fechaActual.ToString("yyyy-MM-dd"); //importante
@@ -174,7 +168,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -219,7 +213,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -234,14 +228,12 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 var tipocambio = _context.adtipocambio.FirstOrDefault(objeto => objeto.moneda == moneda && objeto.fecha == fecha && objeto.codalmacen == codalmacen);
                 if (tipocambio == null)
                 {
-                    return NotFound("No existe un registro con esa información");
+                    return NotFound( new { resp = "No existe un registro con esa información" });
                 }
                 tipocambio.factor = adtipocambio.factor;
                 _context.Entry(tipocambio).State = EntityState.Modified;
@@ -252,10 +244,10 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    return BadRequest("Existen problemas con el Servidor.");
+                    return Problem("Error en el servidor");
                 }
 
-                return Ok("206");   // actualizado con exito
+                return Ok( new { resp = "206" });   // actualizado con exito
             }
             
 
@@ -271,13 +263,11 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.adtipocambio == null)
                 {
-                    return Problem("Entidad adtipocambio es null.");
+                    return BadRequest(new { resp = "Entidad adtipocambio es null." });
                 }
                 _context.adtipocambio.Add(adtipocambio);
                 try
@@ -286,17 +276,74 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    return BadRequest("Error en el Servidor");
+                    return Problem("Error en el servidor");
                 }
 
-                return Ok("204");   // creado con exito
+                return Ok( new { resp = "204" });   // creado con exito
 
             }
             
         }
 
 
+        // POST: api/adtipocambio
+        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [Authorize]
+        [HttpPost]
+        [Route("addTipoCambioAlm/{userConn}/{monBase}/{fecha}/{usuario}")]
+        public async Task<ActionResult<adtipocambio>> PostaddTipoCambioAlm(string userConn, string monBase, DateTime fecha, string usuario)
+        {
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var almacenes = await _context.inalmacen
+                    .OrderBy(a => a.codigo)
+                    .Select(a => a.codigo)
+                    .ToListAsync();
+
+                var monedas = await _context.admoneda
+                    .Where(a => a.codigo != monBase)
+                    .ToListAsync();
+
+                List<adtipocambio> tiposCambioAdd= new List<adtipocambio>();
+
+                foreach (var mon in monedas)
+                {
+                    foreach (var almacen in almacenes)
+                    {
+                        adtipocambio objeto = new adtipocambio();
+                        var verifica = await _context.adtipocambio
+                            .Where(a => a.fecha == fecha && a.moneda == mon.codigo && a.codalmacen == almacen)
+                            .FirstOrDefaultAsync();
+                        if (verifica == null)
+                        {
+                            objeto.monedabase = monBase;
+                            objeto.factor = 1;
+                            objeto.moneda = mon.codigo;
+                            objeto.fecha = fecha;
+                            objeto.usuarioreg = usuario;
+                            objeto.codalmacen = almacen;
+                            tiposCambioAdd.Add(objeto);
+                        }
+                    }
+                }
+                _context.adtipocambio.AddRange(tiposCambioAdd);
+                try
+                {
+                    await _context.SaveChangesAsync();
+                }
+                catch (DbUpdateException)
+                {
+                    return Problem("Error en el servidor");
+                }
+
+                return Ok( new { resp = "204" });   // creado con exito
+
+            }
+
+        }
 
         // POST: api/adtipocambio
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
@@ -308,13 +355,11 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.adtipocambio == null)
                 {
-                    return Problem("Entidad adtipocambio es null.");
+                    return BadRequest(new { resp = "Entidad adtipocambio es null." });
                 }
                 _context.adtipocambio.AddRange(adtipocambio);
                 try
@@ -323,60 +368,98 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    return BadRequest("Error en el Servidor");
+                    return Problem("Error en el servidor");
                 }
-
-                return Ok("204");   // creado con exito
-
+                return Ok( new { resp = "204" });   // creado con exito
             }
-            
         }
 
 
 
         // DELETE: api/adtipocambio/5
         [Authorize]
-        [HttpDelete("{userConn}/{moneda}/{fecha}/{codalmacen}")]
-        public async Task<IActionResult> Deleteadtipocambio(string userConn, string moneda, DateTime fecha, int codalmacen)
+        [HttpDelete]
+        [Route("deletetipoCambioFecha/{userConn}/{monedabase}/{fecha}")]
+        public async Task<IActionResult> Deleteadtipocambio(string userConn, string monedabase, DateTime fecha)
         {
             try
             {
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adtipocambio == null)
                     {
-                        return Problem("Entidad adtipocambio es null.");
+                        return BadRequest(new { resp = "Entidad adtipocambio es null." });
                     }
                    
-                    var adtipocambio = _context.adtipocambio.FirstOrDefault(objeto => objeto.moneda == moneda && objeto.fecha == fecha && objeto.codalmacen == codalmacen);
-                    if (adtipocambio == null)
+                    var adtipocambio = await _context.adtipocambio
+                        .Where(a => a.monedabase == monedabase && a.fecha == fecha)
+                        .ToListAsync();
+                    if (adtipocambio.Count() == 0)
                     {
-                        return NotFound("Revise los datos ingresados.");
+                        return NotFound(new { resp = "No se encontraron registros con los datos proporcionados." });
                     }
 
-                    _context.adtipocambio.Remove(adtipocambio);
+                    _context.adtipocambio.RemoveRange(adtipocambio);
                     await _context.SaveChangesAsync();
-
-                    return Ok("208");   // eliminado con exito
+                    return Ok( new { resp = "208" });   // eliminado con exito
                 }
-                
-
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
 
 
 
+        // PUT: api/adtipocambio
+        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [Authorize]
+        [HttpPut]
+        [Route("Updatelisttipocambio/{userConn}/{monedabase}/{fecha}")]
+        public async Task<ActionResult<adtipocambio>> UpdateListadtipocambio(string userConn, string monedabase, DateTime fecha, List<adtipocambio> adtipocambio)
+        {
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var dataVerif = await _context.adtipocambio
+                        .Where(a => a.monedabase == monedabase && a.fecha == fecha)
+                        .ToListAsync();
+                if (dataVerif.Count() == 0)
+                {
+                    return NotFound(new { resp = "No se encontraron registros con los datos proporcionados." });
+                }
+                using (var dbContexTransaction = _context.Database.BeginTransaction())
+                {
+                    try
+                    {
+                        // eliminar grupo que se tiene 
+                        _context.adtipocambio.RemoveRange(adtipocambio);
+                        await _context.SaveChangesAsync();
+
+                        // volver a agregar los datos
+                        _context.adtipocambio.AddRange(adtipocambio);
+                        await _context.SaveChangesAsync();
+                        
+                        dbContexTransaction.Commit();
+                        return Ok( new { resp = "206" });   // creado con exito
+                    }
+                    catch (DbUpdateException)
+                    {
+                        dbContexTransaction.Rollback();
+                        return Problem("Error en el servidor");
+                        throw;
+                    }
+                }
+                    
+            }
+        }
 
 
 

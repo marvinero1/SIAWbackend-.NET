@@ -27,8 +27,6 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     var resultado = await _context.veclientesiguales
@@ -56,9 +54,8 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
                     if (resultado.Count() == 0)
                     {
-                        return Problem("Entidad veclientesiguales es null.");
+                        return NotFound(new { resp = "No se encontraron registros." });
                     }
-                    //return Ok(new { contador = resultado.Count(), resp = resultado });
                     return Ok(resultado);
                 }
             }
@@ -79,8 +76,6 @@ namespace SIAW.Controllers.ventas.mantenimiento
         {
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-
-            //var _context = _userConnectionManager.GetUserConnection(userId);
 
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
@@ -125,7 +120,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 {
                     return Problem("Error en el servidor");
                 }
-                return Ok("204");   // creado con exito
+                return Ok( new { resp = "204" });   // creado con exito
             }
         }
 
@@ -173,7 +168,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 {
                     if (_context.veclientesiguales == null)
                     {
-                        return Problem("Entidad veclientesiguales es null.");
+                        return BadRequest(new { resp = "Entidad veclientesiguales es null." });
                     }
 
                     var veclientesiguales = await _context.veclientesiguales
@@ -183,18 +178,18 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
                     if (veclientesiguales == null)
                     {
-                        return NotFound("No existe un registro con los datos proporcionados");
+                        return NotFound(new { resp = "No se encontraron registros con los datos proporcionados." });
                     }
 
                     _context.veclientesiguales.Remove(veclientesiguales);
                     await _context.SaveChangesAsync();
 
-                    return Ok("208");   // eliminado con exito
+                    return Ok( new { resp = "208" });   // eliminado con exito
                 }
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
     }

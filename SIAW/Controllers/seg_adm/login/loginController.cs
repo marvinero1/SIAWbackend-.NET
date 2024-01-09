@@ -64,7 +64,7 @@ namespace SIAW.Controllers
                 encriptacion encript = new encriptacion();
                 if (login == null)
                 {
-                    return BadRequest("Revise los datos ingresados");
+                    return BadRequest(new { resp = "Revise los datos ingresados." });
                 }
 
                 try
@@ -73,25 +73,25 @@ namespace SIAW.Controllers
 
                     if (data == null)
                     {
-                        return NotFound("201");         //-----No se encontro un registro con los datos proporcionados (usuario).
+                        return NotFound( new { resp = "201" });         //-----No se encontro un registro con los datos proporcionados (usuario).
                     }
 
                     if (data.password_siaw != encript.EncryptToMD5Base64(login.password))
                     {
-                        return Unauthorized("203");           //-----Contraseña Erronea.
+                        return Unauthorized( new { resp = "203" });           //-----Contraseña Erronea.
                     }
                     if (data.activo == false)
                     {
-                        return Unauthorized("207");           //-----Usuario no activo.
+                        return Unauthorized( new { resp = "207" });           //-----Usuario no activo.
                     }
                     if (!verificaVencimiento(data.vencimiento))
                     {
-                        return Unauthorized("215");          //------Su cuenta vencio
+                        return Unauthorized( new { resp = "215" });          //------Su cuenta vencio
                     }
                     var rolUser = _context.serol.FirstOrDefault(e => e.codigo == data.codrol);
                     if (rolUser == null)
                     {
-                        return NotFound("213");                //-----No se encontro un registro con los datos proporcionados (rol).
+                        return NotFound( new { resp = "213" });                //-----No se encontro un registro con los datos proporcionados (rol).
                     }
                     
 
@@ -99,7 +99,7 @@ namespace SIAW.Controllers
                     
                     if (!verificaFechaPass(data.fechareg_siaw, dias))
                     {
-                        return Unauthorized("205");          //------Su contraseña ya venció, registre una nueva.
+                        return Unauthorized( new { resp = "205" });          //------Su contraseña ya venció, registre una nueva.
                     }
                     var usuario = login.login;
                     var jwtToken = GenerateToken(login, connectionString);
@@ -110,7 +110,7 @@ namespace SIAW.Controllers
                 }
                 catch (Exception)
                 {
-                    return BadRequest("Reviso los datos ingresados.");
+                    return Problem("Error en el servidor");
                     throw;
                 }
             }
@@ -162,7 +162,7 @@ namespace SIAW.Controllers
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
                 throw;
             }
         }
@@ -176,11 +176,11 @@ namespace SIAW.Controllers
                 // Remover el token de la lista blanca de tokens válidos
                 validTokens.Remove(token);
                 _userConnectionManager.RemoveUserConnection(userConn);
-                return Ok("Logout exitoso");
+                return Ok(new { resp = "Logout exitoso" });
             }
             catch (Exception)
             {
-                return BadRequest("No se pudo realizar el logout");
+                return BadRequest(new { resp = "No se pudo realizar el logout" });
                 throw;
             }
             
@@ -233,7 +233,7 @@ namespace SIAW.Controllers
                 var usuario = _context.adusuario.FirstOrDefault(e => e.login == login);
                 if (usuario == null)
                 {
-                    return NotFound("201");         //-----No se encontro un registro con los datos proporcionados (usuario).
+                    return NotFound( new { resp = "201" });         //-----No se encontro un registro con los datos proporcionados (usuario).
                 }
 
                 var passAntEncrpt = encript.EncryptToMD5Base64(usu.passwordAnt);
@@ -241,11 +241,11 @@ namespace SIAW.Controllers
                 var rolUser = _context.serol.FirstOrDefault(e => e.codigo == usuario.codrol);
                 if (rolUser == null)
                 {
-                    return Unauthorized("213");        //-----No se encontro un registro con los datos proporcionados (rol).
+                    return Unauthorized( new { resp = "213" });        //-----No se encontro un registro con los datos proporcionados (rol).
                 }
                 if (passAntEncrpt != usuario.password_siaw)
                 {
-                    return Unauthorized("203");    //-----Contraseña Erronea.
+                    return Unauthorized( new { resp = "203" });    //-----Contraseña Erronea.
                 }
                 int longmin = (int)rolUser.long_minima;
                 bool num = (bool)rolUser.con_numeros;
@@ -253,7 +253,7 @@ namespace SIAW.Controllers
                 string pass = usu.passwordNew;
                 if (!controlPassword(longmin, num, let, pass))
                 {
-                    return Unauthorized("209");    //-----Su contraseña no cumple con requisitos de longitud, numeros o letras
+                    return Unauthorized( new { resp = "209" });    //-----Su contraseña no cumple con requisitos de longitud, numeros o letras
                 }
 
 
@@ -261,7 +261,7 @@ namespace SIAW.Controllers
 
                 if (passAntEncrpt == passEncrpt)
                 {
-                    return Unauthorized("211");    //-----Su nueva contraseña no debe ser igual a la anterior.
+                    return Unauthorized( new { resp = "211" });    //-----Su nueva contraseña no debe ser igual a la anterior.
                 }
 
 
@@ -279,7 +279,7 @@ namespace SIAW.Controllers
                 {
                     if (!adusuarioExists(login, _context))
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
                     else
                     {

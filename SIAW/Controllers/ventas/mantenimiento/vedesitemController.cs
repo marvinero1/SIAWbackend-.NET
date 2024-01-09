@@ -32,13 +32,11 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.vedesitem == null)
                     {
-                        return Problem("Entidad vedesitem es null.");
+                        return BadRequest(new { resp = "Entidad vedesitem es null." });
                     }
                     var result = await _context.vedesitem.OrderBy(codalmacen => codalmacen.codalmacen).ThenBy(coditem => coditem.coditem).ToListAsync();
                     return Ok(result);
@@ -47,7 +45,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
 
 
@@ -71,19 +69,17 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.vedesitem == null)
                     {
-                        return Problem("Entidad vedesitem es null.");
+                        return BadRequest(new { resp = "Entidad vedesitem es null." });
                     }
                     var vedesitem = _context.vedesitem.FirstOrDefault(objeto => objeto.codalmacen == codalmacen && objeto.coditem == coditem && objeto.nivel == nivel);
 
                     if (vedesitem == null)
                     {
-                        return NotFound("No se encontro un registro con este código");
+                        return NotFound( new { resp = "No se encontro un registro con este código" });
                     }
 
                     return Ok(vedesitem);
@@ -92,7 +88,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -107,14 +103,12 @@ namespace SIAW.Controllers.ventas.mantenimiento
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 var desitem = _context.vedesitem.FirstOrDefault(objeto => objeto.codalmacen == codalmacen && objeto.coditem == coditem && objeto.nivel == nivel);
                 if (desitem == null)
                 {
-                    return NotFound("No existe un registro con esa información");
+                    return NotFound( new { resp = "No existe un registro con esa información" });
                 }
 
                 _context.Entry(desitem).State = EntityState.Modified;
@@ -125,14 +119,11 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    return BadRequest("Existen problemas con el Servidor.");
+                    return Problem("Error en el servidor");
                 }
 
-                return Ok("206");   // actualizado con exito
+                return Ok( new { resp = "206" });   // actualizado con exito
             }
-            
-
-
         }
 
         // POST: api/vedesitem
@@ -144,13 +135,11 @@ namespace SIAW.Controllers.ventas.mantenimiento
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.vedesitem == null)
                 {
-                    return Problem("Entidad vedesitem es null.");
+                    return BadRequest(new { resp = "Entidad vedesitem es null." });
                 }
                 _context.vedesitem.Add(vedesitem);
                 try
@@ -159,10 +148,10 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    return BadRequest("Existen problemas con el Servidor.");
+                    return Problem("Error en el servidor");
                 }
 
-                return Ok("204");   // creado con exito
+                return Ok( new { resp = "204" });   // creado con exito
 
             }
             
@@ -178,31 +167,27 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.vedesitem == null)
                     {
-                        return Problem("Entidad vedesitem es null.");
+                        return BadRequest(new { resp = "Entidad vedesitem es null." });
                     }
                     var vedesitem = _context.vedesitem.FirstOrDefault(objeto => objeto.codalmacen == codalmacen && objeto.coditem == coditem && objeto.nivel == nivel);
                     if (vedesitem == null)
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
 
                     _context.vedesitem.Remove(vedesitem);
                     await _context.SaveChangesAsync();
 
-                    return Ok("208");   // eliminado con exito
+                    return Ok( new { resp = "208" });   // eliminado con exito
                 }
-                
-
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 

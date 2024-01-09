@@ -26,13 +26,11 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.velugar == null)
                     {
-                        return Problem("Entidad velugar es null.");
+                        return BadRequest(new { resp = "Entidad velugar es null." });
                     }
 
 
@@ -86,7 +84,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
 
 
@@ -101,13 +99,11 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.velugar == null)
                     {
-                        return Problem("Entidad velugar es null.");
+                        return BadRequest(new { resp = "Entidad velugar es null." });
                     }
                     var velugar = await _context.velugar
                         .Where(i => i.codigo==codigo)
@@ -152,7 +148,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
                     if (velugar == null)
                     {
-                        return NotFound("No se encontro un registro con este código");
+                        return NotFound( new { resp = "No se encontro un registro con este código" });
                     }
 
                     return Ok(velugar);
@@ -161,7 +157,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -174,8 +170,6 @@ namespace SIAW.Controllers.ventas.mantenimiento
             {
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-
-                //var _context = _userConnectionManager.GetUserConnection(userId);
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
@@ -191,7 +185,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
                     if (result.Count() == 0)
                     {
-                        return Problem("Entidad velugar es null.");
+                        return BadRequest(new { resp = "Entidad velugar es null." });
                     }
                     return Ok(result);
                 }
@@ -199,7 +193,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
                 throw;
             }
         }
@@ -213,13 +207,11 @@ namespace SIAW.Controllers.ventas.mantenimiento
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (codigo != velugar.codigo)
                 {
-                    return BadRequest("Error con Id en datos proporcionados.");
+                    return BadRequest( new { resp = "Error con Id en datos proporcionados." });
                 }
 
                 _context.Entry(velugar).State = EntityState.Modified;
@@ -232,15 +224,16 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 {
                     if (!velugarExists(codigo, _context))
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
                     else
                     {
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
 
-                return Ok("206");   // actualizado con exito
+                return Ok( new { resp = "206" });   // actualizado con exito
             }
 
 
@@ -256,13 +249,11 @@ namespace SIAW.Controllers.ventas.mantenimiento
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.velugar == null)
                 {
-                    return Problem("Entidad velugar es null.");
+                    return BadRequest(new { resp = "Entidad velugar es null." });
                 }
                 _context.velugar.Add(velugar);
                 try
@@ -273,15 +264,16 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 {
                     if (velugarExists(velugar.codigo, _context))
                     {
-                        return Conflict("Ya existe un registro con ese código");
+                        return Conflict( new { resp = "Ya existe un registro con ese código" });
                     }
                     else
                     {
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
 
-                return Ok("204");   // creado con exito
+                return Ok( new { resp = "204" });   // creado con exito
 
             }
 
@@ -297,31 +289,29 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.velugar == null)
                     {
-                        return Problem("Entidad velugar es null.");
+                        return BadRequest(new { resp = "Entidad velugar es null." });
                     }
                     var velugar = await _context.velugar.FindAsync(codigo);
                     if (velugar == null)
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
 
                     _context.velugar.Remove(velugar);
                     await _context.SaveChangesAsync();
 
-                    return Ok("208");   // eliminado con exito
+                    return Ok( new { resp = "208" });   // eliminado con exito
                 }
 
 
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 

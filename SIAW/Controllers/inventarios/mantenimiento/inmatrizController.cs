@@ -29,13 +29,11 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.inmatriz == null)
                     {
-                        return Problem("Entidad inmatriz es null.");
+                        return BadRequest(new { resp = "Entidad inmatriz es null." });
                     }
                     var result = await _context.inmatriz.OrderBy(hoja => hoja.hoja).ToListAsync();
                     return Ok(result);
@@ -44,7 +42,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
 
 
@@ -63,13 +61,13 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 {
                     if (_context.inmatriz == null)
                     {
-                        return Problem("Entidad inmatriz es null.");
+                        return BadRequest(new { resp = "Entidad inmatriz es null." });
                     }
                     var inmatriz = await _context.inmatriz.Where(objeto => objeto.hoja == hoja).ToListAsync();
 
                     if (inmatriz.Count() == 0)
                     {
-                        return NotFound("No se encontro un registro con este código");
+                        return NotFound( new { resp = "No se encontro un registro con este código" });
                     }
 
                     return Ok(inmatriz);
@@ -77,7 +75,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -117,7 +115,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                     if (initem == null)
                     {
-                        return NotFound("No se encontro un registro con este código");
+                        return NotFound( new { resp = "No se encontro un registro con este código" });
                     }
 
                     return Ok(initem);
@@ -125,7 +123,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -140,15 +138,13 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 var matriz = _context.inmatriz.FirstOrDefault(objeto => objeto.hoja == hoja && objeto.linea == linea);
 
                 if (matriz == null)
                 {
-                    return NotFound("No existe un registro con esa información");
+                    return NotFound( new { resp = "No existe un registro con esa información" });
                 }
 
                 _context.Entry(inmatriz).State = EntityState.Modified;
@@ -159,10 +155,10 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    return BadRequest("Existen problemas con el Servidor.");
+                    return Problem("Error en el servidor");
                 }
 
-                return Ok("206");   // actualizado con exito
+                return Ok( new { resp = "206" });   // actualizado con exito
             }
             
         }
@@ -178,8 +174,6 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 foreach (var inmatriz in inmatrizList)
@@ -187,7 +181,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     var matriz = _context.inmatriz.FirstOrDefault(objeto => objeto.hoja == inmatriz.hoja && objeto.linea == inmatriz.linea);
                     if (matriz == null)
                     {
-                        return NotFound("No existe un registro");
+                        return BadRequest(new { resp = "Entidad inmatriz es null." });
                     }
                     // Actualiza las propiedades que necesites
                     matriz.A = inmatriz.A;
@@ -213,10 +207,10 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    return BadRequest("Existen problemas con el Servidor.");
+                    return Problem("Error en el servidor");
                 }
 
-                return Ok("206");   // actualizado con exito
+                return Ok( new { resp = "206" });   // actualizado con exito
             }
             
         }
@@ -232,13 +226,11 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.inmatriz == null)
                 {
-                    return Problem("Entidad inmatriz es null.");
+                    return BadRequest(new { resp = "Entidad inmatriz es null." });
                 }
                 _context.inmatriz.Add(inmatriz);
                 try
@@ -247,10 +239,10 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    return BadRequest("Existen problemas con el Servidor.");
+                    return Problem("Error en el servidor");
                 }
 
-                return Ok("204");   // creado con exito
+                return Ok( new { resp = "204" });   // creado con exito
 
             }
             
@@ -266,31 +258,27 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.inmatriz == null)
                     {
-                        return Problem("Entidad inmatriz es null.");
+                        return BadRequest(new { resp = "Entidad inmatriz es null." });
                     }
                     var inmatriz = _context.inmatriz.FirstOrDefault(objeto => objeto.hoja == hoja && objeto.linea == linea);
                     if (inmatriz == null)
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
 
                     _context.inmatriz.Remove(inmatriz);
                     await _context.SaveChangesAsync();
 
-                    return Ok("208");   // eliminado con exito
+                    return Ok( new { resp = "208" });   // eliminado con exito
                 }
-                
-
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 

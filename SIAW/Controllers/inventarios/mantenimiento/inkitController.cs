@@ -27,13 +27,11 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.inkit == null)
                     {
-                        return Problem("Entidad inkit es null.");
+                        return BadRequest(new { resp = "Entidad inkit es null." });
                     }
                     var result = await _context.inkit.OrderBy(codigo => codigo.codigo).ToListAsync();
                     return Ok(result);
@@ -42,7 +40,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
 
 
@@ -57,19 +55,17 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.inkit == null)
                     {
-                        return Problem("Entidad inkit es null.");
+                        return BadRequest(new { resp = "Entidad inkit es null." });
                     }
                     var inkit = _context.inkit.FirstOrDefault(objeto => objeto.codigo == codigo && objeto.item == item);
 
                     if (inkit == null)
                     {
-                        return NotFound("No se encontro un registro con este código");
+                        return NotFound( new { resp = "No se encontro un registro con este código" });
                     }
 
                     return Ok(inkit);
@@ -78,7 +74,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -97,8 +93,6 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             {
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-
-                //var _context = _userConnectionManager.GetUserConnection(userId);
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
@@ -120,7 +114,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                     if (result.Count() == 0)
                     {
-                        return Problem("No se encontraron registros con esos datos.");
+                        return BadRequest( new { resp = "No se encontraron registros con esos datos." });
                     }
                     return Ok(result);
                 }
@@ -128,7 +122,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
                 throw;
             }
         }
@@ -143,14 +137,12 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 var kit = _context.inkit.FirstOrDefault(objeto => objeto.codigo == codigo && objeto.item == item);
                 if (kit == null)
                 {
-                    return NotFound("No existe un registro con esa información");
+                    return NotFound( new { resp = "No existe un registro con esa información" });
                 }
 
                 _context.Entry(inkit).State = EntityState.Modified;
@@ -163,15 +155,16 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 {
                     if (!inkitExists(codigo, item, _context))
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
                     else
                     {
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
 
-                return Ok("206");   // actualizado con exito
+                return Ok( new { resp = "206" });   // actualizado con exito
             }
             
 
@@ -187,13 +180,11 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.inkit == null)
                 {
-                    return Problem("Entidad inkit es null.");
+                    return BadRequest(new { resp = "Entidad inkit es null." });
                 }
                 _context.inkit.Add(inkit);
                 try
@@ -204,15 +195,16 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 {
                     if (inkitExists(inkit.codigo, inkit.item, _context))
                     {
-                        return Conflict("Ya existe un registro con ese código");
+                        return Conflict( new { resp = "Ya existe un registro con ese código" });
                     }
                     else
                     {
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
 
-                return Ok("204");   // creado con exito
+                return Ok( new { resp = "204" });   // creado con exito
 
             }
             
@@ -228,31 +220,27 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.inkit == null)
                     {
-                        return Problem("Entidad inkit es null.");
+                        return BadRequest(new { resp = "Entidad inkit es null." });
                     }
                     var inkit = _context.inkit.FirstOrDefault(objeto => objeto.codigo == codigo && objeto.item == item);
                     if (inkit == null)
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
 
                     _context.inkit.Remove(inkit);
                     await _context.SaveChangesAsync();
 
-                    return Ok("208");   // eliminado con exito
+                    return Ok( new { resp = "208" });   // eliminado con exito
                 }
-                
-
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 

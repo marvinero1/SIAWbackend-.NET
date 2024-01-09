@@ -28,16 +28,13 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.initem == null)
                     {
-                        return Problem("Entidad initem es null.");
+                        return BadRequest(new { resp = "Entidad initem es null." });
                     }
-                    //var result = await _context.initem.OrderByDescending(fechareg => fechareg.fechareg).ToListAsync();
-                    //return Ok(result);
+
                     var result = _context.initem
                         .Join(_context.inudemed, item => item.unidad, udemed => udemed.Codigo, (item, udemed) => new { item, udemed })
                         .Join(_context.inrosca, combined => combined.item.rosca, rosca => rosca.codigo, (combined, rosca) => new { combined.item, combined.udemed, rosca })
@@ -135,7 +132,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
 
 
@@ -150,13 +147,11 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.initem == null)
                     {
-                        return Problem("Entidad initem es null.");
+                        return BadRequest(new { resp = "Entidad initem es null." });
                     }
                     //var initem = await _context.initem.FindAsync(codigo);
 
@@ -252,7 +247,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                    
                     if (result == null)
                     {
-                        return NotFound("No se encontro un registro con este código");
+                        return NotFound( new { resp = "No se encontro un registro con este código" });
                     }
 
                     return Ok(result);
@@ -261,7 +256,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -275,8 +270,6 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             {
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-
-                //var _context = _userConnectionManager.GetUserConnection(userId);
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
@@ -292,7 +285,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                     if (result.Count() == 0)
                     {
-                        return Problem("Entidad initem es null.");
+                        return BadRequest(new { resp = "Entidad initem es null." });
                     }
                     return Ok(result);
                 }
@@ -300,7 +293,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
                 throw;
             }
         }
@@ -315,8 +308,6 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             {
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-
-                //var _context = _userConnectionManager.GetUserConnection(userId);
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
@@ -336,7 +327,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                     if (result.Count() == 0)
                     {
-                        return Problem("Entidad initem es null.");
+                        return BadRequest(new { resp = "Entidad initem es null." });
                     }
                     return Ok(result);
                 }
@@ -344,7 +335,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
                 throw;
             }
         }
@@ -359,8 +350,6 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             {
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-
-                //var _context = _userConnectionManager.GetUserConnection(userId);
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
@@ -377,7 +366,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                     if (result.Count() == 0)
                     {
-                        return Problem("Entidad initem es null.");
+                        return BadRequest(new { resp = "Entidad initem es null." });
                     }
                     return Ok(result);
                 }
@@ -385,7 +374,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
                 throw;
             }
         }
@@ -400,13 +389,11 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (codigo != initem.codigo)
                 {
-                    return BadRequest("Error con Id en datos proporcionados.");
+                    return BadRequest( new { resp = "Error con Id en datos proporcionados." });
                 }
 
                 _context.Entry(initem).State = EntityState.Modified;
@@ -419,15 +406,16 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 {
                     if (!initemExists(codigo, _context))
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
                     else
                     {
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
 
-                return Ok("206");   // actualizado con exito
+                return Ok( new { resp = "206" });   // actualizado con exito
             }
             
 
@@ -443,13 +431,11 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.initem == null)
                 {
-                    return Problem("Entidad initem es null.");
+                    return BadRequest(new { resp = "Entidad initem es null." });
                 }
                 _context.initem.Add(initem);
                 try
@@ -460,15 +446,16 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 {
                     if (initemExists(initem.codigo, _context))
                     {
-                        return Conflict("Ya existe un registro con ese código");
+                        return Conflict( new { resp = "Ya existe un registro con ese código" });
                     }
                     else
                     {
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
 
-                return Ok("204");   // creado con exito
+                return Ok( new { resp = "204" });   // creado con exito
 
             }
             
@@ -484,31 +471,29 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.initem == null)
                     {
-                        return Problem("Entidad initem es null.");
+                        return BadRequest(new { resp = "Entidad initem es null." });
                     }
                     var initem = await _context.initem.FindAsync(codigo);
                     if (initem == null)
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
 
                     _context.initem.Remove(initem);
                     await _context.SaveChangesAsync();
 
-                    return Ok("208");   // eliminado con exito
+                    return Ok( new { resp = "208" });   // eliminado con exito
                 }
                 
 
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -541,13 +526,11 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.inctrlstock == null)
                     {
-                        return Problem("Entidad inctrlstock es null.");
+                        return BadRequest(new { resp = "Entidad inctrlstock es null." });
                     }
                     var result = await _context.inctrlstock.OrderBy(id => id.id).ToListAsync();
                     return Ok(result);
@@ -556,7 +539,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
 
 
@@ -578,13 +561,11 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.inctrlstock == null)
                     {
-                        return Problem("Entidad inctrlstock es null.");
+                        return BadRequest(new { resp = "Entidad inctrlstock es null." });
                     }
                     //var inctrlstock = await _context.inctrlstock.FindAsync(id);
                     var query = from s in _context.inctrlstock
@@ -605,7 +586,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                     if (result.Count() == 0)
                     {
-                        return NotFound("No se encontro un registro con este código");
+                        return NotFound( new { resp = "No se encontro un registro con este código" });
                     }
 
                     return Ok(result);
@@ -614,7 +595,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -627,13 +608,11 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (id != inctrlstock.id)
                 {
-                    return BadRequest("Error con Id en datos proporcionados.");
+                    return BadRequest( new { resp = "Error con Id en datos proporcionados." });
                 }
 
                 _context.Entry(inctrlstock).State = EntityState.Modified;
@@ -646,15 +625,16 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 {
                     if (!inctrlstockExists(id, _context))
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
                     else
                     {
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
 
-                return Ok("206");   // actualizado con exito
+                return Ok( new { resp = "206" });   // actualizado con exito
             }
             
 
@@ -670,13 +650,11 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.inctrlstock == null)
                 {
-                    return Problem("Entidad inctrlstock es null.");
+                    return BadRequest(new { resp = "Entidad inctrlstock es null." });
                 }
                 _context.inctrlstock.Add(inctrlstock);
                 try
@@ -687,15 +665,16 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 {
                     if (inctrlstockExists(inctrlstock.id, _context))
                     {
-                        return Conflict("Ya existe un registro con ese código");
+                        return Conflict( new { resp = "Ya existe un registro con ese código" });
                     }
                     else
                     {
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
 
-                return Ok("204");   // creado con exito
+                return Ok( new { resp = "204" });   // creado con exito
 
             }
             
@@ -711,31 +690,29 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.inctrlstock == null)
                     {
-                        return Problem("Entidad inctrlstock es null.");
+                        return BadRequest(new { resp = "Entidad inctrlstock es null." });
                     }
                     var inctrlstock = await _context.inctrlstock.FindAsync(id);
                     if (inctrlstock == null)
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
 
                     _context.inctrlstock.Remove(inctrlstock);
                     await _context.SaveChangesAsync();
 
-                    return Ok("208");   // eliminado con exito
+                    return Ok( new { resp = "208" });   // eliminado con exito
                 }
                 
 
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -770,13 +747,11 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.initem_max == null)
                     {
-                        return Problem("Entidad initem_max es null.");
+                        return BadRequest(new { resp = "Entidad initem_max es null." });
                     }
                     var result = await _context.initem_max.OrderBy(id => id.id).ToListAsync();
                     return Ok(result);
@@ -785,7 +760,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
 
 
@@ -807,13 +782,11 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.initem_max == null)
                     {
-                        return Problem("Entidad initem_max es null.");
+                        return BadRequest(new { resp = "Entidad initem_max es null." });
                     }
                     var query = _context.initem_max
                     .Where(im => im.coditem == coditem)
@@ -831,7 +804,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                     if (result.Count() == 0)
                     {
-                        return NotFound("No se encontro un registro con este código");
+                        return NotFound( new { resp = "No se encontro un registro con este código" });
                     }
 
                     return Ok(result);
@@ -840,7 +813,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -853,13 +826,11 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (id != initem_max.id)
                 {
-                    return BadRequest("Error con Id en datos proporcionados.");
+                    return BadRequest( new { resp = "Error con Id en datos proporcionados." });
                 }
 
                 _context.Entry(initem_max).State = EntityState.Modified;
@@ -872,19 +843,17 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 {
                     if (!initem_maxExists(id, _context))
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
                     else
                     {
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
 
-                return Ok("206");   // actualizado con exito
+                return Ok( new { resp = "206" });   // actualizado con exito
             }
-            
-
-
         }
 
         // POST: api/initem_max
@@ -896,13 +865,11 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.initem_max == null)
                 {
-                    return Problem("Entidad initem_max es null.");
+                    return BadRequest(new { resp = "Entidad initem_max es null." });
                 }
                 _context.initem_max.Add(initem_max);
                 try
@@ -913,15 +880,16 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 {
                     if (initem_maxExists(initem_max.id, _context))
                     {
-                        return Conflict("Ya existe un registro con ese código");
+                        return Conflict( new { resp = "Ya existe un registro con ese código" });
                     }
                     else
                     {
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
 
-                return Ok("204");   // creado con exito
+                return Ok( new { resp = "204" });   // creado con exito
 
             }
             
@@ -937,31 +905,29 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.initem_max == null)
                     {
-                        return Problem("Entidad initem_max es null.");
+                        return BadRequest(new { resp = "Entidad initem_max es null." });
                     }
                     var initem_max = await _context.initem_max.FindAsync(id);
                     if (initem_max == null)
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
 
                     _context.initem_max.Remove(initem_max);
                     await _context.SaveChangesAsync();
 
-                    return Ok("208");   // eliminado con exito
+                    return Ok( new { resp = "208" });   // eliminado con exito
                 }
                 
 
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -999,13 +965,11 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.initem_controltarifa == null)
                     {
-                        return Problem("Entidad initem_controltarifa es null.");
+                        return BadRequest(new { resp = "Entidad initem_controltarifa es null." });
                     }
                     var result = await _context.initem_controltarifa.OrderBy(id => id.id).ToListAsync();
                     return Ok(result);
@@ -1014,7 +978,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
 
 
@@ -1036,13 +1000,11 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.initem_controltarifa == null)
                     {
-                        return Problem("Entidad initem_controltarifa es null.");
+                        return BadRequest(new { resp = "Entidad initem_controltarifa es null." });
                     }
                     var query = _context.initem_controltarifa
                     .Where(im => im.coditem == coditem)
@@ -1060,7 +1022,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                     if (result.Count() == 0)
                     {
-                        return NotFound("No se encontro un registro con este código");
+                        return NotFound( new { resp = "No se encontro un registro con este código" });
                     }
 
                     return Ok(result);
@@ -1069,7 +1031,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -1082,13 +1044,11 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (id != initem_controltarifa.id)
                 {
-                    return BadRequest("Error con Id en datos proporcionados.");
+                    return BadRequest( new { resp = "Error con Id en datos proporcionados." });
                 }
 
                 _context.Entry(initem_controltarifa).State = EntityState.Modified;
@@ -1101,15 +1061,16 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 {
                     if (!initem_controltarifaExists(id, _context))
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
                     else
                     {
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
 
-                return Ok("206");   // actualizado con exito
+                return Ok( new { resp = "206" });   // actualizado con exito
             }
             
 
@@ -1125,13 +1086,11 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.initem_controltarifa == null)
                 {
-                    return Problem("Entidad initem_controltarifa es null.");
+                    return BadRequest(new { resp = "Entidad initem_controltarifa es null." });
                 }
                 _context.initem_controltarifa.Add(initem_controltarifa);
                 try
@@ -1142,15 +1101,16 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 {
                     if (initem_controltarifaExists(initem_controltarifa.id, _context))
                     {
-                        return Conflict("Ya existe un registro con ese código");
+                        return Conflict( new { resp = "Ya existe un registro con ese código" });
                     }
                     else
                     {
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
 
-                return Ok("204");   // creado con exito
+                return Ok( new { resp = "204" });   // creado con exito
 
             }
             
@@ -1166,31 +1126,29 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.initem_controltarifa == null)
                     {
-                        return Problem("Entidad initem_controltarifa es null.");
+                        return BadRequest(new { resp = "Entidad initem_controltarifa es null." });
                     }
                     var initem_controltarifa = await _context.initem_controltarifa.FindAsync(id);
                     if (initem_controltarifa == null)
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
 
                     _context.initem_controltarifa.Remove(initem_controltarifa);
                     await _context.SaveChangesAsync();
 
-                    return Ok("208");   // eliminado con exito
+                    return Ok( new { resp = "208" });   // eliminado con exito
                 }
                 
 
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 

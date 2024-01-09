@@ -27,13 +27,11 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.adusuario_idproforma == null)
                     {
-                        return Problem("Entidad adusuario_idproforma es null.");
+                        return BadRequest(new { resp = "Entidad adusuario_idproforma es null." });
                     }
                     var result = await _context.adusuario_idproforma
                         .OrderBy(x => x.usuario)
@@ -45,7 +43,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -62,8 +60,6 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     var query = _context.venumeracion
@@ -79,7 +75,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                     if (result.Count() == 0)
                     {
-                        return Problem("Entidad venumeracion-proforma es null.");
+                        return NotFound( new { resp = "No se encontraron registros." });
                     }
                     return Ok(result);
                 }
@@ -87,7 +83,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
                 throw;
             }
         }
@@ -107,19 +103,19 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             string id_asignado = await if_id_asignado(userConnectionString, adusuario_idproforma.idproforma);
             if (id_asignado != "aceptado")
             {
-                return Ok(new { codigo = 706,resul = id_asignado});
+                return BadRequest(new { codigo = 706,resul = id_asignado});
             }
             string usuario_idasignado = await usuario_tienen_id_asignado(userConnectionString, adusuario_idproforma.usuario);
             if (usuario_idasignado != "aceptado")
             {
-                return Ok(new { codigo = 708, resul = usuario_idasignado });
+                return BadRequest(new { codigo = 708, resul = usuario_idasignado });
             }
 
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.adusuario_idproforma == null)
                 {
-                    return Problem("Entidad adusuario_idproforma es null.");
+                    return BadRequest(new { resp = "Entidad adusuario_idproforma es null." });
                 }
 
                 _context.adusuario_idproforma.Add(adusuario_idproforma);
@@ -131,17 +127,17 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 {
                     if (adusuario_idproformaExists(adusuario_idproforma.id, _context))
                     {
-                        return Conflict("Ya existe un registro con ese código");
+                        return Conflict( new { resp = "Ya existe un registro con ese código" });
                     }
                     else
                     {
-                        return BadRequest("Error en el servidor");
+                        return Problem("Error en el servidor");
                         throw;
                     }
                     
                 }
 
-                return Ok("204");   // creado con exito
+                return Ok( new { resp = "204" });   // creado con exito
 
             }
 
@@ -168,23 +164,23 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 {
                     if (_context.adusuario_idproforma == null)
                     {
-                        return Problem("Entidad adusuario_idproforma es null.");
+                        return BadRequest(new { resp = "Entidad adusuario_idproforma es null." });
                     }
                     var adusuario_idproforma = await _context.adusuario_idproforma.FindAsync(id);
                     if (adusuario_idproforma == null)
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
 
                     _context.adusuario_idproforma.Remove(adusuario_idproforma);
                     await _context.SaveChangesAsync();
 
-                    return Ok("208");   // eliminado con exito
+                    return Ok( new { resp = "208" });   // eliminado con exito
                 }
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 

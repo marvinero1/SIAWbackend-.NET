@@ -32,7 +32,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 {
                     if (_context.adsiat_tipoemision == null)
                     {
-                        return Problem("Entidad adsiat_tipoemision es null.");
+                        return BadRequest(new { resp = "Entidad adsiat_tipoemision es null." });
                     }
                     var result = await _context.adsiat_tipoemision
                         .OrderBy(x => x.codigoclasificador)
@@ -47,7 +47,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -65,7 +65,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 {
                     if (_context.adsiat_tipodocsector == null)
                     {
-                        return Problem("Entidad adsiat_tipodocsector es null.");
+                        return BadRequest(new { resp = "Entidad adsiat_tipodocsector es null." });
                     }
                     var result = await _context.adsiat_tipodocsector
                                             .OrderBy(x => x.codigoclasificador)
@@ -80,7 +80,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -98,7 +98,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 {
                     if (_context.adsiat_tipofactura == null)
                     {
-                        return Problem("Entidad adsiat_tipofactura es null.");
+                        return BadRequest(new { resp = "Entidad adsiat_tipofactura es null." });
                     }
                     var result = await _context.adsiat_tipofactura
                         .OrderBy(x => x.codigoclasificador)
@@ -115,7 +115,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -134,7 +134,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 {
                     if (_context.adsiat_sucursal == null)
                     {
-                        return Problem("Entidad adsiat_sucursal es null.");
+                        return BadRequest(new { resp = "Entidad adsiat_sucursal es null." });
                     }
                     var result = await _context.adsiat_sucursal
                         .OrderBy(x => x.codsucursal)
@@ -148,7 +148,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -168,7 +168,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 {
                     if (_context.adsiat_actividad == null)
                     {
-                        return Problem("Entidad adsiat_actividad es null.");
+                        return BadRequest(new { resp = "Entidad adsiat_actividad es null." });
                     }
                     var result = await _context.adsiat_actividad
                         .OrderBy(x => x.codigocaeb)
@@ -184,7 +184,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -203,7 +203,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 {
                     if (_context.adsiat_parametros_facturacion == null)
                     {
-                        return Problem("Entidad adsiat_parametros_facturacion es null.");
+                        return BadRequest(new { resp = "Entidad adsiat_parametros_facturacion es null." });
                     }
                     var result = await _context.adsiat_parametros_facturacion
                         .Where(x => x.codalmacen == codalmlocal)
@@ -213,7 +213,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -233,7 +233,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 {
                     if (_context.adcuis_sia == null)
                     {
-                        return Problem("Entidad adcuis_sia es null.");
+                        return BadRequest(new { resp = "Entidad adcuis_sia es null." });
                     }
                     var result = await _context.adcuis_sia
                         .Where(x => x.codsucursal == sucursal)
@@ -243,7 +243,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -274,7 +274,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     return Problem("Error en el Servidor");
                 }
 
-                return Ok("206");   // actualizado con exito
+                return Ok( new { resp = "206" });   // actualizado con exito
             }
         }
 
@@ -305,7 +305,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     return Problem("Error en el Servidor");
                 }
 
-                return Ok("206");   // actualizado con exito
+                return Ok( new { resp = "206" });   // actualizado con exito
             }
         }
 

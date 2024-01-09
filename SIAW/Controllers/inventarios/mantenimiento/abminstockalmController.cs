@@ -33,7 +33,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 {
                     if (_context.adsiat_actividad == null)
                     {
-                        return Problem("Entidad adsiat_actividad es null.");
+                        return BadRequest(new { resp = "Entidad adsiat_actividad es null." });
                     }
                     var result = await _context.instockalm
                         .Where(s => s.codalmacen == codalmacen)
@@ -55,7 +55,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -99,7 +99,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 {
                     return Problem("Error en el servidor");
                 }
-                return Ok("204");   // creado con exito
+                return Ok( new { resp = "204" });   // creado con exito
 
             }
 

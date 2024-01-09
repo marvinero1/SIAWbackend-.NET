@@ -63,7 +63,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
                     if (codalmacen == null)
                     {
-                        return NotFound("No se encontro un registro con este código (cod almacen)");
+                        return NotFound(new { resp = "No se encontro un registro con este código (cod almacen)" });
                     }
 
                     return Ok(codalmacen);
@@ -72,7 +72,7 @@ namespace SIAW.Controllers.ventas.transaccion
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -108,7 +108,7 @@ namespace SIAW.Controllers.ventas.transaccion
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -129,7 +129,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 {
                     if (_context.adsiat_tipodocidentidad == null)
                     {
-                        return Problem("Entidad adtipocambio es null.");
+                        return BadRequest(new { resp = "Entidad adtipocambio es null." });
                     }
                     var result = await _context.adsiat_tipodocidentidad
                         .OrderBy (t => t.codigoclasificador)
@@ -144,7 +144,7 @@ namespace SIAW.Controllers.ventas.transaccion
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -171,20 +171,20 @@ namespace SIAW.Controllers.ventas.transaccion
                 var ad_conexion_vpnResult = empaque_func.Getad_conexion_vpnFromDatabase(userConnectionString, agencia);
                 if (ad_conexion_vpnResult == null)
                 {
-                    return Problem("No se pudo obtener la cadena de conexión");
+                    return BadRequest( new { resp = "No se pudo obtener la cadena de conexión"});
                 }
 
                 var instoactual = await empaque_func.GetSaldosActual(ad_conexion_vpnResult, codalmacen, coditem);
                 if (instoactual == null)
                 {
-                    return NotFound("No existe un registro con esos datos");
+                    return NotFound( new { resp = "No se encontraron registros con los datos proporcionados." });
                 }
                 return Ok(instoactual);
                 //return Ok(ad_conexion_vpnResult);
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -210,7 +210,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 var instoactual = await empaque_func.GetSaldosActual(userConnectionString, codalmacen, coditem);
                 if (instoactual == null)
                 {
-                    return NotFound("No existe un registro con esos datos");
+                    return NotFound( new { resp = "No se encontraron registros con los datos proporcionados." });
                 }
                 return Ok(instoactual);
             }
@@ -266,7 +266,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     conexion = empaque_func.Getad_conexion_vpnFromDatabase(userConnectionString, agencia);
                     if (conexion == null)
                     {
-                        return Problem("No se pudo obtener la cadena de conexión");
+                        return BadRequest( new { resp = "No se pudo obtener la cadena de conexión"});
                     }
                 }
 
@@ -784,7 +784,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 int codarea_empaque = Getcod_area_empaqueFromadparametros(userConnectionString);
                 if (codarea_empaque==-1)
                 {
-                    return Problem("No se pudo obtener el codigo de área");
+                    return BadRequest( new { resp = "No se pudo obtener el codigo de área" });
                 }
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
@@ -805,7 +805,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
                     if (empaques.Count() == 0)
                     {
-                        return Problem("No se encontraron datos.");
+                        return NotFound(new { resp = "No se encontraron registros con los datos proporcionados." });
                     }
                     return Ok(empaques);
                 }
@@ -898,7 +898,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
                     if (codAlmacenes.Count() == 0)
                     {
-                        return NotFound("No se encontro un registro con este código");
+                        return NotFound( new { resp = "No se encontro un registro con este código" });
                     }
                     /*listaAlmacenes.Add((int)codAlmacenes.codalmsald1);
                     listaAlmacenes.Add((int)codAlmacenes.codalmsald2);
@@ -911,7 +911,7 @@ namespace SIAW.Controllers.ventas.transaccion
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
         //Para obtener si un item esta habilitado para ventas o no
@@ -946,13 +946,13 @@ namespace SIAW.Controllers.ventas.transaccion
 
                 if (nroactual == null)
                 {
-                    return NotFound("No se encontro un registro con este código");
+                    return NotFound( new { resp = "No se encontro un registro con este código" });
                 }
                 return Ok(nroactual);
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -966,7 +966,7 @@ namespace SIAW.Controllers.ventas.transaccion
             string datosValidos = await clienteCasual.validar_crear_cliente(userConnectionString, cliCasual.codSN, cliCasual.nit_cliente_casual, cliCasual.tipo_doc_cliente_casual);
             if (datosValidos != "Ok")
             {
-                return BadRequest("Datos no validos verifique por favor!!!");
+                return BadRequest(new { resp = "Datos no validos verifique por favor!!!" });
             }
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
@@ -976,11 +976,11 @@ namespace SIAW.Controllers.ventas.transaccion
                     { 
                         bool crear_cli_casu = await clienteCasual.Crear_Cliente_Casual(_context, cliCasual);
                         if (!crear_cli_casu)
-                        {
-                            return BadRequest(new { message = "Error al crear el cliente" });
+                        { 
+                            return BadRequest(new { resp = "Error al crear el cliente" });
                         }
                         dbContexTransaction.Commit();
-                        return Ok(new { message = "Cliente creado exitosamente" });
+                        return Ok(new { resp = "Cliente creado exitosamente" });
 
                     }
                     catch (Exception)
@@ -1035,7 +1035,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
                     return Ok(jsonResult);
                 }
-                else { return BadRequest("No se pudo validar el documento."); }
+                else { return BadRequest(new { resp = "No se pudo validar el documento." }); }
             }
             catch (Exception)
             {
@@ -1058,7 +1058,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
             if (await clienteCasual.EsClienteSinNombre(userConnectionString, codcliente))
             {
-                return "No se puede actualizar el correo de un codigo SIN NOMBRE!!!";
+                return BadRequest(new { resp = "No se puede actualizar el correo de un codigo SIN NOMBRE!!!" });
             }
 
             using (var _context = DbContextFactory.Create(userConnectionString))
@@ -1071,18 +1071,18 @@ namespace SIAW.Controllers.ventas.transaccion
                         bool actualizaEmailClient = await clienteCasual.actualizarEmailCliente(_context, codcliente, email);
                         if (!actualizaEmailClient)
                         {
-                            return BadRequest("No se pudo actualizar el email del cliente");
+                            return BadRequest(new { resp = "No se pudo actualizar el email del cliente" });
                         }
 
                         bool actualizaEmailTienda = await clienteCasual.actualizarEmailClienteTienda(_context, codcliente, email);
                         if (!actualizaEmailTienda)
                         {
-                            return BadRequest("No se pudo actualizar el email del cliente (tienda)");
+                            return BadRequest(new { resp = "No se pudo actualizar el email del cliente (tienda)" });
                             throw new Exception();
                         }
 
                         dbContexTransaction.Commit();
-                        return Ok(new {message = "Se ha actualizado exitosamente el email del cliente en sus Datos y en datos de la Tienda del Cliente." });
+                        return Ok(new {resp = "Se ha actualizado exitosamente el email del cliente en sus Datos y en datos de la Tienda del Cliente." });
 
                     }
                     catch (Exception)
@@ -1181,7 +1181,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
                     if (item == null)
                     {
-                        return NotFound("No se encontro un registro con este código");
+                        return NotFound( new { resp = "No se encontro un registro con este código" });
                     }
 
                     return Ok(item);
@@ -1190,7 +1190,7 @@ namespace SIAW.Controllers.ventas.transaccion
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -1205,8 +1205,6 @@ namespace SIAW.Controllers.ventas.transaccion
             {
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-
-                //var _context = _userConnectionManager.GetUserConnection(userId);
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
@@ -1224,7 +1222,7 @@ namespace SIAW.Controllers.ventas.transaccion
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
                 throw;
             }
         }
@@ -1238,8 +1236,6 @@ namespace SIAW.Controllers.ventas.transaccion
             {
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-
-                //var _context = _userConnectionManager.GetUserConnection(userId);
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
@@ -1259,7 +1255,7 @@ namespace SIAW.Controllers.ventas.transaccion
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
                 throw;
             }
         }
@@ -1299,12 +1295,12 @@ namespace SIAW.Controllers.ventas.transaccion
 
             if (idnroactual == 0)
             {
-                return BadRequest("Error al obtener los datos de numero de proforma");
+                return BadRequest(new { resp = "Error al obtener los datos de numero de proforma" });
             }
             // valida si existe ya la proforma
             if (await datos_proforma.existeProforma(userConnectionString, idProf, idnroactual))
             {
-                return BadRequest("Ese numero de documento, ya existe, por favor consulte con el administrador del sistema.");
+                return BadRequest(new { resp = "Ese numero de documento, ya existe, por favor consulte con el administrador del sistema." });
             }
 
             // obtener hora y fecha actual si es que la proforma no se importo
@@ -1325,7 +1321,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     {
                         if (veproforma1.Count < 1)
                         {
-                            return BadRequest("No se tiene detalle de la proforma");
+                            return BadRequest(new { resp = "No se tiene detalle de la proforma" });
                         }
                         // guarda cabecera (veproforma)
                         _context.veproforma.Add(veproforma);
@@ -1368,7 +1364,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         }
                         
 
-                        return Ok("Se Grabo la Proforma de manera Exitosa");
+                        return Ok(new { resp = "Se Grabo la Proforma de manera Exitosa" });
                     }
                     catch (Exception)
                     {
@@ -1444,7 +1440,7 @@ namespace SIAW.Controllers.ventas.transaccion
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 

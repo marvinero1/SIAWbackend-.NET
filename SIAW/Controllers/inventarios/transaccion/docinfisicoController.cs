@@ -41,7 +41,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                         .FirstOrDefaultAsync();
                     if (result == null)
                     {
-                        return BadRequest("Ese documento de inventario no existe (Doc Inventario)");
+                        return BadRequest(new { resp = "Ese documento de inventario no existe (Doc Inventario)" });
                     }
                     int res_codinvconsol = result.codigo;
                     var dataGroup = await _context.ingrupoper
@@ -49,7 +49,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                         .FirstOrDefaultAsync();
                     if (dataGroup == null)
                     {
-                        return BadRequest("Ese documento de inventario no existe (Grupo)");
+                        return BadRequest(new { resp = "Ese documento de inventario no existe (Grupo)" });
                     }
                     int res_codgrupo = dataGroup.codigo;
 
@@ -82,12 +82,8 @@ namespace SIAW.Controllers.inventarios.transaccion
 
                     await _context.infisico.AddAsync(infisico);
                     await _context.SaveChangesAsync();
-                    //return infisico.codigo;   // Agregado con exito
 
                     return Ok(new { resp = "aceptado" });
-
-
-                    //return Ok(new {codinvconsol = res_codinvconsol, codgrupo = res_codgrupo});
                 }
                 catch (Exception)
                 {

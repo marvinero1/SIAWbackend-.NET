@@ -29,13 +29,11 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.vecliente == null)
                     {
-                        return Problem("Entidad vecliente es null.");
+                        return BadRequest(new { resp = "Entidad vecliente es null." });
                     }
                     //var vecliente = await _context.vecliente.FindAsync(codigo);
                     var vecliente = await _context.vecliente
@@ -45,7 +43,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
                     if (vecliente == null)
                     {
-                        return NotFound("No se encontro un registro con este código");
+                        return NotFound( new { resp = "No se encontro un registro con este código" });
                     }
 
                     return Ok(vecliente);
@@ -54,7 +52,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -78,7 +76,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -99,12 +97,11 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.vecliente == null)
                     {
-                        return Problem("Entidad vecliente es null.");
+                        return BadRequest(new { resp = "Entidad vecliente es null." });
                     }
                     //var vecliente = await _context.vecliente.FindAsync(codigo);
                     var query = _context.vecliente
@@ -126,7 +123,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
                     if (result == null)
                     {
-                        return NotFound("No se encontro un registro con este código");
+                        return NotFound( new { resp = "No se encontro un registro con este código" });
                     }
 
                     return Ok(result);
@@ -135,7 +132,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -174,7 +171,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -197,7 +194,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
             {
                 if (codigo != vecliente.codigo)
                 {
-                    return BadRequest("Error con Id en datos proporcionados.");
+                    return BadRequest( new { resp = "Error con Id en datos proporcionados." });
                 }
 
                 _context.Entry(vecliente).State = EntityState.Modified;
@@ -210,14 +207,15 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 {
                     if (!veclienteExists(codigo, _context))
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
                     else
                     {
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
-                return Ok("206");   // actualizado con exito
+                return Ok( new { resp = "206" });   // actualizado con exito
             }
         }
 
@@ -238,7 +236,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 var vecliente = await _context.vecliente.Where(i => i.codigo == codigo).FirstOrDefaultAsync();
                 if (vecliente == null)
                 {
-                    return NotFound("No existe un registro con ese código");
+                    return NotFound( new { resp = "No existe un registro con ese código" });
                 }
                 vecliente.casual = casual;
                 _context.Entry(vecliente).State = EntityState.Modified;
@@ -251,7 +249,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 {
                     return Problem("Error en el servidor");
                 }
-                return Ok("206");   // actualizado con exito
+                return Ok( new { resp = "206" });   // actualizado con exito
             }
         }
 
@@ -266,13 +264,11 @@ namespace SIAW.Controllers.ventas.mantenimiento
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.vecliente == null)
                 {
-                    return Problem("Entidad vecliente es null.");
+                    return BadRequest(new { resp = "Entidad vecliente es null." });
                 }
                 _context.vecliente.Add(vecliente);
                 try
@@ -283,15 +279,16 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 {
                     if (veclienteExists(vecliente.codigo, _context))
                     {
-                        return Conflict("Ya existe un registro con ese código");
+                        return Conflict( new { resp = "Ya existe un registro con ese código" });
                     }
                     else
                     {
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
 
-                return Ok("204");   // creado con exito
+                return Ok( new { resp = "204" });   // creado con exito
 
             }
             
@@ -307,30 +304,28 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.vecliente == null)
                     {
-                        return Problem("Entidad vecliente es null.");
+                        return BadRequest(new { resp = "Entidad vecliente es null." });
                     }
                     var vecliente = await _context.vecliente.FindAsync(codigo);
                     if (vecliente == null)
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
 
                     _context.vecliente.Remove(vecliente);
                     await _context.SaveChangesAsync();
 
-                    return Ok("208");   // eliminado con exito
+                    return Ok( new { resp = "208" });   // eliminado con exito
                 }
                 
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 

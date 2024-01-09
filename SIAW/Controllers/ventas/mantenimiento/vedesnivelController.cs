@@ -30,7 +30,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 {
                     if (_context.vedesnivel == null)
                     {
-                        return Problem("Entidad vedesnivel es null.");
+                        return BadRequest(new { resp = "Entidad vedesnivel es null." });
                     }
                     var result = await _context.vedesnivel.OrderBy(codigo => codigo.codigo).ToListAsync();
                     return Ok(result);
@@ -39,7 +39,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -52,19 +52,17 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.vedesnivel == null)
                     {
-                        return Problem("Entidad vedesnivel es null.");
+                        return BadRequest(new { resp = "Entidad vedesnivel es null." });
                     }
                     var vedesnivel = await _context.vedesnivel.FindAsync(codigo);
 
                     if (vedesnivel == null)
                     {
-                        return NotFound("No se encontro un registro con este código");
+                        return NotFound( new { resp = "No se encontro un registro con este código" });
                     }
 
                     return Ok(vedesnivel);
@@ -73,7 +71,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -101,7 +99,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
                     if (result.Count() == 0)
                     {
-                        return Problem("Entidad vedesnivel es null.");
+                        return BadRequest(new { resp = "Entidad vedesnivel es null." });
                     }
                     return Ok(result);
                 }
@@ -109,7 +107,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
                 throw;
             }
         }
@@ -127,7 +125,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
             {
                 if (_context.vedesnivel == null)
                 {
-                    return Problem("Entidad vedesnivel es null.");
+                    return BadRequest(new { resp = "Entidad vedesnivel es null." });
                 }
                 _context.vedesnivel.Add(vedesnivel);
                 try
@@ -138,13 +136,13 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 {
                     if (vedesnivelExists(vedesnivel.codigo, _context))
                     {
-                        return Conflict("Ya existe un registro con ese código");
+                        return Conflict( new { resp = "Ya existe un registro con ese código" });
                     }
                     return Problem("Error en el servidor");
                     throw;
                 }
 
-                return Ok("204");   // creado con exito
+                return Ok( new { resp = "204" });   // creado con exito
 
             }
 
@@ -158,8 +156,6 @@ namespace SIAW.Controllers.ventas.mantenimiento
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 using (var dbContexTransaction = _context.Database.BeginTransaction())
@@ -168,14 +164,14 @@ namespace SIAW.Controllers.ventas.mantenimiento
                     {
                         if (_context.vedesnivel == null)
                         {
-                            return Problem("Entidad vedesnivel es null.");
+                            return BadRequest(new { resp = "Entidad vedesnivel es null." });
                         }
 
                         // Eliminar vedesnivel
                         var vedesnivel = await _context.vedesnivel.FindAsync(codigo);
                         if (vedesnivel == null)
                         {
-                            return NotFound("No existe un registro con ese código");
+                            return NotFound( new { resp = "No existe un registro con ese código" });
                         }
 
                         _context.vedesnivel.Remove(vedesnivel);
@@ -191,7 +187,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                             await _context.SaveChangesAsync();
                         }
                         dbContexTransaction.Commit();
-                        return Ok("208");   // eliminado con exito
+                        return Ok( new { resp = "208" });   // eliminado con exito
                     }
                     catch (Exception)
                     {
@@ -233,7 +229,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 {
                     if (_context.vedesnivel_clasificacion == null)
                     {
-                        return Problem("Entidad vedesnivel_clasificacion es null.");
+                        return BadRequest(new { resp = "Entidad vedesnivel_clasificacion es null." });
                     }
                     var result = await _context.vedesnivel_clasificacion
                         .Where(i => i.codvedesnivel == codvedesnivel)
@@ -244,7 +240,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
 
 
@@ -268,7 +264,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                     .FirstOrDefaultAsync();
                 if (valida != null)
                 {
-                    return Conflict("Ya existe un registro con los datos proporcionados");
+                    return Conflict( new { resp = "Ya existe un registro con los datos proporcionados"});
                 }
                 _context.vedesnivel_clasificacion.Add(vedesnivel_clasificacion);
                 try
@@ -280,7 +276,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                     return Problem("Error en el servidor");
                 }
 
-                return Ok("204");   // creado con exito
+                return Ok( new { resp = "204" });   // creado con exito
             }
         }
 
@@ -302,18 +298,18 @@ namespace SIAW.Controllers.ventas.mantenimiento
                         .FirstOrDefaultAsync();
                     if (vedesnivel_clasificacion == null)
                     {
-                        return NotFound("No existe un registro con los datos proporcionados");
+                        return NotFound( new { resp = "No se encontraron registros con los datos proporcionados." });
                     }
 
                     _context.vedesnivel_clasificacion.Remove(vedesnivel_clasificacion);
                     await _context.SaveChangesAsync();
 
-                    return Ok("208");   // eliminado con exito
+                    return Ok( new { resp = "208" });   // eliminado con exito
                 }
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 

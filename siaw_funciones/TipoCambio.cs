@@ -36,7 +36,7 @@ namespace siaw_funciones
             catch (Exception)
             {
                 return 0;
-                //return BadRequest("Error en el servidor");
+                //return Problem("Error en el servidor");
             }
         }
         public async Task<decimal> tipocambio(string userConnectionString, string monedabase, string moneda, DateTime fecha)

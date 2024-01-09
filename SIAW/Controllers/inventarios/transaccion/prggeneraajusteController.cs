@@ -42,7 +42,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                         if (CodCabinMovi==-1)
                         {
                             dbContexTransaction.Rollback();
-                            return BadRequest("Ya existe una nota de movimiento con ese id y numero id");
+                            return BadRequest(new { resp = "Ya existe una nota de movimiento con ese id y numero id" });
                         }
                         
                         // añadir detalle nota de movimiento

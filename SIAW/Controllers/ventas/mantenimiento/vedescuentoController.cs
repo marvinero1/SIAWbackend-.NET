@@ -30,7 +30,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 {
                     if (_context.vedescuento == null)
                     {
-                        return Problem("Entidad vedescuento es null.");
+                        return BadRequest(new { resp = "Entidad vedescuento es null." });
                     }
 
                     var result = await _context.vedescuento
@@ -79,7 +79,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
 
 
@@ -94,13 +94,11 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.vedescuento == null)
                     {
-                        return Problem("Entidad vedescuento es null.");
+                        return BadRequest(new { resp = "Entidad vedescuento es null." });
                     }
                     var vedescuento = await _context.vedescuento
                         .Where(i => i.codigo == codigo)
@@ -141,7 +139,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
                     if (vedescuento == null)
                     {
-                        return NotFound("No se encontro un registro con este código");
+                        return NotFound( new { resp = "No se encontro un registro con este código" });
                     }
 
                     return Ok(vedescuento);
@@ -149,7 +147,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -162,8 +160,6 @@ namespace SIAW.Controllers.ventas.mantenimiento
             {
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-
-                //var _context = _userConnectionManager.GetUserConnection(userId);
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
@@ -182,7 +178,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
                 throw;
             }
         }
@@ -200,7 +196,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
             {
                 if (codigo != vedescuento.codigo)
                 {
-                    return BadRequest("Error con Id en datos proporcionados.");
+                    return BadRequest( new { resp = "Error con Id en datos proporcionados." });
                 }
 
                 _context.Entry(vedescuento).State = EntityState.Modified;
@@ -213,15 +209,16 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 {
                     if (!vedescuentoExists(codigo, _context))
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
                     else
                     {
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
 
-                return Ok("206");   // actualizado con exito
+                return Ok( new { resp = "206" });   // actualizado con exito
             }
             
 
@@ -237,13 +234,11 @@ namespace SIAW.Controllers.ventas.mantenimiento
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            //var _context = _userConnectionManager.GetUserConnection(userId);
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.vedescuento == null)
                 {
-                    return Problem("Entidad vedescuento es null.");
+                    return BadRequest(new { resp = "Entidad vedescuento es null." });
                 }
                 _context.vedescuento.Add(vedescuento);
                 try
@@ -254,15 +249,16 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 {
                     if (vedescuentoExists(vedescuento.codigo, _context))
                     {
-                        return Conflict("Ya existe un registro con ese código");
+                        return Conflict( new { resp = "Ya existe un registro con ese código" });
                     }
                     else
                     {
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
 
-                return Ok("204");   // creado con exito
+                return Ok( new { resp = "204" });   // creado con exito
 
             }
             
@@ -278,31 +274,29 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                //var _context = _userConnectionManager.GetUserConnection(userId);
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     if (_context.vedescuento == null)
                     {
-                        return Problem("Entidad vedescuento es null.");
+                        return BadRequest(new { resp = "Entidad vedescuento es null." });
                     }
                     var vedescuento = await _context.vedescuento.FindAsync(codigo);
                     if (vedescuento == null)
                     {
-                        return NotFound("No existe un registro con ese código");
+                        return NotFound( new { resp = "No existe un registro con ese código" });
                     }
 
                     _context.vedescuento.Remove(vedescuento);
                     await _context.SaveChangesAsync();
 
-                    return Ok("208");   // eliminado con exito
+                    return Ok( new { resp = "208" });   // eliminado con exito
                 }
                 
 
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -329,7 +323,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 {
                     if (_context.vedescuento == null)
                     {
-                        return Problem("Entidad vedescuento es null.");
+                        return BadRequest(new { resp = "Entidad vedescuento es null." });
                     }
 
                     var result = await _context.vedescuento_tarifa
@@ -354,7 +348,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
 
 
@@ -379,7 +373,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                     .FirstOrDefaultAsync();
                 if (valida != null)
                 {
-                    return Conflict("Ya existe un registro con los datos proporcionados");
+                    return Conflict( new { resp = "Ya existe un registro con los datos proporcionados"});
                 }
                 _context.vedescuento_tarifa.Add(vedescuento_tarifa);
                 try
@@ -391,7 +385,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                     return Problem("Error en el servidor");
                 }
 
-                return Ok("204");   // creado con exito
+                return Ok( new { resp = "204" });   // creado con exito
             }
         }
 
@@ -413,18 +407,18 @@ namespace SIAW.Controllers.ventas.mantenimiento
                         .FirstOrDefaultAsync();
                     if (vedescuento_tarifa == null)
                     {
-                        return NotFound("No existe un registro con los datos proporcionados");
+                        return NotFound( new { resp = "No se encontraron registros con los datos proporcionados." });
                     }
 
                     _context.vedescuento_tarifa.Remove(vedescuento_tarifa);
                     await _context.SaveChangesAsync();
 
-                    return Ok("208");   // eliminado con exito
+                    return Ok( new { resp = "208" });   // eliminado con exito
                 }
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -450,15 +444,15 @@ namespace SIAW.Controllers.ventas.mantenimiento
                     {
                         _context.vedescuento_tarifa.RemoveRange(vedescuento_tarifa);
                         await _context.SaveChangesAsync();
-                        return Ok("208");   // eliminado con exito
+                        return Ok( new { resp = "208" });   // eliminado con exito
 
                     }
-                    return NotFound("No existe ningun registro con los datos proporcionados");
+                    return NotFound( new { resp = "No se encontraron registros con los datos proporcionados." });
                 }
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
@@ -479,7 +473,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 {
                     if (_context.vedescuento == null)
                     {
-                        return Problem("Entidad vedescuento es null.");
+                        return BadRequest(new { resp = "Entidad vedescuento es null." });
                     }
 
                     var result = await _context.vedescuento1
@@ -505,7 +499,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
 
 
@@ -526,13 +520,21 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
+                var ultimoRegistro = await _context.vedescuento1.OrderByDescending(v => v.codigo).FirstOrDefaultAsync();
+                if (ultimoRegistro == null)
+                {
+                    return NotFound( new { resp = "No existe ningun registro (vedescuento1)." });
+                }
+                var newCodigo = ultimoRegistro.codigo + 1;
+
                 var valida = await _context.vedescuento1
                     .Where(i => i.codlinea == vedescuento1.codlinea && i.coddescuento == vedescuento1.coddescuento)
                     .FirstOrDefaultAsync();
                 if (valida != null)
                 {
-                    return Conflict("Ya existe un registro con los datos proporcionados");
+                    return Conflict( new { resp = "Ya existe un registro con los datos proporcionados"});
                 }
+                vedescuento1.codigo = newCodigo;   
                 _context.vedescuento1.Add(vedescuento1);
                 try
                 {
@@ -543,7 +545,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                     return Problem("Error en el servidor");
                 }
 
-                return Ok("204");   // creado con exito
+                return Ok( new { resp = "204" });   // creado con exito
             }
         }
 
@@ -556,8 +558,8 @@ namespace SIAW.Controllers.ventas.mantenimiento
         // DELETE: api/vedescuento1/5
         [Authorize]
         [HttpDelete]
-        [Route("vedescuento1/{userConn}/{coddescuento1}")]
-        public async Task<IActionResult> vedescuento1(string userConn, int coddescuento1)
+        [Route("vedescuento1/{userConn}/{codigo}/{coddescuento}")]
+        public async Task<IActionResult> vedescuento1(string userConn, int codigo, int coddescuento)
         {
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
@@ -568,21 +570,19 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 {
                     try
                     {
-                        // delete vedecuento 1
+                        // verifica vedecuento 1
                         var vedescuento1 = await _context.vedescuento1
-                        .Where(i => i.codigo == coddescuento1)
+                        .Where(i => i.codigo == codigo && i.coddescuento == coddescuento)
                         .FirstOrDefaultAsync();
                         if (vedescuento1 == null)
                         {
-                            return NotFound("No existe ningun registro con los datos proporcionados");
+                            return NotFound( new { resp = "No se encontraron registros con los datos proporcionados." });
                         }
-                        _context.vedescuento1.Remove(vedescuento1);
-                        await _context.SaveChangesAsync();
 
 
                         // delete vedescuento2
                         var vedescuento2 = await _context.vedescuento2
-                        .Where(i => i.coddescuento1 == coddescuento1)
+                        .Where(i => i.coddescuento1 == codigo)
                         .ToListAsync();
                         if (vedescuento2.Count() > 0)
                         {
@@ -590,15 +590,18 @@ namespace SIAW.Controllers.ventas.mantenimiento
                             await _context.SaveChangesAsync();
                         }
 
-                        
+
+                        // delete vedecuento 1
+                        _context.vedescuento1.Remove(vedescuento1);
+                        await _context.SaveChangesAsync();
 
                         dbContexTransaction.Commit();
-                        return Ok("208");   // eliminado con exito
+                        return Ok( new { resp = "208" });   // eliminado con exito
                     }
                     catch (Exception)
                     {
                         dbContexTransaction.Rollback();
-                        return BadRequest("Error en el servidor");
+                        return Problem("Error en el servidor");
                         throw;
                     }
                 }
@@ -620,29 +623,51 @@ namespace SIAW.Controllers.ventas.mantenimiento
         [Route("deleteTodo_vedescuento1/{userConn}/{coddescuento}")]
         public async Task<IActionResult> deleteTodo_vedescuento1(string userConn, int coddescuento)
         {
-            try
-            {
-                // Obtener el contexto de base de datos correspondiente al usuario
-                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                using (var _context = DbContextFactory.Create(userConnectionString))
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                using (var dbContexTransaction = _context.Database.BeginTransaction())
                 {
-                    var vedescuento_tarifa = await _context.vedescuento_tarifa
-                        .Where(i => i.coddescuento == coddescuento)
-                        .ToListAsync();
-                    if (vedescuento_tarifa.Count() > 0)
+                    try
                     {
-                        _context.vedescuento_tarifa.RemoveRange(vedescuento_tarifa);
-                        await _context.SaveChangesAsync();
-                        return Ok("208");   // eliminado con exito
+                        // eliminar primero las ramas (items)
 
+                        var codigosDescuento1 = await _context.vedescuento1
+                        .Where(d1 => d1.coddescuento == coddescuento)
+                        .Select(d1 => d1.codigo)
+                        .ToListAsync();
+                        if (codigosDescuento1.Count() == 0)
+                        {
+                            return NotFound( new { resp = "No se encontraron registros con los datos proporcionados." });
+                        }
+                        var descuentos2AEliminar = await _context.vedescuento2
+                            .Where(d2 => codigosDescuento1.Contains(d2.coddescuento1))
+                            .ToListAsync();
+                        if (descuentos2AEliminar.Count() > 0)
+                        {
+                            _context.vedescuento2.RemoveRange(descuentos2AEliminar);
+                            await _context.SaveChangesAsync();
+                        }
+
+                        // eliminar luego las lineas 
+                        var descuentosAEliminar = await _context.vedescuento1
+                            .Where(d1 => d1.coddescuento == coddescuento)
+                            .ToListAsync();
+                        _context.vedescuento1.RemoveRange(descuentosAEliminar);
+                        await _context.SaveChangesAsync();
+                        dbContexTransaction.Commit();
+
+                        return Ok( new { resp = "208" });   // eliminado con exito
                     }
-                    return NotFound("No existe ningun registro con los datos proporcionados");
+                    catch (Exception)
+                    {
+                        dbContexTransaction.Rollback();
+                        return Problem("Error en el servidor");
+                    }
                 }
-            }
-            catch (Exception)
-            {
-                return BadRequest("Error en el servidor");
+                    
             }
         }
 

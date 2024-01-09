@@ -41,7 +41,7 @@ namespace SIAW.Controllers.z_pruebas
             }
             catch (Exception)
             {
-                return BadRequest("Error en el servidor");
+                return Problem("Error en el servidor");
             }
         }
 
