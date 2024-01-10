@@ -12,6 +12,7 @@ using System.Security.Claims;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using siaw_DBContext;
+using SIAW.Controllers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,11 +23,6 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-//builder.Services.AddDbContext<SIAW.Data.PSContext>(
-//    options =>
-//    {
-//        options.UseSqlServer(builder.Configuration.GetConnectionString("PS_DB"));
-//    });
 
 
 builder.Services.AddCors(options =>
@@ -60,19 +56,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = false
         };
     });
-
 builder.Services.AddSingleton<UserConnectionManager>();
 
+// Agregar el middleware de conversión a mayúsculas
+builder.Services.AddScoped<UppercaseMiddleware>();
 
 var app = builder.Build();
-
-
-// Configure the HTTP request pipeline.
-/*if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}*/
 
 
 
@@ -86,6 +75,8 @@ if (app.Environment.IsProduction())
 
 app.UseCors("NuevaPolitica");
 app.UseAuthentication();
+
+app.UseMiddleware<UppercaseMiddleware>(); // Agregar aquí el middleware
 
 
 app.UseHttpsRedirection();
@@ -137,23 +128,7 @@ public static class DbContextFactory
         return new DBContext(optionsBuilder.Options);
     }
 }
-/*
-public static class DbContextFactory2
-{
-    public static DBContext Create(ClaimsPrincipal user)
-    {
-        var connectionStringClaim = user?.FindFirst("ConnectionString");
-        var connectionString = connectionStringClaim?.Value;
 
-        if (string.IsNullOrEmpty(connectionString))
-        {
-            throw new Exception("No se ha proporcionado una cadena de conexión válida.");
-        }
 
-        var optionsBuilder = new DbContextOptionsBuilder<DBContext>();
-        optionsBuilder.UseSqlServer(connectionString);
 
-        return new DBContext(optionsBuilder.Options);
-    }
-}
-*/
+

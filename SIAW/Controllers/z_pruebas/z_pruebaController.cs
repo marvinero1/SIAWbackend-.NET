@@ -26,26 +26,65 @@ namespace SIAW.Controllers.z_pruebas
         // POST: api/acaseguradora
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         //[Authorize]
-        [HttpPost("{userConn}/{codItem}/{descripcorta}/{medida}/{codempresa}/{usuario}")]
-        public async Task<ActionResult<acaseguradora>> Postacaseguradora(string userConn, string codItem, string descripcorta, string medida, string codempresa, string usuario)
+        [HttpPost("{userConn}")]
+        public async Task<ActionResult<acaseguradora>> Postacaseguradora(string userConn, veptoventa veptoventa)
         {
-            //return Ok(RequestValidacion);
-            try
-            {
-                // Obtener el contexto de base de datos correspondiente al usuario
-                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                var infoitem = await saldos.infoitem(userConnectionString, codItem, codempresa, usuario);
-
-                return Ok(infoitem);
-            }
-            catch (Exception)
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
-                return Problem("Error en el servidor");
+                if (_context.veptoventa == null)
+                {
+                    return BadRequest(new { resp = "Entidad veptoventa es null." });
+                }
+                return Ok(veptoventa);
+                _context.veptoventa.Add(veptoventa);
+                try
+                {
+                    await _context.SaveChangesAsync();
+                }
+                catch (DbUpdateException)
+                {
+                    return Problem("Error en el servidor");
+                }
+
+                return Ok(new { resp = "204" });   // creado con exito
+
             }
         }
 
+        // POST: api/veptoventa
+        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        // [Authorize]
+        [HttpPost]
+        [Route("aaa/{userConn}")]
+        public async Task<ActionResult<adunidad>> Postadunidaefgqwegrvwd(string userConn, adunidad adunidad)
+        {
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                if (_context.adunidad == null)
+                {
+                    return BadRequest(new { resp = "Entidad adunidad es null." });
+                }
+                _context.adunidad.Add(adunidad);
+                try
+                {
+                    await _context.SaveChangesAsync();
+                }
+                catch (DbUpdateException)
+                {
+                    return Problem("Error en el servidor");
+                }
+
+                return Ok(new { resp = "204" });   // creado con exito
+
+            }
+
+        }
 
         // POST: api/acaseguradora
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754

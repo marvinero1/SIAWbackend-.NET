@@ -98,7 +98,11 @@ namespace SIAW.Controllers.ventas.mantenimiento
                         return Conflict(new { resp = "El almacen del cliente A: " + valida1.codigo + " es: " + valida1.almacen + " verifique los datos." });
                     }
                 }
-
+                else
+                {
+                    return BadRequest(new { resp = "No se encontra al Cliente A" });
+                }
+                
 
                 //validar el almacen de codcliente_b
                 var valida2 = await validaAlmacen(_context, veclientesiguales.codcliente_b, (int)veclientesiguales.codalmacen);
@@ -109,8 +113,10 @@ namespace SIAW.Controllers.ventas.mantenimiento
                         return Conflict(new { resp = "El almacen del cliente B: " + valida2.codigo + " es: " + valida2.almacen + " verifique los datos." });
                     }
                 }
-
-
+                else
+                {
+                    return BadRequest(new { resp = "No se encontra al Cliente B" });
+                }
                 _context.veclientesiguales.Add(veclientesiguales);
                 try
                 {
