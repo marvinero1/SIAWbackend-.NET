@@ -35,14 +35,11 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     var result = await _context.ingrupo.OrderByDescending(fechareg => fechareg.fechareg).ToListAsync();
                     return Ok(result);
                 }
-                
             }
             catch (Exception)
             {
                 return Problem("Error en el servidor");
             }
-
-
         }
 
         // GET: api/ingrupo/5

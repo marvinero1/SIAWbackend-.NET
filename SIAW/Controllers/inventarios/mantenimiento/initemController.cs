@@ -6,6 +6,7 @@ using siaw_DBContext.Data;
 using siaw_DBContext.Models;
 using System.Net;
 using Microsoft.AspNetCore.Authorization;
+using siaw_funciones;
 
 namespace SIAW.Controllers.inventarios.mantenimiento
 {
@@ -14,6 +15,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
     public class initemController : ControllerBase
     {
         private readonly UserConnectionManager _userConnectionManager;
+        private readonly Items items = new Items();
         public initemController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;
@@ -391,35 +393,41 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
-                if (codigo != initem.codigo)
+                using (var dbContexTransaction = _context.Database.BeginTransaction())
                 {
-                    return BadRequest( new { resp = "Error con Id en datos proporcionados." });
-                }
-
-                _context.Entry(initem).State = EntityState.Modified;
-
-                try
-                {
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!initemExists(codigo, _context))
+                    try
                     {
-                        return NotFound( new { resp = "No existe un registro con ese código" });
+                        if (codigo != initem.codigo)
+                        {
+                            return BadRequest(new { resp = "Error con Id en datos proporcionados." });
+                        }
+                        if (!initemExists(codigo, _context))
+                        {
+                            return NotFound(new { resp = "No existe un registro con ese código" });
+                        }
+                        if (initem.kit == false)
+                        {
+                            var componentes = await _context.inkit.Where(i => i.codigo == codigo).ToListAsync();
+                            if (componentes.Count() > 0)
+                            {
+                                _context.inkit.RemoveRange(componentes);
+                                await _context.SaveChangesAsync();
+                            }
+                        }
+                        _context.Entry(initem).State = EntityState.Modified;
+                        await _context.SaveChangesAsync();
+
+                        dbContexTransaction.Commit();
+                        return Ok(new { resp = "206" });   // actualizado con exito
                     }
-                    else
+                    catch (Exception)
                     {
+                        dbContexTransaction.Rollback();
                         return Problem("Error en el servidor");
-                        throw;
+                        throw; ;
                     }
-                }
-
-                return Ok( new { resp = "206" });   // actualizado con exito
+                }     
             }
-            
-
-
         }
 
         // POST: api/initem
@@ -466,34 +474,54 @@ namespace SIAW.Controllers.inventarios.mantenimiento
         [HttpDelete("{userConn}/{codigo}")]
         public async Task<IActionResult> Deleteinitem(string userConn, string codigo)
         {
-            try
-            {
-                // Obtener el contexto de base de datos correspondiente al usuario
-                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                using (var _context = DbContextFactory.Create(userConnectionString))
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                using (var dbContexTransaction = _context.Database.BeginTransaction())
                 {
-                    if (_context.initem == null)
+                    try
                     {
-                        return BadRequest(new { resp = "Entidad initem es null." });
+                        if (_context.initem == null)
+                        {
+                            return BadRequest(new { resp = "Entidad initem es null." });
+                        }
+                        var initem = await _context.initem.FindAsync(codigo);
+                        if (initem == null)
+                        {
+                            return NotFound(new { resp = "No existe un registro con ese código" });
+                        }
+
+                        // elimina componentes si es kit
+                        if (initem.kit == true)
+                        {
+                            var componentes = await _context.inkit.Where(i => i.codigo == codigo).ToListAsync();
+                            if (componentes.Count() > 0)
+                            {
+                                _context.inkit.RemoveRange(componentes);
+                                await _context.SaveChangesAsync();
+                            }
+                        }
+                        // elimina saldos de tabla instoactual
+                        await items.disminuiritem(_context, codigo);
+
+                        // elimina de tabla initem
+                        _context.initem.Remove(initem);
+                        await _context.SaveChangesAsync();
+
+
+                        dbContexTransaction.Commit();
+                        return Ok(new { resp = "208" });   // eliminado con exito
                     }
-                    var initem = await _context.initem.FindAsync(codigo);
-                    if (initem == null)
+                    catch (Exception)
                     {
-                        return NotFound( new { resp = "No existe un registro con ese código" });
+                        dbContexTransaction.Rollback();
+                        return Problem("Error en el servidor");
+                        throw;
                     }
-
-                    _context.initem.Remove(initem);
-                    await _context.SaveChangesAsync();
-
-                    return Ok( new { resp = "208" });   // eliminado con exito
                 }
-                
 
-            }
-            catch (Exception)
-            {
-                return Problem("Error en el servidor");
             }
         }
 
@@ -599,48 +627,6 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
         }
 
-        // PUT: api/inctrlstock/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [Authorize]
-        [HttpPut("{userConn}/{id}")]
-        public async Task<IActionResult> Putinctrlstock(string userConn, int id, inctrlstock inctrlstock)
-        {
-            // Obtener el contexto de base de datos correspondiente al usuario
-            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-
-            using (var _context = DbContextFactory.Create(userConnectionString))
-            {
-                if (id != inctrlstock.id)
-                {
-                    return BadRequest( new { resp = "Error con Id en datos proporcionados." });
-                }
-
-                _context.Entry(inctrlstock).State = EntityState.Modified;
-
-                try
-                {
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!inctrlstockExists(id, _context))
-                    {
-                        return NotFound( new { resp = "No existe un registro con ese código" });
-                    }
-                    else
-                    {
-                        return Problem("Error en el servidor");
-                        throw;
-                    }
-                }
-
-                return Ok( new { resp = "206" });   // actualizado con exito
-            }
-            
-
-
-        }
-
         // POST: api/inctrlstock
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [Authorize]
@@ -682,8 +668,8 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
         // DELETE: api/inctrlstock/5
         [Authorize]
-        [HttpDelete("{userConn}/{id}")]
-        public async Task<IActionResult> Deleteinctrlstock(string userConn, int id)
+        [HttpDelete("{userConn}/{coditem}/{coditemcontrol}")]
+        public async Task<IActionResult> Deleteinctrlstock(string userConn, string coditem, string coditemcontrol)
         {
             try
             {
@@ -696,7 +682,9 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     {
                         return BadRequest(new { resp = "Entidad inctrlstock es null." });
                     }
-                    var inctrlstock = await _context.inctrlstock.FindAsync(id);
+                    var inctrlstock = await _context.inctrlstock.
+                        Where(i => i.coditem == coditem && i.coditemcontrol == coditemcontrol)
+                        .FirstOrDefaultAsync();
                     if (inctrlstock == null)
                     {
                         return NotFound( new { resp = "No existe un registro con ese código" });
@@ -756,7 +744,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     var result = await _context.initem_max.OrderBy(id => id.id).ToListAsync();
                     return Ok(result);
                 }
-                
+
             }
             catch (Exception)
             {
@@ -804,12 +792,12 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                     if (result.Count() == 0)
                     {
-                        return NotFound( new { resp = "No se encontro un registro con este código" });
+                        return NotFound(new { resp = "No se encontro un registro con este código" });
                     }
 
                     return Ok(result);
                 }
-                
+
             }
             catch (Exception)
             {
@@ -817,44 +805,6 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
         }
 
-        // PUT: api/initem_max/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [Authorize]
-        [HttpPut("{userConn}/{id}")]
-        public async Task<IActionResult> Putinitem_max(string userConn, int id, initem_max initem_max)
-        {
-            // Obtener el contexto de base de datos correspondiente al usuario
-            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-
-            using (var _context = DbContextFactory.Create(userConnectionString))
-            {
-                if (id != initem_max.id)
-                {
-                    return BadRequest( new { resp = "Error con Id en datos proporcionados." });
-                }
-
-                _context.Entry(initem_max).State = EntityState.Modified;
-
-                try
-                {
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!initem_maxExists(id, _context))
-                    {
-                        return NotFound( new { resp = "No existe un registro con ese código" });
-                    }
-                    else
-                    {
-                        return Problem("Error en el servidor");
-                        throw;
-                    }
-                }
-
-                return Ok( new { resp = "206" });   // actualizado con exito
-            }
-        }
 
         // POST: api/initem_max
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
@@ -871,6 +821,15 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 {
                     return BadRequest(new { resp = "Entidad initem_max es null." });
                 }
+
+                var valida = await _context.initem_max
+                    .Where(i => i.coditem == initem_max.coditem && i.codalmacen == initem_max.codalmacen && i.codtarifa == initem_max.codtarifa)
+                    .ToListAsync();
+                if (valida.Count() > 0)
+                {
+                    return Conflict(new { resp = "Ya existe un registro con esos datos (cod item, cod almacen y cod tarifa)" });
+                }
+
                 _context.initem_max.Add(initem_max);
                 try
                 {
@@ -878,27 +837,19 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (initem_maxExists(initem_max.id, _context))
-                    {
-                        return Conflict( new { resp = "Ya existe un registro con ese código" });
-                    }
-                    else
-                    {
-                        return Problem("Error en el servidor");
-                        throw;
-                    }
+                    return Problem("Error en el servidor");
                 }
 
-                return Ok( new { resp = "204" });   // creado con exito
+                return Ok(new { resp = "204" });   // creado con exito
 
             }
-            
+
         }
 
         // DELETE: api/initem_max/5
         [Authorize]
-        [HttpDelete("{userConn}/{id}")]
-        public async Task<IActionResult> Deleteinitem_max(string userConn, int id)
+        [HttpDelete("{userConn}/{coditem}/{codalmacen}/{codtarifa}")]
+        public async Task<IActionResult> Deleteinitem_max(string userConn, string coditem, int codalmacen, int codtarifa)
         {
             try
             {
@@ -911,18 +862,20 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     {
                         return BadRequest(new { resp = "Entidad initem_max es null." });
                     }
-                    var initem_max = await _context.initem_max.FindAsync(id);
+                    var initem_max = await _context.initem_max
+                    .Where(i => i.coditem == coditem && i.codalmacen == codalmacen && i.codtarifa == codtarifa)
+                    .FirstOrDefaultAsync();
                     if (initem_max == null)
                     {
-                        return NotFound( new { resp = "No existe un registro con ese código" });
+                        return NotFound(new { resp = "No existe un registro con los datos proporcionados" });
                     }
 
                     _context.initem_max.Remove(initem_max);
                     await _context.SaveChangesAsync();
 
-                    return Ok( new { resp = "208" });   // eliminado con exito
+                    return Ok(new { resp = "208" });   // eliminado con exito
                 }
-                
+
 
             }
             catch (Exception)
@@ -930,13 +883,6 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 return Problem("Error en el servidor");
             }
         }
-
-        private bool initem_maxExists(int id, DBContext _context)
-        {
-            return (_context.initem_max?.Any(e => e.id == id)).GetValueOrDefault();
-
-        }
-
     }
 
 
@@ -1035,48 +981,6 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
         }
 
-        // PUT: api/initem_controltarifa/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [Authorize]
-        [HttpPut("{userConn}/{id}")]
-        public async Task<IActionResult> Putinitem_controltarifa(string userConn, int id, initem_controltarifa initem_controltarifa)
-        {
-            // Obtener el contexto de base de datos correspondiente al usuario
-            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-
-            using (var _context = DbContextFactory.Create(userConnectionString))
-            {
-                if (id != initem_controltarifa.id)
-                {
-                    return BadRequest( new { resp = "Error con Id en datos proporcionados." });
-                }
-
-                _context.Entry(initem_controltarifa).State = EntityState.Modified;
-
-                try
-                {
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!initem_controltarifaExists(id, _context))
-                    {
-                        return NotFound( new { resp = "No existe un registro con ese código" });
-                    }
-                    else
-                    {
-                        return Problem("Error en el servidor");
-                        throw;
-                    }
-                }
-
-                return Ok( new { resp = "206" });   // actualizado con exito
-            }
-            
-
-
-        }
-
         // POST: api/initem_controltarifa
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [Authorize]
@@ -1092,6 +996,15 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 {
                     return BadRequest(new { resp = "Entidad initem_controltarifa es null." });
                 }
+                var valida = await _context.initem_controltarifa
+                    .Where(i => i.coditem == initem_controltarifa.coditem && i.codtarifa_a == initem_controltarifa.codtarifa_a && i.codtarifa_b == initem_controltarifa.codtarifa_b)
+                    .ToListAsync();
+
+                if (valida.Count() > 0)
+                {
+                    return Conflict(new { resp = "Ya existe un registro con los datos proporcionados (cod item, cod tarifa_a y cod tarifa_b)" });
+                }
+
                 _context.initem_controltarifa.Add(initem_controltarifa);
                 try
                 {
@@ -1099,15 +1012,8 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (initem_controltarifaExists(initem_controltarifa.id, _context))
-                    {
-                        return Conflict( new { resp = "Ya existe un registro con ese código" });
-                    }
-                    else
-                    {
-                        return Problem("Error en el servidor");
-                        throw;
-                    }
+                    return Problem("Error en el servidor");
+                    throw;
                 }
 
                 return Ok( new { resp = "204" });   // creado con exito
@@ -1118,8 +1024,8 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
         // DELETE: api/initem_controltarifa/5
         [Authorize]
-        [HttpDelete("{userConn}/{id}")]
-        public async Task<IActionResult> Deleteinitem_controltarifa(string userConn, int id)
+        [HttpDelete("{userConn}/{coditem}/{codtarifa_a}/{codtarifa_b}")]
+        public async Task<IActionResult> Deleteinitem_controltarifa(string userConn, string coditem, int codtarifa_a, int codtarifa_b)
         {
             try
             {
@@ -1132,10 +1038,13 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     {
                         return BadRequest(new { resp = "Entidad initem_controltarifa es null." });
                     }
-                    var initem_controltarifa = await _context.initem_controltarifa.FindAsync(id);
+                    var initem_controltarifa = await _context.initem_controltarifa
+                    .Where(i => i.coditem == coditem && i.codtarifa_a == codtarifa_a && i.codtarifa_b == codtarifa_b)
+                    .FirstOrDefaultAsync();
+
                     if (initem_controltarifa == null)
                     {
-                        return NotFound( new { resp = "No existe un registro con ese código" });
+                        return NotFound( new { resp = "No existe un registro con los datos proporcionados" });
                     }
 
                     _context.initem_controltarifa.Remove(initem_controltarifa);

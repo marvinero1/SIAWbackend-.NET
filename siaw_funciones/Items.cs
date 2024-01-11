@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using NuGet.Configuration;
 using siaw_DBContext.Data;
 using siaw_DBContext.Models;
 using System;
@@ -59,5 +60,21 @@ namespace siaw_funciones
             }
 
         }
+
+        public async Task<bool> disminuiritem(DBContext _context, string codigo)
+        {
+            var query = await _context.instoactual
+                .Where(i => i.coditem == codigo)
+                 .ToListAsync();
+            if (query.Count() > 0)   // elimina
+            {
+                _context.instoactual.RemoveRange(query);
+                await _context.SaveChangesAsync();
+            }
+            return true;
+
+        }
+
+
     }
 }
