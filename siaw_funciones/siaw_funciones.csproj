@@ -21,4 +21,12 @@
     <ProjectReference Include="..\siaw_DBContext\siaw_DBContext.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EditorConfigFiles Remove="C:\laragon\www\siawbackend-.net\siaw_funciones\.editorconfig" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="C:\laragon\www\siawbackend-.net\siaw_funciones\.editorconfig" />
+  </ItemGroup>
+
 </Project>

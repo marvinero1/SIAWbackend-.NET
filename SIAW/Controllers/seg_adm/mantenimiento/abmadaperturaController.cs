@@ -5,6 +5,8 @@ using siaw_DBContext.Data;
 using siaw_DBContext.Models;
 using Microsoft.AspNetCore.Authorization;
 using siaw_funciones;
+using System.Linq;
+using Microsoft.Win32;
 
 namespace SIAW.Controllers.seg_adm.mantenimiento
 {
@@ -101,20 +103,51 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
-                    var result = await _context.adapertura
-                        .Where(p0 => p0.codigo == codigo)
-                        .Join(_context.adapertura1, p0 => p0.codigo, p1 => p1.codigo, (p0, p1) => new { p0, p1 })
-                        .Join(_context.semodulo, p01 => p01.p1.sistema, p2 => p2.codigo, (p01, p2) => new
+
+                    var modulosCerrados1 = await _context.adapertura
+                       .Where(p0 => p0.codigo == codigo)
+                       .Join(_context.adapertura1, p0 => p0.codigo, p1 => p1.codigo, (p0, p1) => new 
+                           {
+                               ano = p0.ano,
+                               mes = p0.mes,
+                               codigo = p1.codigo,
+                               sistema = p1.sistema
+                           }
+                        )
+                       .OrderBy(result => result.sistema)
+                       .ToListAsync();
+                    if (modulosCerrados1.Count()==0)
+                    {
+                        return NotFound(new { resp = "No se tienen modulos cerrados para este periodo de tiempo." });
+                    }
+                    // obtenemos todos los modulos.
+                    var modulos = await _context.semodulo.OrderBy(codigo => codigo.codigo).ToListAsync();
+
+                    var codDefect = modulosCerrados1[0].codigo;
+                    var anoDefect = modulosCerrados1[0].ano;
+                    var mesDefect = modulosCerrados1[0].mes;
+
+
+                    var resultadoFinal = modulos
+                    .GroupJoin(
+                        modulosCerrados1,
+                        modulo => modulo.codigo,
+                        cerrado => cerrado.sistema,
+                        (modulo, cerradoGroup) => new
                         {
-                            ano = p01.p0.ano,
-                            mes = p01.p0.mes,
-                            codigo = p01.p1.codigo,
-                            sistema = p01.p1.sistema,
-                            descripcion = p2.descripcion
-                        })
-                        .OrderBy(result => result.sistema)
-                        .ToListAsync();
-                    return Ok(result);
+                            ano = cerradoGroup.Select(c => c?.ano).FirstOrDefault() ?? anoDefect,
+                            mes = cerradoGroup.Select(c => c?.mes).FirstOrDefault() ?? mesDefect,
+                            codigo = cerradoGroup.Select(c => c?.codigo).FirstOrDefault() ?? codDefect,
+                            sistema = modulo.codigo,
+                            descripcion = modulo.descripcion,
+                            check = cerradoGroup.Any() // True si hay coincidencia, false si no hay coincidencia
+                        }
+                    )
+                    .OrderBy(result => result.sistema)
+                    .ToList();
+
+
+                    return Ok(resultadoFinal);
                 }
             }
             catch (Exception)
@@ -143,15 +176,12 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     try
                     {
                         // Consulta para obtener los registros que deseas eliminar.
-                        var registrosAEliminar = _context.adapertura1.Where(p => p.codigo == codigo);
-
-                        // Marcar los registros como eliminados.
-                        foreach (var registro in registrosAEliminar)
+                        var registrosAEliminar = await _context.adapertura1.Where(p => p.codigo == codigo).ToListAsync();
+                        if (registrosAEliminar.Count()>0)
                         {
-                            _context.adapertura1.Remove(registro);
+                            _context.adapertura1.RemoveRange(registrosAEliminar);
+                            await _context.SaveChangesAsync();
                         }
-                        // Confirmar los cambios en la base de datos.
-                        await _context.SaveChangesAsync();
 
                         // agregar los nuevos campos
                         _context.adapertura1.AddRange(adapertura1);

@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using siaw_DBContext.Data;
 using siaw_DBContext.Models;
 using Microsoft.AspNetCore.Authorization;
+using siaw_funciones;
 
 namespace SIAW.Controllers.ventas.mantenimiento
 {
@@ -12,6 +13,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
     public class velugarController : ControllerBase
     {
         private readonly UserConnectionManager _userConnectionManager;
+        private readonly Contabilidad contabilidad = new Contabilidad();
         public velugarController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;
@@ -251,29 +253,38 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
-                if (_context.velugar == null)
+                using (var dbContexTransaction = _context.Database.BeginTransaction())
                 {
-                    return BadRequest(new { resp = "Entidad velugar es null." });
-                }
-                _context.velugar.Add(velugar);
-                try
-                {
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateException)
-                {
-                    if (velugarExists(velugar.codigo, _context))
+                    try
                     {
-                        return Conflict( new { resp = "Ya existe un registro con ese código" });
+                        if (_context.velugar == null)
+                        {
+                            return BadRequest(new { resp = "Entidad velugar es null." });
+                        }
+                        if (velugarExists(velugar.codigo, _context))
+                        {
+                            return Conflict(new { resp = "Ya existe un registro con ese código" });
+                        }
+
+                        _context.velugar.Add(velugar);
+                        await _context.SaveChangesAsync();
+
+
+                        // A CONSULTA ESTO
+                        // contabilidad.AsignarCuentasCliente(velugar)
+
+
+                        dbContexTransaction.Commit();
+                        return Ok(new { resp = "204" });   // creado con exito
+
                     }
-                    else
+                    catch (DbUpdateException)
                     {
+                        dbContexTransaction.Rollback();
                         return Problem("Error en el servidor");
                         throw;
                     }
                 }
-
-                return Ok( new { resp = "204" });   // creado con exito
 
             }
 

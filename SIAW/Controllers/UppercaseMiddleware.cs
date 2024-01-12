@@ -35,17 +35,55 @@
 
         private string TransformToUppercase(string input)
         {
-            // Convertir propiedades de cadena a mayúsculas
-            var jsonObject = JObject.Parse(input);
-            foreach (var property in jsonObject.Properties())
+            // Intentar convertir a lista
+            JArray jsonArray;
+            try
             {
-                if (property.Value.Type == JTokenType.String)
+                jsonArray = JArray.Parse(input);
+            }
+            catch (JsonReaderException)
+            {
+                // Si falla, intentar convertir a objeto
+                JObject jsonObject;
+                try
                 {
-                    property.Value = ((string)property.Value).ToUpper();
+                    jsonObject = JObject.Parse(input);
+                }
+                catch (JsonReaderException)
+                {
+                    // Si falla también, devolver la entrada original
+                    return input;
+                }
+
+                // Convertir propiedades de cadena a mayúsculas
+                foreach (var property in jsonObject.Properties())
+                {
+                    if (property.Value.Type == JTokenType.String)
+                    {
+                        property.Value = ((string)property.Value).ToUpper();
+                    }
+                }
+
+                return jsonObject.ToString();
+            }
+
+            // Convertir cada objeto en la lista
+            foreach (var item in jsonArray)
+            {
+                if (item.Type == JTokenType.Object)
+                {
+                    // Convertir propiedades de cadena a mayúsculas
+                    foreach (var property in ((JObject)item).Properties())
+                    {
+                        if (property.Value.Type == JTokenType.String)
+                        {
+                            property.Value = ((string)property.Value).ToUpper();
+                        }
+                    }
                 }
             }
 
-            return jsonObject.ToString();
+            return jsonArray.ToString();
         }
 
 
