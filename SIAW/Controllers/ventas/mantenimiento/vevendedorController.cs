@@ -215,6 +215,19 @@ namespace SIAW.Controllers.ventas.mantenimiento
                     {
                         return BadRequest(new { resp = "Entidad vevendedor es null." });
                     }
+
+
+                    /////////////////// VALIDAR QUE EL VENDEDOR NO TENGA CLIENTES A SU NOMBRE 
+                    ///puedo_borrar?
+                    var nroClientes = await _context.vecliente
+                        .Where(i => i.codvendedor == codigo)
+                        .CountAsync();
+
+                    if (nroClientes > 0)
+                    {
+                        return BadRequest(new { resp = "No puede borrar el codigo de vendedor: " + codigo + ", puesto que se ha determinado que hay: " + nroClientes + " clientes que pertenecen a ese codigo de vendedor." });
+                    }
+
                     var vevendedor = await _context.vevendedor.FindAsync(codigo);
                     if (vevendedor == null)
                     {

@@ -16,6 +16,8 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
+using Newtonsoft.Json.Linq;
+using NuGet.Common;
 
 namespace SIAW.Controllers
 {
@@ -59,6 +61,14 @@ namespace SIAW.Controllers
         [Route("authenticate/{userConn}")]
         public async Task<IActionResult> Authenticate(string userConn, LoginRequest login)
         {
+            var validaUserConn = _userConnectionManager.GetUserConnection(userConn);
+            if (validaUserConn != null)
+            {
+                // Si el tokken esta ya registrado, Remover el token de la lista blanca de tokens válidos
+                validTokens.Remove(validaUserConn);
+                _userConnectionManager.RemoveUserConnection(userConn);
+            }
+
             using (var _context = DbContextFactory.Create(connectionString))
             {
                 encriptacion encript = new encriptacion();
@@ -102,7 +112,7 @@ namespace SIAW.Controllers
                         return Unauthorized( new { resp = "205" });          //------Su contraseña ya venció, registre una nueva.
                     }
                     var usuario = login.login;
-                    var jwtToken = GenerateToken(login, connectionString);
+                    var jwtToken = GenerateToken(login.login, connectionString);
                     validTokens.Add(jwtToken);   //agrega token a la lista de validos
                     //return OK (token);
                     guardaStringConection(userConn, connectionString);
@@ -185,15 +195,12 @@ namespace SIAW.Controllers
             }
             
         }
-        
 
-
-
-        private string GenerateToken(LoginRequest login, string cadConection)
+        private string GenerateToken(string login, string cadConection)
         {
             var claims = new[]
             {
-                new Claim(ClaimTypes.Name, login.login),
+                new Claim(ClaimTypes.Name, login),
                 //new Claim("ConnectionString", cadConection) // Agregar la cadena de conexión como claim
             };
 
@@ -202,7 +209,8 @@ namespace SIAW.Controllers
 
             var securityToken = new JwtSecurityToken(
                 claims: claims,
-                expires: DateTime.Now.AddDays(1),
+                expires: DateTime.Now.AddHours(24),
+                //expires: DateTime.Now.AddDays(1),
                 //expires: DateTime.Now.AddMinutes(30),
                 signingCredentials: creds);
 
@@ -210,6 +218,39 @@ namespace SIAW.Controllers
 
             return token;
         }
+
+
+
+        [HttpPost]
+        [Route("refreshToken")]
+        public async Task<IActionResult> RefreshToken(string user, string token, string userConn)
+        {
+
+            // Verificar si el token se encuentra en la lista blanca de tokens válidos
+            var exitencia = validTokens.Contains(token);
+            if (exitencia)
+            {
+                // Remover el token de la lista blanca de tokens válidos
+                validTokens.Remove(token);
+                _userConnectionManager.RemoveUserConnection(userConn);
+                try
+                {
+                    var newAccessToken = GenerateToken(user, "");
+                    validTokens.Add(newAccessToken);   //agrega token a la lista de validos
+                    guardaStringConection(userConn, connectionString);
+
+                    return Ok(new { accessToken = newAccessToken });
+                }
+                catch (Exception)
+                {
+                    return BadRequest(new { resp = "Token de actualización no válido" });
+                }
+            }
+            return BadRequest(new { resp = "Token invalido no se puede actualizar token" });
+            
+        }
+
+
 
 
 

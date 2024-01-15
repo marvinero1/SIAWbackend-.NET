@@ -97,18 +97,16 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                         .OrderByDescending(x => x.fechareg)
                         .ToList();                            
                     return Ok(query);
-
                 }
-                
-
             }
             catch (Exception)
             {
                 return Problem("Error en el servidor");
             }
-
-
         }
+
+
+
 
         // GET: api/inalmacen/5
         [HttpGet("{userConn}/{codigo}")]
@@ -204,6 +202,36 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             catch (Exception)
             {
                 return Problem("Error en el servidor");
+            }
+        }
+
+        // GET: api/consultaAlm
+        [HttpGet]
+        [Route("consultaAlm/{userConn}/{codigo}")]
+        public async Task<ActionResult<IEnumerable<inalmacen>>> getconsultaAlm(string userConn, int codigo)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var result = await _context.inalmacen
+                    .Where(i => i.codigo == codigo)
+                    .FirstOrDefaultAsync();
+
+                    if (result == null)
+                    {
+                        return BadRequest(new { resp = "No se encontraron registros con esos datos." });
+                    }
+                    return Ok(result);
+                }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
             }
         }
 

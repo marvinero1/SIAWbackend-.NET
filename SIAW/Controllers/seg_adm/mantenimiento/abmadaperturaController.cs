@@ -182,7 +182,6 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                             _context.adapertura1.RemoveRange(registrosAEliminar);
                             await _context.SaveChangesAsync();
                         }
-
                         // agregar los nuevos campos
                         _context.adapertura1.AddRange(adapertura1);
 
