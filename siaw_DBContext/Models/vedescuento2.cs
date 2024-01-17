@@ -10,5 +10,6 @@ namespace siaw_DBContext.Models
         public int coddescuento1 { get; set; }
         public string coditem { get; set; }
         public decimal descuento { get; set; }
+        public int id { get; set; }
     }
 }

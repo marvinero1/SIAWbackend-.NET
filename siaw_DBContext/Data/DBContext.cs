@@ -60148,8 +60148,6 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<vedescuento2>(entity =>
             {
-                entity.HasNoKey();
-
                 entity.Property(e => e.coditem)
                     .IsRequired()
                     .HasMaxLength(8);
@@ -64061,17 +64059,17 @@ namespace siaw_DBContext.Data
                     .HasMaxLength(25)
                     .IsUnicode(false);
 
-                entity.Property(e => e.nomb_cel1).HasMaxLength(50);
+                entity.Property(e => e.nomb_cel1).HasMaxLength(200);
 
-                entity.Property(e => e.nomb_cel2).HasMaxLength(50);
+                entity.Property(e => e.nomb_cel2).HasMaxLength(200);
 
-                entity.Property(e => e.nomb_cel3).HasMaxLength(50);
+                entity.Property(e => e.nomb_cel3).HasMaxLength(200);
 
-                entity.Property(e => e.nomb_telf1).HasMaxLength(50);
+                entity.Property(e => e.nomb_telf1).HasMaxLength(200);
 
-                entity.Property(e => e.nomb_telf2).HasMaxLength(50);
+                entity.Property(e => e.nomb_telf2).HasMaxLength(200);
 
-                entity.Property(e => e.nomb_whatsapp).HasMaxLength(50);
+                entity.Property(e => e.nomb_whatsapp).HasMaxLength(200);
 
                 entity.Property(e => e.obs).HasMaxLength(50);
 

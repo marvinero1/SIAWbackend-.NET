@@ -197,9 +197,53 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                         throw;
                     }
                 }
-                    
+            }
+        }
+
+
+        // POST: api/adapertura
+        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [Authorize]
+        [HttpPost]
+        [Route("addPeriodo/{userConn}")]
+        public async Task<ActionResult<adapertura>> addPeriodoAdapertura(string userConn, adapertura adapertura)
+        {
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                if (_context.adapertura == null)
+                {
+                    return BadRequest(new { resp = "Entidad adapertura es null." });
+                }
+                _context.adapertura.Add(adapertura);
+                try
+                {
+                    await _context.SaveChangesAsync();
+                }
+                catch (DbUpdateException)
+                {
+                    if (adaperturaExists(adapertura.codigo, _context))
+                    {
+                        return Conflict(new { resp = "Ya existe un registro con ese código" });
+                    }
+                    else
+                    {
+                        return Problem("Error en el servidor");
+                        throw;
+                    }
+                }
+
+                return Ok(new { resp = "204" });   // creado con exito
 
             }
+
+        }
+
+        private bool adaperturaExists(int codigo, DBContext _context)
+        {
+            return (_context.adapertura?.Any(e => e.codigo == codigo)).GetValueOrDefault();
 
         }
 

@@ -104,7 +104,6 @@ namespace SIAW.Controllers
                         return NotFound( new { resp = "213" });                //-----No se encontro un registro con los datos proporcionados (rol).
                     }
                     
-
                     int dias = (int)rolUser.dias_cambio;
                     
                     if (!verificaFechaPass(data.fechareg_siaw, dias))
@@ -222,20 +221,21 @@ namespace SIAW.Controllers
 
 
         [HttpPost]
-        [Route("refreshToken")]
-        public async Task<IActionResult> RefreshToken(string user, string token, string userConn)
+        [Route("refreshToken/{userConn}")]
+        public async Task<IActionResult> RefreshToken(string userConn, actualizaToken data)
         {
 
             // Verificar si el token se encuentra en la lista blanca de tokens válidos
-            var exitencia = validTokens.Contains(token);
+            var exitencia = validTokens.Contains(data.token);
             if (exitencia)
             {
                 // Remover el token de la lista blanca de tokens válidos
-                validTokens.Remove(token);
+                validTokens.Remove(data.token);
                 _userConnectionManager.RemoveUserConnection(userConn);
                 try
                 {
-                    var newAccessToken = GenerateToken(user, "");
+                    // regera token
+                    var newAccessToken = GenerateToken(data.user, "");
                     validTokens.Add(newAccessToken);   //agrega token a la lista de validos
                     guardaStringConection(userConn, connectionString);
 
@@ -363,8 +363,14 @@ namespace SIAW.Controllers
             return true;
 
         }
-
-
-
     }
+
+    public class actualizaToken
+    {
+        public string user { get; set; }
+        public string token { get; set; }
+    }
+
+
+
 }

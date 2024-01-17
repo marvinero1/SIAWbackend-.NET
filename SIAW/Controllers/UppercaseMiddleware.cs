@@ -21,12 +21,15 @@
         {
             if (context.Request.Method == "POST" || context.Request.Method == "PUT")
             {
-                using (var reader = new StreamReader(context.Request.Body))
+                if (!context.Request.Path.Value.Contains("/refreshToken"))
                 {
-                    var body = await reader.ReadToEndAsync();
-                    var transformedBody = TransformToUppercase(body);
-                    var stream = new MemoryStream(Encoding.UTF8.GetBytes(transformedBody));
-                    context.Request.Body = stream;
+                    using (var reader = new StreamReader(context.Request.Body))
+                    {
+                        var body = await reader.ReadToEndAsync();
+                        var transformedBody = TransformToUppercase(body);
+                        var stream = new MemoryStream(Encoding.UTF8.GetBytes(transformedBody));
+                        context.Request.Body = stream;
+                    }
                 }
             }
 

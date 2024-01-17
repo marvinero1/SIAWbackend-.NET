@@ -269,11 +269,6 @@ namespace SIAW.Controllers.ventas.mantenimiento
                         _context.velugar.Add(velugar);
                         await _context.SaveChangesAsync();
 
-
-                        // A CONSULTA ESTO
-                        // contabilidad.AsignarCuentasCliente(velugar)
-
-
                         dbContexTransaction.Commit();
                         return Ok(new { resp = "204" });   // creado con exito
 
