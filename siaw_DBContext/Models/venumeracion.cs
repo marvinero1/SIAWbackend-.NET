@@ -19,5 +19,6 @@ namespace siaw_DBContext.Models
         public string codunidad { get; set; }
         public bool reversion { get; set; }
         public string tipo { get; set; }
+        public int? codalmacen { get; set; }
     }
 }

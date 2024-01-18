@@ -5,6 +5,7 @@ using siaw_DBContext.Data;
 using siaw_DBContext.Models;
 using System.Net;
 using Microsoft.AspNetCore.Authorization;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace SIAW.Controllers.ventas.mantenimiento
 {
@@ -81,10 +82,8 @@ namespace SIAW.Controllers.ventas.mantenimiento
                     {
                         return NotFound( new { resp = "No se encontro un registro con este código" });
                     }
-
                     return Ok(vedesitem);
                 }
-                
             }
             catch (Exception)
             {
@@ -94,73 +93,17 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
 
 
-        // PUT: api/vedesitem/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [Authorize]
-        [HttpPut("{userConn}/{codalmacen}/{coditem}/{nivel}")]
-        public async Task<IActionResult> Putvedesitem(string userConn, int codalmacen, string coditem, string nivel, vedesitem vedesitem)
-        {
-            // Obtener el contexto de base de datos correspondiente al usuario
-            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-
-            using (var _context = DbContextFactory.Create(userConnectionString))
-            {
-                var desitem = _context.vedesitem.FirstOrDefault(objeto => objeto.codalmacen == codalmacen && objeto.coditem == coditem && objeto.nivel == nivel);
-                if (desitem == null)
-                {
-                    return NotFound( new { resp = "No existe un registro con esa información" });
-                }
-
-                _context.Entry(desitem).State = EntityState.Modified;
-
-                try
-                {
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    return Problem("Error en el servidor");
-                }
-
-                return Ok( new { resp = "206" });   // actualizado con exito
-            }
-        }
-
-        // POST: api/vedesitem
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [Authorize]
-        [HttpPost("{userConn}")]
-        public async Task<ActionResult<vedesitem>> Postvedesitem(string userConn, vedesitem vedesitem)
-        {
-            // Obtener el contexto de base de datos correspondiente al usuario
-            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-
-            using (var _context = DbContextFactory.Create(userConnectionString))
-            {
-                if (_context.vedesitem == null)
-                {
-                    return BadRequest(new { resp = "Entidad vedesitem es null." });
-                }
-                _context.vedesitem.Add(vedesitem);
-                try
-                {
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateException)
-                {
-                    return Problem("Error en el servidor");
-                }
-
-                return Ok( new { resp = "204" });   // creado con exito
-
-            }
-            
-        }
-
-        // DELETE: api/vedesitem/5
-        [Authorize]
-        [HttpDelete("{userConn}/{codalmacen}/{coditem}/{nivel}")]
-        public async Task<IActionResult> Deletevedesitem(string userConn, int codalmacen, string coditem, string nivel)
+        /// <summary>
+        /// Obtiene todos los datos de un registro de la tabla vedesitem
+        /// </summary>
+        /// <param name="userConn"></param>
+        /// <param name="codalmacen"></param>
+        /// <param name="coditem"></param>
+        /// <returns></returns>
+        // GET: api/vedesitem/5
+        [HttpGet]
+        [Route("listvedesitem/{userConn}/{codalmacen}/{coditem}")]
+        public async Task<ActionResult<vedesitem>> Mostrarvedesitem(string userConn, int codalmacen, string coditem)
         {
             try
             {
@@ -173,13 +116,168 @@ namespace SIAW.Controllers.ventas.mantenimiento
                     {
                         return BadRequest(new { resp = "Entidad vedesitem es null." });
                     }
-                    var vedesitem = _context.vedesitem.FirstOrDefault(objeto => objeto.codalmacen == codalmacen && objeto.coditem == coditem && objeto.nivel == nivel);
+                    var vedesitem = await _context.vedesitem
+                        .Where(v => v.codalmacen == codalmacen && v.coditem == coditem)
+                        .OrderBy(v => v.nivel)
+                        .ToListAsync();
+
                     if (vedesitem == null)
                     {
-                        return NotFound( new { resp = "No existe un registro con ese código" });
+                        return NotFound(new { resp = "No se encontro ningun registro con este código" });
+                    }
+                    return Ok(vedesitem);
+                }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+            }
+        }
+
+
+
+
+        // PUT: api/vedesitem/5
+        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [Authorize]
+        [HttpPut]
+        [Route("inicializar/{userConn}/{codalmacen}/{coditem}")]
+        public async Task<IActionResult> inicializar(string userConn, int codalmacen, string coditem)
+        {
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                using (var dbContexTransaction = _context.Database.BeginTransaction())
+                {
+                    try
+                    {
+                        var desitems = await _context.vedesitem
+                            .Where(v => v.coditem == coditem && v.codalmacen == codalmacen)
+                            .ToListAsync();
+                        // primero borrar todos los actuales si es que tiene
+                        if (desitems.Count > 0)
+                        {
+                            _context.vedesitem.RemoveRange(desitems);
+                            await _context.SaveChangesAsync();
+                        }
+                        // insertar todos los periodos actuales
+                        var newListvedesitem = _context.vedesnivel
+                            .Select(v => new vedesitem
+                            {
+                                codalmacen = codalmacen,
+                                coditem = coditem,
+                                nivel = v.codigo,
+                                desde = 0,
+                                hasta = 0,
+                                descuento = 0
+                            });
+                        _context.vedesitem.AddRange(newListvedesitem);
+                        await _context.SaveChangesAsync();
+
+                        dbContexTransaction.Commit();
+                        return Ok(new { resp = "206", data = newListvedesitem });   // actualizado con exito
+                    }
+                    catch (DbUpdateConcurrencyException)
+                    {
+                        dbContexTransaction.Rollback();
+                        return Problem("Error en el servidor");
+                        throw;
+                    }
+                }
+            }
+        }
+
+
+
+
+
+
+        // POST: api/vedesitem
+        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [Authorize]
+        [HttpPut]
+        [Route("actualizaDetalle/{userConn}")]
+        public async Task<ActionResult<vedesitem>> actualizaDetalle(string userConn, List<vedesitem> vedesitem)
+        {
+            if (vedesitem.Count()<1)
+            {
+                return BadRequest(new { resp = "No se esta recibiendo ningun dato del detalle para actualizarse, favor verifique esta situación." });
+            }
+
+            if (vedesitem.Any(item => item.desde > item.hasta))
+            {
+                // Enviar un mensaje de error ya que 'desde' es mayor que 'hasta' en al menos uno de los elementos
+                return BadRequest(new { resp = "El valor 'desde' no puede ser mayor que 'hasta'." });
+            }
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                using (var dbContexTransaction = _context.Database.BeginTransaction())
+                {
+                    try
+                    {
+                        foreach (var item in vedesitem)
+                        {
+                            var modifvedesitem = _context.vedesitem.FirstOrDefault(x => x.codalmacen == item.codalmacen && x.coditem == item.coditem && x.nivel == item.nivel);
+                            if (modifvedesitem != null)
+                            {
+                                modifvedesitem.desde = item.desde;
+                                modifvedesitem.hasta = item.hasta;
+                                modifvedesitem.descuento = item.descuento;
+
+                                _context.Entry(modifvedesitem).State = EntityState.Modified;
+                                await _context.SaveChangesAsync();
+                            }
+                            else
+                            {
+                                dbContexTransaction.Rollback();
+                                return BadRequest(new { resp = "Existen datos no encontrados de acuerdo al detalle, favor inicialice primero e intentelo de nuevo." });
+                            }
+                        }
+
+                        dbContexTransaction.Commit();
+                        return Ok(new { resp = "206" });   // actualizado con exito
+                    }
+                    catch (DbUpdateException)
+                    {
+                        dbContexTransaction.Rollback();
+                        return Problem("Error en el servidor");
+                        throw;
+                    }
+                }
+            }
+        }
+
+        // DELETE: api/vedesitem/5
+        [Authorize]
+        [HttpDelete("{userConn}/{codalmacen}/{coditem}")]
+        public async Task<IActionResult> Deletevedesitem(string userConn, int codalmacen, string coditem)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    if (_context.vedesitem == null)
+                    {
+                        return BadRequest(new { resp = "Entidad vedesitem es null." });
+                    }
+                    var vedesitem = await _context.vedesitem
+                        .Where(v => v.coditem == coditem && v.codalmacen == codalmacen)
+                        .ToListAsync();
+
+                    if (vedesitem.Count() == 0)
+                    {
+                        return NotFound( new { resp = "No existe un registro con esos datos (almacen, item)" });
                     }
 
-                    _context.vedesitem.Remove(vedesitem);
+                    _context.vedesitem.RemoveRange(vedesitem);
                     await _context.SaveChangesAsync();
 
                     return Ok( new { resp = "208" });   // eliminado con exito

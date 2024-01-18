@@ -234,9 +234,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                         throw;
                     }
                 }
-
                 return Ok(new { resp = "204" });   // creado con exito
-
             }
 
         }

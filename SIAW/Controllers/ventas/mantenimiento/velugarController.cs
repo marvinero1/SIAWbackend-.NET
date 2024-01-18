@@ -13,7 +13,6 @@ namespace SIAW.Controllers.ventas.mantenimiento
     public class velugarController : ControllerBase
     {
         private readonly UserConnectionManager _userConnectionManager;
-        private readonly Contabilidad contabilidad = new Contabilidad();
         public velugarController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;

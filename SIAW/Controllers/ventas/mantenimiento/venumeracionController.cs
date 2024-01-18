@@ -32,7 +32,29 @@ namespace SIAW.Controllers.ventas.mantenimiento
                     {
                         return BadRequest(new { resp = "Entidad venumeracion es null." });
                     }
-                    var result = await _context.venumeracion.OrderBy(id => id.id).ToListAsync();
+                    var result = await _context.venumeracion
+                        .Join(_context.adunidad,
+                        vn => vn.codunidad,
+                        au => au.codigo,
+                        (vn, au) => new
+                        {
+                            id = vn.id,
+                            descripcion = vn.descripcion,
+                            nroactual = vn.nroactual,
+                            tipodoc = vn.tipodoc,
+                            habilitado = vn.habilitado,
+                            descarga = vn.descarga,
+                            horareg = vn.horareg,
+                            fechareg = vn.fechareg,
+                            usuarioreg = vn.usuarioreg,
+                            codunidad = vn.codunidad,
+                            unidadDesc = au.descripcion,
+                            reversion = vn.reversion,
+                            tipo = vn.tipo,
+                            codalmacen = vn.codalmacen
+                        })
+                        .OrderBy(id => id.id)
+                        .ToListAsync();
                     return Ok(result);
                 }
                 
@@ -41,8 +63,6 @@ namespace SIAW.Controllers.ventas.mantenimiento
             {
                 return Problem("Error en el servidor");
             }
-
-
         }
 
         // GET: api/venumeracion/5
@@ -60,7 +80,29 @@ namespace SIAW.Controllers.ventas.mantenimiento
                     {
                         return BadRequest(new { resp = "Entidad venumeracion es null." });
                     }
-                    var venumeracion = await _context.venumeracion.FindAsync(id);
+                    var venumeracion = await _context.venumeracion
+                        .Join(_context.adunidad,
+                        vn => vn.codunidad,
+                        au => au.codigo,
+                        (vn, au) => new
+                        {
+                            id = vn.id,
+                            descripcion = vn.descripcion,
+                            nroactual = vn.nroactual,
+                            tipodoc = vn.tipodoc,
+                            habilitado = vn.habilitado,
+                            descarga = vn.descarga,
+                            horareg = vn.horareg,
+                            fechareg = vn.fechareg,
+                            usuarioreg = vn.usuarioreg,
+                            codunidad = vn.codunidad,
+                            unidadDesc = au.descripcion,
+                            reversion = vn.reversion,
+                            tipo = vn.tipo,
+                            codalmacen = vn.codalmacen
+                        })
+                        .Where(v => v.id == id)
+                        .FirstOrDefaultAsync();
 
                     if (venumeracion == null)
                     {
