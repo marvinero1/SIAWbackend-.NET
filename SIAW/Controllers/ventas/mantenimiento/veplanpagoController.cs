@@ -336,8 +336,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                         return NotFound( new { resp = "No existe un registro con ese código" });
                     }
 
-                    _context.veplanpago.Remove(veplanpago);
-                    await _context.SaveChangesAsync();
+                    
 
                     return Ok( new { resp = "208" });   // eliminado con exito
                 }

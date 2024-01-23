@@ -103,12 +103,12 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             string id_asignado = await if_id_asignado(userConnectionString, adusuario_idproforma.idproforma);
             if (id_asignado != "aceptado")
             {
-                return BadRequest(new { codigo = 706,resul = id_asignado});
+                return BadRequest(new { resp = id_asignado});
             }
             string usuario_idasignado = await usuario_tienen_id_asignado(userConnectionString, adusuario_idproforma.usuario);
             if (usuario_idasignado != "aceptado")
             {
-                return BadRequest(new { codigo = 708, resul = usuario_idasignado });
+                return BadRequest(new { resp = usuario_idasignado });
             }
 
             using (var _context = DbContextFactory.Create(userConnectionString))

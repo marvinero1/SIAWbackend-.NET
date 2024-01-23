@@ -32,7 +32,30 @@ namespace SIAW.Controllers.fondos.mantenimiento
                     {
                         return BadRequest(new { resp = "Entidad fncuenta es null." });
                     }
-                    var result = await _context.fncuenta.OrderByDescending(fechareg => fechareg.fechareg).ToListAsync();
+                    var result = await _context.fncuenta
+                        .GroupJoin(
+                            _context.admoneda,
+                            c => c.codmoneda,
+                            t => t.codigo,
+                            (c, t) => new { c, t })
+                        .SelectMany(
+                            x => x.t.DefaultIfEmpty(),
+                            (x, moneda) => new
+                            {
+                                x.c.id,
+                                x.c.descripcion,
+                                x.c.fechareg,
+                                x.c.usuarioreg,
+                                x.c.horareg,
+                                x.c.balance,
+                                x.c.fecha,
+                                x.c.codmoneda,
+                                descUnidad = moneda != null ? moneda.descripcion : null,
+                                x.c.tipo_movimiento
+                            }
+                        )
+                        .OrderBy(id => id.id)
+                        .ToListAsync();
                     return Ok(result);
                 }
                 
@@ -60,7 +83,30 @@ namespace SIAW.Controllers.fondos.mantenimiento
                     {
                         return BadRequest(new { resp = "Entidad fncuenta es null." });
                     }
-                    var fncuenta = await _context.fncuenta.FindAsync(id);
+                    var fncuenta = await _context.fncuenta
+                        .GroupJoin(
+                            _context.admoneda,
+                            c => c.codmoneda,
+                            t => t.codigo,
+                            (c, t) => new { c, t })
+                        .SelectMany(
+                            x => x.t.DefaultIfEmpty(),
+                            (x, moneda) => new
+                            {
+                                x.c.id,
+                                x.c.descripcion,
+                                x.c.fechareg,
+                                x.c.usuarioreg,
+                                x.c.horareg,
+                                x.c.balance,
+                                x.c.fecha,
+                                x.c.codmoneda,
+                                descUnidad = moneda != null ? moneda.descripcion : null,
+                                x.c.tipo_movimiento
+                            }
+                        )
+                        .Where(i => i.id == id)
+                        .FirstOrDefaultAsync();
 
                     if (fncuenta == null)
                     {
@@ -202,35 +248,47 @@ namespace SIAW.Controllers.fondos.mantenimiento
         [HttpDelete("{userConn}/{id}")]
         public async Task<IActionResult> Deletefncuenta(string userConn, string id)
         {
-            try
-            {
-                // Obtener el contexto de base de datos correspondiente al usuario
-                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-                using (var _context = DbContextFactory.Create(userConnectionString))
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                using (var dbContexTransaction = _context.Database.BeginTransaction())
                 {
-                    if (_context.fncuenta == null)
+                    try
                     {
-                        return BadRequest(new { resp = "Entidad fncuenta es null." });
+                        if (_context.fncuenta == null)
+                        {
+                            return BadRequest(new { resp = "Entidad fncuenta es null." });
+                        }
+                        var fncuenta = await _context.fncuenta.FindAsync(id);
+                        if (fncuenta == null)
+                        {
+                            return NotFound(new { resp = "No existe un registro con ese código" });
+                        }
+
+                        var fncuenta_conta = await _context.fncuenta_conta.Where(i => i.idcuenta == id).ToListAsync();
+                        if (fncuenta_conta.Count > 0)
+                        {
+                            _context.fncuenta_conta.RemoveRange(fncuenta_conta);
+                            await _context.SaveChangesAsync();
+                        }
+
+                        _context.fncuenta.Remove(fncuenta);
+                        await _context.SaveChangesAsync();
+
+                        dbContexTransaction.Commit();
+                        return Ok(new { resp = "208" });   // eliminado con exito
                     }
-                    var fncuenta = await _context.fncuenta.FindAsync(id);
-                    if (fncuenta == null)
+                    catch (Exception)
                     {
-                        return NotFound( new { resp = "No existe un registro con ese código" });
+                        dbContexTransaction.Rollback();
+                        return Problem("Error en el servidor");
+                        throw;
                     }
-
-                    _context.fncuenta.Remove(fncuenta);
-                    await _context.SaveChangesAsync();
-
-                    return Ok( new { resp = "208" });   // eliminado con exito
                 }
-                
+            }
 
-            }
-            catch (Exception)
-            {
-                return Problem("Error en el servidor");
-            }
         }
 
         private bool fncuentaExists(string id, DBContext _context)
