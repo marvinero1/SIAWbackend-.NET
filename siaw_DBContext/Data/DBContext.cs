@@ -19707,7 +19707,9 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<fntipodeposito_cliente>(entity =>
             {
-                entity.HasNoKey();
+                entity.Property(e => e.id)
+                    .HasMaxLength(5)
+                    .IsUnicode(false);
 
                 entity.Property(e => e.codunidad)
                     .HasMaxLength(5)
@@ -19720,11 +19722,6 @@ namespace siaw_DBContext.Data
                 entity.Property(e => e.fechareg).HasColumnType("smalldatetime");
 
                 entity.Property(e => e.horareg)
-                    .HasMaxLength(5)
-                    .IsUnicode(false);
-
-                entity.Property(e => e.id)
-                    .IsRequired()
                     .HasMaxLength(5)
                     .IsUnicode(false);
 

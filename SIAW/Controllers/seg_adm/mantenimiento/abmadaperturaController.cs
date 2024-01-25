@@ -218,21 +218,21 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     return BadRequest(new { resp = "Entidad adapertura es null." });
                 }
                 _context.adapertura.Add(adapertura);
+                var valida = await _context.adapertura.Where(i=>i.ano == adapertura.ano && i.mes == adapertura.mes).FirstOrDefaultAsync();
+
+                if (valida != null)
+                {
+                    return Conflict(new { resp = "Ya existe un registro con el año y mes proporcionado" });
+                }
+
                 try
                 {
                     await _context.SaveChangesAsync();
                 }
                 catch (DbUpdateException)
                 {
-                    if (adaperturaExists(adapertura.codigo, _context))
-                    {
-                        return Conflict(new { resp = "Ya existe un registro con ese código" });
-                    }
-                    else
-                    {
-                        return Problem("Error en el servidor");
-                        throw;
-                    }
+                    return Problem("Error en el servidor");
+                    throw;
                 }
                 return Ok(new { resp = "204" });   // creado con exito
             }
