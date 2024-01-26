@@ -186,9 +186,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 }
 
                 return Ok( new { resp = "204" });   // creado con exito
-
             }
-            
         }
 
         // DELETE: api/adunidad/5

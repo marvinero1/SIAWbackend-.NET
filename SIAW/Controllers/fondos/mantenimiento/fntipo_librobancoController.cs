@@ -179,6 +179,10 @@ namespace SIAW.Controllers.fondos.mantenimiento
                 {
                     return BadRequest(new { resp = "Entidad fntipo_librobanco es null." });
                 }
+                if (fntipo_librobanco.desde > fntipo_librobanco.hasta)
+                {
+                    return BadRequest(new { resp = "El valor del campo desde no puede ser mayor al valor del campo hasta." });
+                }
                 _context.fntipo_librobanco.Add(fntipo_librobanco);
                 try
                 {

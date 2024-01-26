@@ -492,7 +492,6 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
             }
         }
-
     }
     public class DataVeplanpago
     {

@@ -18807,15 +18807,13 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<fndeudor_compuesto1>(entity =>
             {
-                entity.HasNoKey();
+                entity.HasKey(e => new { e.iddeudor_compuesto, e.iddeudor });
 
-                entity.Property(e => e.iddeudor)
-                    .IsRequired()
+                entity.Property(e => e.iddeudor_compuesto)
                     .HasMaxLength(15)
                     .IsUnicode(false);
 
-                entity.Property(e => e.iddeudor_compuesto)
-                    .IsRequired()
+                entity.Property(e => e.iddeudor)
                     .HasMaxLength(15)
                     .IsUnicode(false);
             });

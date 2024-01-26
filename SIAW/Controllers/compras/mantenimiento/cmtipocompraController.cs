@@ -32,7 +32,27 @@ namespace SIAW.Controllers.compras.mantenimiento
                     {
                         return BadRequest(new { resp = "Entidad cmtipocompra es null." });
                     }
-                    var result = await _context.cmtipocompra.OrderBy(id => id.id).ToListAsync();
+                    var result = await _context.cmtipocompra
+                        .GroupJoin(
+                            _context.adunidad,
+                            c => c.codunidad,
+                            t => t.codigo,
+                            (c, t) => new { c, t })
+                        .SelectMany(
+                            x => x.t.DefaultIfEmpty(),
+                            (x, unidad) => new
+                            {
+                                x.c.id,
+                                x.c.descripcion,
+                                x.c.nroactual,
+                                x.c.horareg,
+                                x.c.fechareg,
+                                x.c.usuarioreg,
+                                x.c.codunidad,
+                                descUnidad = unidad != null ? unidad.descripcion : null
+                            }
+                        )
+                        .OrderBy(id => id.id).ToListAsync();
                     return Ok(result);
                 }
                 
@@ -60,7 +80,28 @@ namespace SIAW.Controllers.compras.mantenimiento
                     {
                         return BadRequest(new { resp = "Entidad cmtipocompra es null." });
                     }
-                    var cmtipocompra = await _context.cmtipocompra.FindAsync(id);
+                    var cmtipocompra = await _context.cmtipocompra
+                        .Where(i => i.id == id)
+                        .GroupJoin(
+                            _context.adunidad,
+                            c => c.codunidad,
+                            t => t.codigo,
+                            (c, t) => new { c, t })
+                        .SelectMany(
+                            x => x.t.DefaultIfEmpty(),
+                            (x, unidad) => new
+                            {
+                                x.c.id,
+                                x.c.descripcion,
+                                x.c.nroactual,
+                                x.c.horareg,
+                                x.c.fechareg,
+                                x.c.usuarioreg,
+                                x.c.codunidad,
+                                descUnidad = unidad != null ? unidad.descripcion : null
+                            }
+                        )
+                        .FirstOrDefaultAsync();
 
                     if (cmtipocompra == null)
                     {

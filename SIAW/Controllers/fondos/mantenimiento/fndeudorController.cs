@@ -113,6 +113,45 @@ namespace SIAW.Controllers.fondos.mantenimiento
             }
         }
 
+        // GET: api/catalogo
+        [HttpGet]
+        [Route("catalogo/{userConn}")]
+        public async Task<ActionResult<IEnumerable<fndeudor>>> Getfndeudor_catalogo(string userConn)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var query = _context.fndeudor
+                    .OrderBy(i => i.id)
+                    .Select(i => new
+                    {
+                        i.id,
+                        i.descripcion
+                    });
+
+                    var result = query.ToList();
+
+                    if (result.Count() == 0)
+                    {
+                        return BadRequest(new { resp = "No se encontraron registros con esos datos." });
+                    }
+                    return Ok(result);
+                }
+
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+        }
+
+
+
 
         // PUT: api/fndeudor/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
