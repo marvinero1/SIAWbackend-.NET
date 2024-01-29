@@ -7,7 +7,7 @@ namespace siaw_DBContext.Models
 {
     public partial class inalmacen_reserva
     {
-        public int? codalmacen { get; set; }
-        public int? codalmacen_reserva { get; set; }
+        public int codalmacen { get; set; }
+        public int codalmacen_reserva { get; set; }
     }
 }

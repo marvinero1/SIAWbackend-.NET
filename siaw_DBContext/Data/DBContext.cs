@@ -20346,7 +20346,7 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<inalmacen_reserva>(entity =>
             {
-                entity.HasNoKey();
+                entity.HasKey(e => new { e.codalmacen, e.codalmacen_reserva });
             });
 
             modelBuilder.Entity<incarga>(entity =>
@@ -21695,9 +21695,8 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<insolurgente_parametros>(entity =>
             {
-                entity.HasNoKey();
-
-                entity.Property(e => e.codigo).ValueGeneratedOnAdd();
+                entity.HasKey(e => e.codigo)
+                    .HasName("PK__insolurg__40F9A207A7FD1F60");
 
                 entity.Property(e => e.codmoneda)
                     .HasMaxLength(3)
@@ -62259,11 +62258,9 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<veobs_ruta>(entity =>
             {
-                entity.HasNoKey();
+                entity.HasKey(e => e.codigo);
 
-                entity.Property(e => e.codigo)
-                    .IsRequired()
-                    .HasMaxLength(5);
+                entity.Property(e => e.codigo).HasMaxLength(5);
 
                 entity.Property(e => e.descripcion)
                     .IsRequired()
