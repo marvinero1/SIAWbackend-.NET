@@ -20441,8 +20441,6 @@ namespace siaw_DBContext.Data
 
                 entity.Property(e => e.codigo).ValueGeneratedNever();
 
-                entity.Property(e => e.cliente).HasMaxLength(10);
-
                 entity.Property(e => e.descripcion).HasMaxLength(60);
 
                 entity.Property(e => e.fechareg).HasColumnType("smalldatetime");
@@ -20450,8 +20448,6 @@ namespace siaw_DBContext.Data
                 entity.Property(e => e.horareg)
                     .IsRequired()
                     .HasMaxLength(5);
-
-                entity.Property(e => e.nroactual).HasDefaultValueSql("(0)");
 
                 entity.Property(e => e.usuarioreg)
                     .IsRequired()

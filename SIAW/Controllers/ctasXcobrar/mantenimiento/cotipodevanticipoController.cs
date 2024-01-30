@@ -5,21 +5,22 @@ using siaw_DBContext.Data;
 using siaw_DBContext.Models;
 using Microsoft.AspNetCore.Authorization;
 
+
 namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 {
     [Route("api/ctsxcob/mant/[controller]")]
     [ApiController]
-    public class cotippagoController : ControllerBase
+    public class cotipodevanticipoController : ControllerBase
     {
         private readonly UserConnectionManager _userConnectionManager;
-        public cotippagoController(UserConnectionManager userConnectionManager)
+        public cotipodevanticipoController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;
         }
 
-        // GET: api/cotippago
+        // GET: api/cotipodevanticipo
         [HttpGet("{userConn}")]
-        public async Task<ActionResult<IEnumerable<cotippago>>> Getcotippago(string userConn)
+        public async Task<ActionResult<IEnumerable<cotipodevanticipo>>> Getcotipodevanticipo(string userConn)
         {
             try
             {
@@ -28,12 +29,31 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
-                    if (_context.cotippago == null)
+                    if (_context.cotipodevanticipo == null)
                     {
-                        return BadRequest(new { resp = "Entidad cotippago es null." });
+                        return BadRequest(new { resp = "Entidad cotipodevanticipo es null." });
                     }
-                    var result = await _context.cotippago
-                        .OrderBy(codigo => codigo.codigo).ToListAsync();
+                    var result = await _context.cotipodevanticipo
+                        .GroupJoin(
+                            _context.adunidad,
+                            c => c.codunidad,
+                            t => t.codigo,
+                            (c, t) => new { c, t })
+                        .SelectMany(
+                            x => x.t.DefaultIfEmpty(),
+                            (x, unidad) => new
+                            {
+                                x.c.id,
+                                x.c.descripcion,
+                                x.c.nroactual,
+                                x.c.horareg,
+                                x.c.fechareg,
+                                x.c.usuarioreg,
+                                x.c.codunidad,
+                                descUnidad = unidad != null ? unidad.descripcion : null
+                            }
+                        )
+                        .OrderBy(id => id.id).ToListAsync();
                     return Ok(result);
                 }
             }
@@ -43,9 +63,9 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
             }
         }
 
-        // GET: api/cotippago/5
-        [HttpGet("{userConn}/{codigo}")]
-        public async Task<ActionResult<cotippago>> Getcotippago(string userConn, int codigo)
+        // GET: api/cotipodevanticipo/5
+        [HttpGet("{userConn}/{id}")]
+        public async Task<ActionResult<cotipodevanticipo>> Getcotipodevanticipo(string userConn, string id)
         {
             try
             {
@@ -54,20 +74,39 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
-                    if (_context.cotippago == null)
+                    if (_context.cotipodevanticipo == null)
                     {
-                        return BadRequest(new { resp = "Entidad cotippago es null." });
+                        return BadRequest(new { resp = "Entidad cotipodevanticipo es null." });
                     }
-                    var cotippago = await _context.cotippago
-                        .Where(i => i.codigo == codigo)
+                    var cotipodevanticipo = await _context.cotipodevanticipo
+                        .Where(i => i.id == id)
+                        .GroupJoin(
+                            _context.adunidad,
+                            c => c.codunidad,
+                            t => t.codigo,
+                            (c, t) => new { c, t })
+                        .SelectMany(
+                            x => x.t.DefaultIfEmpty(),
+                            (x, unidad) => new
+                            {
+                                x.c.id,
+                                x.c.descripcion,
+                                x.c.nroactual,
+                                x.c.horareg,
+                                x.c.fechareg,
+                                x.c.usuarioreg,
+                                x.c.codunidad,
+                                descUnidad = unidad != null ? unidad.descripcion : null
+                            }
+                        )
                         .FirstOrDefaultAsync();
 
-                    if (cotippago == null)
+                    if (cotipodevanticipo == null)
                     {
                         return NotFound(new { resp = "No se encontro un registro con este código" });
                     }
 
-                    return Ok(cotippago);
+                    return Ok(cotipodevanticipo);
                 }
 
             }
@@ -78,23 +117,23 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
         }
 
 
-        // PUT: api/cotippago/5
+        // PUT: api/cotipodevanticipo/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [Authorize]
-        [HttpPut("{userConn}/{codigo}")]
-        public async Task<IActionResult> Putcotippago(string userConn, int codigo, cotippago cotippago)
+        [HttpPut("{userConn}/{id}")]
+        public async Task<IActionResult> Putcotipodevanticipo(string userConn, string id, cotipodevanticipo cotipodevanticipo)
         {
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
-                if (codigo != cotippago.codigo)
+                if (id != cotipodevanticipo.id)
                 {
-                    return BadRequest(new { resp = "Error con codigo en datos proporcionados." });
+                    return BadRequest(new { resp = "Error con Id en datos proporcionados." });
                 }
 
-                _context.Entry(cotippago).State = EntityState.Modified;
+                _context.Entry(cotipodevanticipo).State = EntityState.Modified;
 
                 try
                 {
@@ -102,7 +141,7 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!cotippagoExists(codigo, _context))
+                    if (!cotipodevanticipoExists(id, _context))
                     {
                         return NotFound(new { resp = "No existe un registro con ese código" });
                     }
@@ -120,29 +159,29 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 
         }
 
-        // POST: api/cotippago
+        // POST: api/cotipodevanticipo
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [Authorize]
         [HttpPost("{userConn}")]
-        public async Task<ActionResult<cotippago>> Postcotippago(string userConn, cotippago cotippago)
+        public async Task<ActionResult<cotipodevanticipo>> Postcotipodevanticipo(string userConn, cotipodevanticipo cotipodevanticipo)
         {
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
-                if (_context.cotippago == null)
+                if (_context.cotipodevanticipo == null)
                 {
-                    return BadRequest(new { resp = "Entidad cotippago es null." });
+                    return BadRequest(new { resp = "Entidad cotipodevanticipo es null." });
                 }
-                _context.cotippago.Add(cotippago);
+                _context.cotipodevanticipo.Add(cotipodevanticipo);
                 try
                 {
                     await _context.SaveChangesAsync();
                 }
                 catch (DbUpdateException)
                 {
-                    if (cotippagoExists(cotippago.codigo, _context))
+                    if (cotipodevanticipoExists(cotipodevanticipo.id, _context))
                     {
                         return Conflict(new { resp = "Ya existe un registro con ese código" });
                     }
@@ -159,10 +198,10 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 
         }
 
-        // DELETE: api/cotippago/5
+        // DELETE: api/cotipodevanticipo/5
         [Authorize]
-        [HttpDelete("{userConn}/{codigo}")]
-        public async Task<IActionResult> Deletecotippago(string userConn, int codigo)
+        [HttpDelete("{userConn}/{id}")]
+        public async Task<IActionResult> Deletecotipodevanticipo(string userConn, string id)
         {
             try
             {
@@ -171,17 +210,17 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
-                    if (_context.cotippago == null)
+                    if (_context.cotipodevanticipo == null)
                     {
-                        return BadRequest(new { resp = "Entidad cotippago es null." });
+                        return BadRequest(new { resp = "Entidad cotipodevanticipo es null." });
                     }
-                    var cotippago = await _context.cotippago.FindAsync(codigo);
-                    if (cotippago == null)
+                    var cotipodevanticipo = await _context.cotipodevanticipo.FindAsync(id);
+                    if (cotipodevanticipo == null)
                     {
                         return NotFound(new { resp = "No existe un registro con ese código" });
                     }
 
-                    _context.cotippago.Remove(cotippago);
+                    _context.cotipodevanticipo.Remove(cotipodevanticipo);
                     await _context.SaveChangesAsync();
 
                     return Ok(new { resp = "208" });   // eliminado con exito
@@ -193,9 +232,9 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
             }
         }
 
-        private bool cotippagoExists(int codigo, DBContext _context)
+        private bool cotipodevanticipoExists(string id, DBContext _context)
         {
-            return (_context.cotippago?.Any(e => e.codigo == codigo)).GetValueOrDefault();
+            return (_context.cotipodevanticipo?.Any(e => e.id == id)).GetValueOrDefault();
 
         }
     }

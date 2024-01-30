@@ -9,17 +9,17 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 {
     [Route("api/ctsxcob/mant/[controller]")]
     [ApiController]
-    public class cotippagoController : ControllerBase
+    public class cobancoController : ControllerBase
     {
         private readonly UserConnectionManager _userConnectionManager;
-        public cotippagoController(UserConnectionManager userConnectionManager)
+        public cobancoController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;
         }
 
-        // GET: api/cotippago
+        // GET: api/cobanco
         [HttpGet("{userConn}")]
-        public async Task<ActionResult<IEnumerable<cotippago>>> Getcotippago(string userConn)
+        public async Task<ActionResult<IEnumerable<cobanco>>> Getcobanco(string userConn)
         {
             try
             {
@@ -28,11 +28,11 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
-                    if (_context.cotippago == null)
+                    if (_context.cobanco == null)
                     {
-                        return BadRequest(new { resp = "Entidad cotippago es null." });
+                        return BadRequest(new { resp = "Entidad cobanco es null." });
                     }
-                    var result = await _context.cotippago
+                    var result = await _context.cobanco
                         .OrderBy(codigo => codigo.codigo).ToListAsync();
                     return Ok(result);
                 }
@@ -43,9 +43,9 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
             }
         }
 
-        // GET: api/cotippago/5
+        // GET: api/cobanco/5
         [HttpGet("{userConn}/{codigo}")]
-        public async Task<ActionResult<cotippago>> Getcotippago(string userConn, int codigo)
+        public async Task<ActionResult<cobanco>> Getcobanco(string userConn, string codigo)
         {
             try
             {
@@ -54,20 +54,20 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
-                    if (_context.cotippago == null)
+                    if (_context.cobanco == null)
                     {
-                        return BadRequest(new { resp = "Entidad cotippago es null." });
+                        return BadRequest(new { resp = "Entidad cobanco es null." });
                     }
-                    var cotippago = await _context.cotippago
+                    var cobanco = await _context.cobanco
                         .Where(i => i.codigo == codigo)
                         .FirstOrDefaultAsync();
 
-                    if (cotippago == null)
+                    if (cobanco == null)
                     {
                         return NotFound(new { resp = "No se encontro un registro con este código" });
                     }
 
-                    return Ok(cotippago);
+                    return Ok(cobanco);
                 }
 
             }
@@ -78,23 +78,23 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
         }
 
 
-        // PUT: api/cotippago/5
+        // PUT: api/cobanco/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [Authorize]
         [HttpPut("{userConn}/{codigo}")]
-        public async Task<IActionResult> Putcotippago(string userConn, int codigo, cotippago cotippago)
+        public async Task<IActionResult> Putcobanco(string userConn, string codigo, cobanco cobanco)
         {
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
-                if (codigo != cotippago.codigo)
+                if (codigo != cobanco.codigo)
                 {
                     return BadRequest(new { resp = "Error con codigo en datos proporcionados." });
                 }
 
-                _context.Entry(cotippago).State = EntityState.Modified;
+                _context.Entry(cobanco).State = EntityState.Modified;
 
                 try
                 {
@@ -102,7 +102,7 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!cotippagoExists(codigo, _context))
+                    if (!cobancoExists(codigo, _context))
                     {
                         return NotFound(new { resp = "No existe un registro con ese código" });
                     }
@@ -120,29 +120,29 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 
         }
 
-        // POST: api/cotippago
+        // POST: api/cobanco
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [Authorize]
         [HttpPost("{userConn}")]
-        public async Task<ActionResult<cotippago>> Postcotippago(string userConn, cotippago cotippago)
+        public async Task<ActionResult<cobanco>> Postcobanco(string userConn, cobanco cobanco)
         {
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
-                if (_context.cotippago == null)
+                if (_context.cobanco == null)
                 {
-                    return BadRequest(new { resp = "Entidad cotippago es null." });
+                    return BadRequest(new { resp = "Entidad cobanco es null." });
                 }
-                _context.cotippago.Add(cotippago);
+                _context.cobanco.Add(cobanco);
                 try
                 {
                     await _context.SaveChangesAsync();
                 }
                 catch (DbUpdateException)
                 {
-                    if (cotippagoExists(cotippago.codigo, _context))
+                    if (cobancoExists(cobanco.codigo, _context))
                     {
                         return Conflict(new { resp = "Ya existe un registro con ese código" });
                     }
@@ -159,10 +159,10 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 
         }
 
-        // DELETE: api/cotippago/5
+        // DELETE: api/cobanco/5
         [Authorize]
         [HttpDelete("{userConn}/{codigo}")]
-        public async Task<IActionResult> Deletecotippago(string userConn, int codigo)
+        public async Task<IActionResult> Deletecobanco(string userConn, string codigo)
         {
             try
             {
@@ -171,17 +171,17 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
-                    if (_context.cotippago == null)
+                    if (_context.cobanco == null)
                     {
-                        return BadRequest(new { resp = "Entidad cotippago es null." });
+                        return BadRequest(new { resp = "Entidad cobanco es null." });
                     }
-                    var cotippago = await _context.cotippago.FindAsync(codigo);
-                    if (cotippago == null)
+                    var cobanco = await _context.cobanco.FindAsync(codigo);
+                    if (cobanco == null)
                     {
                         return NotFound(new { resp = "No existe un registro con ese código" });
                     }
 
-                    _context.cotippago.Remove(cotippago);
+                    _context.cobanco.Remove(cobanco);
                     await _context.SaveChangesAsync();
 
                     return Ok(new { resp = "208" });   // eliminado con exito
@@ -193,9 +193,9 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
             }
         }
 
-        private bool cotippagoExists(int codigo, DBContext _context)
+        private bool cobancoExists(string codigo, DBContext _context)
         {
-            return (_context.cotippago?.Any(e => e.codigo == codigo)).GetValueOrDefault();
+            return (_context.cobanco?.Any(e => e.codigo == codigo)).GetValueOrDefault();
 
         }
     }

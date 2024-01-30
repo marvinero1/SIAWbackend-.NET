@@ -32,7 +32,28 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
                     {
                         return BadRequest(new { resp = "Entidad cotipo es null." });
                     }
-                    var result = await _context.cotipo.OrderByDescending(id => id.id).ToListAsync();
+                    var result = await _context.cotipo
+                        .GroupJoin(
+                            _context.adunidad,
+                            c => c.codunidad,
+                            t => t.codigo,
+                            (c, t) => new { c, t })
+                        .SelectMany(
+                            x => x.t.DefaultIfEmpty(),
+                            (x, unidad) => new
+                            {
+                                x.c.id,
+                                x.c.descripcion,
+                                x.c.nroactual,
+                                x.c.codvendedor,
+                                x.c.horareg,
+                                x.c.fechareg,
+                                x.c.usuarioreg,
+                                x.c.codunidad,
+                                descUnidad = unidad != null ? unidad.descripcion : null
+                            }
+                        )
+                        .OrderByDescending(id => id.id).ToListAsync();
                     return Ok(result);
                 }
                 
@@ -60,7 +81,29 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
                     {
                         return BadRequest(new { resp = "Entidad cotipo es null." });
                     }
-                    var cotipo = await _context.cotipo.FindAsync(id);
+                    var cotipo = await _context.cotipo
+                        .Where(i => i.id == id)
+                        .GroupJoin(
+                            _context.adunidad,
+                            c => c.codunidad,
+                            t => t.codigo,
+                            (c, t) => new { c, t })
+                        .SelectMany(
+                            x => x.t.DefaultIfEmpty(),
+                            (x, unidad) => new
+                            {
+                                x.c.id,
+                                x.c.descripcion,
+                                x.c.nroactual,
+                                x.c.codvendedor,
+                                x.c.horareg,
+                                x.c.fechareg,
+                                x.c.usuarioreg,
+                                x.c.codunidad,
+                                descUnidad = unidad != null ? unidad.descripcion : null
+                            }
+                        )
+                        .FirstOrDefaultAsync();
 
                     if (cotipo == null)
                     {

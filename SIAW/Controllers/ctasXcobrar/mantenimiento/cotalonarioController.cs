@@ -9,17 +9,17 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 {
     [Route("api/ctsxcob/mant/[controller]")]
     [ApiController]
-    public class cotipopagomoraController : ControllerBase
+    public class cotalonarioController : ControllerBase
     {
         private readonly UserConnectionManager _userConnectionManager;
-        public cotipopagomoraController(UserConnectionManager userConnectionManager)
+        public cotalonarioController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;
         }
 
-        // GET: api/cotipopagomora
+        // GET: api/cotalonario
         [HttpGet("{userConn}")]
-        public async Task<ActionResult<IEnumerable<cotipopagomora>>> Getcotipopagomora(string userConn)
+        public async Task<ActionResult<IEnumerable<cotalonario>>> Getcotalonario(string userConn)
         {
             try
             {
@@ -28,31 +28,34 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
-                    if (_context.cotipopagomora == null)
+                    if (_context.cotalonario == null)
                     {
-                        return BadRequest(new { resp = "Entidad cotipopagomora es null." });
+                        return BadRequest(new { resp = "Entidad cotalonario es null." });
                     }
-                    var result = await _context.cotipopagomora
+                    var result = await _context.cotalonario
                         .GroupJoin(
-                            _context.adunidad,
-                            c => c.codunidad,
+                            _context.vevendedor,
+                            c => c.codvendedor,
                             t => t.codigo,
                             (c, t) => new { c, t })
                         .SelectMany(
                             x => x.t.DefaultIfEmpty(),
-                            (x, unidad) => new
+                            (x, vendedor) => new
                             {
-                                x.c.id,
-                                x.c.descripcion,
-                                x.c.nroactual,
-                                x.c.horareg,
-                                x.c.fechareg,
-                                x.c.usuarioreg,
-                                x.c.codunidad,
-                                descUnidad = unidad != null ? unidad.descripcion : null
+                                codigo = x.c.codigo,
+                                descripcion = x.c.descripcion,
+                                TalDel = x.c.TalDel,
+                                TalAl = x.c.TalAl,
+                                nroactual = x.c.nroactual,
+                                Fecha = x.c.Fecha,
+                                horareg = x.c.horareg,
+                                fechareg = x.c.fechareg,
+                                Usuarioreg = x.c.Usuarioreg,
+                                codvendedor = x.c.codvendedor,
+                                descVendedor = vendedor != null ? vendedor.descripcion : null
                             }
                         )
-                        .OrderBy(id => id.id).ToListAsync();
+                        .OrderBy(codigo => codigo.codigo).ToListAsync();
                     return Ok(result);
                 }
             }
@@ -62,9 +65,9 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
             }
         }
 
-        // GET: api/cotipopagomora/5
-        [HttpGet("{userConn}/{id}")]
-        public async Task<ActionResult<cotipopagomora>> Getcotipopagomora(string userConn, string id)
+        // GET: api/cotalonario/5
+        [HttpGet("{userConn}/{codigo}")]
+        public async Task<ActionResult<cotalonario>> Getcotalonario(string userConn, string codigo)
         {
             try
             {
@@ -73,39 +76,42 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
-                    if (_context.cotipopagomora == null)
+                    if (_context.cotalonario == null)
                     {
-                        return BadRequest(new { resp = "Entidad cotipopagomora es null." });
+                        return BadRequest(new { resp = "Entidad cotalonario es null." });
                     }
-                    var cotipopagomora = await _context.cotipopagomora
-                        .Where(i => i.id == id)
+                    var cotalonario = await _context.cotalonario
+                        .Where(i => i.codigo == codigo)
                         .GroupJoin(
-                            _context.adunidad,
-                            c => c.codunidad,
+                            _context.vevendedor,
+                            c => c.codvendedor,
                             t => t.codigo,
                             (c, t) => new { c, t })
                         .SelectMany(
                             x => x.t.DefaultIfEmpty(),
-                            (x, unidad) => new
+                            (x, vendedor) => new
                             {
-                                x.c.id,
+                                x.c.codigo,
                                 x.c.descripcion,
+                                x.c.TalDel,
+                                x.c.TalAl,
                                 x.c.nroactual,
+                                x.c.Fecha,
                                 x.c.horareg,
                                 x.c.fechareg,
-                                x.c.usuarioreg,
-                                x.c.codunidad,
-                                descUnidad = unidad != null ? unidad.descripcion : null
+                                x.c.Usuarioreg,
+                                x.c.codvendedor,
+                                descVendedor = vendedor != null ? vendedor.descripcion : null
                             }
                         )
                         .FirstOrDefaultAsync();
 
-                    if (cotipopagomora == null)
+                    if (cotalonario == null)
                     {
                         return NotFound(new { resp = "No se encontro un registro con este código" });
                     }
 
-                    return Ok(cotipopagomora);
+                    return Ok(cotalonario);
                 }
 
             }
@@ -116,23 +122,32 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
         }
 
 
-        // PUT: api/cotipopagomora/5
+        // PUT: api/cotalonario/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [Authorize]
-        [HttpPut("{userConn}/{id}")]
-        public async Task<IActionResult> Putcotipopagomora(string userConn, string id, cotipopagomora cotipopagomora)
+        [HttpPut("{userConn}/{codigo}")]
+        public async Task<IActionResult> Putcotalonario(string userConn, string codigo, cotalonario cotalonario)
         {
+
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
-                if (id != cotipopagomora.id)
+                if (codigo != cotalonario.codigo)
                 {
-                    return BadRequest(new { resp = "Error con Id en datos proporcionados." });
+                    return BadRequest(new { resp = "Error con codigo en datos proporcionados." });
                 }
 
-                _context.Entry(cotipopagomora).State = EntityState.Modified;
+                if (cotalonario.TalDel > cotalonario.TalAl)
+                {
+                    return BadRequest(new { resp = "El numero final no puede ser menor al numero inicial." });
+                }
+                if (cotalonario.nroactual < cotalonario.TalDel || cotalonario.nroactual > cotalonario.TalAl)
+                {
+                    return BadRequest(new { resp = "El numero actual esta fuera de los limites del talonario." });
+                }
+                _context.Entry(cotalonario).State = EntityState.Modified;
 
                 try
                 {
@@ -140,7 +155,7 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!cotipopagomoraExists(id, _context))
+                    if (!cotalonarioExists(codigo, _context))
                     {
                         return NotFound(new { resp = "No existe un registro con ese código" });
                     }
@@ -158,29 +173,37 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 
         }
 
-        // POST: api/cotipopagomora
+        // POST: api/cotalonario
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [Authorize]
         [HttpPost("{userConn}")]
-        public async Task<ActionResult<cotipopagomora>> Postcotipopagomora(string userConn, cotipopagomora cotipopagomora)
+        public async Task<ActionResult<cotalonario>> Postcotalonario(string userConn, cotalonario cotalonario)
         {
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
-                if (_context.cotipopagomora == null)
+                if (_context.cotalonario == null)
                 {
-                    return BadRequest(new { resp = "Entidad cotipopagomora es null." });
+                    return BadRequest(new { resp = "Entidad cotalonario es null." });
                 }
-                _context.cotipopagomora.Add(cotipopagomora);
+                if (cotalonario.TalDel > cotalonario.TalAl)
+                {
+                    return BadRequest(new { resp = "El numero final no puede ser menor al numero inicial." });
+                }
+                if (cotalonario.nroactual < cotalonario.TalDel || cotalonario.nroactual > cotalonario.TalAl)
+                {
+                    return BadRequest(new { resp = "El numero actual esta fuera de los limites del talonario." });
+                }
+                _context.cotalonario.Add(cotalonario);
                 try
                 {
                     await _context.SaveChangesAsync();
                 }
                 catch (DbUpdateException)
                 {
-                    if (cotipopagomoraExists(cotipopagomora.id, _context))
+                    if (cotalonarioExists(cotalonario.codigo, _context))
                     {
                         return Conflict(new { resp = "Ya existe un registro con ese código" });
                     }
@@ -197,10 +220,10 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 
         }
 
-        // DELETE: api/cotipopagomora/5
+        // DELETE: api/cotalonario/5
         [Authorize]
-        [HttpDelete("{userConn}/{id}")]
-        public async Task<IActionResult> Deletecotipopagomora(string userConn, string id)
+        [HttpDelete("{userConn}/{codigo}")]
+        public async Task<IActionResult> Deletecotalonario(string userConn, string codigo)
         {
             try
             {
@@ -209,17 +232,17 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
-                    if (_context.cotipopagomora == null)
+                    if (_context.cotalonario == null)
                     {
-                        return BadRequest(new { resp = "Entidad cotipopagomora es null." });
+                        return BadRequest(new { resp = "Entidad cotalonario es null." });
                     }
-                    var cotipopagomora = await _context.cotipopagomora.FindAsync(id);
-                    if (cotipopagomora == null)
+                    var cotalonario = await _context.cotalonario.FindAsync(codigo);
+                    if (cotalonario == null)
                     {
                         return NotFound(new { resp = "No existe un registro con ese código" });
                     }
 
-                    _context.cotipopagomora.Remove(cotipopagomora);
+                    _context.cotalonario.Remove(cotalonario);
                     await _context.SaveChangesAsync();
 
                     return Ok(new { resp = "208" });   // eliminado con exito
@@ -231,9 +254,9 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
             }
         }
 
-        private bool cotipopagomoraExists(string id, DBContext _context)
+        private bool cotalonarioExists(string codigo, DBContext _context)
         {
-            return (_context.cotipopagomora?.Any(e => e.id == id)).GetValueOrDefault();
+            return (_context.cotalonario?.Any(e => e.codigo == codigo)).GetValueOrDefault();
 
         }
     }

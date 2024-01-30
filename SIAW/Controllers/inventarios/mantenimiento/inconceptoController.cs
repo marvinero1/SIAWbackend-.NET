@@ -32,7 +32,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     {
                         return BadRequest(new { resp = "Entidad inconcepto es null." });
                     }
-                    var result = await _context.inconcepto.OrderByDescending(fechareg => fechareg.fechareg).ToListAsync();
+                    var result = await _context.inconcepto.ToListAsync();
                     return Ok(result);
                 }
                 

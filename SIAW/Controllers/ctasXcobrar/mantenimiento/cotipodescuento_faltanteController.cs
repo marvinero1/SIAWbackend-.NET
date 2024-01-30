@@ -9,17 +9,17 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 {
     [Route("api/ctsxcob/mant/[controller]")]
     [ApiController]
-    public class cotipopagomoraController : ControllerBase
+    public class cotipodescuento_faltanteController : ControllerBase
     {
         private readonly UserConnectionManager _userConnectionManager;
-        public cotipopagomoraController(UserConnectionManager userConnectionManager)
+        public cotipodescuento_faltanteController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;
         }
 
-        // GET: api/cotipopagomora
+        // GET: api/cotipodescuento_faltante
         [HttpGet("{userConn}")]
-        public async Task<ActionResult<IEnumerable<cotipopagomora>>> Getcotipopagomora(string userConn)
+        public async Task<ActionResult<IEnumerable<cotipodescuento_faltante>>> Getcotipodescuento_faltante(string userConn)
         {
             try
             {
@@ -28,11 +28,11 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
-                    if (_context.cotipopagomora == null)
+                    if (_context.cotipodescuento_faltante == null)
                     {
-                        return BadRequest(new { resp = "Entidad cotipopagomora es null." });
+                        return BadRequest(new { resp = "Entidad cotipodescuento_faltante es null." });
                     }
-                    var result = await _context.cotipopagomora
+                    var result = await _context.cotipodescuento_faltante
                         .GroupJoin(
                             _context.adunidad,
                             c => c.codunidad,
@@ -62,9 +62,9 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
             }
         }
 
-        // GET: api/cotipopagomora/5
+        // GET: api/cotipodescuento_faltante/5
         [HttpGet("{userConn}/{id}")]
-        public async Task<ActionResult<cotipopagomora>> Getcotipopagomora(string userConn, string id)
+        public async Task<ActionResult<cotipodescuento_faltante>> Getcotipodescuento_faltante(string userConn, string id)
         {
             try
             {
@@ -73,11 +73,11 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
-                    if (_context.cotipopagomora == null)
+                    if (_context.cotipodescuento_faltante == null)
                     {
-                        return BadRequest(new { resp = "Entidad cotipopagomora es null." });
+                        return BadRequest(new { resp = "Entidad cotipodescuento_faltante es null." });
                     }
-                    var cotipopagomora = await _context.cotipopagomora
+                    var cotipodescuento_faltante = await _context.cotipodescuento_faltante
                         .Where(i => i.id == id)
                         .GroupJoin(
                             _context.adunidad,
@@ -100,12 +100,12 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
                         )
                         .FirstOrDefaultAsync();
 
-                    if (cotipopagomora == null)
+                    if (cotipodescuento_faltante == null)
                     {
                         return NotFound(new { resp = "No se encontro un registro con este código" });
                     }
 
-                    return Ok(cotipopagomora);
+                    return Ok(cotipodescuento_faltante);
                 }
 
             }
@@ -116,23 +116,23 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
         }
 
 
-        // PUT: api/cotipopagomora/5
+        // PUT: api/cotipodescuento_faltante/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [Authorize]
         [HttpPut("{userConn}/{id}")]
-        public async Task<IActionResult> Putcotipopagomora(string userConn, string id, cotipopagomora cotipopagomora)
+        public async Task<IActionResult> Putcotipodescuento_faltante(string userConn, string id, cotipodescuento_faltante cotipodescuento_faltante)
         {
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
-                if (id != cotipopagomora.id)
+                if (id != cotipodescuento_faltante.id)
                 {
                     return BadRequest(new { resp = "Error con Id en datos proporcionados." });
                 }
 
-                _context.Entry(cotipopagomora).State = EntityState.Modified;
+                _context.Entry(cotipodescuento_faltante).State = EntityState.Modified;
 
                 try
                 {
@@ -140,7 +140,7 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!cotipopagomoraExists(id, _context))
+                    if (!cotipodescuento_faltanteExists(id, _context))
                     {
                         return NotFound(new { resp = "No existe un registro con ese código" });
                     }
@@ -158,29 +158,29 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 
         }
 
-        // POST: api/cotipopagomora
+        // POST: api/cotipodescuento_faltante
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [Authorize]
         [HttpPost("{userConn}")]
-        public async Task<ActionResult<cotipopagomora>> Postcotipopagomora(string userConn, cotipopagomora cotipopagomora)
+        public async Task<ActionResult<cotipodescuento_faltante>> Postcotipodescuento_faltante(string userConn, cotipodescuento_faltante cotipodescuento_faltante)
         {
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
-                if (_context.cotipopagomora == null)
+                if (_context.cotipodescuento_faltante == null)
                 {
-                    return BadRequest(new { resp = "Entidad cotipopagomora es null." });
+                    return BadRequest(new { resp = "Entidad cotipodescuento_faltante es null." });
                 }
-                _context.cotipopagomora.Add(cotipopagomora);
+                _context.cotipodescuento_faltante.Add(cotipodescuento_faltante);
                 try
                 {
                     await _context.SaveChangesAsync();
                 }
                 catch (DbUpdateException)
                 {
-                    if (cotipopagomoraExists(cotipopagomora.id, _context))
+                    if (cotipodescuento_faltanteExists(cotipodescuento_faltante.id, _context))
                     {
                         return Conflict(new { resp = "Ya existe un registro con ese código" });
                     }
@@ -197,10 +197,10 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 
         }
 
-        // DELETE: api/cotipopagomora/5
+        // DELETE: api/cotipodescuento_faltante/5
         [Authorize]
         [HttpDelete("{userConn}/{id}")]
-        public async Task<IActionResult> Deletecotipopagomora(string userConn, string id)
+        public async Task<IActionResult> Deletecotipodescuento_faltante(string userConn, string id)
         {
             try
             {
@@ -209,17 +209,17 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
-                    if (_context.cotipopagomora == null)
+                    if (_context.cotipodescuento_faltante == null)
                     {
-                        return BadRequest(new { resp = "Entidad cotipopagomora es null." });
+                        return BadRequest(new { resp = "Entidad cotipodescuento_faltante es null." });
                     }
-                    var cotipopagomora = await _context.cotipopagomora.FindAsync(id);
-                    if (cotipopagomora == null)
+                    var cotipodescuento_faltante = await _context.cotipodescuento_faltante.FindAsync(id);
+                    if (cotipodescuento_faltante == null)
                     {
                         return NotFound(new { resp = "No existe un registro con ese código" });
                     }
 
-                    _context.cotipopagomora.Remove(cotipopagomora);
+                    _context.cotipodescuento_faltante.Remove(cotipodescuento_faltante);
                     await _context.SaveChangesAsync();
 
                     return Ok(new { resp = "208" });   // eliminado con exito
@@ -231,9 +231,9 @@ namespace SIAW.Controllers.ctasXcobrar.mantenimiento
             }
         }
 
-        private bool cotipopagomoraExists(string id, DBContext _context)
+        private bool cotipodescuento_faltanteExists(string id, DBContext _context)
         {
-            return (_context.cotipopagomora?.Any(e => e.id == id)).GetValueOrDefault();
+            return (_context.cotipodescuento_faltante?.Any(e => e.id == id)).GetValueOrDefault();
 
         }
     }

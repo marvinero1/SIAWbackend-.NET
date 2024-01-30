@@ -17,8 +17,7 @@ namespace siaw_DBContext.Models
         public bool? porcosto { get; set; }
         public int? codtarifa { get; set; }
         public int? codcontra_concepto { get; set; }
-        public int? nroactual { get; set; }
         public bool? usuario_final { get; set; }
-        public string cliente { get; set; }
+        public bool? cliente { get; set; }
     }
 }
