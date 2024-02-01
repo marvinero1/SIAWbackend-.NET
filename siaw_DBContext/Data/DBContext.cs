@@ -18640,7 +18640,11 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<fncuenta_conta>(entity =>
             {
-                entity.HasNoKey();
+                entity.HasKey(e => new { e.idcuenta, e.codunidad, e.codalmacen });
+
+                entity.Property(e => e.idcuenta)
+                    .HasMaxLength(15)
+                    .IsUnicode(false);
 
                 entity.Property(e => e.codunidad)
                     .HasMaxLength(5)
@@ -18652,11 +18656,6 @@ namespace siaw_DBContext.Data
 
                 entity.Property(e => e.cta_aux)
                     .HasMaxLength(30)
-                    .IsUnicode(false);
-
-                entity.Property(e => e.idcuenta)
-                    .IsRequired()
-                    .HasMaxLength(15)
                     .IsUnicode(false);
             });
 
@@ -18820,7 +18819,11 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<fndeudor_conta>(entity =>
             {
-                entity.HasNoKey();
+                entity.HasKey(e => new { e.iddeudor, e.codunidad, e.codalmacen });
+
+                entity.Property(e => e.iddeudor)
+                    .HasMaxLength(15)
+                    .IsUnicode(false);
 
                 entity.Property(e => e.codunidad)
                     .HasMaxLength(5)
@@ -18904,11 +18907,6 @@ namespace siaw_DBContext.Data
 
                 entity.Property(e => e.cta_prestamo_mn_aux)
                     .HasMaxLength(30)
-                    .IsUnicode(false);
-
-                entity.Property(e => e.iddeudor)
-                    .IsRequired()
-                    .HasMaxLength(15)
                     .IsUnicode(false);
             });
 

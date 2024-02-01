@@ -95,14 +95,15 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
                     .Select(i => new
                     {
                         i.codigo,
-                        i.descripcion
+                        i.descripcion,
+                        i.imputable
                     });
 
                     var result = query.ToList();
 
                     if (result.Count() == 0)
                     {
-                        return BadRequest(new { resp = "Entidad cncuenta es null." });
+                        return BadRequest(new { resp = "No se encontraron registros con los datos proporcionados." });
                     }
                     return Ok(result);
                 }

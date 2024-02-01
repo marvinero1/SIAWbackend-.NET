@@ -9,7 +9,7 @@ namespace siaw_DBContext.Models
     {
         public string iddeudor { get; set; }
         public string codunidad { get; set; }
-        public int? codalmacen { get; set; }
+        public int codalmacen { get; set; }
         public string cta_porrendir_mn { get; set; }
         public string cta_porrendir_mn_aux { get; set; }
         public int? cta_porrendir_mn_cc { get; set; }
