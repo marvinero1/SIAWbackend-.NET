@@ -49,7 +49,6 @@
     <Folder Include="Controllers\fondos\modificacion\" />
     <Folder Include="Controllers\fondos\transaccion\" />
     <Folder Include="Controllers\fondos\operacion\" />
-    <Folder Include="Controllers\importaciones\mantenimiento\" />
     <Folder Include="Controllers\importaciones\modificacion\" />
     <Folder Include="Controllers\importaciones\transaccion\" />
     <Folder Include="Controllers\importaciones\operacion\" />

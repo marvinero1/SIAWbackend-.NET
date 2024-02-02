@@ -165,6 +165,73 @@ namespace SIAW.Controllers.ventas.mantenimiento
             }
         }
 
+        // GET: api/catalogo
+        [HttpGet]
+        [Route("catalogoGeneral/{userConn}")]
+        public async Task<ActionResult<IEnumerable<venumeracion>>> catalogoGeneral(string userConn)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var result = await _context.venumeracion
+                    .OrderBy(e => e.id)
+                    .Select(e => new
+                    {
+                        e.id,
+                        e.descripcion,
+                        e.nroactual,
+                    })
+                    .ToListAsync();
+
+                    return Ok(result);
+                }
+
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+        }
+
+        // GET: api/adsiat_tipodocidentidad
+        [HttpGet]
+        [Route("catalogoNumProfxUsuario/{userConn}/{codUsuario}")]
+        public async Task<ActionResult<IEnumerable<venumeracion>>> catalogoNumProf(string userConn, string codUsuario)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var resultado = await _context.venumeracion
+                        .Where(v => v.tipodoc == 2 && v.habilitado == true &&
+                                    _context.adusuario_idproforma
+                                        .Where(a => a.usuario == codUsuario)
+                                        .Select(a => a.idproforma)
+                                        .Contains(v.id))
+                        .OrderBy(v => v.id)
+                        .Select(v => new
+                        {
+                            v.id,
+                            v.descripcion
+                        })
+                        .ToListAsync();
+                    return Ok(resultado);
+                }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+            }
+        }
+
 
 
         // PUT: api/venumeracion/5
@@ -275,8 +342,6 @@ namespace SIAW.Controllers.ventas.mantenimiento
 
                     return Ok( new { resp = "208" });   // eliminado con exito
                 }
-                
-
             }
             catch (Exception)
             {

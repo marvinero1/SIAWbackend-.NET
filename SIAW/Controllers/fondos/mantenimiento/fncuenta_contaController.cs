@@ -18,8 +18,10 @@ namespace SIAW.Controllers.fondos.mantenimiento
         }
 
         // GET: api/fncuenta_conta
-        [HttpGet("{userConn}/{idcuenta}/{codunidad}/{codalmacen}")]
-        public async Task<ActionResult<IEnumerable<fncuenta_conta>>> Getfncuenta_conta(string userConn, string idcuenta, string codunidad, int codalmacen)
+        [Authorize]
+        [HttpPost]
+        [Route("consulta/{userConn}")]
+        public async Task<ActionResult<IEnumerable<fncuenta_conta>>> Getfncuenta_conta(string userConn, obtenerDatosFncuenta_cnt fncuentaData )
         {
             try
             {
@@ -28,6 +30,12 @@ namespace SIAW.Controllers.fondos.mantenimiento
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
+                    string idcuenta = fncuentaData.idcuenta;
+                    string codunidad = fncuentaData.codunidad;
+                    int codalmacen = fncuentaData.codalmacen;
+
+
+
                     if (_context.fncuenta_conta == null)
                     {
                         return BadRequest(new { resp = "Entidad fncuenta_conta es null." });
@@ -91,4 +99,12 @@ namespace SIAW.Controllers.fondos.mantenimiento
         }
 
     }
+
+    public class obtenerDatosFncuenta_cnt
+    {
+        public string idcuenta { get; set; }
+        public string codunidad { get; set; }
+        public int codalmacen { get; set; }
+    }
+
 }

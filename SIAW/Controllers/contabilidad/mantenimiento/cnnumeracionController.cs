@@ -84,7 +84,10 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
         {
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-
+            if (cnnumeracion.hasta < cnnumeracion.desde)
+            {
+                return BadRequest(new { resp = "El rango de fechas esta mal definido, el valor desde es mayor al valor hasta." });
+            }
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (id != cnnumeracion.id)
@@ -122,7 +125,10 @@ namespace SIAW.Controllers.contabilidad.mantenimiento
         {
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-
+            if (cnnumeracion.hasta < cnnumeracion.desde)
+            {
+                return BadRequest(new { resp = "El rango de fechas esta mal definido, el valor desde es mayor al valor hasta." });
+            }
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 if (_context.cnnumeracion == null)

@@ -78,39 +78,6 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
-        // GET: api/adsiat_tipodocidentidad
-        [HttpGet]
-        [Route("catalogoNumProf/{userConn}/{codUsuario}")]
-        public async Task<ActionResult<IEnumerable<venumeracion>>> catalogoNumProf(string userConn, string codUsuario)
-        {
-            try
-            {
-                // Obtener el contexto de base de datos correspondiente al usuario
-                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-
-                using (var _context = DbContextFactory.Create(userConnectionString))
-                {
-                    var resultado = await _context.venumeracion
-                        .Where(v => v.tipodoc == 2 && v.habilitado == true &&
-                                    _context.adusuario_idproforma
-                                        .Where(a => a.usuario == codUsuario)
-                                        .Select(a => a.idproforma)
-                                        .Contains(v.id))
-                        .OrderBy(v => v.id)
-                        .Select(v => new
-                        {
-                            codigo = v.id,
-                            descripcion = v.descripcion
-                        })
-                        .ToListAsync();
-                    return Ok(resultado);
-                }
-            }
-            catch (Exception)
-            {
-                return Problem("Error en el servidor");
-            }
-        }
 
 
 
@@ -1193,73 +1160,6 @@ namespace SIAW.Controllers.ventas.transaccion
                 return Problem("Error en el servidor");
             }
         }
-
-
-
-        // GET: api/catalogo
-        [HttpGet]
-        [Route("catalogoVetiposoldsctos/{userConn}")]
-        public async Task<ActionResult<IEnumerable<vetiposoldsctos>>> catalogoVetiposoldsctos(string userConn)
-        {
-            try
-            {
-                // Obtener el contexto de base de datos correspondiente al usuario
-                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-
-                using (var _context = DbContextFactory.Create(userConnectionString))
-                {
-                    var result = _context.vetiposoldsctos
-                    .Select(i => new
-                    {
-                        codigo = i.id,
-                        descripcion = i.descripcion
-                    })
-                    .ToListAsync();
-
-                    return Ok(result);
-                }
-
-            }
-            catch (Exception)
-            {
-                return Problem("Error en el servidor");
-                throw;
-            }
-        }
-
-        // GET: api/catalogo
-        [HttpGet]
-        [Route("catalogoVenumeracionProf/{userConn}")]
-        public async Task<ActionResult<IEnumerable<vetiposoldsctos>>> catalogoVenumeracionProf(string userConn)
-        {
-            try
-            {
-                // Obtener el contexto de base de datos correspondiente al usuario
-                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-
-                using (var _context = DbContextFactory.Create(userConnectionString))
-                {
-                    var result = _context.venumeracion
-                    .Where(e => e.tipodoc == 2 && e.habilitado == true)
-                    .OrderBy(e => e.id)
-                    .Select(e => new
-                    {
-                        codigo = e.id,
-                        descripcion = e.descripcion
-                    })
-                    .ToListAsync();
-
-                    return Ok(result);
-                }
-
-            }
-            catch (Exception)
-            {
-                return Problem("Error en el servidor");
-                throw;
-            }
-        }
-
 
 
         [HttpPost]
