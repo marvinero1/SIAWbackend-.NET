@@ -76,5 +76,19 @@ namespace siaw_funciones
         }
 
 
+        public async Task<bool> existeitem(DBContext _context, string codigo)
+        {
+            var consulta = await _context.initem
+                .Where(i => i.codigo == codigo)
+                 .CountAsync();
+            if (consulta > 0)   // elimina
+            {
+                return true;
+            }
+            return false;
+
+        }
+
+
     }
 }

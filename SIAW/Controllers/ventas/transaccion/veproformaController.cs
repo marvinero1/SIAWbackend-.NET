@@ -222,13 +222,13 @@ namespace SIAW.Controllers.ventas.transaccion
                 var conexion = userConnectionString;
                 bool eskit = await empaque_func.GetEsKit(conexion, coditem);  // verifica si el item es kit o no
                 bool obtener_cantidades_aprobadas_de_proformas = await empaque_func.IfGetCantidadAprobadasProformas(userConnectionString, codempresa); // si se obtender las cantidades reservadas de las proformas o no
-                bool bandera = false;
-                bool item_reserva_para_conjunto = false;  // ayuda a verificar si el item no kit es utilizado para armar conjuntos.
 
 
 
                 // Falta validacion para saber si traera datos de manera local o por vpn
-                if (bandera)
+                // Obtener el contexto de base de datos correspondiente al usuario
+                bool usar_bd_opcional = await saldos.get_usar_bd_opcional(userConnectionString, usuario);
+                if (usar_bd_opcional)
                 {
                     conexion = empaque_func.Getad_conexion_vpnFromDatabase(userConnectionString, agencia);
                     if (conexion == null)
@@ -344,13 +344,13 @@ namespace SIAW.Controllers.ventas.transaccion
                 var4.descripcion = "(+) INGRESOS SOLICITUDES URGENTE DE PROFORMA : -0";
                 var4.valor = total_para_esta;
                 listaSaldos.Add(var4);
-                saldoItemTotal.valor -= total_para_esta;  // reduce saldo total
+                saldoItemTotal.valor += total_para_esta;  // reduce saldo total
 
                 sldosItemCompleto var5 = new sldosItemCompleto();
                 var5.descripcion = "(+) CANTIDAD RESERVADA PROFORMA APROBADA: -0";
                 var5.valor = total_proforma;
                 listaSaldos.Add(var5);
-                saldoItemTotal.valor -= total_proforma;  // reduce saldo total
+                saldoItemTotal.valor += total_proforma;  // reduce saldo total
 
 
                 listaSaldos.Add(saldoItemTotal);
@@ -615,6 +615,7 @@ namespace SIAW.Controllers.ventas.transaccion
             if (Reserva_Tuercas_En_Porcentaje)
             {
                 itemsinReserva = await empaque_func.ReservaItemsinKit1(userConnectionString, coditem);
+                /*
                 foreach (var item in itemsinReserva)
                 {
                     instoactual itemRef = await empaque_func.GetSaldosActual(userConnectionString, codalmacen, item.coditemcontrol);
@@ -622,6 +623,16 @@ namespace SIAW.Controllers.ventas.transaccion
                     //cubrir_item = Math.Floor(cubrir_item);
                     CANTIDAD_RESERVADA += cubrir_item;
                 }
+                */
+                var cantidadReservadaTasks = itemsinReserva.Select(async item =>
+                {
+                    instoactual itemRef = await empaque_func.GetSaldosActual(userConnectionString, codalmacen, item.coditemcontrol);
+                    return (float)(itemRef.cantidad * (item.porcentaje / 100));
+                });
+
+                var cantidadReservadaArray = await Task.WhenAll(cantidadReservadaTasks);
+                CANTIDAD_RESERVADA = cantidadReservadaArray.Sum();
+
                 if (CANTIDAD_RESERVADA < 0)
                 {
                     CANTIDAD_RESERVADA = 0;
@@ -706,6 +717,7 @@ namespace SIAW.Controllers.ventas.transaccion
             else // como es kit se debe buscar sus piezas sin importar la cantidad de estas que tenga
             {
                 List<inkit> kitItems = await empaque_func.GetItemsKit(conexion, coditem);  // se tiene la lista de piezas
+                /*
                 foreach (inkit kit in kitItems) // se recorre la lista de piezas para consultar sus saldos disponibles de cada una (SE DEBE BASAR EL STOCK EN BASE AL MENOR NUMERO)
                 {
                     var pivot = await empaque_func.GetSaldosActual(conexion, codalmacen, kit.item);
@@ -723,6 +735,26 @@ namespace SIAW.Controllers.ventas.transaccion
                         }
                     }
                 }
+                */
+                using (var _context = DbContextFactory.Create(conexion))
+                {
+                    var menorSaldos = await _context.inkit
+                    .Join(_context.instoactual,
+                        kit => kit.item,
+                        insto => insto.coditem,
+                        (kit, insto) => new { kit, insto })
+                    .Where(joined => joined.kit.codigo == coditem && joined.insto.codalmacen == codalmacen)
+                    .Select(joined => new instoactual
+                    {
+                        codalmacen = codalmacen,
+                        coditem = joined.kit.item,
+                        cantidad = joined.insto.cantidad / joined.kit.cantidad
+                    })
+                    .OrderBy(result => result.cantidad)
+                    .FirstOrDefaultAsync();
+                    return menorSaldos;
+                }
+
                 //instoactual.coditem = coditem;
             }
 
@@ -1063,7 +1095,41 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
 
+        [HttpGet]
+        [Route("getSaldosItemF9/{userConn}/{coditem}/{codempresa}/{usuario}")]
+        public async Task<object> getSaldosItemF9(string userConn, string coditem, string codempresa, string usuario)
+        {
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                try
+                {
+                    var result = await saldos.infoitem(userConnectionString, coditem,true, codempresa, usuario);
+                    bool eskit = await empaque_func.GetEsKit(userConnectionString, coditem);  // verifica si el item es kit o no 
+                    
+                    List<object> respuestas = new List<object>();
+                    respuestas.Add(result);
+                    if (eskit)
+                    {
+                        List<inkit> kitItems = await empaque_func.GetItemsKit(userConnectionString, coditem);  // se tiene la lista de piezas
+                        foreach (var kit in kitItems)
+                        {
+                            var res = await saldos.infoitem(userConnectionString, kit.item, true, codempresa, usuario);
+                            respuestas.Add(res);
+                        }
+                    }
+                    
+                    return Ok(respuestas);
+                }
+                catch (Exception)
+                {
+                    return Problem("Error en el servidor");
+                    throw;
+                }
+            }
+                
+        }
 
 
         [HttpGet]
@@ -1320,28 +1386,6 @@ namespace SIAW.Controllers.ventas.transaccion
             veproforma_iva.codproforma = codProf;
             _context.veproforma_iva.Add(veproforma_iva);
             await _context.SaveChangesAsync();
-        }
-
-        // POST: api/acaseguradora
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        //[Authorize]
-        [HttpGet]
-        [Route("getdetalleSldsAgs/{userConn}/{codItem}/{codempresa}/{usuario}")]
-        public async Task<ActionResult<acaseguradora>> getdetalleSldsAgs(string userConn, string codItem, string codempresa, string usuario)
-        {
-            try
-            {
-                // Obtener el contexto de base de datos correspondiente al usuario
-                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-
-                var infoitem = await saldos.infoitem(userConnectionString, codItem, codempresa, usuario);
-
-                return Ok(infoitem);
-            }
-            catch (Exception)
-            {
-                return Problem("Error en el servidor");
-            }
         }
 
 
