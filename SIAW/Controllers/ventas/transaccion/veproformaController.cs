@@ -39,6 +39,7 @@ namespace SIAW.Controllers.ventas.transaccion
         private siaw_funciones.Ventas ventas = new siaw_funciones.Ventas();
         private siaw_funciones.Items items = new siaw_funciones.Items();
         private siaw_funciones.Validar_Vta validar_Vta = new siaw_funciones.Validar_Vta();
+        private siaw_funciones.Almacen almacen = new siaw_funciones.Almacen();
 
         public veproformaController(UserConnectionManager userConnectionManager)
         {
@@ -1229,13 +1230,13 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
         [HttpPost]
-        [Route("guardarProforma/{userConn}/{idProf}/{hora_inicial}/{fecha_inicial}")]
-        public async Task<object> guardarProforma(string userConn, string idProf, string hora_inicial, DateTime fecha_inicial, SaveProformaCompleta datosProforma)
+        [Route("guardarProforma/{userConn}/{idProf}/{codempresa}")]
+        public async Task<object> guardarProforma(string userConn, string idProf, string codempresa,SaveProformaCompleta datosProforma)
         {
             veproforma veproforma = datosProforma.veproforma;
             List<veproforma1> veproforma1 = datosProforma.veproforma1;
             List<veproforma_valida> veproforma_valida = datosProforma.veproforma_valida;
-            veproforma_anticipo veproforma_anticipo = datosProforma.veproforma_anticipo;
+            List<veproforma_anticipo> veproforma_anticipo = datosProforma.veproforma_anticipo;
             List<vedesextraprof> vedesextraprof = datosProforma.vedesextraprof;
             List<verecargoprof> verecargoprof = datosProforma.verecargoprof;
             veproforma_iva veproforma_iva = datosProforma.veproforma_iva;
@@ -1245,16 +1246,64 @@ namespace SIAW.Controllers.ventas.transaccion
 
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-            /*
-            string datosValidos = await clienteCasual.validar_crear_cliente(userConnectionString, cliCasual.codSN, cliCasual.nit_cliente_casual, cliCasual.tipo_doc_cliente_casual);
-            if (datosValidos != "Ok")
+
+            // ###############################
+            // ACTUALIZAR DATOS DE CODIGO PRINCIPAL SI ES APLICABLE
+            await cliente.ActualizarParametrosDePrincipal(userConnectionString, veproforma.codcliente);
+            // ###############################
+
+            if (veproforma1.Count()<=0)
             {
-                return BadRequest("Datos no validos verifique por favor!!!");
+                return BadRequest(new { resp = "No hay ningun item en su documento!!!" });
             }
+
+
+
+            // ###############################  FALTA
+
+            // RECALCULARPRECIOS(True, True);
+
+
+
+
+            ////////////////////   GRABAR DOCUMENTO
+
+            int _ag = await empresa.AlmacenLocalEmpresa(userConnectionString, codempresa);
+            // verificar si valido el documento, si es tienda no es necesario que valide primero
+            if (!await almacen.Es_Tienda(userConnectionString,_ag))
+            {
+                if (veproforma_valida.Count() < 1)
+                {
+                    return BadRequest(new { resp = "Antes de grabar el documento debe previamente validar el mismo!!!" });
+                }
+            }
+
+            /*
+            ///////////////////////////////////////////////   FALTA VALIDACIONES
+            
+
+            If Not Validar_Detalle() Then
+                Return False
+            End If
+
+            If Not Validar_Datos() Then
+                Return False
+            End If
+
+
+
+            If Not Me.Validar_Saldos_Negativos(False) Then
+                If MessageBox.Show("La proforma genera saldos negativos, esta seguro de grabar la proforma???", "Validar Negativos", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1) = Windows.Forms.DialogResult.No Then
+                    Return False
+                End If
+            End If
+
+
+
             */
 
-            // validar detalle()
-            // validar datos()
+
+
 
             //obtenemos numero actual de proforma de nuevo
             int idnroactual = await datos_proforma.getNumActProd(userConnectionString, idProf);
@@ -1275,9 +1324,6 @@ namespace SIAW.Controllers.ventas.transaccion
                 veproforma.fecha_inicial = DateTime.Parse(datos_proforma.getFechaActual());
                 veproforma.hora_inicial = datos_proforma.getHoraActual();
             }
-            // obtener ultimo codigo de proforma y aumentar + 1
-            int codigoProf = await datos_proforma.ultimoCodProf(userConnectionString) + 1;
-            
 
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
@@ -1285,14 +1331,11 @@ namespace SIAW.Controllers.ventas.transaccion
                 {
                     try
                     {
-                        if (veproforma1.Count < 1)
-                        {
-                            return BadRequest(new { resp = "No se tiene detalle de la proforma" });
-                        }
                         // guarda cabecera (veproforma)
                         _context.veproforma.Add(veproforma);
                         await _context.SaveChangesAsync();
 
+                        var codProforma = veproforma.codigo;
 
                         // guarda detalle (veproforma1)
                         _context.veproforma1.AddRange(veproforma1);
@@ -1307,17 +1350,29 @@ namespace SIAW.Controllers.ventas.transaccion
                         _context.veproforma_valida.AddRange(veproforma_valida);
                         await _context.SaveChangesAsync();
 
+
+
+
                         // grabar anticipos aplicados
-                        _context.veproforma_anticipo.Add(veproforma_anticipo);
+
+                        var anticiposprevios = await _context.veproforma_anticipo.Where(i => i.codproforma == codProforma).ToListAsync();
+                        if (anticiposprevios.Count()>0)
+                        {
+                            _context.veproforma_anticipo.RemoveRange(anticiposprevios);
+                            await _context.SaveChangesAsync();
+                        }
+
+                        _context.veproforma_anticipo.AddRange(veproforma_anticipo);
                         await _context.SaveChangesAsync();
 
+
+
+
                         // grabar descto por deposito si hay descuentos
-                        Requestgrabardesextra requestgrabardesextra = new Requestgrabardesextra();
-                        requestgrabardesextra.context = _context;
-                        requestgrabardesextra.vedesextraprofList = vedesextraprof;
+
                         if (vedesextraprof.Count > 0)
                         {
-                            await grabardesextra(codigoProf, requestgrabardesextra);
+                            await grabardesextra(_context, codProforma, vedesextraprof);
                         }
 
                         // grabar recargo si hay recargos
@@ -1328,8 +1383,8 @@ namespace SIAW.Controllers.ventas.transaccion
                         {
                             await grabarrecargo(codigoProf, requestgrabarrecargo);
                         }
-                        
 
+                        dbContexTransaction.Commit();
                         return Ok(new { resp = "Se Grabo la Proforma de manera Exitosa" });
                     }
                     catch (Exception)
@@ -1342,10 +1397,8 @@ namespace SIAW.Controllers.ventas.transaccion
             }
         }
 
-        private async Task grabardesextra(int codProf, Requestgrabardesextra requestgrabardesextra)
+        private async Task grabardesextra(DBContext _context, int codProf, List<vedesextraprof> vedesextraprof)
         {
-            DBContext _context = requestgrabardesextra.context;
-            List<vedesextraprof> vedesextraprof = requestgrabardesextra.vedesextraprofList;
             foreach (var item in vedesextraprof)
             {
                 item.codproforma = codProf;

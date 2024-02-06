@@ -18,5 +18,6 @@ namespace siaw_DBContext.Models
         public string usuarioreg { get; set; }
         public int? codcobranza_contado { get; set; }
         public bool? aplicado { get; set; }
+        public int? codanticipo { get; set; }
     }
 }
