@@ -15,12 +15,43 @@ namespace SIAW.Controllers.z_pruebas
     {
         private readonly UserConnectionManager _userConnectionManager;
         private readonly Saldos saldos = new Saldos();
-
+        private readonly Cobranzas cobranzas = new Cobranzas();
 
         public z_pruebaController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;
         }
+
+
+        // POST: api/acaseguradora
+        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        //[Authorize]
+        [HttpGet]
+        [Route("prueCobranza/{userConn}")]
+        public async Task<ActionResult<consultCocobranza>> Postacaseguradora(string userConn)
+        {
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                try
+                {
+                    var prueba = await cobranzas.Consulta_Deposito_Cobranzas_Credito_Sin_Aplicar(_context, "cliente", "", "", "300023", false, "APLICAR_DESCTO", "41182", false, new DateTime(2015, 5, 13));
+                    return Ok(prueba);   // creado con exito
+                }
+                catch (DbUpdateException)
+                {
+                    return Problem("Error en el servidor");
+                }
+
+                
+
+            }
+        }
+
+
+
 
 
         // POST: api/acaseguradora

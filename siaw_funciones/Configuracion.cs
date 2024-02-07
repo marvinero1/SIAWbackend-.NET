@@ -10,6 +10,7 @@ namespace siaw_funciones
 {
     public class Configuracion
     {
+
         public async Task<int> emp_coddesextra_x_deposito(DBContext _context, string codempresa)
         {
             var result = await _context.adparametros

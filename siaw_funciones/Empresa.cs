@@ -50,5 +50,18 @@ namespace siaw_funciones
                 return codalmacen;
             }
         }
+
+        public async Task<int> AlmacenLocalEmpresa(string userConnectionString, string codigoempresa)
+        {
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                //precio unitario del item
+                int codalmacen = (int)await _context.adempresa
+                    .Where(i => i.codigo == codigoempresa)
+                    .Select(i => i.codalmacen)
+                    .FirstOrDefaultAsync();
+                return codalmacen;
+            }
+        }
     }
 }

@@ -2068,6 +2068,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[fndeposito_cliente]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[fndeposito_cliente800374]",
          "ObjectType": 0
       },

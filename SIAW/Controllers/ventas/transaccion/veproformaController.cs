@@ -1239,7 +1239,7 @@ namespace SIAW.Controllers.ventas.transaccion
             List<veproforma_anticipo> veproforma_anticipo = datosProforma.veproforma_anticipo;
             List<vedesextraprof> vedesextraprof = datosProforma.vedesextraprof;
             List<verecargoprof> verecargoprof = datosProforma.verecargoprof;
-            veproforma_iva veproforma_iva = datosProforma.veproforma_iva;
+            List<veproforma_iva> veproforma_iva = datosProforma.veproforma_iva;
 
 
 
@@ -1370,19 +1370,21 @@ namespace SIAW.Controllers.ventas.transaccion
 
                         // grabar descto por deposito si hay descuentos
 
-                        if (vedesextraprof.Count > 0)
+                        if (vedesextraprof.Count() > 0)
                         {
                             await grabardesextra(_context, codProforma, vedesextraprof);
                         }
 
                         // grabar recargo si hay recargos
-                        Requestgrabarrecargo requestgrabarrecargo = new Requestgrabarrecargo();
-                        requestgrabarrecargo.context = _context;
-                        requestgrabarrecargo.verecargoprof = verecargoprof;
                         if (verecargoprof.Count > 0)
                         {
-                            await grabarrecargo(codigoProf, requestgrabarrecargo);
+                            await grabarrecargo(_context, codProforma, verecargoprof);
                         }
+
+                        // grabar iva
+
+                        await grabariva(_context, codProforma, veproforma_iva);
+
 
                         dbContexTransaction.Commit();
                         return Ok(new { resp = "Se Grabo la Proforma de manera Exitosa" });
@@ -1399,45 +1401,38 @@ namespace SIAW.Controllers.ventas.transaccion
 
         private async Task grabardesextra(DBContext _context, int codProf, List<vedesextraprof> vedesextraprof)
         {
-            foreach (var item in vedesextraprof)
+            var descExtraAnt = await _context.vedesextraprof.Where(i => i.codproforma == codProf).ToListAsync();
+            if (descExtraAnt.Count()>0)
             {
-                item.codproforma = codProf;
-                if (item.codcobranza == null)
-                {
-                    item.codproforma = 0;
-                }
-                if (item.codcobranza_contado == null)
-                {
-                    item.codcobranza_contado = 0;
-                }
-                if (item.codanticipo == null)
-                {
-                    item.codanticipo = 0;
-                }
+                _context.vedesextraprof.RemoveRange(descExtraAnt);
+                await _context.SaveChangesAsync();
             }
             _context.vedesextraprof.AddRange(vedesextraprof);
             await _context.SaveChangesAsync();
         }
 
 
-        private async Task grabarrecargo(int codProf, Requestgrabarrecargo requestgrabarrecargo)
+        private async Task grabarrecargo(DBContext _context, int codProf, List<verecargoprof> verecargoprof)
         {
-            List<verecargoprof> verecargoprof = requestgrabarrecargo.verecargoprof;
-            DBContext _context = requestgrabarrecargo.context;
-            foreach (var item in verecargoprof)
+            var recargosAnt = await _context.verecargoprof.Where(i => i.codproforma == codProf).ToListAsync();
+            if (recargosAnt.Count() > 0)
             {
-                item.codproforma = codProf;
+                _context.verecargoprof.RemoveRange(recargosAnt);
+                await _context.SaveChangesAsync();
             }
             _context.verecargoprof.AddRange(verecargoprof);
             await _context.SaveChangesAsync();
         }
 
-        private async Task grabariva(int codProf, Requestgrabariva requestgrabariva)
+        private async Task grabariva(DBContext _context, int codProf, List<veproforma_iva> veproforma_iva)
         {
-            veproforma_iva veproforma_iva = requestgrabariva.veproforma_iva;
-            DBContext _context = requestgrabariva.context;
-            veproforma_iva.codproforma = codProf;
-            _context.veproforma_iva.Add(veproforma_iva);
+            var ivaAnt = await _context.veproforma_iva.Where(i => i.codproforma == codProf).ToListAsync();
+            if (ivaAnt.Count() > 0)
+            {
+                _context.veproforma_iva.RemoveRange(ivaAnt);
+                await _context.SaveChangesAsync();
+            }
+            _context.veproforma_iva.RemoveRange(veproforma_iva);
             await _context.SaveChangesAsync();
         }
 

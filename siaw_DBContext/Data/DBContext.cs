@@ -535,6 +535,7 @@ namespace siaw_DBContext.Data
         public virtual DbSet<fncuenta> fncuenta { get; set; }
         public virtual DbSet<fncuenta_conta> fncuenta_conta { get; set; }
         public virtual DbSet<fndeposito> fndeposito { get; set; }
+        public virtual DbSet<fndeposito_cliente> fndeposito_cliente { get; set; }
         public virtual DbSet<fndeposito_cliente800374> fndeposito_cliente800374 { get; set; }
         public virtual DbSet<fndeposito_comprobante> fndeposito_comprobante { get; set; }
         public virtual DbSet<fndeudor> fndeudor { get; set; }
@@ -18702,6 +18703,74 @@ namespace siaw_DBContext.Data
                     .IsUnicode(false);
 
                 entity.Property(e => e.monto).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.tdc).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.usuarioreg)
+                    .HasMaxLength(50)
+                    .IsUnicode(false);
+            });
+
+            modelBuilder.Entity<fndeposito_cliente>(entity =>
+            {
+                entity.HasKey(e => new { e.codigo, e.id, e.numeroid })
+                    .IsClustered(false);
+
+                entity.Property(e => e.codigo).ValueGeneratedOnAdd();
+
+                entity.Property(e => e.id)
+                    .HasMaxLength(5)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.codcliente)
+                    .IsRequired()
+                    .HasMaxLength(15)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.codcuentab)
+                    .HasMaxLength(25)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.codmoneda)
+                    .HasMaxLength(3)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.codmoneda_cobranza)
+                    .HasMaxLength(2)
+                    .IsUnicode(false)
+                    .IsFixedLength();
+
+                entity.Property(e => e.factorme).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.fecha).HasColumnType("smalldatetime");
+
+                entity.Property(e => e.fecha_conta).HasColumnType("datetime");
+
+                entity.Property(e => e.fechareg).HasColumnType("smalldatetime");
+
+                entity.Property(e => e.horareg)
+                    .HasMaxLength(5)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.idcobranza).HasMaxLength(5);
+
+                entity.Property(e => e.itf).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.memo)
+                    .HasMaxLength(75)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.monto).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.monto_cambio).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.monto_cobranza).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.monto_me).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.nit).HasMaxLength(15);
+
+                entity.Property(e => e.nomcliente_nit).HasMaxLength(100);
 
                 entity.Property(e => e.tdc).HasColumnType("decimal(18, 2)");
 
