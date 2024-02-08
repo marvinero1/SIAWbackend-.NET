@@ -38,7 +38,7 @@ namespace SIAW.Controllers.z_pruebas
                 try
                 {
                     var prueba = await cobranzas.Consulta_Deposito_Cobranzas_Credito_Sin_Aplicar(_context, "cliente", "", "", "300023", false, "APLICAR_DESCTO", "41182", false, new DateTime(2015, 5, 13));
-                    return Ok(prueba);   // creado con exito
+                    return Ok(new { res = prueba, cont = prueba.Count() });   // creado con exito
                 }
                 catch (DbUpdateException)
                 {

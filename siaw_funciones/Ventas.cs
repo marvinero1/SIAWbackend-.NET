@@ -136,6 +136,137 @@ namespace siaw_funciones
                     .FirstOrDefaultAsync();
             return result;
         }
+
+
+        public async Task<int> Disminuir_Fecha_Vence(DBContext _context, int codremision, string codcliente)
+        {
+            int nro_dias = 0;
+            var dt1 = await _context.vedesextraremi
+                    .Where(v => v.codremision == codremision)
+                    .ToListAsync();
+            foreach (var reg1 in dt1)
+            {
+                var dt2 = await _context.vecliente_desextra
+                    .Where(v => v.codcliente == codcliente && v.coddesextra == reg1.coddesextra).FirstOrDefaultAsync();
+                if (dt2 != null)
+                {
+                    nro_dias += await Dias_Disminuir_Vencimiento(_context, reg1.coddesextra, dt2.dias ?? -1);
+                }
+            }
+
+            int resultado = nro_dias * -1;
+
+
+            return resultado;
+        }
+
+        public async Task<int> Dias_Disminuir_Vencimiento(DBContext _context, int coddesxextra, int dias)
+        {
+            var dt = await _context.vedesextra_modifica_dias
+                    .Where(v => v.coddesextra == coddesxextra && v.dias == dias)
+                    .FirstOrDefaultAsync();
+            if (dt != null && dt.dias_disminuye!= null)
+            {
+                return (int)dt.dias_disminuye;
+            }
+            return 0;
+        }
+        public async Task<bool> Pedido_Esta_Despachado(DBContext _context, int codproforma)
+        {
+            bool resultado = false; 
+            string id_proforma = await proforma_id(_context, codproforma);
+            int nroid_proforma = await proforma_numeroid(_context, codproforma);
+
+            var dt = await _context.vedespacho
+                .Where(i => i.id == id_proforma && i.nroid == nroid_proforma && i.estado== "DESPACHADO")
+                .Select(i => new
+                {
+                    i.id,
+                    i.nroid,
+                    i.estado,
+                    i.fdespachado,
+                    i.hdespachado
+                }).FirstOrDefaultAsync();
+            if (dt != null)
+            {
+                if (dt.estado != null)
+                {
+                    if (dt.estado == "DESPACHADO")
+                    {
+                        resultado = true;
+                    }
+                    else
+                    {
+                        resultado = false;
+                    }
+                }
+                else
+                {
+                    resultado = false;
+                }
+            }else { resultado = false; }
+
+            return resultado;
+        }
+
+
+
+        public async Task<string> proforma_id(DBContext _context, int codproforma)
+        {
+            var resultado = await _context.veproforma.Where(i=>i.codigo == codproforma).Select(i=> i.id).FirstOrDefaultAsync();
+            return resultado ?? "";
+        }
+        public async Task<int> proforma_numeroid(DBContext _context, int codproforma)
+        {
+            var resultado = await _context.veproforma.Where(i => i.codigo == codproforma).Select(i => i.numeroid).FirstOrDefaultAsync();
+            return resultado;
+        }
+
+        public async Task<int> codproforma_de_remision(DBContext _context, int codremision)
+        {
+            var resultado = await _context.veremision.Where(i => i.codigo == codremision).Select(i => i.codproforma).FirstOrDefaultAsync();
+            return resultado ?? 0;
+        }
+
+
+        public async Task<DateTime> Obtener_Fecha_Despachado_Pedido(DBContext _context, int codproforma)
+        {
+            DateTime resultado = new DateTime(1900, 1, 1);
+            string id_proforma = await proforma_id(_context, codproforma);
+            int nroid_proforma = await proforma_numeroid(_context, codproforma);
+            string estado_final_pf = await Estado_Final_Proformas(_context);
+
+            var dt = await _context.vedespacho
+                .Where(i => i.id == id_proforma && i.nroid == nroid_proforma && i.estado == estado_final_pf)
+                .Select(i => new
+                {
+                    i.id,
+                    i.nroid,
+                    i.estado,
+                    i.fdespacho,
+                    i.hdespacho
+                }).FirstOrDefaultAsync();
+            if (dt != null)
+            {
+                if (dt.fdespacho != null)
+                {
+                    resultado = new DateTime(
+                        ((DateTime)dt.fdespacho).Year,
+                        ((DateTime)dt.fdespacho).Month,
+                        ((DateTime)dt.fdespacho).Day
+                        );
+                }
+            }
+
+            return resultado;
+        }
+
+        public async Task<string> Estado_Final_Proformas(DBContext _context)
+        {
+            var resultado = await _context.adparametros.Select(i => i.estado_final_proformas).FirstOrDefaultAsync();
+            return resultado ?? "DESPACHADO";
+        }
+
     }
 
     public class dtcbza

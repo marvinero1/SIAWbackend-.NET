@@ -6,7 +6,7 @@ namespace siaw_DBContext.Models_Extra
     public class consultCocobranza
     {
         public string nro { get; set; }
-        public string tipo { get; set; }
+        public int tipo { get; set; }
         public bool aplicado { get; set; }
         public int codalmacen { get; set;}
         public int codcobranza { get; set; }
@@ -43,5 +43,9 @@ namespace siaw_DBContext.Models_Extra
 
         public string codcliente { get; set; }
         public int codigo { get; set; }
+
+        public string valido { get; set; }
+        public string obs { get; set; }
+        public string obs1 { get; set; }
     }
 }
