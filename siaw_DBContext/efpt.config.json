@@ -1412,6 +1412,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[cocobranza_deposito_excluidos]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[cocuentab]",
          "ObjectType": 0
       },

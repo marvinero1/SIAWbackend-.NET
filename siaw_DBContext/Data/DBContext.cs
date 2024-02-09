@@ -373,6 +373,7 @@ namespace siaw_DBContext.Data
         public virtual DbSet<cocobranza_contado_anticipo> cocobranza_contado_anticipo { get; set; }
         public virtual DbSet<cocobranza_deposito> cocobranza_deposito { get; set; }
         public virtual DbSet<cocobranza_deposito_ajuste> cocobranza_deposito_ajuste { get; set; }
+        public virtual DbSet<cocobranza_deposito_excluidos> cocobranza_deposito_excluidos { get; set; }
         public virtual DbSet<cocuentab> cocuentab { get; set; }
         public virtual DbSet<cocuentab_conta> cocuentab_conta { get; set; }
         public virtual DbSet<cocuentab_conta_ag> cocuentab_conta_ag { get; set; }
@@ -14380,6 +14381,28 @@ namespace siaw_DBContext.Data
                     .IsFixedLength();
 
                 entity.Property(e => e.monto).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.usuarioreg).HasMaxLength(15);
+            });
+
+            modelBuilder.Entity<cocobranza_deposito_excluidos>(entity =>
+            {
+                entity.HasKey(e => e.codigo)
+                    .HasName("PK__cocobran__40F9A207DFA3A78B");
+
+                entity.Property(e => e.fechareg).HasColumnType("smalldatetime");
+
+                entity.Property(e => e.horareg)
+                    .IsRequired()
+                    .HasMaxLength(5)
+                    .IsUnicode(false)
+                    .IsFixedLength();
+
+                entity.Property(e => e.montodescto).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.montodist).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.montorest).HasColumnType("decimal(18, 2)");
 
                 entity.Property(e => e.usuarioreg).HasMaxLength(15);
             });

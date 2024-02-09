@@ -208,6 +208,9 @@ namespace siaw_funciones
             resultado = Math.Round(resultado, 2);
             return resultado;
         }
-
+        public async Task<bool> Cobranza_Se_Aplico_Para_Descuento_Por_Deposito_2(DBContext _context, int codcobranza, int codproforma)
+        {
+            return true;
+        }
     }
 }

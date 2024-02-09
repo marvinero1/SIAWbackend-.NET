@@ -18,6 +18,7 @@ namespace siaw_funciones
         Configuracion configuracion = new Configuracion();
         Depositos_Cliente depositos_cliente = new Depositos_Cliente();
         Ventas ventas = new Ventas();
+        ProntoPago prontopago = new ProntoPago();
         //Clase necesaria para el uso del DBContext del proyecto siaw_Context
         public static class DbContextFactory
         {
@@ -124,12 +125,65 @@ namespace siaw_funciones
             //3° verificar los pagos a cuotas que vencieron domingo, segun instruido por JRA en fecha 17-07-2015 via telefono, 
             //   si la fecha de vencimiento cae en domingo u otro dia no habil, la fecha de vencimiento se recorre un dia
             //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            Analizar_Cobranzas_Pago_Cuotas(resultado, dt_aux);
+            dt_aux = await Analizar_Cobranzas_Pago_Cuotas(_context, resultado, dt_aux);
+            resultado.Clear();
+            resultado = dt_aux;
+            dt_aux.Clear();
             //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+            foreach (var reg in resultado)
+            {
+                //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                //1° si la cbza no es reversion de anticipo volver a verificar manualmente que
+                //realmente no lo sea
+                //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                //verifica si es reversion de anticipo
+
+                if (reg.tipo == 1)
+                {
+                    if (await CobranzaMontoAnticipo(_context, reg.codcobranza)>0)
+                    {
+                        reg.valido = "No";
+                        goto verifica_si_se_uso;
+                    }
+                }
+                //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                //1° si la cbza SI es reversion de anticipo volver a verificar manualmente que
+                //realmente no lo sea
+                //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                //verifica si es reversion de anticipo
+                if (reg.tipo == 2)
+                {
+                    if (await CobranzaMontoAnticipo(_context, reg.codcobranza) > 0)
+                    {
+                        reg.valido = "No";
+                    }
+                }
+            //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            //2° aqui se verifica si la cbza alguna vez ya fue usada para aplicar descuento por deposito, esta revision
+            //se realiza en vedesextraprof y/o vedesextraremi, en caso de que el codcobranza ya haya sido
+            //utilizada estara vinculado a alguna proforma-nrremision
+            //si tipo no es CERO, es decir es: 1 es decir estar como cobranza NUEVA que no se aplico descto
+            //por deposito pero ala vez se verifica que ya esta en alguna proforma asignado en vedesextraprof, entonces se excluye
+            //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+            verifica_si_se_uso:
+                if (reg.tipo == 0)
+                {
+
+                }
+            }
 
             return true;
         }
+
+        public async Task<double> CobranzaMontoAnticipo(DBContext _context, int codcobranza)
+        {
+            var resultado = await _context.cocobranza_anticipo.Where(i => i.codcobranza == codcobranza).SumAsync(i => i.monto);
+            return (double)(resultado ?? 0);
+        }
+
+
 
         public async Task<List<consultCocobranza>> Analizar_Cobranzas_Pago_Cuotas(DBContext _context, List<consultCocobranza> resultado, List<consultCocobranza> dt_aux)
         {
@@ -202,13 +256,58 @@ namespace siaw_funciones
                         //++++++++++++++++SI NO ES CONTRA ENTREGA+++++++++++++++
                         DateTime mifecha_vence = reg.vencimiento;
                         //si es domingo añadir 1 dia
+                        if (reg.vencimiento.DayOfWeek == DayOfWeek.Sunday || await prontopago.DianoHabil(_context, reg.codalmacen, reg.vencimiento))
+                        {
+                            mifecha_vence = mifecha_vence.AddDays(1);
+                            reg.vencimiento = mifecha_vence;
+                            dias_prorroga += 1;
+                        }
+                        //añadir dias prorroga hasta que sea una fecha habil
+                        while (await prontopago.DianoHabil(_context, reg.codalmacen, mifecha_vence))
+                        {
+                            mifecha_vence = mifecha_vence.AddDays(1);
+                            reg.vencimiento = mifecha_vence;
+                            dias_prorroga += 1;
+                        }
+                        if (reg.fecha_cbza <= mifecha_vence)
+                        {
+                            if (dias_prorroga > 0)
+                            {
+                                reg.obs = "Se amplio: " + dias_prorroga + " (dias) a la fecha original de vencimiento(cliente) porque esta vencia en una fecha no habil!!!";
+                                reg.valido = "Si";
+                                dt_aux.Add(reg);
+                            }
+                        }
+                        else if (reg.fecha_cbza > mifecha_vence && reg.deposito_en_mora_habilita_descto == true)
+                        {
+                            //si la fecha de pago(deposito) es posterior al vencimiento, es decir no se pago a tiempo
+                            //peor tiene autorizado para descuento por deposito aun cuando fue pagada con restraso, entonces
+                            //habilita el pago para descto por deposito
+                            reg.obs = "Pago Fuera de Tiempo!!!, pero con autorizacion para descuento.";
+                            reg.valido = "Si";
+                            dt_aux.Add(reg);
+                        }
+                        else
+                        {
+                            reg.valido = "No";
+
+                        }
+
 
                     }
 
 
 
                 }
+                else
+                {
+                    dt_aux.Add(reg);
+                }
             }
+            resultado.Clear();
+            resultado = dt_aux;
+            dt_aux.Clear();
+            return resultado;
         }
 
         public async Task<List<consultCocobranza>> Consulta_Deposito_Cobranzas_Credito_Sin_Aplicar (DBContext _context, string busqueda_por, string codcliente, string nit, string codcliente_real, bool buscar_por_nit, string Para_Que_Es, string codcbzas, bool incluir_aplicados, DateTime buscar_depositos_desde)

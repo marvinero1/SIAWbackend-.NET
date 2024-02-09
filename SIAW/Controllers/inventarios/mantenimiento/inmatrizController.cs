@@ -14,6 +14,8 @@ namespace SIAW.Controllers.inventarios.mantenimiento
     public class inmatrizController : ControllerBase
     {
         private readonly Saldos saldos = new Saldos();
+        private readonly Restricciones restricciones = new Restricciones();
+        private readonly Items items = new Items();
         private readonly UserConnectionManager _userConnectionManager;
         public inmatrizController(UserConnectionManager userConnectionManager)
         {
@@ -119,6 +121,44 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     }
 
                     return Ok(initem);
+                }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+            }
+        }
+
+
+
+        // GET: api/inmatriz/5
+        [HttpGet]
+        [Route("pesoEmpaqueSaldo/{userConn}/{codtarifa}/{coddescuento}/{coditem}/{codalmacen}/{codempresa}")]
+        public async Task<ActionResult<object>> getpesoEmpaqueSaldo(string userConn, int codtarifa, int coddescuento, string coditem, int codalmacen, string codempresa)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                if (codtarifa == 0 && coddescuento == 0)
+                {
+                    return BadRequest(new { resp = "Debe seleccionar una tarifa o descuento." });
+                }
+                double saldo = (double)await saldos.SaldosCompletoResult(userConnectionString, codalmacen, coditem, codempresa, "");
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    double empaque = await restricciones.empaqueminimo(_context, coditem, codtarifa, coddescuento);
+                    double peso = await items.itempeso(_context, coditem);
+                    double pesominimo = empaque * peso;
+
+                    
+
+                    return Ok(new
+                    {
+                        empaque = empaque,
+                        pesomin = pesominimo,
+                        saldo = saldo
+                    });
                 }
             }
             catch (Exception)

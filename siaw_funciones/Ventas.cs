@@ -227,7 +227,35 @@ namespace siaw_funciones
             var resultado = await _context.veremision.Where(i => i.codigo == codremision).Select(i => i.codproforma).FirstOrDefaultAsync();
             return resultado ?? 0;
         }
+        public async Task<bool> Existe_Proforma1(DBContext _context, int codproforma)
+        {
+            var resultado = await _context.veproforma.Where(i => i.codigo == codproforma).CountAsync();
+            if (resultado > 0)
+            {
+                return true;
+            }
+            return false;
+        }
+        public async Task<bool> proforma_anulada(DBContext _context, int codproforma)
+        {
+            var resultado = await _context.veproforma.Where(i => i.codigo == codproforma).Select(i => i.anulada).FirstOrDefaultAsync();
+            return resultado;
+        }
 
+        public async Task<bool> Existe_NotaRemision1(DBContext _context, int codremision)
+        {
+            var resultado = await _context.veremision.Where(i => i.codigo == codremision).CountAsync();
+            if (resultado > 0)
+            {
+                return true;
+            }
+            return false;
+        }
+        public async Task<bool> remision_anulada(DBContext _context, int codremision)
+        {
+            var resultado = await _context.veremision.Where(i => i.codigo == codremision).Select(i => i.anulada).FirstOrDefaultAsync();
+            return resultado;
+        }
 
         public async Task<DateTime> Obtener_Fecha_Despachado_Pedido(DBContext _context, int codproforma)
         {

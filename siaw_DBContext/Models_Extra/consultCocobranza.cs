@@ -47,5 +47,28 @@ namespace siaw_DBContext.Models_Extra
         public string valido { get; set; }
         public string obs { get; set; }
         public string obs1 { get; set; }
+        public string tipo_pago { get; set; }
+        public string monpago { get; set; }
+    }
+
+
+
+    public class dtdepositos_pendientes
+    {
+        public string cliente { get; set; }
+        public int codcobranza { get; set; }
+        public string idcbza { get; set; }
+        public int nroidcbza { get; set; }
+        public string iddeposito { get; set; }
+
+        public int numeroiddeposito { get; set; }
+        public DateTime fecha_cbza { get; set; }
+        public string tipo_pago { get; set; }
+        public int tipo { get; set; }
+        public double monto_dis { get; set; }
+
+        public double monto_cbza { get; set; }
+        public string moncbza { get; set; }
+        
     }
 }

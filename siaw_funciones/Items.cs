@@ -88,7 +88,12 @@ namespace siaw_funciones
             return false;
 
         }
+        public async Task<double> itempeso(DBContext _context, string codigo)
+        {
+            var resultado = await _context.initem.Where(i => i.codigo == codigo).Select(i => i.peso).FirstOrDefaultAsync() ?? 0;
+            return (double)resultado;
 
+        }
 
     }
 }
