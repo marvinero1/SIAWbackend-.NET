@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using siaw_DBContext.Data;
 using siaw_DBContext.Models;
 using siaw_DBContext.Models_Extra;
+using static siaw_funciones.Validar_Vta;
 
 namespace siaw_funciones
 {
@@ -18,6 +19,7 @@ namespace siaw_funciones
         Configuracion configuracion = new Configuracion();
         Depositos_Cliente depositos_cliente = new Depositos_Cliente();
         Ventas ventas = new Ventas();
+        TipoCambio tipocambio = new TipoCambio();
         ProntoPago prontopago = new ProntoPago();
         //Clase necesaria para el uso del DBContext del proyecto siaw_Context
         public static class DbContextFactory
@@ -32,149 +34,393 @@ namespace siaw_funciones
         }
 
 
-        public async Task<bool> Registrar_Descuento_Por_Deposito_de_Cbza(DBContext _context, string codcobranza, string codcliente, string codcliente_real, string nit, string codproforma, string cod_empresa, string usuarioreg)
+        public async Task<bool> Registrar_Descuento_Por_Deposito_de_Cbza(DBContext _context, string codcobranza, string codcliente, string codcliente_real, string nit, int codproforma, string cod_empresa, string usuarioreg)
         {
             DateTime Depositos_Desde_Fecha = new DateTime(2015, 5, 13);
 
             // obtener las distribuciones de la cbza, y validar si las distribuciones o paggo estan dentro las fechas permitadas respecto del vencimiento
+            List<consultCocobranza> dt_credito_depositos_pendientes = await Depositos_Cobranzas_Credito_Cliente_Sin_Aplicar(_context, "codcbza", codcobranza, codcliente_real, nit, codcliente_real, false, "APLICAR_DESCTO", codproforma, "", cod_empresa, false, Depositos_Desde_Fecha, false);
 
+
+            foreach (var reg in dt_credito_depositos_pendientes)
+            {
+                reg.tipo_pago = "es_cbza_credito";
+                if (reg.tipo == 0)
+                {
+                    //la moneda de pago igual a dela cobrzna
+                    reg.monpago = reg.moncbza;
+                }
+                else
+                {
+                    reg.monpago = await Moneda_De_Pago_de_una_Cobranza2(_context, reg.codcobranza, reg.codremision);
+                }
+            }
+
+            //esta funcion totaliza las distribuciones de una cobranza en un solo monto
+            List<dtdepositos_pendientes> dtpendientes = await Totalizar_Cobranzas_Depositos_Pendientes(_context, dt_credito_depositos_pendientes);
+
+
+            //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            //1ra ETAPA: registrar en cocobranza_deposito con codproforma=0, y con el monto de descuento limite
+            Datos_Cbza_Deposito objdatos_dep = new Datos_Cbza_Deposito();
+            int coddesextra = await configuracion.emp_coddesextra_x_deposito(_context,cod_empresa);
+            double PORCEN_DESCTO = (double)await ventas.DescuentoExtra_Porcentaje(_context, coddesextra);
+            double monto_descto = 0;
+
+            try
+            {
+                foreach (var reg in dtpendientes)
+                {
+                    objdatos_dep.idcbza = reg.idcbza;
+                    objdatos_dep.nroidcbza = reg.nroidcbza;
+                    objdatos_dep.codcliente = reg.cliente;
+                    objdatos_dep.cod_cbza = reg.codcobranza;
+                    objdatos_dep.cod_cbza_contado = 0;
+                    objdatos_dep.cod_anticipo = 0;
+                    objdatos_dep.codproforma = 0;
+                    objdatos_dep.monto_dist = (double)reg.monto_dis;
+                    monto_descto = Math.Round(objdatos_dep.monto_dist * 0.01 * PORCEN_DESCTO, 2);
+                    objdatos_dep.monto_descto = monto_descto;
+                    objdatos_dep.monto_rest = 0;
+
+                }
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
 
             return true;
         }
 
-        public async Task<bool> Depositos_Cobranzas_Credito_Cliente_Sin_Aplicar(DBContext _context, string BusquedaPor, string CodCbzas, string codcliente, string nit, string codcliente_real, bool buscar_por_nit, string para_que_es, int codproforma, string opcion, string codempresa, bool incluir_aplicados, DateTime nuevos_depositos_desde, bool para_proforma)
+
+        public async Task<List<dtdepositos_pendientes>> Totalizar_Cobranzas_Depositos_Pendientes ( DBContext _context ,List<consultCocobranza> tblpendientes)
+        {
+            DateTime ahora = DateTime.Now;
+            List<dtdepositos_pendientes> DtDepositos_Pendientes = new List<dtdepositos_pendientes> ();
+            foreach (var reg in tblpendientes)
+            {
+                if (!await Cobranza_Ya_Esta(DtDepositos_Pendientes, reg.codcobranza))
+                {
+                    dtdepositos_pendientes newReg = new dtdepositos_pendientes();
+                    newReg.cliente = reg.cliente;
+                    newReg.codcobranza = reg.codcobranza;
+                    newReg.idcbza = reg.idcbza;
+                    newReg.nroidcbza = reg.nroidcbza;
+
+                    newReg.iddeposito = reg.iddeposito;
+                    newReg.numeroiddeposito = reg.numeroiddeposito;
+
+                    newReg.fecha_cbza = reg.fecha_cbza;
+                    newReg.tipo_pago = reg.tipo_pago;
+                    newReg.tipo = reg.tipo;
+
+                    newReg.monto_cbza = reg.monto_cbza;
+                    //consultar si de tblpendientes el campo monpago es igual a la cobr<naza y si no fuera convertir a la moneda de la cobranza
+                    if (reg.moncbza == reg.monpago)
+                    {
+                        // no convertir
+                        newReg.monto_dis = reg.monto_dis;
+                    }
+                    else
+                    {
+                        
+                        newReg.monto_dis = await tipocambio._conversion(_context, reg.moncbza, reg.monpago, ahora, reg.monto_dis);
+                    }
+                    newReg.moncbza = reg.moncbza;
+                    DtDepositos_Pendientes.Add(newReg);
+                }
+                else
+                {
+                    foreach (var reg2 in DtDepositos_Pendientes)
+                    {
+                        if (reg2.codcobranza == reg.codcobranza)
+                        {
+                            //consultar si de tblpendientes el campo monpago es igual a la cobr<naza y si no fuera convertir a la moneda de la cobranza
+                            if (reg.moncbza == reg.monpago)
+                            {
+                                //no convertir
+                                reg2.monto_dis += reg.monto_dis;
+                            }
+                            else
+                            {
+                                reg2.monto_dis += await tipocambio._conversion(_context, reg.moncbza, reg.monpago, ahora, reg.monto_dis);
+                            }
+                        }
+                    }
+                }
+            }
+            return DtDepositos_Pendientes;
+        }
+
+        public async Task<bool> Cobranza_Ya_Esta(List<dtdepositos_pendientes> DtDepositos_Pendientes, int codcobranza)
+        {
+            var res = DtDepositos_Pendientes.Where(i => i.codcobranza == codcobranza).FirstOrDefault();
+            if (res == null)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        public async Task<string> Moneda_De_Pago_de_una_Cobranza2(DBContext _context, int codcobranza, int codremision)
+        {
+            string resultado = "";
+            //buscar el codigo de moneda de la nota de remsiion primero de las ventas a credito en coplancuotas
+            var dt_remi_cuotas = await _context.copagos
+                .Join(_context.coplancuotas,
+                      p => p.codcuota,
+                      c => c.codigo,
+                      (p, c) => new { p, c })
+                .Where(pc => pc.p.codcobranza == codcobranza &&
+                             _context.veremision.Any(v => v.codigo == codremision && v.codigo == pc.c.coddocumento))
+                .Select(pc => new
+                {
+                    pc.p.codigo,
+                    pc.p.codcobranza,
+                    pc.p.codcuota,
+                    monto_pago = pc.p.monto,
+                    pc.p.fecha,
+                    pc.p.tdc,
+                    pc.p.codremision,
+                    cod_plancuota = pc.c.codigo,
+                    codremision_cuota = pc.c.coddocumento,
+                    codcliente = pc.c.cliente,
+                    pc.c.nrocuota,
+                    monto_cuota = pc.c.monto,
+                    pc.c.montopagado,
+                    pc.c.vencimiento,
+                    pc.c.moneda
+                }).ToListAsync();
+            if (dt_remi_cuotas.Count() > 0)
+            {
+                foreach (var reg in dt_remi_cuotas)
+                {
+                    resultado = reg.moneda;
+                }
+            }
+            dt_remi_cuotas.Clear();
+            //buscar el codigo de moneda de la nota de remsiion segundo de las ventas a contado en segun el pago hecho y codigo remision
+            if (resultado == "")
+            {
+                var dt_remi_contado = await _context.copagos
+                    .Join(_context.veremision,
+                          p => p.codremision,
+                          r => r.codigo,
+                          (p, r) => new { p, r })
+                    .Where(pr => pr.p.codcobranza == codcobranza &&
+                                 pr.r.codigo == codremision)
+                    .Select(pr => new
+                    {
+                        pr.p.codigo,
+                        pr.p.codcobranza,
+                        pr.p.codcuota,
+                        monto_pago = pr.p.monto,
+                        pr.p.fecha,
+                        pr.p.tdc,
+                        pr.p.codremision,
+                        cod_plancuota = pr.r.codigo,
+                        codremision_cuota = pr.p.codremision,
+                        codcliente = pr.r.codcliente,
+                        nrocuota = 0,
+                        monto_cuota = pr.r.total,
+                        montopagado = pr.r.total,
+                        vencimiento = pr.r.fecha,
+                        moneda = pr.r.codmoneda
+                    }).ToListAsync();
+                if (dt_remi_contado.Count() > 0)
+                {
+                    foreach (var reg in dt_remi_contado)
+                    {
+                        resultado = reg.moneda;
+                    }
+                }
+                dt_remi_contado.Clear();
+            }
+            return resultado;
+        }
+
+        public async Task<List<consultCocobranza>> Depositos_Cobranzas_Credito_Cliente_Sin_Aplicar(DBContext _context, string BusquedaPor, string CodCbzas, string codcliente, string nit, string codcliente_real, bool buscar_por_nit, string para_que_es, int codproforma, string opcion, string codempresa, bool incluir_aplicados, DateTime nuevos_depositos_desde, bool para_proforma)
         {
             int coddesextra_deposito = await configuracion.emp_coddesextra_x_deposito(_context, codempresa);
-            List<consultCocobranza> resultado = await Consulta_Deposito_Cobranzas_Credito_Sin_Aplicar(_context, BusquedaPor, codcliente, nit, codcliente_real, buscar_por_nit, para_que_es, CodCbzas, incluir_aplicados, nuevos_depositos_desde);
-
-            List<consultCocobranza> dt_aux = new List<consultCocobranza>();
-
-            //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-            //%% A CONTINUACION SE FILTRAN LAS  CBZAS-DEPOSITOS PARA DEJAR SOLO LAS QUE SON APLICABLES
-            //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-            //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            //1° Revisar si las cbzas-depositos que quedaron con saldos pendientes tienen todavia saldo disponible para aplicar
-            //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-            double ttl_saldo = 0;
-            double ttl_dist = 0;
-            double ttl_ajuste = 0;
-            double ttl_recargo_aplicado = 0;
-            string cadena_negativos = "";
-            double saldo_recargo = 0;
-
-
-            foreach (var reg in resultado)
+            List<consultCocobranza>? resultado = new List<consultCocobranza>();
+            try
             {
-                if (reg.tipo == 0)
+                resultado = await Consulta_Deposito_Cobranzas_Credito_Sin_Aplicar(_context, BusquedaPor, codcliente, nit, codcliente_real, buscar_por_nit, para_que_es, CodCbzas, incluir_aplicados, nuevos_depositos_desde);
+
+                List<consultCocobranza> dt_aux = new List<consultCocobranza>();
+
+                //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                //%% A CONTINUACION SE FILTRAN LAS  CBZAS-DEPOSITOS PARA DEJAR SOLO LAS QUE SON APLICABLES
+                //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+                //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                //1° Revisar si las cbzas-depositos que quedaron con saldos pendientes tienen todavia saldo disponible para aplicar
+                //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+                double ttl_saldo = 0;
+                double ttl_dist = 0;
+                double ttl_ajuste = 0;
+                double ttl_recargo_aplicado = 0;
+                string cadena_negativos = "";
+                double saldo_recargo = 0;
+
+
+                foreach (var reg in resultado)
                 {
-                    ttl_saldo = 0;
-                    ttl_dist = 0;
-                    ttl_ajuste = 0;
-                    // 1ro. Obtener el monto que se aplico en descuentos por deposito
-                    ttl_dist = await depositos_cliente.Total_Descuentos_Por_Deposito_Aplicado_De_Cobranza_En_Proforma(_context, reg.codcobranza, codproforma,reg.moncbza);
-                    //2do. Obtener el monto que se aplico en ajustes
-                    ttl_ajuste += await depositos_cliente.Total_Ajustes_Por_Deposito_Aplicado_De_Cobranza(_context, reg.codcobranza, codproforma, reg.moncbza);
-
-                    ttl_saldo = (double)reg.monto_dis - (ttl_dist + ttl_ajuste);
-                    ttl_saldo = Math.Round(ttl_saldo, 2);
-
-                    if (ttl_saldo > 0)
+                    if (reg.tipo == 0)
                     {
-                        reg.monto_dis = (decimal)ttl_saldo;
+                        ttl_saldo = 0;
+                        ttl_dist = 0;
+                        ttl_ajuste = 0;
+                        // 1ro. Obtener el monto que se aplico en descuentos por deposito
+                        ttl_dist = await depositos_cliente.Total_Descuentos_Por_Deposito_Aplicado_De_Cobranza_En_Proforma(_context, reg.codcobranza, codproforma, reg.moncbza);
+                        //2do. Obtener el monto que se aplico en ajustes
+                        ttl_ajuste += await depositos_cliente.Total_Ajustes_Por_Deposito_Aplicado_De_Cobranza(_context, reg.codcobranza, codproforma, reg.moncbza);
+
+                        ttl_saldo = (double)reg.monto_dis - (ttl_dist + ttl_ajuste);
+                        ttl_saldo = Math.Round(ttl_saldo, 2);
+
+                        if (ttl_saldo > 0)
+                        {
+                            reg.monto_dis = (decimal)ttl_saldo;
+                            dt_aux.Add(reg);
+                        }
+                        if (ttl_saldo < 0)
+                        {
+                            //verificar si ya se aplico el recargo en otras proformas, y aplicar recargo solo si hay saldo
+                            ttl_saldo = Math.Abs(ttl_saldo);
+                            ttl_recargo_aplicado = await depositos_cliente.Total_Recargos_Por_Deposito_Aplicado_De_Cobranza_En_Proforma(_context, reg.codcobranza, codproforma, reg.moncbza);
+                            saldo_recargo = ttl_saldo - ttl_recargo_aplicado;
+                            /*
+                            if (saldo_recargo > 0)
+                            {
+                            //mero a cero quiere decir que se aplico mas descto
+                            }
+                            */
+                        }
+                    }
+                    dt_aux.Add(reg);
+                }
+
+                resultado.Clear();
+                resultado = dt_aux;
+                dt_aux.Clear();
+                //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+                //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                //2° verificar si la nota pagada ES contra entrega, si es contra entrega, la fecha de vecimiento a aconsiderar
+                //    debe ser la fecha que se entrego la mercaderia, es decir la fecha que se registro como entrega en: vedespacho.fdespacho
+                //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                /*
+                For i = 0 To resultado.Rows.Count - 1
+                    reg = resultado.Rows(i)
+                    If Not reg("tipo") = 0 Then
+
+                    End If
+                Next
+
+                */
+
+                //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                //3° verificar los pagos a cuotas que vencieron domingo, segun instruido por JRA en fecha 17-07-2015 via telefono, 
+                //   si la fecha de vencimiento cae en domingo u otro dia no habil, la fecha de vencimiento se recorre un dia
+                //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                dt_aux = await Analizar_Cobranzas_Pago_Cuotas(_context, resultado, dt_aux);
+                resultado.Clear();
+                resultado = dt_aux;
+                dt_aux.Clear();
+                //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+                foreach (var reg in resultado)
+                {
+                    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                    //1° si la cbza no es reversion de anticipo volver a verificar manualmente que
+                    //realmente no lo sea
+                    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                    //verifica si es reversion de anticipo
+
+                    if (reg.tipo == 1)
+                    {
+                        if (await CobranzaMontoAnticipo(_context, reg.codcobranza) > 0)
+                        {
+                            reg.valido = "No";
+                            goto verifica_si_se_uso;
+                        }
+                    }
+                    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                    //1° si la cbza SI es reversion de anticipo volver a verificar manualmente que
+                    //realmente no lo sea
+                    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                    //verifica si es reversion de anticipo
+                    if (reg.tipo == 2)
+                    {
+                        if (await CobranzaMontoAnticipo(_context, reg.codcobranza) > 0)
+                        {
+                            reg.valido = "No";
+                        }
+                    }
+                //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                //2° aqui se verifica si la cbza alguna vez ya fue usada para aplicar descuento por deposito, esta revision
+                //se realiza en vedesextraprof y/o vedesextraremi, en caso de que el codcobranza ya haya sido
+                //utilizada estara vinculado a alguna proforma-nrremision
+                //si tipo no es CERO, es decir es: 1 es decir estar como cobranza NUEVA que no se aplico descto
+                //por deposito pero ala vez se verifica que ya esta en alguna proforma asignado en vedesextraprof, entonces se excluye
+                //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+                verifica_si_se_uso:
+                    if (reg.tipo != 0)
+                    {
+                        if (await depositos_cliente.Cobranza_Se_Aplico_Para_Descuento_Por_Deposito_2(_context, reg.codcobranza, codproforma) == false)
+                        {
+                            reg.valido = "Si";
+                        }
+                        else
+                        {
+                            reg.valido = "No";
+                        }
+                    }
+                    else
+                    {
+                        //si es tipo=0 directo se marca como valido porque los 
+                        //tipo son cero son los depositos que quedaron con saldo de
+                        //descuento por aplicar
+                        reg.valido = "Si";
+                    }
+                continuar_aqui:
+                    //Desde 08 / 12 / 2023 verificar que los descuentos por deposito no esten en la tabla cocobranza_deposito_excluidos
+                    //ya que en esta tabla de inserto todas aquellas descuentos por deposito mal generadas de ventas casual-referenciales en fecha 08/12/2023
+                    //solo si es para añadir descuento en proforma
+                    if (para_proforma)
+                    {
+                        if (reg.valido == "Si")
+                        {
+                            if (await depositos_cliente.Deposito_Esta_Excluido_por_Venta_Casual_Referencial(_context, reg.codcobranza))
+                            {
+                                reg.valido = "No";
+                            }
+                        }
+                    }
+                    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                    //3° Aqui se filtran las cbzas y se carga la tabla solo con las validas o usables
+                    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                    if (reg.valido == "Si")
+                    {
                         dt_aux.Add(reg);
                     }
-                    if (ttl_saldo < 0)
-                    {
-                        //verificar si ya se aplico el recargo en otras proformas, y aplicar recargo solo si hay saldo
-                        ttl_saldo = Math.Abs(ttl_saldo);
-                        ttl_recargo_aplicado = await depositos_cliente.Total_Recargos_Por_Deposito_Aplicado_De_Cobranza_En_Proforma(_context, reg.codcobranza, codproforma, reg.moncbza);
-                        saldo_recargo = ttl_saldo - ttl_recargo_aplicado;
-                        /*
-                        if (saldo_recargo > 0)
-                        {
-                        //mero a cero quiere decir que se aplico mas descto
-                        }
-                        */
-                    }
                 }
-                dt_aux.Add(reg);
+                resultado.Clear();
+                resultado = dt_aux;
+
+
             }
-
-            resultado.Clear();
-            resultado = dt_aux;
-            dt_aux.Clear();
-            //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-            //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            //2° verificar si la nota pagada ES contra entrega, si es contra entrega, la fecha de vecimiento a aconsiderar
-            //    debe ser la fecha que se entrego la mercaderia, es decir la fecha que se registro como entrega en: vedespacho.fdespacho
-            //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            /*
-            For i = 0 To resultado.Rows.Count - 1
-                reg = resultado.Rows(i)
-                If Not reg("tipo") = 0 Then
-
-                End If
-            Next
-
-            */
-
-            //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            //3° verificar los pagos a cuotas que vencieron domingo, segun instruido por JRA en fecha 17-07-2015 via telefono, 
-            //   si la fecha de vencimiento cae en domingo u otro dia no habil, la fecha de vencimiento se recorre un dia
-            //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            dt_aux = await Analizar_Cobranzas_Pago_Cuotas(_context, resultado, dt_aux);
-            resultado.Clear();
-            resultado = dt_aux;
-            dt_aux.Clear();
-            //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-            foreach (var reg in resultado)
+            catch (Exception)
             {
-                //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-                //1° si la cbza no es reversion de anticipo volver a verificar manualmente que
-                //realmente no lo sea
-                //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-                //verifica si es reversion de anticipo
-
-                if (reg.tipo == 1)
-                {
-                    if (await CobranzaMontoAnticipo(_context, reg.codcobranza)>0)
-                    {
-                        reg.valido = "No";
-                        goto verifica_si_se_uso;
-                    }
-                }
-                //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-                //1° si la cbza SI es reversion de anticipo volver a verificar manualmente que
-                //realmente no lo sea
-                //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-                //verifica si es reversion de anticipo
-                if (reg.tipo == 2)
-                {
-                    if (await CobranzaMontoAnticipo(_context, reg.codcobranza) > 0)
-                    {
-                        reg.valido = "No";
-                    }
-                }
-            //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            //2° aqui se verifica si la cbza alguna vez ya fue usada para aplicar descuento por deposito, esta revision
-            //se realiza en vedesextraprof y/o vedesextraremi, en caso de que el codcobranza ya haya sido
-            //utilizada estara vinculado a alguna proforma-nrremision
-            //si tipo no es CERO, es decir es: 1 es decir estar como cobranza NUEVA que no se aplico descto
-            //por deposito pero ala vez se verifica que ya esta en alguna proforma asignado en vedesextraprof, entonces se excluye
-            //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-            verifica_si_se_uso:
-                if (reg.tipo == 0)
-                {
-
-                }
+                resultado = null;
             }
 
-            return true;
+            return resultado;
         }
 
         public async Task<double> CobranzaMontoAnticipo(DBContext _context, int codcobranza)

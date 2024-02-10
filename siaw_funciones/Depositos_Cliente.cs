@@ -14,6 +14,7 @@ namespace siaw_funciones
     public class Depositos_Cliente
     {
         TipoCambio tipocambio = new TipoCambio();
+        Ventas ventas = new Ventas();
         //Clase necesaria para el uso del DBContext del proyecto siaw_Context
         public static class DbContextFactory
         {
@@ -210,7 +211,131 @@ namespace siaw_funciones
         }
         public async Task<bool> Cobranza_Se_Aplico_Para_Descuento_Por_Deposito_2(DBContext _context, int codcobranza, int codproforma)
         {
+            if (codcobranza==0)
+            {
+                return false;
+            }
+
+            var query1 = await _context.vedesextraprof
+                .Where(v => v.codcobranza == codcobranza && v.codproforma != codcobranza)
+                .Select(v => new { 
+                    tipo = "PF", 
+                    coddoc = v.codproforma,
+                    coddesextra = v.coddesextra,
+                    porcen = v.porcen,
+                    montodoc = v.montodoc,
+                    codcobranza = v.codcobranza,
+                    codcobranza_contado = v.codcobranza_contado,
+                    codanticipo = v.codanticipo
+                }).ToListAsync();
+
+            var query2 = await _context.vedesextraremi
+                .Where(v => v.codcobranza == codcobranza)
+                .Select(v => new { 
+                    tipo = "NR", 
+                    coddoc = v.codremision,
+                    coddesextra = v.coddesextra,
+                    porcen = v.porcen,
+                    montodoc = v.montodoc,
+                    codcobranza = v.codcobranza,
+                    codcobranza_contado = v.codcobranza_contado,
+                    codanticipo = v.codanticipo
+                }).ToListAsync();
+
+            var dt = query1
+                .Union(query2).ToList();
+            var dt_aux = dt;
+            dt_aux.Clear();
+
+            foreach (var reg in dt)
+            {
+                if (reg.tipo == "PF")
+                {
+                    //si es proforma verifica en veproforma
+                    if (await ventas.Existe_Proforma1(_context, reg.coddoc))
+                    {
+                        if (! await ventas.proforma_anulada(_context, reg.coddoc))
+                        {
+                            dt_aux.Add(reg);
+                        }
+                    }
+                }
+                else
+                {
+                    //si es remision verifica en veremision
+                    if (await ventas.Existe_NotaRemision1(_context, reg.coddoc))
+                    {
+                        if (!await ventas.remision_anulada(_context, reg.coddoc))
+                        {
+                            dt_aux.Add(reg);
+                        }
+                    }
+                }
+            }
+            dt.Clear();
+            dt = dt_aux;
+            //si hay registros el resultado es falso
+            if (dt.Count() > 0)
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        public async Task<bool> Deposito_Esta_Excluido_por_Venta_Casual_Referencial(DBContext _context, int codcobranza)
+        {
+            var dt = await _context.cocobranza_deposito_excluidos.Where(i => i.codcobranza == codcobranza).CountAsync();
+            if (dt > 0)
+            {
+                return true;
+            }
+            return false;
+        }
+        public async Task<bool> Insertar_Cobranza_Deposito(DBContext _context, Datos_Cbza_Deposito Datos_Deposito, string nomb_ventana, string usuarioreg, DateTime fechareg, string horareg)
+        {
+            var dt = await _context.cocobranza_deposito.Where(i => i.codcobranza==Datos_Deposito.cod_cbza).ToListAsync();
+            if (dt.Count()>0)
+            {
+                _context.cocobranza_deposito.RemoveRange(dt);
+                await _context.SaveChangesAsync();
+                // grabar logs
+
+            }
+            cocobranza_deposito newReg = new cocobranza_deposito();
+            newReg.fechareg = fechareg;
+            newReg.horareg = horareg;
+            newReg.usuarioreg = usuarioreg;
+            newReg.aplicado = false;
+            newReg.codcobranza = Datos_Deposito.cod_cbza;
+
+            newReg.codproforma = Datos_Deposito.codproforma;
+            newReg.montodist = (decimal)Datos_Deposito.monto_dist;
+            newReg.montodescto = (decimal)Datos_Deposito.monto_descto;
+            newReg.montorest = (decimal)Datos_Deposito.monto_rest;
+
+            newReg.codcobranza_contado = Datos_Deposito.cod_cbza_contado;
+            newReg.codanticipo = Datos_Deposito.cod_anticipo;
+            _context.cocobranza_deposito.Add(newReg);
+            await _context.SaveChangesAsync();
+            // grabar logs
             return true;
         }
+    }
+
+
+    public class Datos_Cbza_Deposito
+    {
+        public string codcliente { get; set; }
+        public string idcbza { get; set; }
+        public int nroidcbza { get; set; }
+        public int cod_cbza { get; set; }
+        public int cod_cbza_contado { get; set; }
+
+        public int cod_anticipo { get; set; }
+        public int codproforma { get; set; }
+        public double monto_dist { get; set; }
+        public double monto_descto { get; set; }
+        public double monto_rest { get; set; }
     }
 }

@@ -65,9 +65,9 @@ namespace siaw_DBContext.Models_Extra
         public DateTime fecha_cbza { get; set; }
         public string tipo_pago { get; set; }
         public int tipo { get; set; }
-        public double monto_dis { get; set; }
+        public decimal monto_dis { get; set; }
 
-        public double monto_cbza { get; set; }
+        public decimal monto_cbza { get; set; }
         public string moncbza { get; set; }
         
     }
