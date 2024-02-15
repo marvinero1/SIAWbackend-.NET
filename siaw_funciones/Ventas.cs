@@ -1,8 +1,10 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using siaw_DBContext.Data;
 using siaw_DBContext.Models;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -24,24 +26,20 @@ namespace siaw_funciones
             }
         }
         private Configuracion configuracion = new Configuracion();
-        public async Task<string> monedabasetarifa(string userConnectionString, int codtarifa)
+        public async Task<string> monedabasetarifa(DBContext _context, int codtarifa)
         {
             string resultado = "";
 
-            using (var _context = DbContextFactory.Create(userConnectionString))
-            {
-                var result = await _context.intarifa
+            var result = await _context.intarifa
                     .Where(v => v.codigo == codtarifa)
                     .Select(parametro => new
                     {
                         parametro.monedabase
                     })
                     .FirstOrDefaultAsync();
-                if (result != null)
-                {
-                    resultado = result.monedabase;
-                }
-
+            if (result != null)
+            {
+                resultado = result.monedabase;
             }
             return resultado;
         }
@@ -294,6 +292,172 @@ namespace siaw_funciones
             var resultado = await _context.adparametros.Select(i => i.estado_final_proformas).FirstOrDefaultAsync();
             return resultado ?? "DESPACHADO";
         }
+
+
+        public async Task<bool> UsuarioTarifa_Permitido(DBContext _context, string usuario, int codtarifa)
+        {
+            var resultado = await _context.adusuario_tarifa.Where(i => i.usuario == usuario && i.codtarifa == codtarifa).FirstOrDefaultAsync();
+            if (resultado != null)
+            {
+                return true;
+            }
+            return false;
+        }
+
+        public async Task<bool> Tarifa_Permite_Desctos_Linea(DBContext _context, int codtarifa)
+        {
+            var resultado = await _context.intarifa.Where(i => i.codigo == codtarifa).Select(i => i.desitem).FirstOrDefaultAsync();
+            return resultado;
+        }
+        public async Task<bool> Existe_Solicitud_Descuento_Nivel(DBContext _context, string idsolicitud, int nroidsolicitud)
+        {
+            var resultado = await _context.vesoldsctos.Where(i => i.id == idsolicitud && i.numeroid == nroidsolicitud).FirstOrDefaultAsync();
+            if (resultado != null)
+            {
+                return true;
+            }
+            return false;
+        }
+        public async Task<string> Cliente_Solicitud_Descuento_Nivel(DBContext _context, string idsolicitud, int nroidsolicitud)
+        {
+            var resultado = await _context.vesoldsctos.Where(i => i.id == idsolicitud && i.numeroid == nroidsolicitud).Select(i => i.codcliente).FirstOrDefaultAsync();
+            if (resultado != null)
+            {
+                return resultado;
+            }
+            return "";
+        }
+
+        public async Task<float> preciodelistaitem(DBContext _context, int codtarifa, string coditem)
+        {
+            if (codtarifa == 0 || coditem== "")
+            {
+                return 0;
+            }
+            float precioFinal;
+
+            var tarifaParam = new SqlParameter("@tarifa", SqlDbType.Int) { Value = codtarifa };
+            var itemParam = new SqlParameter("@item", SqlDbType.NVarChar, 8) { Value = coditem };
+            var precioFinalParam = new SqlParameter("@preciofinal", SqlDbType.Float) { Direction = ParameterDirection.Output };
+
+            await _context.Database
+                .ExecuteSqlRawAsync("EXECUTE preciolista @tarifa, @item, @preciofinal OUTPUT",
+                    tarifaParam,
+                    itemParam,
+                    precioFinalParam);
+
+            precioFinal = Convert.ToSingle(precioFinalParam.Value);
+
+            return precioFinal;
+        }
+
+        public async Task<float> preciocliente(DBContext _context, string codcliente, int codalmacen, int codtarifa, string coditem, string desc_linea_seg_solicitud, string desc_linea, string opcion_nivel)
+        {
+            if (codtarifa == 0 || coditem == "" || codcliente.Trim() == "" || codalmacen == 0)
+            {
+                return 0;
+            }
+            float precioFinal;
+
+            var clienteParam = new SqlParameter("@cliente", SqlDbType.NVarChar, 10) { Value = codcliente };
+            var almacenParam = new SqlParameter("@almacen", SqlDbType.Int) { Value = codalmacen };
+            var tarifaParam = new SqlParameter("@tarifa", SqlDbType.Int) { Value = codtarifa };
+            var itemParam = new SqlParameter("@item", SqlDbType.NVarChar, 8) { Value = coditem };
+            var descSegSolicitudParam = new SqlParameter("@nivel_desc_segun_solicitud", SqlDbType.NVarChar, 2) { Value = desc_linea_seg_solicitud };
+            var descLineaParam = new SqlParameter("@nivel_desc_solicitud", SqlDbType.NVarChar, 2) { Value = desc_linea };
+            var opcionNivelParam = new SqlParameter("@opcion_nivel_desctos", SqlDbType.NVarChar, 10) { Value = opcion_nivel };
+            var precioFinalParam = new SqlParameter("@preciofinal", SqlDbType.Float) { Direction = ParameterDirection.Output };
+
+            await _context.Database.ExecuteSqlRawAsync(
+                "EXECUTE preciocliente @cliente, @almacen, @tarifa, @item, @nivel_desc_segun_solicitud, @nivel_desc_solicitud, @opcion_nivel_desctos, @preciofinal OUTPUT",
+                clienteParam, almacenParam, tarifaParam, itemParam, descSegSolicitudParam, descLineaParam, opcionNivelParam, precioFinalParam);
+
+            precioFinal = Convert.ToSingle(precioFinalParam.Value);
+
+            return precioFinal;
+        }
+        public async Task<float> preciocondescitem(DBContext _context, string codcliente, int codalmacen, int codtarifa, string coditem, int coddescuento, string desc_linea_seg_solicitud, string desc_linea, string opcion_nivel)
+        {
+            if (codtarifa == 0 || coditem == "")
+            {
+                return 0;
+            }
+
+            float precioFinal;
+
+            var clienteParam = new SqlParameter("@cliente", SqlDbType.NVarChar, 10) { Value = codcliente };
+            var almacenParam = new SqlParameter("@almacen", SqlDbType.Int) { Value = codalmacen };
+            var tarifaParam = new SqlParameter("@tarifa", SqlDbType.Int) { Value = codtarifa };
+            var itemParam = new SqlParameter("@item", SqlDbType.NVarChar, 8) { Value = coditem };
+            var descuentoParam = new SqlParameter("@descuento", SqlDbType.Int) { Value = coddescuento };
+            var descSegSolicitudParam = new SqlParameter("@nivel_desc_segun_solicitud", SqlDbType.NVarChar, 2) { Value = desc_linea_seg_solicitud };
+            var descLineaParam = new SqlParameter("@nivel_desc_solicitud", SqlDbType.NVarChar, 2) { Value = desc_linea };
+            var opcionNivelParam = new SqlParameter("@opcion_nivel_desctos", SqlDbType.NVarChar, 10) { Value = opcion_nivel };
+            var precioFinalParam = new SqlParameter("@preciofinal", SqlDbType.Float) { Direction = ParameterDirection.Output };
+
+            await _context.Database.ExecuteSqlRawAsync(
+                "EXECUTE preciocondesc @cliente, @almacen, @tarifa, @item, @descuento, @nivel_desc_segun_solicitud, @nivel_desc_solicitud, @opcion_nivel_desctos, @preciofinal OUTPUT",
+                clienteParam, almacenParam, tarifaParam, itemParam, descuentoParam, descSegSolicitudParam, descLineaParam, opcionNivelParam, precioFinalParam);
+
+            precioFinal = Convert.ToSingle(precioFinalParam.Value);
+
+            return precioFinal;
+        }
+
+        public async Task<string> Tipo_Recargo(DBContext _context, int codrecargo)
+        {
+            var resultado = await _context.verecargo
+                .Where(i => i.codigo == codrecargo)
+                .FirstOrDefaultAsync();
+            if (resultado != null)
+            {
+                if (resultado.montopor == false)
+                {
+                    return "MONTO";
+                }
+                return "PORCENTAJE";
+            }
+            return "";
+        }
+
+        public async Task<List<vedesextraprof>> Ordenar_Descuentos_Extra(DBContext _context, List<vedesextraprof> tabladescuentos)
+        {
+            List < vedesextraprof > dt_subtotal = new List<vedesextraprof> ();
+            List<vedesextraprof> dt_total = new List<vedesextraprof>();
+            foreach (var reg in tabladescuentos)
+            {
+                var aplicacion = await Donde_Aplica_Descuento_Extra(_context, reg.coddesextra);
+                if (aplicacion == "SUBTOTAL")
+                {
+                    dt_subtotal.Add(reg);
+                }
+                else if (aplicacion == "TOTAL")
+                {
+                    dt_total.Add(reg);
+                }
+            }
+            tabladescuentos.Clear();
+            tabladescuentos = dt_subtotal.Union(dt_total).ToList();
+            return tabladescuentos;
+        }
+
+        public async Task<string> Donde_Aplica_Descuento_Extra(DBContext _context, int coddesextra)
+        {
+            var resultado = await _context.vedesextra
+                .Where(i => i.codigo == coddesextra)
+                .FirstOrDefaultAsync();
+            if (resultado != null)
+            {
+                return resultado.aplicacion;
+            }
+            return "";
+        }
+        public async Task<bool> DescuentoExtra_Diferenciado_x_item(DBContext _context, int codtarifa)
+        {
+            var resultado = await _context.intarifa.Where(i => i.codigo == codtarifa).Select(i => i.desitem).FirstOrDefaultAsync();
+            return resultado;
+        }
+
 
     }
 

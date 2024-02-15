@@ -25,21 +25,18 @@ namespace siaw_funciones
         }
 
 
-        public async Task<bool> Es_Tienda(string userConnectionString, int codalmacen)
+        public async Task<bool> Es_Tienda(DBContext _context, int codalmacen)
         {
-            using (var _context = DbContextFactory.Create(userConnectionString))
+            // verifica si es tienda o no
+            var esTienda = await _context.inalmacen
+                .Where(i => i.codigo == codalmacen && i.tienda == true)
+                .Select(i => i.codigo)
+                .CountAsync();
+            if (esTienda > 0)
             {
-                // verifica si es tienda o no
-                var esTienda = await _context.inalmacen
-                    .Where(i => i.codigo == codalmacen && i.tienda==true)
-                    .Select(i => i.codigo)
-                    .CountAsync();
-                if (esTienda>0)
-                {
-                    return true;
-                }
-                return false;
+                return true;
             }
+            return false;
         }
     }
 }

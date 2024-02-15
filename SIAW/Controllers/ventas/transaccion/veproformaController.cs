@@ -20,6 +20,9 @@ using System.Web.Http.Results;
 using siaw_funciones;
 using static siaw_funciones.Validar_Vta;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.CodeAnalysis.Differencing;
+using static System.Net.Mime.MediaTypeNames;
+using System.Collections.Generic;
 
 namespace SIAW.Controllers.ventas.transaccion
 {
@@ -40,6 +43,8 @@ namespace SIAW.Controllers.ventas.transaccion
         private siaw_funciones.Items items = new siaw_funciones.Items();
         private siaw_funciones.Validar_Vta validar_Vta = new siaw_funciones.Validar_Vta();
         private siaw_funciones.Almacen almacen = new siaw_funciones.Almacen();
+        private siaw_funciones.SIAT siat = new siaw_funciones.SIAT();
+        private siaw_funciones.Configuracion configuracion = new siaw_funciones.Configuracion();
 
         public veproformaController(UserConnectionManager userConnectionManager)
         {
@@ -942,13 +947,16 @@ namespace SIAW.Controllers.ventas.transaccion
             {
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-                int nroactual = await datos_proforma.getNumActProd(userConnectionString, id);
-
-                if (nroactual == null)
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
-                    return NotFound( new { resp = "No se encontro un registro con este código" });
+                    int nroactual = await datos_proforma.getNumActProd(_context, id);
+
+                    if (nroactual == null)
+                    {
+                        return NotFound(new { resp = "No se encontro un registro con este código" });
+                    }
+                    return Ok(nroactual);
                 }
-                return Ok(nroactual);
             }
             catch (Exception)
             {
@@ -1152,7 +1160,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         .Select(i => i.precio)
                         .FirstOrDefaultAsync();
                     //convertir a la moneda el precio item
-                    var monedabase = await ventas.monedabasetarifa(userConnectionString, tarifa);
+                    var monedabase = await ventas.monedabasetarifa(_context, tarifa);
                     precioItem = await tipocambio.conversion(userConnectionString, codmoneda, monedabase, fecha, (decimal)precioItem);
                     precioItem = await cliente.Redondear_5_Decimales(userConnectionString, (decimal)precioItem);
                     //porcentaje de mercaderia
@@ -1172,10 +1180,10 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
                     //descuento de nivel del cliente
-                    var niveldesc = await cliente.niveldesccliente(userConnectionString, codcliente, coditem, tarifa, opcion_nivel, false);
+                    var niveldesc = await cliente.niveldesccliente(_context, codcliente, coditem, tarifa, opcion_nivel, false);
 
                     //porcentaje de descuento de nivel del cliente
-                    var porcentajedesc = await cliente.porcendesccliente(userConnectionString, codcliente, coditem, tarifa, opcion_nivel, false);
+                    var porcentajedesc = await cliente.porcendesccliente(_context, codcliente, coditem, tarifa, opcion_nivel, false);
 
                     //preciodesc 
                     var preciodesc = await cliente.Preciodesc(userConnectionString, codcliente, codalmacen, tarifa, coditem, desc_linea_seg_solicitud, niveldesc, opcion_nivel);
@@ -1197,17 +1205,17 @@ namespace SIAW.Controllers.ventas.transaccion
                             descripcion = i.descripcion,
                             medida = i.medida,
                             ud = i.unidad,
-                            porcenIV = (float)i.iva,
-                            pedido = (float)cantidad_pedida,
+                            porceniva = (float)i.iva,
+                            cantidad_pedida = (float)cantidad_pedida,
                             cantidad = (float)cantidad,
-                            porcentSld = (float)porcen_merca,
-                            tp = tarifa,
-                            de = descuento,
-                            pul = (float)precioItem,
-                            ni = niveldesc,
-                            porcen = (float)porcentajedesc,
-                            pd = (float)preciodesc,
-                            pu = (float)precioneto,
+                            porcen_mercaderia = (float)porcen_merca,
+                            codtarifa = tarifa,
+                            coddescuento = descuento,
+                            preciolista = (float)precioItem,
+                            niveldesc = niveldesc,
+                            porcendesc = (float)porcentajedesc,
+                            preciodesc = (float)preciodesc,
+                            precioneto = (float)precioneto,
                             total = (float)total
 
                         })
@@ -1266,15 +1274,153 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
+            
+
+
+
+
+            
+            
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                using (var dbContexTransaction = _context.Database.BeginTransaction())
+                {
+                    try
+                    {
+
+
+
+                        string result = await Grabar_Documento(_context, idProf, codempresa, datosProforma);
+                        if (result != "ok")
+                        {
+                            dbContexTransaction.Rollback();
+                            return BadRequest(new { resp = result });
+                        }
+
+
+                        /*
+                         
+                        //Grabar Etiqueta
+                        If dt_etiqueta.Rows.Count > 0 Then
+                            Try
+                                If IsDBNull(dt_etiqueta.Rows(0)("celular")) Then
+                                    dt_etiqueta.Rows(0)("celular") = "---"
+                                End If
+                                sia_DAL.Datos.Instancia.EjecutarComando("delete from veetiqueta_proforma where id='" & id.Text & "' and numeroid=" & numeroid.Text)
+                                sia_DAL.Datos.Instancia.EjecutarComando("insert into veetiqueta_proforma(id,numeroid,codcliente,linea1,linea2,representante,telefono,ciudad,celular,latitud_entrega,longitud_entrega) values('" & id.Text & "'," & numeroid.Text & ",'" & codcliente.Text & "','" & CStr(dt_etiqueta.Rows(0)("linea1")) & "','" & CStr(dt_etiqueta.Rows(0)("linea2")) & "','" & CStr(dt_etiqueta.Rows(0)("representante")) & "','" & CStr(dt_etiqueta.Rows(0)("telefono")) & "','" & CStr(dt_etiqueta.Rows(0)("ciudad")) & "','" & CStr(dt_etiqueta.Rows(0)("celular")) & "','" & CStr(dt_etiqueta.Rows(0)("latitud_entrega")) & "','" & CStr(dt_etiqueta.Rows(0)("longitud_entrega")) & "' )")
+                            Catch ex As Exception
+
+                            End Try
+                        End If
+
+                        //ACTUALIZAR PESO
+                        sia_DAL.Datos.Instancia.EjecutarComando("update veproforma set peso=" & CStr(sia_funciones.Ventas.Instancia.Peso_Proforma(CInt(codigo.Text))) & " where codigo=" & codigo.Text & "")
+                        sia_funciones.Ventas.Instancia.Actualizar_Peso_Detalle_Proforma(CInt(codigo.Text))
+
+
+                        //enlazar sol desctos con proforma
+                        If desclinea_segun_solicitud.Checked = True And idsoldesctos.Text.Trim.Length > 0 And nroidsoldesctos.Text.Trim.Length > 0 Then
+                            If Not sia_funciones.Ventas.Instancia.Enlazar_Proforma_Nueva_Con_SolDesctos_Nivel(codigo.Text, idsoldesctos.Text, nroidsoldesctos.Text) Then
+                                MessageBox.Show("No se pudo realizar el enlace de esta proforma con la solicitud de descuentos de nivel, verifique el enlace en la solicitu de descuentos!!!", "ErroR de Enlace", MessageBoxButtons.OK, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button1)
+                            End If
+                        End If
+
+
+                        //grabar la etiqueta dsd 16-05-2022        
+                        //solo si es cliente casual, y el cliente referencia o real es un no casual
+                        //If sia_funciones.Cliente.Instancia.Es_Cliente_Casual(codcliente.Text) = True And sia_funciones.Cliente.Instancia.Es_Cliente_Casual(codcliente_real) = False Then
+
+                        //Desde 10-10-2022 se definira si una venta es casual o no si el codigo de cliente y el codigo de cliente real son diferentes entonces es una venta casual
+                        If Not codcliente.Text = txtcodcliente_real.Text Then
+                            If Not Me.Grabar_Proforma_Etiqueta(codigo.Text) Then
+                                MessageBox.Show("No se pudo grabar la etiqueta Cliente Casual/Referencia de la proforma!!!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button1)
+                            End If
+                        End If
+
+
+                        If MessageBox.Show("Se grabo la Proforma " & id.Text & "-" & numeroid.Text & " con Exito. Desea Exportar el documento? ", "Exportar", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) = Windows.Forms.DialogResult.Yes Then
+                            Me.exportar_Click()
+                        End If
+
+                        //validar lo que se validaba en la ventana de aprobar proforma
+                        Dim mi_idpf As String = sia_funciones.Ventas.Instancia.proforma_id(_CODPROFORMA)
+                        Dim mi_nroidpf As String = sia_funciones.Ventas.Instancia.proforma_numeroid(_CODPROFORMA)
+
+                        //validar lo que se validaba en la ventana de aprobar proforma
+                        Dim dt As New DataTable
+                        Dim qry As String = ""
+                        Dim coddesextra As String = sia_funciones.Configuracion.Instancia.emp_coddesextra_x_deposito(sia_compartidos.temporales.Instancia.codempresa)
+
+                        qry = "select * from vedesextraprof where  coddesextra='" & coddesextra & "' and codproforma=(select codigo from veproforma where id='" & mi_idpf & "' and numeroid='" & mi_nroidpf & "')"
+                        dt.Clear()
+                        dt = sia_DAL.Datos.Instancia.ObtenerDataTable(qry)
+                        '//verificar si la proforma tiene descto por deposito
+                        If dt.Rows.Count > 0 Then
+                            If Not Me.Validar_Desctos_Por_Depositos_Solo_Al_Grabar(id.Text, numeroid.Text) Then
+                                If sia_funciones.Ventas.Instancia.Eliminar_Descuento_Deposito_De_Proforma(id.Text, numeroid.Text, Me.Name) Then
+                                    MessageBox.Show("Se verifico que la proforma fue grabada con montos de descuentos por deposito incorrectos, por lo que se procedio a eliminar los descuentos por deposito de la proforma; " & mi_idpf & "-" & mi_nroidpf, "Alerta", MessageBoxButtons.OK, MessageBoxIcon.Exclamation, MessageBoxDefaultButton.Button1)
+                                End If
+                            End If
+                        End If
+
+                        //Borrar del detalle los Ceros en cantidad
+                        For i As Integer = 0 To tabladetalle.Rows.Count - 1
+                            If i < tabladetalle.Rows.Count Then
+                                If tabladetalle.Rows(i)("cantidad") = 0 Then
+                                    tabladetalle.Rows(i).Delete()
+                                    i = i - 1
+                                End If
+                            End If
+                        Next
+
+                        //mostrar dialogo de imprimir
+                        Preguntar_Tipo_Impresion()
+
+                        limpiardoc()
+                        mostrardatos("0")
+                        leerparametros()
+                        ponerpordefecto()
+                        id.Focus()
+                         
+                         
+                         */
+
+
+                        dbContexTransaction.Commit();
+                        return Ok(new { resp = "Se Grabo la Proforma de manera Exitosa" });
+                    }
+                    catch (Exception)
+                    {
+                        dbContexTransaction.Rollback();
+                        return Problem("Error en el servidor");
+                        throw;
+                    }
+                }
+            }
+        }
+
+
+
+        private async Task<string> Grabar_Documento(DBContext _context, string idProf, string codempresa, SaveProformaCompleta datosProforma)
+        {
+            veproforma veproforma = datosProforma.veproforma;
+            List<veproforma1> veproforma1 = datosProforma.veproforma1;
+            List<veproforma_valida> veproforma_valida = datosProforma.veproforma_valida;
+            List<veproforma_anticipo> veproforma_anticipo = datosProforma.veproforma_anticipo;
+            List<vedesextraprof> vedesextraprof = datosProforma.vedesextraprof;
+            List<verecargoprof> verecargoprof = datosProforma.verecargoprof;
+            List<veproforma_iva> veproforma_iva = datosProforma.veproforma_iva;
+
             ////////////////////   GRABAR DOCUMENTO
 
-            int _ag = await empresa.AlmacenLocalEmpresa(userConnectionString, codempresa);
+            int _ag = await empresa.AlmacenLocalEmpresa(_context, codempresa);
             // verificar si valido el documento, si es tienda no es necesario que valide primero
-            if (!await almacen.Es_Tienda(userConnectionString,_ag))
+            if (!await almacen.Es_Tienda(_context, _ag))
             {
                 if (veproforma_valida.Count() < 1)
                 {
-                    return BadRequest(new { resp = "Antes de grabar el documento debe previamente validar el mismo!!!" });
+                    return "Antes de grabar el documento debe previamente validar el mismo!!!";
                 }
             }
 
@@ -1290,7 +1436,8 @@ namespace SIAW.Controllers.ventas.transaccion
                 Return False
             End If
 
-
+            //************************************************
+            //control implementado en fecha: 09-10-2020
 
             If Not Me.Validar_Saldos_Negativos(False) Then
                 If MessageBox.Show("La proforma genera saldos negativos, esta seguro de grabar la proforma???", "Validar Negativos", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1) = Windows.Forms.DialogResult.No Then
@@ -1301,21 +1448,20 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
             */
-
-
-
+            //************************************************
 
             //obtenemos numero actual de proforma de nuevo
-            int idnroactual = await datos_proforma.getNumActProd(userConnectionString, idProf);
+            int idnroactual = await datos_proforma.getNumActProd(_context, idProf);
 
             if (idnroactual == 0)
             {
-                return BadRequest(new { resp = "Error al obtener los datos de numero de proforma" });
+                return "Error al obtener los datos de numero de proforma";
             }
+
             // valida si existe ya la proforma
-            if (await datos_proforma.existeProforma(userConnectionString, idProf, idnroactual))
+            if (await datos_proforma.existeProforma(_context, idProf, idnroactual))
             {
-                return BadRequest(new { resp = "Ese numero de documento, ya existe, por favor consulte con el administrador del sistema." });
+                return "Ese numero de documento, ya existe, por favor consulte con el administrador del sistema.";
             }
 
             // obtener hora y fecha actual si es que la proforma no se importo
@@ -1325,79 +1471,98 @@ namespace SIAW.Controllers.ventas.transaccion
                 veproforma.hora_inicial = datos_proforma.getHoraActual();
             }
 
-            using (var _context = DbContextFactory.Create(userConnectionString))
+
+            // accion de guardar
+
+            // guarda cabecera (veproforma)
+            _context.veproforma.Add(veproforma);
+            await _context.SaveChangesAsync();
+
+            var codProforma = veproforma.codigo;
+
+            // guarda detalle (veproforma1)
+            _context.veproforma1.AddRange(veproforma1);
+            await _context.SaveChangesAsync();
+
+            // actualiza numero id
+            var numeracion = _context.venumeracion.FirstOrDefault(n => n.id == idProf);
+            numeracion.nroactual += 1;
+            await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
+
+            //======================================================================================
+            // grabar detalle de validacion
+            //======================================================================================
+
+            _context.veproforma_valida.AddRange(veproforma_valida);
+            await _context.SaveChangesAsync();
+
+            //======================================================================================
+            //grabar anticipos aplicados
+            //======================================================================================
+
+            var anticiposprevios = await _context.veproforma_anticipo.Where(i => i.codproforma == codProforma).ToListAsync();
+            if (anticiposprevios.Count() > 0)
             {
-                using (var dbContexTransaction = _context.Database.BeginTransaction())
-                {
-                    try
-                    {
-                        // guarda cabecera (veproforma)
-                        _context.veproforma.Add(veproforma);
-                        await _context.SaveChangesAsync();
-
-                        var codProforma = veproforma.codigo;
-
-                        // guarda detalle (veproforma1)
-                        _context.veproforma1.AddRange(veproforma1);
-                        await _context.SaveChangesAsync();
-
-                        // actualiza numero id
-                        var numeracion = _context.venumeracion.FirstOrDefault(n => n.id == idProf);
-                        numeracion.nroactual += 1;
-                        await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
-
-                        // guarda el detalle de validacion
-                        _context.veproforma_valida.AddRange(veproforma_valida);
-                        await _context.SaveChangesAsync();
-
-
-
-
-                        // grabar anticipos aplicados
-
-                        var anticiposprevios = await _context.veproforma_anticipo.Where(i => i.codproforma == codProforma).ToListAsync();
-                        if (anticiposprevios.Count()>0)
-                        {
-                            _context.veproforma_anticipo.RemoveRange(anticiposprevios);
-                            await _context.SaveChangesAsync();
-                        }
-
-                        _context.veproforma_anticipo.AddRange(veproforma_anticipo);
-                        await _context.SaveChangesAsync();
-
-
-
-
-                        // grabar descto por deposito si hay descuentos
-
-                        if (vedesextraprof.Count() > 0)
-                        {
-                            await grabardesextra(_context, codProforma, vedesextraprof);
-                        }
-
-                        // grabar recargo si hay recargos
-                        if (verecargoprof.Count > 0)
-                        {
-                            await grabarrecargo(_context, codProforma, verecargoprof);
-                        }
-
-                        // grabar iva
-
-                        await grabariva(_context, codProforma, veproforma_iva);
-
-
-                        dbContexTransaction.Commit();
-                        return Ok(new { resp = "Se Grabo la Proforma de manera Exitosa" });
-                    }
-                    catch (Exception)
-                    {
-                        dbContexTransaction.Rollback();
-                        return Problem("Error en el servidor");
-                        throw;
-                    }
-                }
+                _context.veproforma_anticipo.RemoveRange(anticiposprevios);
+                await _context.SaveChangesAsync();
             }
+
+            _context.veproforma_anticipo.AddRange(veproforma_anticipo);
+            await _context.SaveChangesAsync();
+
+
+            // grabar descto por deposito si hay descuentos
+
+            if (vedesextraprof.Count() > 0)
+            {
+                await grabardesextra(_context, codProforma, vedesextraprof);
+            }
+
+            // grabar recargo si hay recargos
+            if (verecargoprof.Count > 0)
+            {
+                await grabarrecargo(_context, codProforma, verecargoprof);
+            }
+
+            // grabar iva
+
+            await grabariva(_context, codProforma, veproforma_iva);
+
+
+            /*
+             
+            //grabar descto por deposito
+            If resultado Then
+                If sia_funciones.Ventas.Instancia.Grabar_Descuento_Por_deposito_Pendiente(codigo.Text, tabladescuentos, sia_compartidos.temporales.Instancia.codempresa, sia_compartidos.temporales.Instancia.usuario) Then
+                    resultado = True
+                Else
+                    resultado = False
+                End If
+            End If
+
+
+            //======================================================================================
+            //actualizar saldo restante de anticipos aplicados
+            //======================================================================================
+            If resultado Then
+                If resultado Then
+                    For i = 0 To dt_anticipo_pf.Rows.Count - 1
+                        'añadir detalle al documento
+                        If Not sia_funciones.Anticipos_Vta_Contado.Instancia.ActualizarMontoRestAnticipo(dt_anticipo_pf.Rows(i)("id_anticipo"), dt_anticipo_pf.Rows(i)("nroid_anticipo"), dt_anticipo_pf.Rows(i)("codproforma"), dt_anticipo_pf.Rows(i)("codanticipo"), dt_anticipo_pf.Rows(i)("monto")) Then
+                            resultado = False
+                        End If
+                    Next
+                End If
+            End If
+             
+             */
+
+
+            return "ok";
+
+
         }
+
 
         private async Task grabardesextra(DBContext _context, int codProf, List<vedesextraprof> vedesextraprof)
         {
@@ -1436,6 +1601,267 @@ namespace SIAW.Controllers.ventas.transaccion
             await _context.SaveChangesAsync();
         }
 
+
+        private async Task<string> RECALCULARPRECIOS(DBContext _context, string usuario, string codmoneda, DateTime fecha, int codtarifadefect, int codalmacen, string idsoldesctos, int nroidsoldesctos, string codcliente_real, bool reaplicar_desc_deposito, bool preguntar_si_aplicare_desc_deposito, bool desclinea_segun_solicitud, string cmbniveles_descuento, string codempresa, List<itemDataMatriz> tabla_detalle, List<verecargoprof> tablarecargos)
+        {
+            //aplicar desctos primavera 2022
+            //Aplicar_Descto_Primavera2022(False)
+
+            ////////////////////////////////////////////////////////////
+            //verificar los precios permitidos al usuario
+            string cadena_precios_no_autorizados_al_us = await validar_Vta.Validar_Precios_Permitidos_Usuario(_context, usuario, tabla_detalle);
+            if (cadena_precios_no_autorizados_al_us.Trim().Length > 0)
+            {
+                return "El documento tiene items a precio(s): " + cadena_precios_no_autorizados_al_us + " los cuales no estan asignados al usuario " + usuario + " verifique esta situacion!!!";
+            }
+            ////////////////////////////////////////////////////////////
+
+
+
+            ////////////////////////////////////////////////////////////
+            //validar si es con descuentos de linea de una solicitu previamente creada
+            
+            if (!desclinea_segun_solicitud)
+            {
+                //ojo aqui revisar
+                if (await ventas.Tarifa_Permite_Desctos_Linea(_context, codtarifadefect))
+                {
+
+                }
+                /*
+                 If codtarifadefect.Text.Trim.Length > 0 Then
+                    If sia_funciones.Ventas.Instancia.Tarifa_Permite_Desctos_Linea(codtarifadefect.Text) Then
+                        If cmbniveles_descuento.SelectedIndex < 0 Then
+                            MessageBox.Show("Debe definir si los descuentos de nivel a utilizar seran los actuales o los anteriores!!", "Validar", MessageBoxButtons.OK, MessageBoxIcon.Exclamation, MessageBoxDefaultButton.Button1)
+                            cmbniveles_descuento.Focus()
+                            TabControl1.SelectTab(2)
+                            Exit Sub
+                        End If
+                    End If
+                End If
+                 */
+            }
+
+            //verificar si la solicitud de descuentos de linea existe
+            if (desclinea_segun_solicitud)
+            {
+                if (! await ventas.Existe_Solicitud_Descuento_Nivel(_context, idsoldesctos, nroidsoldesctos))
+                {
+                    return "Ha elegido utilizar la solicitud de descuentos de nivel: " + idsoldesctos + "-" + nroidsoldesctos + " para aplicar descuentos de linea, pero la solicitud indicada no existe!!!";
+                }
+                if (codcliente_real != await ventas.Cliente_Solicitud_Descuento_Nivel(_context,idsoldesctos,nroidsoldesctos))
+                {
+                    return "La solicitud de descuentos de nivel: " + idsoldesctos + "-" + nroidsoldesctos + " a la que hace referencia no pertenece al mismo cliente de esta proforma!!!";
+                }
+            }
+
+            /*
+             codmoneda.Text = Trim(codmoneda.Text)
+
+            If Trim(codmoneda.Text) = "" Then
+                codmoneda.Text = sia_funciones.Empresa.Instancia.monedabase(sia_compartidos.temporales.Instancia.codempresa)
+                tdc.Text = "1"
+            Else
+                tdc.Text = sia_funciones.TipoCambio.Instancia.tipocambio(sia_funciones.Empresa.Instancia.monedabase(sia_compartidos.temporales.Instancia.codempresa), codmoneda.Text, fecha.Value.Date)
+            End If
+             */
+            foreach (var reg in tabla_detalle)
+            {
+                reg.cantidad = (float)Math.Round(reg.cantidad, 2, MidpointRounding.AwayFromZero);
+                //***************************************************
+                ////aqui se verifica si los decuentos de nivel se calculan con solicitud directo o lo que esta cargado en sus desctos del cliente
+                if (desclinea_segun_solicitud)
+                {
+                    if (idsoldesctos.Trim().Length == 0 || nroidsoldesctos.ToString().Length == 0)
+                    {
+                        //si la proforma es con descuentos de nivel de una solicitud entonces se recupera de la solicitud los descuentos
+                        reg.niveldesc = "X";
+                        reg.porcendesc = 0;
+                    }
+                    else
+                    {
+                        //si la proforma es con descuentos de nivel de una solicitud entonces se recupera de la solicitud los descuentos
+                        reg.niveldesc = await cliente.niveldesccliente_segun_solicitud(_context, idsoldesctos, nroidsoldesctos, codcliente_real, reg.coditem, reg.codtarifa);
+                        reg.porcendesc = (float)await cliente.porcen_desccliente_segun_solicitud(_context, idsoldesctos, nroidsoldesctos, codcliente_real, reg.coditem, reg.codtarifa);
+                    }
+                }
+                else
+                {
+                    reg.niveldesc = await cliente.niveldesccliente(_context,codcliente_real,reg.coditem,reg.codtarifa, cmbniveles_descuento, false);
+                    reg.porcendesc = (float)await cliente.porcendesccliente(_context, codcliente_real, reg.coditem, reg.codtarifa, cmbniveles_descuento, false);
+
+                }
+
+                //***************************************************
+
+                /*
+                 If codalmacen.Text.Trim = "" Then
+                    tabladetalle.Rows(i)("porcen_mercaderia") = 0.0
+                Else
+                    Try
+
+                        '///////////////////////////////////////////////////////////////////////
+                        '//verificar si el item esta en los que no reservan saldos
+                        '///////////////////////////////////////////////////////////////////////
+
+                        'tabladetalle.Rows(i)("porcen_mercaderia") = 0.0
+
+                        'Dim FACTOR_RESERVA_SALDO As Integer = 0
+                        'If sia_funciones.Inventario.Instancia.Item_No_Reserva_Saldo(CStr(tabladetalle.Rows(i)("coditem"))) Then
+                        '    FACTOR_RESERVA_SALDO = 0
+                        'Else
+                        '    FACTOR_RESERVA_SALDO = 1
+                        'End If
+
+                        'If Me.Usar_Bd_Opcional Then
+                        '    If sia_funciones.Empresa.Instancia.ControlarStockSeguridad(sia_compartidos.temporales.Instancia.codempresa) Then
+                        '        tabladetalle.Rows(i)("porcen_mercaderia") = FACTOR_RESERVA_SALDO * ((CDbl(tabladetalle.Rows(i)("cantidad")) * 100) / sia_funciones.Saldos.Instancia.SaldoItem_CrtlStock_Para_Ventas(CStr(tabladetalle.Rows(i)("coditem")), sia_funciones.Configuracion.Instancia.usr_codalmacen_saldo_1(sia_compartidos.temporales.Instancia.usuario), True, "", 0, True))
+                        '    Else
+                        '        tabladetalle.Rows(i)("porcen_mercaderia") = FACTOR_RESERVA_SALDO * ((CDbl(tabladetalle.Rows(i)("cantidad")) * 100) / sia_funciones.Saldos.Instancia.SaldoItem_CrtlStock_Para_Ventas(CStr(tabladetalle.Rows(i)("coditem")), sia_funciones.Configuracion.Instancia.usr_codalmacen_saldo_1(sia_compartidos.temporales.Instancia.usuario), False, "", 0, True))
+                        '    End If
+                        'Else
+                        '    If sia_funciones.Empresa.Instancia.ControlarStockSeguridad(sia_compartidos.temporales.Instancia.codempresa) Then
+                        '        tabladetalle.Rows(i)("porcen_mercaderia") = FACTOR_RESERVA_SALDO * ((CDbl(tabladetalle.Rows(i)("cantidad")) * 100) / sia_funciones.Saldos.Instancia.SaldoItem_CrtlStock_Para_Ventas(CStr(tabladetalle.Rows(i)("coditem")), CInt(codalmacen.Text), True, "", 0, True))
+                        '    Else
+                        '        tabladetalle.Rows(i)("porcen_mercaderia") = FACTOR_RESERVA_SALDO * ((CDbl(tabladetalle.Rows(i)("cantidad")) * 100) / sia_funciones.Saldos.Instancia.SaldoItem_CrtlStock_para_ventas(CStr(tabladetalle.Rows(i)("coditem")), CInt(codalmacen.Text), False,"",0,true))
+                        '    End If
+                        'End If
+
+                    Catch ex As Exception
+                        tabladetalle.Rows(i)("porcen_mercaderia") = 0.0
+                    End Try
+                End If
+                 */
+
+                //CALCULO DEL PRECIO FINAL CON DESCUENTO DE LINEA
+                if (reg.codtarifa > 0)
+                {
+                    string monBase = await ventas.monedabasetarifa(_context, reg.codtarifa);
+
+                    reg.preciolista = (float)await tipocambio._conversion(_context, codmoneda, monBase, fecha, (decimal)await ventas.preciodelistaitem(_context, reg.codtarifa, reg.coditem));
+                    // redondear a 5 decimales
+                    var precio_lista = reg.preciolista;
+                    precio_lista = (float)await siat.Redondeo_Decimales_SIA_5_decimales_SQL(precio_lista);
+                    reg.preciolista = precio_lista;
+
+                    // si hay descuento
+                    reg.preciodesc = tipocambio._conversion(_context, codmoneda, monBase, fecha, await ventas.preciocliente(_context, codcliente_real, codalmacen, reg.codtarifa, reg.coditem, (desclinea_segun_solicitud == true) ? "SI" : "NO", reg.niveldesc, cmbniveles_descuento));
+                    reg.precioneto = tipocambio._conversion(_context, codmoneda, monBase, fecha, await ventas.preciocondescitem(_context, codcliente_real, codalmacen, reg.codtarifa, reg.coditem, reg.coddescuento, (desclinea_segun_solicitud == true) ? "SI" : "NO", reg.niveldesc, cmbniveles_descuento));
+
+                    // redondear a 5 decimales
+                    var preciodesc = reg.preciodesc;
+                    preciodesc = (float)await siat.Redondeo_Decimales_SIA_5_decimales_SQL(preciodesc);
+                    reg.preciodesc = preciodesc;
+
+                    // redondear a 5 decimales
+                    var precioneto = reg.precioneto;
+                    precioneto = (float)await siat.Redondeo_Decimales_SIA_5_decimales_SQL(precioneto);
+                    reg.precioneto = precioneto;
+
+                    if (reg.cantidad > 0)
+                    {
+                        reg.total = reg.cantidad * reg.precioneto;
+                        // redondear a 5 decimales
+                        var total_item = reg.total;
+                        total_item = (float)await siat.Redondeo_Decimales_SIA_5_decimales_SQL(total_item);
+                        reg.total = total_item;
+                    }
+                    else
+                    {
+                        reg.total = 0;
+                    }
+
+                }
+                else
+                {
+                    reg.preciolista = 0;
+                    reg.preciodesc = 0;
+                    reg.precioneto = 0;
+                    reg.total = 0;
+                }
+
+            }
+            var result = await versubtotal(_context,tabla_detalle);
+            float subtotal = result.st;
+            float peso = result.peso;
+            if (reaplicar_desc_deposito)
+            {
+                // Revisar_Aplicar_Descto_Deposito(preguntar_si_aplicare_desc_deposito);
+            }
+
+            var recargo = await verrecargos(_context,codempresa, codmoneda, fecha, subtotal, tablarecargos);
+            verdesextra();
+            //vertotal();
+
+        }
+
+
+        private async Task<(float st, float peso)> versubtotal(DBContext _context, List<itemDataMatriz> tabla_detalle)
+        {
+            // filtro de codigos de items
+            tabla_detalle = tabla_detalle.Where(item => item.coditem != null && item.coditem.Length >= 8).ToList();
+            // calculo subtotal
+            float peso = 0;
+            float st = 0;
+
+            foreach (var reg in tabla_detalle)
+            {
+                st = st + reg.total;
+                peso = (float)(peso + (await items.itempeso(_context, reg.coditem)) * reg.cantidad);
+            }
+
+            // desde 08/01/2023 redondear el resultado a dos decimales con el SQLServer
+            // REVISAR SI HAY OTRO MODO NO DA CON LINQ.
+            st = (float)await siat.Redondeo_Decimales_SIA_5_decimales_SQL(st);
+            return (st, peso);
+        }
+
+        private async Task<float> verrecargos(DBContext _context, string codempresa, string codmoneda,DateTime fecha, float subtotal, List<verecargoprof> tablarecargos)
+        {
+            int codrecargo_pedido_urg_provincia = await configuracion.emp_codrecargo_pedido_urgente_provincia(_context, codempresa);
+            //TOTALIZAR LOS RECARGOS QUE NO SON POR PEDIDO URG PROVINCIAS (los que se aplican al total final)
+            float total = 0;
+            foreach (var reg in tablarecargos)
+            {
+                string tipo = await ventas.Tipo_Recargo(_context, reg.codrecargo);
+                if (reg.codrecargo != codrecargo_pedido_urg_provincia)
+                {
+                    if (tipo == "MONTO")
+                    {
+                        //si el recargo se aplica directo en MONTO
+                        reg.montodoc = await tipocambio._conversion(_context, codmoneda, reg.moneda, fecha, reg.monto);
+                    }
+                    else
+                    {
+                        //si el recargo se aplica directo en %
+                        reg.montodoc = (decimal)subtotal / 100 * reg.porcen;
+                    }
+                    reg.montodoc = Math.Round(reg.montodoc, 2);
+                    total = total + (float) reg.montodoc;
+                }
+            }
+            return total;
+
+        }
+        private async Task<float> verdesextra(DBContext _context, string codempresa, List<vedesextraprof> tabladescuentos)
+        {
+            int coddesextra_depositos = await configuracion.emp_coddesextra_x_deposito(_context, codempresa);
+            tabladescuentos = await ventas.Ordenar_Descuentos_Extra(_context, tabladescuentos);
+            //calcular el monto  de descuento segun el porcentaje
+            ////////////////////////////////////////////////////////////////////////////////
+            //primero calcular los montos de los que se aplican en el detalle o son
+            //diferenciados por item
+            ////////////////////////////////////////////////////////////////////////////////
+            foreach (var reg in tabladescuentos)
+            {
+                //verifica si el descuento es diferenciado por item
+                if (true)
+                {
+
+                }
+            }
+
+        }
 
     }
 }

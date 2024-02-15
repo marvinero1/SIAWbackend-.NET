@@ -15,6 +15,7 @@ namespace siaw_funciones
 {
     public class Validar_Vta
     {
+        Ventas ventas = new Ventas();
         //Clase necesaria para el uso del DBContext del proyecto siaw_Context
         public static class DbContextFactory
         {
@@ -572,6 +573,25 @@ namespace siaw_funciones
             }
 
             return objres;
+        }
+
+        public async Task<string> Validar_Precios_Permitidos_Usuario(DBContext _context,string usuario, List<itemDataMatriz> tabladetalle)
+        {
+            string cadena_precios_no_autorizados_al_us = "";
+            List<int> lista_precios = new List<int>();
+            foreach (var reg in tabladetalle)
+            {
+                if (! await ventas.UsuarioTarifa_Permitido(_context, usuario, reg.codtarifa))
+                {
+                    //arma cadena de precios no permitidos
+                    if (!lista_precios.Contains(reg.codtarifa))
+                    {
+                        lista_precios.Add(reg.codtarifa);
+                    }
+                    cadena_precios_no_autorizados_al_us = cadena_precios_no_autorizados_al_us + reg.codtarifa + ", ";
+                }
+            }
+            return cadena_precios_no_autorizados_al_us;
         }
     }
 }

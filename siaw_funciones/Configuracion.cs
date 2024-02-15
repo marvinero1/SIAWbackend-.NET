@@ -23,5 +23,17 @@ namespace siaw_funciones
             }
             return (int)result;
         }
+        public async Task<int> emp_codrecargo_pedido_urgente_provincia(DBContext _context, string codempresa)
+        {
+            var result = await _context.adparametros
+                .Where(v => v.codempresa == codempresa)
+                .Select(parametro => parametro.codrecargo_pedido_urgente_provincia)
+                .FirstOrDefaultAsync();
+            if (result == null)
+            {
+                return 0;
+            }
+            return (int)result;
+        }
     }
 }

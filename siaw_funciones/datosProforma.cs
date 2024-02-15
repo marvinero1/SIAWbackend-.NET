@@ -21,31 +21,25 @@ namespace siaw_funciones
                 return new DBContext(optionsBuilder.Options);
             }
         }
-        public async Task<int> getNumActProd(string userConnectionString, string id)
+        public async Task<int> getNumActProd(DBContext _context, string id)
         {
-            using (var _context = DbContextFactory.Create(userConnectionString))
-            {
-                var nroactual = await _context.venumeracion
+            var nroactual = await _context.venumeracion
                     .Where(item => item.id == id)
                     .Select(item => item.nroactual)
                     .FirstOrDefaultAsync();
 
-                return (nroactual + 1);
-            }
+            return (nroactual + 1);
         }
 
-        public async Task<bool> existeProforma(string userConnectionString, string id, int numId)
+        public async Task<bool> existeProforma(DBContext _context, string id, int numId)
         {
-            using (var _context = DbContextFactory.Create(userConnectionString))
-            {
-                var count = await _context.veproforma
+            var count = await _context.veproforma
                     .CountAsync(p => p.id == id && p.numeroid == numId);
-                if (count > 0)
-                {
-                    return true;
-                }
-                return false;
+            if (count > 0)
+            {
+                return true;
             }
+            return false;
         }
 
         public async Task<int> ultimoCodProf(string userConnectionString)

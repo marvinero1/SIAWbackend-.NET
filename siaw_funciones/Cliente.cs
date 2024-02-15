@@ -1,4 +1,6 @@
 ﻿using MessagePack;
+using Microsoft.Build.Framework;
+using Microsoft.CodeAnalysis;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Internal;
@@ -26,7 +28,7 @@ namespace siaw_funciones
         // ///////////////////////////////////////////////////////////////////////////////
         // Esta funcion devuelve el nivel de dscuentos de un cliente segun un item
         // ///////////////////////////////////////////////////////////////////////////////
-        public async Task<string> niveldesccliente(string userConnectionString, string codcliente, string coditem, int codtarifa, string opcion_nivel, bool opcional = false)
+        public async Task<string> niveldesccliente(DBContext _context, string codcliente, string coditem, int codtarifa, string opcion_nivel, bool opcional = false)
         {
             string resultado;
             string columna_nivel = "";
@@ -40,29 +42,22 @@ namespace siaw_funciones
             {
                 //obtener el desitem del precio
                 bool desitem = false;
-                using (var _context = DbContextFactory.Create(userConnectionString))
-                {
-                    var result = await _context.intarifa
+                var result = await _context.intarifa
                         .Where(v => v.codigo == codtarifa)
                         .Select(parametro => new
                         {
                             parametro.desitem
                         })
                         .FirstOrDefaultAsync();
-                    if (result != null)
-                    {
-                        desitem = result.desitem;
-                    }
-
+                if (result != null)
+                {
+                    desitem = result.desitem;
                 }
-
                 if (desitem == true)
                 {
                     //obtener el desitem del precio
 
-                    using (var _context = DbContextFactory.Create(userConnectionString))
-                    {
-                        var result = await _context.vedescliente
+                    var result1 = await _context.vedescliente
                             .Where(v => v.cliente == codcliente && v.coditem == coditem)
                             .Select(parametro => new
                             {
@@ -70,18 +65,16 @@ namespace siaw_funciones
                                 parametro.nivel_anterior,
                             })
                             .FirstOrDefaultAsync();
-                        if (result != null)
+                    if (result1 != null)
+                    {
+                        if (opcion_nivel == "ANTERIOR")
                         {
-                            if (opcion_nivel == "ANTERIOR")
-                            {
-                                nivel = result.nivel_anterior;
-                            }
-                            else
-                            {
-                                nivel = result.nivel;
-                            }
+                            nivel = result1.nivel_anterior;
                         }
-
+                        else
+                        {
+                            nivel = result1.nivel;
+                        }
                     }
                 }
                 else
@@ -93,7 +86,7 @@ namespace siaw_funciones
             resultado = nivel;
             return resultado;
         }
-        public async Task<decimal> porcendesccliente(string userConnectionString, string codcliente, string coditem, int codtarifa, string opcion_nivel, bool opcional = false)
+        public async Task<decimal> porcendesccliente(DBContext _context, string codcliente, string coditem, int codtarifa, string opcion_nivel, bool opcional = false)
         {
             decimal resultado;
             string columna_nivel = "";
@@ -107,58 +100,51 @@ namespace siaw_funciones
             {
                 //obtener el desitem del precio
                 bool desitem = false;
-                using (var _context = DbContextFactory.Create(userConnectionString))
-                {
-                    var result = await _context.intarifa
+                var result = await _context.intarifa
                         .Where(v => v.codigo == codtarifa)
                         .Select(parametro => new
                         {
                             parametro.desitem
                         })
                         .FirstOrDefaultAsync();
-                    if (result != null)
-                    {
-                        desitem = result.desitem;
-                    }
-
+                if (result != null)
+                {
+                    desitem = result.desitem;
                 }
 
                 if (desitem == true)
                 {
                     //obtener el porcentaje del descuento de nivel
 
-                    using (var _context = DbContextFactory.Create(userConnectionString))
+                    if (opcion_nivel == "ANTERIOR")
                     {
-                        if (opcion_nivel == "ANTERIOR")
-                        {
-                            var descuento = await _context.vedescliente
-                        .Join(_context.vedesitem, c => c.coditem, d => d.coditem, (c, d) => new { c, d })
-                        .Join(_context.vecliente, cd => cd.c.cliente, l => l.codigo, (cd, l) => new { cd, l })
-                        .Join(_context.vevendedor, cdl => cdl.l.codvendedor, v => v.codigo, (cdl, v) => new { cdl, v })
-                        .Where(result => result.cdl.cd.c.cliente == codcliente
-                        && result.cdl.cd.d.coditem == coditem
-                        && result.cdl.cd.c.nivel_anterior == result.cdl.cd.d.nivel
-                        && result.v.almacen == result.cdl.cd.d.codalmacen)
-                        .Select(result => result.cdl.cd.d.descuento)
-                            .FirstOrDefaultAsync();
+                        var descuento = await _context.vedescliente
+                    .Join(_context.vedesitem, c => c.coditem, d => d.coditem, (c, d) => new { c, d })
+                    .Join(_context.vecliente, cd => cd.c.cliente, l => l.codigo, (cd, l) => new { cd, l })
+                    .Join(_context.vevendedor, cdl => cdl.l.codvendedor, v => v.codigo, (cdl, v) => new { cdl, v })
+                    .Where(result => result.cdl.cd.c.cliente == codcliente
+                    && result.cdl.cd.d.coditem == coditem
+                    && result.cdl.cd.c.nivel_anterior == result.cdl.cd.d.nivel
+                    && result.v.almacen == result.cdl.cd.d.codalmacen)
+                    .Select(result => result.cdl.cd.d.descuento)
+                        .FirstOrDefaultAsync();
 
-                            porcentaje = descuento;
-                        }
-                        else
-                        {
-                            var descuento = await _context.vedescliente
-                        .Join(_context.vedesitem, c => c.coditem, d => d.coditem, (c, d) => new { c, d })
-                        .Join(_context.vecliente, cd => cd.c.cliente, l => l.codigo, (cd, l) => new { cd, l })
-                        .Join(_context.vevendedor, cdl => cdl.l.codvendedor, v => v.codigo, (cdl, v) => new { cdl, v })
-                        .Where(result => result.cdl.cd.c.cliente == codcliente
-                        && result.cdl.cd.d.coditem == coditem
-                        && result.cdl.cd.c.nivel == result.cdl.cd.d.nivel
-                        && result.v.almacen == result.cdl.cd.d.codalmacen)
-                        .Select(result => result.cdl.cd.d.descuento)
-                            .FirstOrDefaultAsync();
+                        porcentaje = descuento;
+                    }
+                    else
+                    {
+                        var descuento = await _context.vedescliente
+                    .Join(_context.vedesitem, c => c.coditem, d => d.coditem, (c, d) => new { c, d })
+                    .Join(_context.vecliente, cd => cd.c.cliente, l => l.codigo, (cd, l) => new { cd, l })
+                    .Join(_context.vevendedor, cdl => cdl.l.codvendedor, v => v.codigo, (cdl, v) => new { cdl, v })
+                    .Where(result => result.cdl.cd.c.cliente == codcliente
+                    && result.cdl.cd.d.coditem == coditem
+                    && result.cdl.cd.c.nivel == result.cdl.cd.d.nivel
+                    && result.v.almacen == result.cdl.cd.d.codalmacen)
+                    .Select(result => result.cdl.cd.d.descuento)
+                        .FirstOrDefaultAsync();
 
-                            porcentaje = descuento;
-                        }
+                        porcentaje = descuento;
                     }
                 }
                 else
@@ -346,15 +332,16 @@ namespace siaw_funciones
             try
             {
                 bool resultado = false;
-                string codcliente_seg_nit = await Cliente_Segun_Nit(userConnectionString, nit_cliente);
-                string cadena_nit = nit_cliente;
-                //1ro del nit saco su cod cliente
-                string maincode = await CodigoPrincipal(userConnectionString, codcliente_seg_nit);
-                //2do veo todos los codigos iguales
-                string samecode = await CodigosIguales(userConnectionString, maincode);
+                
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
+                    string codcliente_seg_nit = await Cliente_Segun_Nit(_context, nit_cliente);
+                    string cadena_nit = nit_cliente;
+                    //1ro del nit saco su cod cliente
+                    string maincode = await CodigoPrincipal(userConnectionString, codcliente_seg_nit);
+                    //2do veo todos los codigos iguales
+                    string samecode = await CodigosIguales(userConnectionString, maincode);
                     var cadena_nits = await _context.vecliente
                                      .Where(v => samecode.Contains(v.codigo))
                                      .Select(v => v.nit)
@@ -395,35 +382,32 @@ namespace siaw_funciones
             }
 
         }
-        public async Task<string> Cliente_Segun_Nit(string userConnectionString, string nit)
+        public async Task<string> Cliente_Segun_Nit(DBContext _context, string nit)
         {
             try
             {
                 string resultado = "";
                 var regex = new Regex(@"^\d+$"); // Expresión regular para verificar si la cadena contiene solo dígitos
-                using (var _context = DbContextFactory.Create(userConnectionString))
-                {
-                    var result = await _context.vecliente
+                var result = await _context.vecliente
                     .Where(cliente => cliente.nit == nit.Trim())
                     .ToListAsync(); // Cargar datos en memoria
 
-                    var filteredResult = result
-                        .Where(cliente => regex.IsMatch(cliente.codigo))
-                        .OrderBy(cliente => cliente.codigo)
-                        .Select(cliente => new vecliente
-                        {
-                            codigo = cliente.codigo,
-                            razonsocial = cliente.razonsocial,
-                            nit = cliente.nit
-                        })
-                        .FirstOrDefault();
-
-                    if (filteredResult != null)
+                var filteredResult = result
+                    .Where(cliente => regex.IsMatch(cliente.codigo))
+                    .OrderBy(cliente => cliente.codigo)
+                    .Select(cliente => new vecliente
                     {
-                        resultado = filteredResult.codigo;
-                    }
-                    return resultado;
+                        codigo = cliente.codigo,
+                        razonsocial = cliente.razonsocial,
+                        nit = cliente.nit
+                    })
+                    .FirstOrDefault();
+
+                if (filteredResult != null)
+                {
+                    resultado = filteredResult.codigo;
                 }
+                return resultado;
             }
             catch (Exception)
             {
@@ -494,24 +478,21 @@ namespace siaw_funciones
         }
 
 
-        public async Task<string> CodigoPrincipal(string userConnectionString, string codcliente)
+        public async Task<string> CodigoPrincipal(DBContext _context, string codcliente)
         {
             try
             {
                 string resultado = "";
-                using (var _context = DbContextFactory.Create(userConnectionString))
-                {
-                    var result = await _context.veclientesiguales
+                var result = await _context.veclientesiguales
                         .Where(cliente => cliente.codcliente_b == codcliente.Trim())
                         .OrderBy(cliente => cliente.codcliente_a)
                         .Select(cliente => cliente.codcliente_a)
                        .FirstOrDefaultAsync();
-                    if (result != null)
-                    {
-                        resultado = result;
-                    }
-                    return resultado;
+                if (result != null)
+                {
+                    resultado = result;
                 }
+                return resultado;
             }
             catch (Exception)
             {
@@ -678,6 +659,101 @@ namespace siaw_funciones
                     }
                 }
             }
+        }
+
+        public async Task<string> niveldesccliente_segun_solicitud(DBContext _context, string idsolicitud, int nroidsolicitud, string codcliente, string coditem, int codtarifa)
+        {
+            if (codcliente.Trim() == "")
+            {
+                return "X";
+            }
+            var tabla = await _context.intarifa.Where(i=> i.codigo==codtarifa).FirstOrDefaultAsync();
+            if (tabla!= null)
+            {
+                if (tabla.desitem)
+                {
+                    var resultado = await _context.vesoldsctos
+                    .Join(_context.vesoldsctos1, p1 => p1.codigo, p2 => p2.codsoldsctos, (p1, p2) => new { p1, p2 })
+                    .Join(_context.inlinea, p => p.p2.codgrupo, p3 => p3.codgrupo, (p, p3) => new { p.p1, p.p2, p3 })
+                    .Join(_context.initem, p => p.p3.codigo, p4 => p4.codlinea, (p, p4) => new { p.p1, p.p2, p.p3, p4 })
+                    .Join(_context.vedesitem, p => p.p4.codigo, p5 => p5.coditem, (p, p5) => new { p.p1, p.p2, p.p3, p.p4, p5 })
+                    .Where(result => result.p5.nivel == result.p2.nivsol &&
+                                    result.p1.id == idsolicitud &&
+                                    result.p1.numeroid == nroidsolicitud &&
+                                    result.p4.codigo == coditem &&
+                                    result.p1.codcliente == codcliente)
+                    .Select(result => new
+                    {
+                        id = result.p1.id,
+                        numeroid = result.p1.numeroid,
+                        codcliente = result.p1.codcliente,
+                        codgrupo = result.p2.codgrupo,
+                        coditem = result.p4.codigo,
+                        nivsol = result.p2.nivsol,
+                        descuento = result.p5.descuento
+                    })
+                    .FirstOrDefaultAsync();
+
+                    if (resultado != null)
+                    {
+                        return resultado.nivsol;
+                    }
+                    //return "X";
+                }
+                //return "X";
+            }
+            return "X";
+        }
+
+        public async Task<double> porcen_desccliente_segun_solicitud(DBContext _context, string idsolicitud, int nroidsolicitud, string codcliente, string coditem, int codtarifa)
+        {
+            if (codcliente.Trim() == "")
+            {
+                return 0;
+            }
+            var tabla = await _context.intarifa.Where(i => i.codigo == codtarifa).FirstOrDefaultAsync();
+            if (tabla != null)
+            {
+                if (tabla.desitem)
+                {
+                    var resultado = await _context.vesoldsctos
+                    .Join(_context.vesoldsctos1, p1 => p1.codigo, p2 => p2.codsoldsctos, (p1, p2) => new { p1, p2 })
+                    .Join(_context.inlinea, p => p.p2.codgrupo, p3 => p3.codgrupo, (p, p3) => new { p.p1, p.p2, p3 })
+                    .Join(_context.initem, p => p.p3.codigo, p4 => p4.codlinea, (p, p4) => new { p.p1, p.p2, p.p3, p4 })
+                    .Join(_context.vedesitem, p => p.p4.codigo, p5 => p5.coditem, (p, p5) => new { p.p1, p.p2, p.p3, p.p4, p5 })
+                    .Where(result => result.p5.nivel == result.p2.nivsol &&
+                                    result.p1.id == idsolicitud &&
+                                    result.p1.numeroid == nroidsolicitud &&
+                                    result.p4.codigo == coditem &&
+                                    result.p1.codcliente == codcliente)
+                    .Select(result => new
+                    {
+                        id = result.p1.id,
+                        numeroid = result.p1.numeroid,
+                        codcliente = result.p1.codcliente,
+                        codgrupo = result.p2.codgrupo,
+                        coditem = result.p4.codigo,
+                        nivsol = result.p2.nivsol,
+                        descuento = result.p5.descuento
+                    })
+                    .FirstOrDefaultAsync();
+
+                    if (resultado != null)
+                    {
+                        return (double)resultado.descuento;
+                    }
+                    //return 0;
+                }
+                //return 0;
+            }
+            return 0;
+        }
+
+        public async Task<bool> Es_Cliente_Competencia(DBContext _context, string nit_cliente)
+        {
+            string codcliente_seg_nit = await Cliente_Segun_Nit(_context, nit_cliente);
+            //1ro del nit saco su cod cliente
+
         }
     }
 }

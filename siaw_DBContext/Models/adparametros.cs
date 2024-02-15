@@ -249,5 +249,6 @@ namespace siaw_DBContext.Models
         public int? codarea_empaque { get; set; }
         public bool? obtener_cantidades_aprobadas_de_proformas { get; set; }
         public bool? crm_ta_proximos_vencimientos { get; set; }
+        public int? codrecargo_pedido_urgente_provincia { get; set; }
     }
 }

@@ -51,17 +51,14 @@ namespace siaw_funciones
             }
         }
 
-        public async Task<int> AlmacenLocalEmpresa(string userConnectionString, string codigoempresa)
+        public async Task<int> AlmacenLocalEmpresa(DBContext _context, string codigoempresa)
         {
-            using (var _context = DbContextFactory.Create(userConnectionString))
-            {
-                //precio unitario del item
-                int codalmacen = (int)await _context.adempresa
-                    .Where(i => i.codigo == codigoempresa)
-                    .Select(i => i.codalmacen)
-                    .FirstOrDefaultAsync();
-                return codalmacen;
-            }
+            //precio unitario del item
+            int codalmacen = (int)await _context.adempresa
+                .Where(i => i.codigo == codigoempresa)
+                .Select(i => i.codalmacen)
+                .FirstOrDefaultAsync();
+            return codalmacen;
         }
     }
 }

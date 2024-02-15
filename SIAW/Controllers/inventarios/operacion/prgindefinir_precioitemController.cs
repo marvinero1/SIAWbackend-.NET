@@ -28,10 +28,11 @@ namespace SIAW.Controllers.inventarios.operacion
             {
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-                string monedaBase = await ventas.monedabasetarifa(userConnectionString, codtarifa);
+                
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
+                    string monedaBase = await ventas.monedabasetarifa(_context, codtarifa);
                     var result = await _context.intarifa1
                     .Where(i => i.item == item && i.codtarifa == codtarifa)
                     .Select(i => new

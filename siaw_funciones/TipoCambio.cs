@@ -215,5 +215,9 @@ namespace siaw_funciones
             return resultado;
         }
 
+        public float _conversion(DBContext context, string codmoneda, string monBase, DateTime fecha, float v)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
