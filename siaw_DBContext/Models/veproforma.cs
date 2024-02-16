@@ -72,5 +72,10 @@ namespace siaw_DBContext.Models
         public int? tipo_docid { get; set; }
         public string email { get; set; }
         public int? tipo_complementopf { get; set; }
+        public bool? confirmada { get; set; }
+        public DateTime? fecha_confirmada { get; set; }
+        public string hora_confirmada { get; set; }
+        public string latitud_entrega { get; set; }
+        public string longitud_entrega { get; set; }
     }
 }

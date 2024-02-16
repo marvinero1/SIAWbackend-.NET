@@ -9,13 +9,23 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using siaw_funciones;
+using static siaw_funciones.Validar_Vta;
 //using static siaw_funciones.Validar_Vta;
 
 namespace siaw_funciones
 {
-    public class Validar_Vta
+    public interface IValidarVta
     {
+        Task<List<Controles>> DocumentoValido(string userConnectionString, string cadena_control, string tipodoc, string opcion_validar, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos, List<vedetalleEtiqueta> dt_etiqueta, List<vedetalleanticipoProforma> dt_anticipo_pf, List<verecargosDatos> tablarecargos);
+        Task<string> Validar_Precios_Permitidos_Usuario(DBContext _context, string usuario, List<itemDataMatriz> tabladetalle);
+    }
+    public class Validar_Vta: IValidarVta
+    {
+        public Validar_Vta() { }
+
         Ventas ventas = new Ventas();
+        //private readonly siaw_funciones.IVentas ventas;
+       
         //Clase necesaria para el uso del DBContext del proyecto siaw_Context
         public static class DbContextFactory
         {
@@ -223,20 +233,20 @@ namespace siaw_funciones
                     control.Accion = Acciones_Validar.Ninguna.ToString();
                     Dtnocumplen dtnocumplen = new Dtnocumplen();
                     Dtnegativos dtnegativos = new Dtnegativos();
-                    Control_Valido(userConnectionString, control, DVTA, tabladetalle, tabladescuentos, dt_etiqueta, dt_anticipo_pf, tablarecargos, dtnocumplen, dtnegativos);
+                    Control_Valido(_context, control, DVTA, tabladetalle, tabladescuentos, dt_etiqueta, dt_anticipo_pf, tablarecargos, dtnocumplen, dtnegativos);
                 }
                 resultados = controles_final;
             }
             return resultados;
         }
-        public void Control_Valido(string userConnectionString, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos, List<vedetalleEtiqueta> dt_etiqueta, List<vedetalleanticipoProforma> dt_anticipo_pf, List<verecargosDatos> tablarecargos, Dtnocumplen dtnocumplenm, Dtnegativos dtnegativos)
+        public void Control_Valido(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos, List<vedetalleEtiqueta> dt_etiqueta, List<vedetalleanticipoProforma> dt_anticipo_pf, List<verecargosDatos> tablarecargos, Dtnocumplen dtnocumplenm, Dtnegativos dtnegativos)
         {
             string _codcontrol = regcontrol.CodControl;
             string _desccontrol = regcontrol.Descripcion;
             switch (_codcontrol)
             {
                 case "00001":
-                    _ = Control_Valido_C00001Async(userConnectionString, regcontrol, DVTA);
+                    _ = Control_Valido_C00001Async(_context, regcontrol, DVTA);
                     break;
                 case "00002":
                     // Control_Valido_C00002(regcontrol, DVTA);
@@ -522,7 +532,7 @@ namespace siaw_funciones
             }
 
         }
-        private async Task<bool> Control_Valido_C00001Async(string userConnectionString, Controles regcontrol, DatosDocVta DVTA)
+        private async Task<bool> Control_Valido_C00001Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA)
         {
             // //PERMITIR GRABAR PARA APROBAR PROFORMA CLIENTE COMPETENCIA
             ResultadoValidacion objres = new ResultadoValidacion();
@@ -532,7 +542,7 @@ namespace siaw_funciones
             objres.datoA = "";
             objres.datoB = "";
             objres.accion = Acciones_Validar.Ninguna;
-           objres = await Validar_NIT_Es_Cliente_CompetenciaAsync(userConnectionString,DVTA);
+           objres = await Validar_NIT_Es_Cliente_CompetenciaAsync(_context, DVTA);
             if ((objres.resultado == false))
             {
                 regcontrol.Valido = "NO";
@@ -545,7 +555,7 @@ namespace siaw_funciones
             }
             return true;
         }
-        public async Task<ResultadoValidacion> Validar_NIT_Es_Cliente_CompetenciaAsync(string userConnectionString, DatosDocVta DVTA)
+        public async Task<ResultadoValidacion> Validar_NIT_Es_Cliente_CompetenciaAsync(DBContext _context, DatosDocVta DVTA)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             objres.resultado = true;
@@ -555,7 +565,7 @@ namespace siaw_funciones
             objres.datoB = "";
             objres.accion = Acciones_Validar.Ninguna;
             //var es_cliente_competencia = await Cliente.EsClienteCompetencia(userConnectionString, DVTA.nitfactura);
-            if (await cliente.EsClienteCompetencia(userConnectionString, DVTA.nitfactura))
+            if (await cliente.EsClienteCompetencia(_context, DVTA.nitfactura))
             {
                 objres.resultado = false;
                 objres.observacion = ("El NIT: " + (DVTA.nitfactura + " corresponde a un NIT clasificado como cliente competencia, necesita permiso especial para dar continuar!!!"));

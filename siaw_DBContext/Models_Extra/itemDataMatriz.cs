@@ -21,5 +21,10 @@
         public bool cumple { get; set;} = true;
         public int nroitem { get; set; } = 0;
 
+        // no mostrar 
+        public double porcentaje { get; set; } = 0;
+        public double monto_descto { get; set; } = 0;
+        public double subtotal_descto_extra { get; set; } = 0;
+
     }
 }

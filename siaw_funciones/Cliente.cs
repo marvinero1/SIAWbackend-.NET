@@ -327,60 +327,93 @@ namespace siaw_funciones
             }
         }
 
-        public async Task<bool> EsClienteCompetencia(string userConnectionString, string nit_cliente)
+        public async Task<bool> EsClienteCompetencia(DBContext _context, string nit_cliente)
         {
             try
             {
                 bool resultado = false;
-                
 
-                using (var _context = DbContextFactory.Create(userConnectionString))
+                string codcliente_seg_nit = await Cliente_Segun_Nit(_context, nit_cliente);
+                string cadena_nit = nit_cliente;
+                //1ro del nit saco su cod cliente
+                string maincode = await CodigoPrincipal(_context, codcliente_seg_nit);
+                //2do veo todos los codigos iguales
+                string samecode = await CodigosIguales(_context, maincode);
+                var cadena_nits = await _context.vecliente
+                                 .Where(v => samecode.Contains(v.codigo))
+                                 .Select(v => v.nit)
+                                 .ToListAsync();
+
+                if (cadena_nits.Any())
                 {
-                    string codcliente_seg_nit = await Cliente_Segun_Nit(_context, nit_cliente);
-                    string cadena_nit = nit_cliente;
-                    //1ro del nit saco su cod cliente
-                    string maincode = await CodigoPrincipal(userConnectionString, codcliente_seg_nit);
-                    //2do veo todos los codigos iguales
-                    string samecode = await CodigosIguales(userConnectionString, maincode);
-                    var cadena_nits = await _context.vecliente
-                                     .Where(v => samecode.Contains(v.codigo))
-                                     .Select(v => v.nit)
-                                     .ToListAsync();
-
-                    if (cadena_nits.Any())
-                    {
-                        //cadena_nit = "'" + string.Join("','", cadena_nits) + "'";
-                        cadena_nit = "" + string.Join(",", cadena_nits) + "";
-                    }
-
-
-                    var nitsArray = cadena_nit.Split(',').Select(n => n.Trim()).ToArray();
-
-                    var query = await _context.cpcompetencia
-                                        .Join(_context.vecompetencia_control,
-                                              p1 => p1.codgrupo_control,
-                                              p2 => p2.codigo,
-                                              (p1, p2) => new { cpcompetencia = p1, vecompetencia_control = p2 })
-                                        .Where(x => nitsArray.Contains(x.cpcompetencia.nit))
-                                        .ToListAsync();
-
-                    //resultado = query.Any();
-                    if (query.Any())
-                    {
-                        resultado = true;
-                    }
-                    else
-                    {
-                        resultado = false;
-                    }
-                    return resultado;
+                    //cadena_nit = "'" + string.Join("','", cadena_nits) + "'";
+                    cadena_nit = "" + string.Join(",", cadena_nits) + "";
                 }
+
+
+                var nitsArray = cadena_nit.Split(',').Select(n => n.Trim()).ToArray();
+
+                var query = await _context.cpcompetencia
+                                    .Join(_context.vecompetencia_control,
+                                          p1 => p1.codgrupo_control,
+                                          p2 => p2.codigo,
+                                          (p1, p2) => new { cpcompetencia = p1, vecompetencia_control = p2 })
+                                    .Where(x => nitsArray.Contains(x.cpcompetencia.nit))
+                                    .ToListAsync();
+
+                //resultado = query.Any();
+                if (query.Any())
+                {
+                    resultado = true;
+                }
+                else
+                {
+                    resultado = false;
+                }
+                return resultado;
             }
             catch (Exception)
             {
                 return false;
             }
 
+        }
+
+        public async Task<bool> Cliente_Competencia_Controla_Descto_Nivel(DBContext _context, string nit_cliente)
+        {
+            //verifica si al cliente se le debe controlar 
+            //si sus descuento de linea  a nivel de item estan con Z o X
+            var dt = await _context.cpcompetencia
+                .Join(
+                    _context.vecompetencia_control,
+                    p1 => p1.codgrupo_control,
+                    p2 => p2.codigo,
+                    (p1, p2) => new { p1, p2 }
+                )
+                .Where(joined => joined.p1.nit == nit_cliente)
+                .Select(joined => new
+                {
+                    Codigo = joined.p1.Codigo,
+                    nit = joined.p1.nit,
+                    controla_descto_nivel = joined.p2.controla_descto_nivel
+                })
+                .FirstOrDefaultAsync();
+            if (dt != null)
+            {
+                if (dt.controla_descto_nivel == null)
+                {
+                    return true;
+                }
+                else
+                {
+                    if (dt.controla_descto_nivel == true)
+                    {
+                        return true;
+                    }
+                    return false;
+                }
+            }
+            return true;
         }
         public async Task<string> Cliente_Segun_Nit(DBContext _context, string nit)
         {
@@ -415,35 +448,33 @@ namespace siaw_funciones
             }
 
         }
-        public async Task<string> CodigosIguales(string userConnectionString, string codcliente)
+        public async Task<string> CodigosIguales(DBContext _context, string codcliente)
         {
             try
             {
                 string resultado = "";
                 var regex = new Regex(@"^\d+$"); // Expresión regular para verificar si la cadena contiene solo dígitos
-                string maincode = await CodigoPrincipal(userConnectionString, codcliente);
-                using (var _context = DbContextFactory.Create(userConnectionString))
+
+                string maincode = await CodigoPrincipal(_context, codcliente);
+                var clientesIguales = await _context.veclientesiguales
+                .Where(cliente => cliente.codcliente_a == maincode)
+                .ToListAsync(); // Cargar datos en memoria
+
+                var filteredResult = clientesIguales
+                    .Where(cliente => regex.IsMatch(cliente.codcliente_b))
+                    .OrderBy(cliente => cliente.codcliente_b)
+                    .Select(cliente => cliente.codcliente_b)
+                    .ToList();
+
+                if (filteredResult != null)
                 {
-                    var clientesIguales = await _context.veclientesiguales
-                    .Where(cliente => cliente.codcliente_a == maincode)
-                    .ToListAsync(); // Cargar datos en memoria
-
-                    var filteredResult = clientesIguales
-                        .Where(cliente => regex.IsMatch(cliente.codcliente_b))
-                        .OrderBy(cliente => cliente.codcliente_b)
-                        .Select(cliente => cliente.codcliente_b)
-                        .ToList();
-
-                    if (filteredResult != null)
+                    if (filteredResult.Any())
                     {
-                        if (filteredResult.Any())
-                        {
-                            //resultado = "'" + string.Join("','", filteredResult) + "'";
-                            resultado = "" + string.Join(",", filteredResult) + "";
-                        }
+                        //resultado = "'" + string.Join("','", filteredResult) + "'";
+                        resultado = "" + string.Join(",", filteredResult) + "";
                     }
-                    return resultado;
                 }
+                return resultado;
             }
             catch (Exception)
             {
@@ -454,27 +485,31 @@ namespace siaw_funciones
 
         public async Task<string> TipoSegunClientesIguales(string userConnectionString, string codcliente)
         {
-            string codigo_principal = await CodigoPrincipal(userConnectionString, codcliente);
-            string nit1 = await NIT(userConnectionString, codigo_principal);
-            string nit2 = await NIT(userConnectionString, codcliente);
-            string resultado = "";
-            if (codigo_principal.Trim() == codcliente.Trim())
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
-                resultado = "Casa Matriz de: " + codcliente;
-            }
-            else
-            {
-                if (nit1.Trim() == nit2.Trim())
+                string codigo_principal = await CodigoPrincipal(_context, codcliente);
+                string nit1 = await NIT(userConnectionString, codigo_principal);
+                string nit2 = await NIT(userConnectionString, codcliente);
+                string resultado = "";
+                if (codigo_principal.Trim() == codcliente.Trim())
                 {
-                    //si es mismo NIT es sucursal
-                    resultado = "Sucursal de: " + codigo_principal;
+                    resultado = "Casa Matriz de: " + codcliente;
                 }
                 else
                 {
-                    resultado = "Parte del Grupo Cial. Con Casa Matriz: " + codigo_principal;
+                    if (nit1.Trim() == nit2.Trim())
+                    {
+                        //si es mismo NIT es sucursal
+                        resultado = "Sucursal de: " + codigo_principal;
+                    }
+                    else
+                    {
+                        resultado = "Parte del Grupo Cial. Con Casa Matriz: " + codigo_principal;
+                    }
                 }
+                return resultado;
             }
-            return resultado;
+                
         }
 
 
@@ -543,23 +578,24 @@ namespace siaw_funciones
 
         public async Task<bool> ActualizarParametrosDePrincipal(string userConnectionString, string codcliente)
         {
-            string codigo_principal = await CodigoPrincipal(userConnectionString, codcliente);
-            if (codigo_principal.Trim() == "")
-            {
-                return false;
-            }
-            if (codigo_principal.Trim() == codcliente.Trim())
-            {
-                return true;
-            }
-            bool existCli = await ExisteCliente(userConnectionString, codcliente);
-            if (!existCli)
-            {
-                return false;
-            }
+            
 
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
+                string codigo_principal = await CodigoPrincipal(_context, codcliente);
+                if (codigo_principal.Trim() == "")
+                {
+                    return false;
+                }
+                if (codigo_principal.Trim() == codcliente.Trim())
+                {
+                    return true;
+                }
+                bool existCli = await ExisteCliente(userConnectionString, codcliente);
+                if (!existCli)
+                {
+                    return false;
+                }
                 using (var dbContexTransaction = _context.Database.BeginTransaction())
                 {
                     try
@@ -749,11 +785,5 @@ namespace siaw_funciones
             return 0;
         }
 
-        public async Task<bool> Es_Cliente_Competencia(DBContext _context, string nit_cliente)
-        {
-            string codcliente_seg_nit = await Cliente_Segun_Nit(_context, nit_cliente);
-            //1ro del nit saco su cod cliente
-
-        }
     }
 }

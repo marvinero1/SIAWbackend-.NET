@@ -62652,6 +62652,8 @@ namespace siaw_DBContext.Data
 
                 entity.Property(e => e.fecha).HasColumnType("smalldatetime");
 
+                entity.Property(e => e.fecha_confirmada).HasColumnType("datetime");
+
                 entity.Property(e => e.fecha_inicial)
                     .HasColumnType("smalldatetime")
                     .HasDefaultValueSql("('20110101')");
@@ -62666,6 +62668,10 @@ namespace siaw_DBContext.Data
                     .HasMaxLength(5)
                     .IsUnicode(false)
                     .IsFixedLength();
+
+                entity.Property(e => e.hora_confirmada)
+                    .HasMaxLength(5)
+                    .IsUnicode(false);
 
                 entity.Property(e => e.hora_inicial)
                     .HasMaxLength(5)
@@ -62695,6 +62701,10 @@ namespace siaw_DBContext.Data
                     .IsUnicode(false);
 
                 entity.Property(e => e.iva).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.latitud_entrega).HasMaxLength(25);
+
+                entity.Property(e => e.longitud_entrega).HasMaxLength(25);
 
                 entity.Property(e => e.monto_anticipo).HasColumnType("decimal(18, 2)");
 

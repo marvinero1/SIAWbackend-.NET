@@ -23,6 +23,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.CodeAnalysis.Differencing;
 using static System.Net.Mime.MediaTypeNames;
 using System.Collections.Generic;
+using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.ventas.transaccion
 {
@@ -32,19 +33,20 @@ namespace SIAW.Controllers.ventas.transaccion
     {
 
         private readonly UserConnectionManager _userConnectionManager;
-        private siaw_funciones.empaquesFunciones empaque_func = new siaw_funciones.empaquesFunciones();
-        private siaw_funciones.datosProforma datos_proforma = new siaw_funciones.datosProforma();
-        private siaw_funciones.ClienteCasual clienteCasual = new siaw_funciones.ClienteCasual();
-        private siaw_funciones.Cliente cliente = new siaw_funciones.Cliente();
-        private siaw_funciones.Empresa empresa = new siaw_funciones.Empresa();
-        private siaw_funciones.Saldos saldos = new siaw_funciones.Saldos();
-        private siaw_funciones.TipoCambio tipocambio = new siaw_funciones.TipoCambio();
-        private siaw_funciones.Ventas ventas = new siaw_funciones.Ventas();
-        private siaw_funciones.Items items = new siaw_funciones.Items();
-        private siaw_funciones.Validar_Vta validar_Vta = new siaw_funciones.Validar_Vta();
-        private siaw_funciones.Almacen almacen = new siaw_funciones.Almacen();
-        private siaw_funciones.SIAT siat = new siaw_funciones.SIAT();
-        private siaw_funciones.Configuracion configuracion = new siaw_funciones.Configuracion();
+        private readonly siaw_funciones.empaquesFunciones empaque_func = new siaw_funciones.empaquesFunciones();
+        private readonly siaw_funciones.datosProforma datos_proforma = new siaw_funciones.datosProforma();
+        private readonly siaw_funciones.ClienteCasual clienteCasual = new siaw_funciones.ClienteCasual();
+        private readonly siaw_funciones.Cliente cliente = new siaw_funciones.Cliente();
+        private readonly siaw_funciones.Empresa empresa = new siaw_funciones.Empresa();
+        private readonly siaw_funciones.Saldos saldos = new siaw_funciones.Saldos();
+        private readonly siaw_funciones.TipoCambio tipocambio = new siaw_funciones.TipoCambio();
+        private readonly siaw_funciones.Ventas ventas = new siaw_funciones.Ventas();
+        //private readonly siaw_funciones.IVentas ventas;
+        private readonly siaw_funciones.Items items = new siaw_funciones.Items();
+        private readonly siaw_funciones.Validar_Vta validar_Vta = new siaw_funciones.Validar_Vta();
+        private readonly siaw_funciones.Almacen almacen = new siaw_funciones.Almacen();
+        private readonly siaw_funciones.SIAT siat = new siaw_funciones.SIAT();
+        private readonly siaw_funciones.Configuracion configuracion = new siaw_funciones.Configuracion();
 
         public veproformaController(UserConnectionManager userConnectionManager)
         {
@@ -1236,20 +1238,21 @@ namespace SIAW.Controllers.ventas.transaccion
             }
         }
 
-
+        [Authorize]
         [HttpPost]
         [Route("guardarProforma/{userConn}/{idProf}/{codempresa}")]
         public async Task<object> guardarProforma(string userConn, string idProf, string codempresa,SaveProformaCompleta datosProforma)
         {
             veproforma veproforma = datosProforma.veproforma;
             List<veproforma1> veproforma1 = datosProforma.veproforma1;
+            /*
             List<veproforma_valida> veproforma_valida = datosProforma.veproforma_valida;
             List<veproforma_anticipo> veproforma_anticipo = datosProforma.veproforma_anticipo;
             List<vedesextraprof> vedesextraprof = datosProforma.vedesextraprof;
             List<verecargoprof> verecargoprof = datosProforma.verecargoprof;
             List<veproforma_iva> veproforma_iva = datosProforma.veproforma_iva;
 
-
+            */
 
 
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
@@ -1479,8 +1482,11 @@ namespace SIAW.Controllers.ventas.transaccion
             await _context.SaveChangesAsync();
 
             var codProforma = veproforma.codigo;
-
+            
             // guarda detalle (veproforma1)
+            // actualizar codigoproforma para agregar
+            veproforma1 = veproforma1.Select(p => { p.codproforma = codProforma; return p; }).ToList();
+
             _context.veproforma1.AddRange(veproforma1);
             await _context.SaveChangesAsync();
 
@@ -1493,6 +1499,7 @@ namespace SIAW.Controllers.ventas.transaccion
             // grabar detalle de validacion
             //======================================================================================
 
+            veproforma_valida = veproforma_valida.Select(p => { p.codproforma = codProforma; return p; }).ToList();
             _context.veproforma_valida.AddRange(veproforma_valida);
             await _context.SaveChangesAsync();
 
@@ -1506,7 +1513,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 _context.veproforma_anticipo.RemoveRange(anticiposprevios);
                 await _context.SaveChangesAsync();
             }
-
+            veproforma_anticipo = veproforma_anticipo.Select(p => { p.codproforma = codProforma; return p; }).ToList();
             _context.veproforma_anticipo.AddRange(veproforma_anticipo);
             await _context.SaveChangesAsync();
 
@@ -1572,6 +1579,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 _context.vedesextraprof.RemoveRange(descExtraAnt);
                 await _context.SaveChangesAsync();
             }
+            vedesextraprof = vedesextraprof.Select(p => { p.codproforma = codProf; return p; }).ToList();
             _context.vedesextraprof.AddRange(vedesextraprof);
             await _context.SaveChangesAsync();
         }
@@ -1585,6 +1593,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 _context.verecargoprof.RemoveRange(recargosAnt);
                 await _context.SaveChangesAsync();
             }
+            verecargoprof = verecargoprof.Select(p => { p.codproforma = codProf; return p; }).ToList();
             _context.verecargoprof.AddRange(verecargoprof);
             await _context.SaveChangesAsync();
         }
@@ -1597,6 +1606,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 _context.veproforma_iva.RemoveRange(ivaAnt);
                 await _context.SaveChangesAsync();
             }
+            veproforma_iva = veproforma_iva.Select(p => { p.codproforma = codProf; return p; }).ToList();
             _context.veproforma_iva.RemoveRange(veproforma_iva);
             await _context.SaveChangesAsync();
         }
@@ -1790,8 +1800,10 @@ namespace SIAW.Controllers.ventas.transaccion
             }
 
             var recargo = await verrecargos(_context,codempresa, codmoneda, fecha, subtotal, tablarecargos);
-            verdesextra();
+            //verdesextra();
             //vertotal();
+            //QUITAR
+            return "";
 
         }
 
@@ -1843,7 +1855,7 @@ namespace SIAW.Controllers.ventas.transaccion
             return total;
 
         }
-        private async Task<float> verdesextra(DBContext _context, string codempresa, List<vedesextraprof> tabladescuentos)
+        private async Task<float> verdesextra(DBContext _context, string codempresa, string nit, List<vedesextraprof> tabladescuentos, List<itemDataMatriz> detalleProf)
         {
             int coddesextra_depositos = await configuracion.emp_coddesextra_x_deposito(_context, codempresa);
             tabladescuentos = await ventas.Ordenar_Descuentos_Extra(_context, tabladescuentos);
@@ -1855,11 +1867,19 @@ namespace SIAW.Controllers.ventas.transaccion
             foreach (var reg in tabladescuentos)
             {
                 //verifica si el descuento es diferenciado por item
-                if (true)
+                if ( await ventas.DescuentoExtra_Diferenciado_x_item(_context,reg.coddesextra))
                 {
+                    var resp = await ventas.DescuentoExtra_CalcularMonto(_context, reg.coddesextra, detalleProf, "", nit);
+                    double monto_desc = resp.resultado;
+                    detalleProf = resp.dt;
+
+                    //si hay complemento, verificar cual es el complemento
+
 
                 }
             }
+            // QUITAR
+            return 0;
 
         }
 

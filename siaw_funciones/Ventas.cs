@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using siaw_DBContext.Data;
 using siaw_DBContext.Models;
+using siaw_DBContext.Models_Extra;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -14,7 +15,14 @@ namespace siaw_funciones
     public class Ventas
     {
         //Clase necesaria para el uso del DBContext del proyecto siaw_Context
-        Depositos_Cliente depositos_cliente = new Depositos_Cliente();
+        private readonly Depositos_Cliente depositos_cliente = new Depositos_Cliente();
+        //private readonly IDepositosCliente depositos_cliente;
+        private readonly Cliente cliente = new Cliente();
+        /*
+        public Ventas(IDepositosCliente depositosCliente)
+        {
+            depositos_cliente = depositosCliente;
+        }*/
         public static class DbContextFactory
         {
             public static DBContext Create(string connectionString)
@@ -225,7 +233,7 @@ namespace siaw_funciones
             var resultado = await _context.veremision.Where(i => i.codigo == codremision).Select(i => i.codproforma).FirstOrDefaultAsync();
             return resultado ?? 0;
         }
-        public async Task<bool> Existe_Proforma1(DBContext _context, int codproforma)
+        public static async Task<bool> Existe_Proforma1(DBContext _context, int codproforma)
         {
             var resultado = await _context.veproforma.Where(i => i.codigo == codproforma).CountAsync();
             if (resultado > 0)
@@ -234,13 +242,13 @@ namespace siaw_funciones
             }
             return false;
         }
-        public async Task<bool> proforma_anulada(DBContext _context, int codproforma)
+        public static async Task<bool> proforma_anulada(DBContext _context, int codproforma)
         {
             var resultado = await _context.veproforma.Where(i => i.codigo == codproforma).Select(i => i.anulada).FirstOrDefaultAsync();
             return resultado;
         }
 
-        public async Task<bool> Existe_NotaRemision1(DBContext _context, int codremision)
+        public static async Task<bool> Existe_NotaRemision1(DBContext _context, int codremision)
         {
             var resultado = await _context.veremision.Where(i => i.codigo == codremision).CountAsync();
             if (resultado > 0)
@@ -249,7 +257,7 @@ namespace siaw_funciones
             }
             return false;
         }
-        public async Task<bool> remision_anulada(DBContext _context, int codremision)
+        public static async Task<bool> remision_anulada(DBContext _context, int codremision)
         {
             var resultado = await _context.veremision.Where(i => i.codigo == codremision).Select(i => i.anulada).FirstOrDefaultAsync();
             return resultado;
@@ -452,12 +460,68 @@ namespace siaw_funciones
             }
             return "";
         }
-        public async Task<bool> DescuentoExtra_Diferenciado_x_item(DBContext _context, int codtarifa)
+        public async Task<bool> DescuentoExtra_Diferenciado_x_item(DBContext _context, int coddesextra)
         {
-            var resultado = await _context.intarifa.Where(i => i.codigo == codtarifa).Select(i => i.desitem).FirstOrDefaultAsync();
-            return resultado;
+            var resultado = await _context.vedesextra.Where(i => i.codigo == coddesextra).Select(i => i.diferenciado_x_item).FirstOrDefaultAsync();
+            return resultado??false;
         }
 
+
+        public async Task<(double resultado, List<itemDataMatriz> dt)> DescuentoExtra_CalcularMonto(DBContext _context, int coddesextra, List<itemDataMatriz> dt, string codcliente, string nit_cliente)
+        {
+            double resultado = 0;
+            foreach (var reg in dt)
+            {
+                //se obtiene el porccentaje por descuento extra segun el item y coddesextra
+                reg.porcentaje = await DescuentoExtra_Porcentaje_Item(_context, coddesextra, reg.coditem);
+
+                //se modifica el porcentaje antes obtenido si corresponde
+                //segun politica gerencial emitida el 26-08-2015 para empresas competidoras
+                //si el nivel de descto es Z o X no se benefician de la promocion
+                if (await cliente.EsClienteCompetencia(_context, nit_cliente))
+                {
+                    if (await cliente.Cliente_Competencia_Controla_Descto_Nivel(_context, nit_cliente))
+                    {
+                        if (await Descuento_Extra_Valida_Nivel(_context, coddesextra))
+                        {
+                            if (reg.niveldesc == "Z" || reg.niveldesc == "z" || reg.niveldesc == "X" || reg.niveldesc == "x")
+                            {
+                                reg.porcentaje = 0;
+                            }
+                        }
+                    }
+                }
+                if (DBNull.Value.Equals(reg.subtotal_descto_extra))
+                {
+                    reg.monto_descto = (reg.total / 100) * reg.porcentaje;
+                    reg.subtotal_descto_extra = reg.total - reg.monto_descto;
+                }
+                else
+                {
+                    reg.monto_descto = (reg.subtotal_descto_extra / 100) * reg.porcentaje;
+                    reg.subtotal_descto_extra = reg.subtotal_descto_extra - reg.monto_descto;
+                }
+                resultado = resultado + reg.monto_descto;
+            }
+            resultado = Math.Round(resultado, 2, MidpointRounding.AwayFromZero);
+            return (resultado, dt);
+        }
+
+        public async Task<float> DescuentoExtra_Porcentaje_Item(DBContext _context, int coddesextra, string coditem)
+        {
+            var resultado = await _context.vedesextra_item.Where(i => i.coddesextra == coddesextra && i.coditem == coditem).Select(i => i.porcentaje).FirstOrDefaultAsync();
+            return (float)(resultado ?? 0);
+        }
+
+        public async Task<bool> Descuento_Extra_Valida_Nivel(DBContext _context, int coddesextra)
+        {
+            var resultado = await _context.vedesextra.Where(i => i.codigo == coddesextra).Select(i => i.valida_descuento_linea).FirstOrDefaultAsync();
+            if (resultado != null)
+            {
+                return (bool)resultado;
+            }
+            return false;
+        }
 
     }
 

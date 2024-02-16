@@ -13,6 +13,8 @@ namespace SIAW.Controllers.inventarios.operacion
     {
         private readonly UserConnectionManager _userConnectionManager;
         private readonly Ventas ventas = new Ventas();
+        //private readonly IVentas ventas;
+
         public prgindefinir_precioitemController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;

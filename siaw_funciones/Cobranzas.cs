@@ -19,9 +19,13 @@ namespace siaw_funciones
         Configuracion configuracion = new Configuracion();
         Depositos_Cliente depositos_cliente = new Depositos_Cliente();
         Ventas ventas = new Ventas();
+        //private readonly siaw_funciones.IDepositosCliente depositos_cliente;
+        //private readonly siaw_funciones.IVentas ventas;
         TipoCambio tipocambio = new TipoCambio();
         ProntoPago prontopago = new ProntoPago();
         //Clase necesaria para el uso del DBContext del proyecto siaw_Context
+
+
         public static class DbContextFactory
         {
             public static DBContext Create(string connectionString)

@@ -13,9 +13,15 @@ namespace siaw_funciones
 {
     public class Depositos_Cliente
     {
-        TipoCambio tipocambio = new TipoCambio();
-        Ventas ventas = new Ventas();
+        private readonly TipoCambio tipocambio = new TipoCambio();
+        //private readonly Ventas ventas = new Ventas();
+        //private readonly IVentas ventas;
         //Clase necesaria para el uso del DBContext del proyecto siaw_Context
+        /*
+        public Depositos_Cliente(IVentas _ventas)
+        {
+            ventas = _ventas;
+        }*/
         public static class DbContextFactory
         {
             public static DBContext Create(string connectionString)
@@ -252,9 +258,9 @@ namespace siaw_funciones
                 if (reg.tipo == "PF")
                 {
                     //si es proforma verifica en veproforma
-                    if (await ventas.Existe_Proforma1(_context, reg.coddoc))
+                    if (await Ventas.Existe_Proforma1(_context, reg.coddoc))
                     {
-                        if (! await ventas.proforma_anulada(_context, reg.coddoc))
+                        if (! await Ventas.proforma_anulada(_context, reg.coddoc))
                         {
                             dt_aux.Add(reg);
                         }
@@ -263,9 +269,9 @@ namespace siaw_funciones
                 else
                 {
                     //si es remision verifica en veremision
-                    if (await ventas.Existe_NotaRemision1(_context, reg.coddoc))
+                    if (await Ventas.Existe_NotaRemision1(_context, reg.coddoc))
                     {
-                        if (!await ventas.remision_anulada(_context, reg.coddoc))
+                        if (!await Ventas.remision_anulada(_context, reg.coddoc))
                         {
                             dt_aux.Add(reg);
                         }

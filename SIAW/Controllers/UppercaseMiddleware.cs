@@ -19,25 +19,45 @@
 
         public async Task Invoke(HttpContext context)
         {
-            if (context.Request.Method == "POST" || context.Request.Method == "PUT")
+            try
             {
-                if (!context.Request.Path.Value.Contains("/refreshToken"))
+                if (context.Request.Method == "POST" || context.Request.Method == "PUT")
                 {
-                    using (var reader = new StreamReader(context.Request.Body))
+                    bool BANDERA = context.Request.Path.Value.Contains("/guardarProforma");
+                    if (!context.Request.Path.Value.Contains("/refreshToken") && !BANDERA)
                     {
-                        var body = await reader.ReadToEndAsync();
-                        var transformedBody = TransformToUppercase(body);
-                        var stream = new MemoryStream(Encoding.UTF8.GetBytes(transformedBody));
-                        context.Request.Body = stream;
+                        using (var reader = new StreamReader(context.Request.Body))
+                        {
+                            var body = await reader.ReadToEndAsync();
+                            var transformedBody = TransformToUppercase(body);
+                            var stream = new MemoryStream(Encoding.UTF8.GetBytes(transformedBody));
+                            context.Request.Body = stream;
+                        }
                     }
                 }
             }
+            catch (Exception)
+            {
+                // Manejar la excepción aquí
+                // Puedes registrar el error, devolver una respuesta de error, etc.
+                // Por ejemplo:
+                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                await context.Response.WriteAsync("Ocurrió un error durante el procesamiento de la solicitud.");
+            }
+            
 
             await _next(context);
         }
 
         private string TransformToUppercase(string input)
         {
+
+
+
+
+
+
+
             // Intentar convertir a lista
             JArray jsonArray;
             try
@@ -87,6 +107,10 @@
             }
 
             return jsonArray.ToString();
+
+
+
+
         }
 
 

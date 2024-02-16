@@ -15,7 +15,7 @@ namespace SIAW.Controllers.z_pruebas
     {
         private readonly UserConnectionManager _userConnectionManager;
         private readonly Saldos saldos = new Saldos();
-        private readonly Cobranzas cobranzas = new Cobranzas();
+       // private readonly Cobranzas cobranzas = new Cobranzas();
 
         public z_pruebaController(UserConnectionManager userConnectionManager)
         {
@@ -37,8 +37,9 @@ namespace SIAW.Controllers.z_pruebas
             {
                 try
                 {
-                    var prueba = await cobranzas.Consulta_Deposito_Cobranzas_Credito_Sin_Aplicar(_context, "cliente", "", "", "300023", false, "APLICAR_DESCTO", "41182", false, new DateTime(2015, 5, 13));
-                    return Ok(new { res = prueba, cont = prueba.Count() });   // creado con exito
+                    //var prueba = await cobranzas.Consulta_Deposito_Cobranzas_Credito_Sin_Aplicar(_context, "cliente", "", "", "300023", false, "APLICAR_DESCTO", "41182", false, new DateTime(2015, 5, 13));
+                    // return Ok(new { res = prueba, cont = prueba.Count() });   // creado con exito
+                    return Ok("bfhijv");
                 }
                 catch (DbUpdateException)
                 {

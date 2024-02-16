@@ -13,6 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using siaw_DBContext;
 using SIAW.Controllers;
+using siaw_funciones;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -60,6 +61,13 @@ builder.Services.AddSingleton<UserConnectionManager>();
 
 // Agregar el middleware de conversión a mayúsculas
 builder.Services.AddScoped<UppercaseMiddleware>();
+
+
+// agregar servicios interfaces
+//builder.Services.AddScoped<IDepositosCliente, Depositos_Cliente>();
+//builder.Services.AddScoped<IVentas, Ventas>();
+//builder.Services.AddScoped<IValidarVta, Validar_Vta>();
+
 
 var app = builder.Build();
 
