@@ -60371,8 +60371,6 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<vedesextraprof>(entity =>
             {
-                entity.HasNoKey();
-
                 entity.Property(e => e.montodoc).HasColumnType("decimal(20, 2)");
 
                 entity.Property(e => e.porcen).HasColumnType("decimal(5, 2)");
@@ -62761,8 +62759,6 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<veproforma1>(entity =>
             {
-                entity.HasNoKey();
-
                 entity.Property(e => e.cantaut).HasColumnType("decimal(18, 2)");
 
                 entity.Property(e => e.cantidad).HasColumnType("decimal(18, 2)");
@@ -62912,9 +62908,8 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<veproforma_anticipo>(entity =>
             {
-                entity.HasNoKey();
-
-                entity.Property(e => e.codigo).ValueGeneratedOnAdd();
+                entity.HasKey(e => e.codigo)
+                    .HasName("PK__veprofor__40F9A2075FA13330");
 
                 entity.Property(e => e.fechareg).HasColumnType("smalldatetime");
 
@@ -62961,15 +62956,15 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<veproforma_iva>(entity =>
             {
-                entity.HasNoKey();
+                entity.HasKey(e => new { e.codproforma, e.porceniva });
+
+                entity.Property(e => e.porceniva).HasColumnType("decimal(18, 2)");
 
                 entity.Property(e => e.br).HasColumnType("decimal(18, 2)");
 
                 entity.Property(e => e.iva).HasColumnType("decimal(18, 2)");
 
                 entity.Property(e => e.porcenbr).HasColumnType("decimal(18, 2)");
-
-                entity.Property(e => e.porceniva).HasColumnType("decimal(18, 2)");
 
                 entity.Property(e => e.total).HasColumnType("decimal(18, 2)");
             });
@@ -63457,17 +63452,17 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<verecargoprof>(entity =>
             {
-                entity.HasNoKey();
+                entity.HasKey(e => new { e.codproforma, e.codrecargo, e.porcen, e.monto });
+
+                entity.Property(e => e.porcen).HasColumnType("decimal(5, 2)");
+
+                entity.Property(e => e.monto).HasColumnType("decimal(18, 2)");
 
                 entity.Property(e => e.moneda)
                     .IsRequired()
                     .HasMaxLength(3);
 
-                entity.Property(e => e.monto).HasColumnType("decimal(18, 2)");
-
                 entity.Property(e => e.montodoc).HasColumnType("decimal(20, 2)");
-
-                entity.Property(e => e.porcen).HasColumnType("decimal(5, 2)");
             });
 
             modelBuilder.Entity<verecargoremi>(entity =>

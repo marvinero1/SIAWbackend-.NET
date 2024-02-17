@@ -7,8 +7,8 @@ namespace siaw_DBContext.Models
 {
     public partial class veproforma_iva
     {
-        public int? codproforma { get; set; }
-        public decimal? porceniva { get; set; }
+        public int codproforma { get; set; }
+        public decimal porceniva { get; set; }
         public decimal? total { get; set; }
         public decimal? porcenbr { get; set; }
         public decimal? br { get; set; }

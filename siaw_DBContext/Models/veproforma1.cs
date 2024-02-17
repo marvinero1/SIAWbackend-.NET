@@ -25,5 +25,6 @@ namespace siaw_DBContext.Models
         public decimal? cantidad_pedida { get; set; }
         public decimal? peso { get; set; }
         public int? nroitem { get; set; }
+        public int id { get; set; }
     }
 }

@@ -14,5 +14,6 @@ namespace siaw_DBContext.Models
         public int? codcobranza { get; set; }
         public int? codcobranza_contado { get; set; }
         public int? codanticipo { get; set; }
+        public int id { get; set; }
     }
 }

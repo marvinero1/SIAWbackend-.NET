@@ -1506,16 +1506,19 @@ namespace SIAW.Controllers.ventas.transaccion
             //======================================================================================
             //grabar anticipos aplicados
             //======================================================================================
-
-            var anticiposprevios = await _context.veproforma_anticipo.Where(i => i.codproforma == codProforma).ToListAsync();
-            if (anticiposprevios.Count() > 0)
+            if (veproforma_anticipo.Count()>0)
             {
-                _context.veproforma_anticipo.RemoveRange(anticiposprevios);
+                var anticiposprevios = await _context.veproforma_anticipo.Where(i => i.codproforma == codProforma).ToListAsync();
+                if (anticiposprevios.Count() > 0)
+                {
+                    _context.veproforma_anticipo.RemoveRange(anticiposprevios);
+                    await _context.SaveChangesAsync();
+                }
+                veproforma_anticipo = veproforma_anticipo.Select(p => { p.codproforma = codProforma; return p; }).ToList();
+                _context.veproforma_anticipo.AddRange(veproforma_anticipo);
                 await _context.SaveChangesAsync();
+
             }
-            veproforma_anticipo = veproforma_anticipo.Select(p => { p.codproforma = codProforma; return p; }).ToList();
-            _context.veproforma_anticipo.AddRange(veproforma_anticipo);
-            await _context.SaveChangesAsync();
 
 
             // grabar descto por deposito si hay descuentos
@@ -1533,7 +1536,10 @@ namespace SIAW.Controllers.ventas.transaccion
 
             // grabar iva
 
-            await grabariva(_context, codProforma, veproforma_iva);
+            if (veproforma_iva.Count > 0)
+            {
+                await grabariva(_context, codProforma, veproforma_iva);
+            }
 
 
             /*
@@ -1607,7 +1613,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 await _context.SaveChangesAsync();
             }
             veproforma_iva = veproforma_iva.Select(p => { p.codproforma = codProf; return p; }).ToList();
-            _context.veproforma_iva.RemoveRange(veproforma_iva);
+            _context.veproforma_iva.AddRange(veproforma_iva);
             await _context.SaveChangesAsync();
         }
 
