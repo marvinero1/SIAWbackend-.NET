@@ -785,5 +785,16 @@ namespace siaw_funciones
             return 0;
         }
 
+        public async Task<bool> DiscriminaIVA(DBContext _context, string codcliente)
+        {
+            var resultado = await _context.vecliente.Where(i => i.codigo == codcliente).Select(i=>i.discrimina_iva).FirstOrDefaultAsync() ?? false;
+            return resultado;
+        }
+        public async Task<bool> Es_Cliente_Casual(DBContext _context, string codcliente)
+        {
+            var resultado = await _context.vecliente.Where(i => i.codigo == codcliente).Select(i => i.casual).FirstOrDefaultAsync() ?? false;
+            return resultado;
+        }
+
     }
 }

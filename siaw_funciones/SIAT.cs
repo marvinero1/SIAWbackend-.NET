@@ -28,5 +28,10 @@ namespace siaw_funciones
             double resultado = Math.Round(minumero, 5);
             return resultado;
         }
+        public async Task<double> Redondeo_Decimales_SIA_2_decimales_SQL(float minumero)
+        {
+            double resultado = Math.Round(minumero, 2);
+            return resultado;
+        }
     }
 }

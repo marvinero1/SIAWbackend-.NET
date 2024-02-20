@@ -24,6 +24,8 @@ using Microsoft.CodeAnalysis.Differencing;
 using static System.Net.Mime.MediaTypeNames;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Authorization;
+using Humanizer;
+using System.Net;
 
 namespace SIAW.Controllers.ventas.transaccion
 {
@@ -224,6 +226,8 @@ namespace SIAW.Controllers.ventas.transaccion
                 sldosItemCompleto saldoItemTotal = new sldosItemCompleto();
                 sldosItemCompleto var8 = new sldosItemCompleto();
                 saldoItemTotal.descripcion = "Total Saldo";
+                List<object> resultados = new List<object>();
+
 
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
@@ -239,10 +243,15 @@ namespace SIAW.Controllers.ventas.transaccion
                 if (usar_bd_opcional)
                 {
                     conexion = empaque_func.Getad_conexion_vpnFromDatabase(userConnectionString, agencia);
+                    resultados.Add(new { resp = "Los Saldos (Para Ventas) del Item Se obtienen por medio de VPN" });
                     if (conexion == null)
                     {
                         return BadRequest( new { resp = "No se pudo obtener la cadena de conexión"});
                     }
+                }
+                else
+                {
+                    resultados.Add(new { resp = "Los Saldos (Para Ventas) del Item Se obtienen Localmente" });
                 }
 
                 
@@ -376,56 +385,60 @@ namespace SIAW.Controllers.ventas.transaccion
 
                 });*/
 
-
+                
+                resultados.Add(listaSaldos);
                 // PARA LA SEGUNDA PESTAÑA (SALDO VARIABLE)
                 // Verifica si el usuario no tiene acceso devuelve la lista.
                 bool ver_detalle_saldo_variable = await empaque_func.ve_detalle_saldo_variable(userConnectionString, usuario);
                 if (!ver_detalle_saldo_variable)
                 {
-                    return Ok(listaSaldos);
+                    return Ok(resultados);
                 }
+
+                List<sldosItemCompleto> saldoItemTotalPestaña2 = new List<sldosItemCompleto>();
                 // si el usuario tiene acceso se llenan los datos de la segunda tabla:
                 inreserva_area inreserva_Area = await empaque_func.get_inreserva_area(userConnectionString, coditem, codalmacen);
                 if (inreserva_Area == null)
                 {
-                    return Ok(listaSaldos);
+                    return Ok(resultados);
                 }
                 // promedio de venta
                 sldosItemCompleto var6 = new sldosItemCompleto();
                 var6.descripcion = "Promedio de Vta.";
                 var6.valor = (float)inreserva_Area.promvta;
-                listaSaldos.Add(var6);
+                saldoItemTotalPestaña2.Add(var6);
 
                 // stock minimo
                 sldosItemCompleto var7 = new sldosItemCompleto();
                 var7.descripcion = "Stock Mínimo.";
                 var7.valor = (float)inreserva_Area.smin;
-                listaSaldos.Add(var7);
+                saldoItemTotalPestaña2.Add(var7);
 
                 // saldo actual (Saldo Seg Kardex - Cant Prof Ap)
                 var8.descripcion = "Saldo Actual (Saldo Seg Kardex - Cant Prof Ap)";
-                listaSaldos.Add(var8);
+                saldoItemTotalPestaña2.Add(var8);
 
                 // % Vta Permitido: 0.53% pero solo se toma: 50%
                 sldosItemCompleto var9 = new sldosItemCompleto();
                 var9.descripcion = "% Vta Permitido: 0.53% pero solo se toma: 50%";
                 var9.valor = (float)inreserva_Area.porcenvta;
-                listaSaldos.Add(var9);
+                saldoItemTotalPestaña2.Add(var9);
 
                 // Reserva para Vta en Cjto
                 sldosItemCompleto var10 = new sldosItemCompleto();
                 var10.descripcion = "Reserva para Vta en Cjto";
                 var10.valor = CANTIDAD_RESERVADA;
-                listaSaldos.Add(var10);
+                saldoItemTotalPestaña2.Add(var10);
 
                 // Saldo para Vta sueltos
                 sldosItemCompleto var11 = new sldosItemCompleto();
                 var11.descripcion = "Saldo para Vta sueltos";
                 var11.valor = saldoItemTotal.valor;
-                listaSaldos.Add(var11);
+                saldoItemTotalPestaña2.Add(var11);
 
-
-                return Ok(listaSaldos);
+                
+                resultados.Add(saldoItemTotalPestaña2);
+                return Ok(resultados);
 
             }
             catch (Exception)
@@ -1206,7 +1219,7 @@ namespace SIAW.Controllers.ventas.transaccion
                             coditem = i.codigo,
                             descripcion = i.descripcion,
                             medida = i.medida,
-                            ud = i.unidad,
+                            udm = i.unidad,
                             porceniva = (float)i.iva,
                             cantidad_pedida = (float)cantidad_pedida,
                             cantidad = (float)cantidad,
@@ -1231,6 +1244,111 @@ namespace SIAW.Controllers.ventas.transaccion
                     return Ok(item);
                 }
 
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+            }
+        }
+
+        [HttpPost]
+        [Route("getItemMatriz_AnadirbyGroup/{userConn}")]
+        public async Task<ActionResult<itemDataMatriz>> getItemMatriz_AnadirbyGroup(string userConn, List<cargadofromMatriz> data )
+        {
+            try
+            {
+                if (data.Count()<1)
+                {
+                    return BadRequest(new { resp = "No se esta recibiendo ningun dato, verifique esta situación." });
+                }
+                List< itemDataMatriz > resultado = new List< itemDataMatriz >();
+                //string nivel = "X";
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    foreach (var reg in data)
+                    {
+                        //precio unitario del item
+                        var precioItem = await _context.intarifa1
+                            .Where(i => i.codtarifa == reg.tarifa && i.item == reg.coditem)
+                            .Select(i => i.precio)
+                            .FirstOrDefaultAsync();
+                        //convertir a la moneda el precio item
+                        var monedabase = await ventas.monedabasetarifa(_context, reg.tarifa);
+                        precioItem = await tipocambio.conversion(userConnectionString, reg.codmoneda, monedabase, reg.fecha, (decimal)precioItem);
+                        precioItem = await cliente.Redondear_5_Decimales(userConnectionString, (decimal)precioItem);
+                        //porcentaje de mercaderia
+                        decimal porcen_merca = 0;
+                        if (reg.codalmacen > 0)
+                        {
+                            var controla_stok_seguridad = await empresa.ControlarStockSeguridad(userConnectionString, "PE");
+                            if (controla_stok_seguridad == true)
+                            {
+                                //List<sldosItemCompleto> sld_ctrlstock_para_vtas = await saldos.SaldoItem_CrtlStock_Para_Ventas(userConnectionString, "311", codalmacen, coditem, "PE", "dpd3");
+                                var sld_ctrlstock_para_vtas = await saldos.SaldoItem_CrtlStock_Para_Ventas(userConnectionString, "311", reg.codalmacen, reg.coditem, "PE", "dpd3");
+                                porcen_merca = reg.cantidad * 100 / sld_ctrlstock_para_vtas;
+                            }
+                            else { porcen_merca = 0; }
+                        }
+                        else { porcen_merca = 0; }
+
+
+                        //descuento de nivel del cliente
+                        var niveldesc = await cliente.niveldesccliente(_context, reg.codcliente, reg.coditem, reg.tarifa, reg.opcion_nivel, false);
+
+                        //porcentaje de descuento de nivel del cliente
+                        var porcentajedesc = await cliente.porcendesccliente(_context, reg.codcliente, reg.coditem, reg.tarifa, reg.opcion_nivel, false);
+
+                        //preciodesc 
+                        var preciodesc = await cliente.Preciodesc(userConnectionString, reg.codcliente, reg.codalmacen, reg.tarifa, reg.coditem, reg.desc_linea_seg_solicitud, niveldesc, reg.opcion_nivel);
+                        preciodesc = await tipocambio.conversion(userConnectionString, reg.codmoneda, monedabase, reg.fecha, (decimal)preciodesc);
+                        preciodesc = await cliente.Redondear_5_Decimales(userConnectionString, preciodesc);
+                        //precioneto 
+                        var precioneto = await cliente.Preciocondescitem(userConnectionString, reg.codcliente, reg.codalmacen, reg.tarifa, reg.coditem, reg.descuento, reg.desc_linea_seg_solicitud, niveldesc, reg.opcion_nivel);
+                        precioneto = await tipocambio.conversion(userConnectionString, reg.codmoneda, monedabase, reg.fecha, (decimal)precioneto);
+                        precioneto = await cliente.Redondear_5_Decimales(userConnectionString, precioneto);
+                        //total
+                        var total = reg.cantidad * precioneto;
+                        total = await cliente.Redondear_5_Decimales(userConnectionString, total);
+
+                        var item = await _context.initem
+                            .Where(i => i.codigo == reg.coditem)
+                            .Select(i => new itemDataMatriz
+                            {
+                                coditem = i.codigo,
+                                descripcion = i.descripcion,
+                                medida = i.medida,
+                                udm = i.unidad,
+                                porceniva = (float)i.iva,
+                                cantidad_pedida = (float)reg.cantidad_pedida,
+                                cantidad = (float)reg.cantidad,
+                                porcen_mercaderia = (float)porcen_merca,
+                                codtarifa = reg.tarifa,
+                                coddescuento = reg.descuento,
+                                preciolista = (float)precioItem,
+                                niveldesc = niveldesc,
+                                porcendesc = (float)porcentajedesc,
+                                preciodesc = (float)preciodesc,
+                                precioneto = (float)precioneto,
+                                total = (float)total
+
+                            })
+                            .FirstOrDefaultAsync();
+
+                        if (item != null)
+                        {
+                            resultado.Add(item);
+                        }
+                    }
+                    if (resultado.Count() < 1)
+                    {
+                        return BadRequest(new { resp = "No se encontro informacion con los datos proporcionados." });
+                    }
+                    return Ok(resultado);
+                }
             }
             catch (Exception)
             {
@@ -1806,11 +1924,91 @@ namespace SIAW.Controllers.ventas.transaccion
             }
 
             var recargo = await verrecargos(_context,codempresa, codmoneda, fecha, subtotal, tablarecargos);
-            //verdesextra();
-            //vertotal();
+            //var descuento = await verdesextra();
+            // var total = vertotal();
             //QUITAR
             return "";
 
+        }
+
+
+        private async Task<float> Revisar_Aplicar_Descto_Deposito(DBContext _context, bool preguntar_si_aplicar_descto_deposito, string codcliente, string txtcodcliente_real, string codempresa, List<tabladescuentos> tabladescuentos)
+        {
+            //////////*****ojo****///////////////////
+            //segun la politica de ventas vigente desde el 01-08-2022
+            //solo se aplican desctos por deposito a ventas que son codcliete y codclienteref
+            //el mimsmo, es decir ya no se aplica si un cliente quiere comprar a nombre de otro(casual)
+            if (codcliente == txtcodcliente_real)
+            {
+                //PRIMERO VERIFICAR SI SE APLICA DESCTO POR DEPOSITO
+                if (await configuracion.emp_hab_descto_x_deposito(_context,codempresa))
+                {
+                    //verificacion si le corresponde descuento por deposito
+                    if (! await Se_Aplico_Descuento_Deposito(_context,codempresa, tabladescuentos))
+                    {
+                        if (preguntar_si_aplicar_descto_deposito)
+                        {
+                            /*
+                             If MessageBox.Show("Desea verificar y aplicar descuentos por deposito si el cliente tiene pendiente algun descuento pendiente por este concepto?", "Validar", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) = Windows.Forms.DialogResult.Yes Then
+                                Aplicar_Descuento_Por_Deposito(False, True)
+                             End If
+                             */
+                        }
+                    }
+                }
+            }
+            // QUITAR ESTO:
+            return 0;
+
+        }
+
+        private async Task<float> Aplicar_Descuento_Por_Deposito(DBContext _context, string codempresa, bool alertar, bool preguntar_aplicar, string codcliente, string txtcodcliente_real, string nit_cliente, List<tabladescuentos> tabladescuentos)
+        {
+            //primero borrar el descuento por deposito
+            tabladescuentos = await borrar_descuento_por_deposito(_context, codempresa, tabladescuentos);
+            //si el cliente referencia no es el mismo al cliente al cual saldra el pedido
+            //entonces no se busca desctos por deposito
+            //de acuerdo a la nueva politica de desctos, vigente desde el 01-08-2022
+
+            if (codcliente != txtcodcliente_real)
+            {
+                return 0;   
+            }
+            //clientes casualas no deben tener descto por deposito seg/poliita desde el 01-08-2022
+            if (await cliente.Es_Cliente_Casual(_context,codcliente))
+            {
+                return 0;
+            }
+            //verificar si es cliente competencia
+            if (await cliente.EsClienteCompetencia(_context, nit_cliente))
+            {
+                return 0;
+            }
+
+            //verificar que los desctos esten habilitados para el precio principal de la proforma
+            int coddesextra_depositos = await configuracion.emp_coddesextra_x_deposito(_context, codempresa);
+
+            return 0;
+
+
+        }
+
+        private async Task<List<tabladescuentos>> borrar_descuento_por_deposito(DBContext _context, string codempresa, List<tabladescuentos> tabladescuentos)
+        {
+            int coddesextra_depositos = await configuracion.emp_coddesextra_x_deposito(_context, codempresa);
+            var result = tabladescuentos.Where(i => i.coddesextra != coddesextra_depositos).ToList();
+            return result;
+        }
+
+        private async Task<bool> Se_Aplico_Descuento_Deposito(DBContext _context, string codempresa, List<tabladescuentos> tabladescuentos)
+        {
+            int coddesextra_depositos = await configuracion.emp_coddesextra_x_deposito(_context,codempresa);
+            var result = tabladescuentos.Where(i=>i.coddesextra == coddesextra_depositos).FirstOrDefault();
+            if (result != null)
+            {
+                return true;
+            }
+            return false;
         }
 
 
@@ -1861,10 +2059,11 @@ namespace SIAW.Controllers.ventas.transaccion
             return total;
 
         }
-        private async Task<float> verdesextra(DBContext _context, string codempresa, string nit, List<vedesextraprof> tabladescuentos, List<itemDataMatriz> detalleProf)
+        private async Task<double> verdesextra(DBContext _context, string codempresa, string nit, string codmoneda, int cmbtipo_complementopf, string idpf_complemento, int nroidpf_complemento, double subtotal, DateTime fecha, List<tabladescuentos> tabladescuentos, List<itemDataMatriz> detalleProf)
         {
             int coddesextra_depositos = await configuracion.emp_coddesextra_x_deposito(_context, codempresa);
             tabladescuentos = await ventas.Ordenar_Descuentos_Extra(_context, tabladescuentos);
+            double monto_desc_pf_complementaria = 0;
             //calcular el monto  de descuento segun el porcentaje
             ////////////////////////////////////////////////////////////////////////////////
             //primero calcular los montos de los que se aplican en el detalle o son
@@ -1880,14 +2079,237 @@ namespace SIAW.Controllers.ventas.transaccion
                     detalleProf = resp.dt;
 
                     //si hay complemento, verificar cual es el complemento
-
-
+                    if (cmbtipo_complementopf == 1 && idpf_complemento.Trim().Length > 0 && nroidpf_complemento>0)
+                    {
+                        int codproforma_complementaria = await ventas.codproforma(_context, idpf_complemento, nroidpf_complemento);
+                        //verificar si la proforma ya tiene el mismo descto extra, solo SI NO TIENE, se debe calcular de esa cuanto seria el descto
+                        //implemantado en fecha:31-08-2022
+                        if (! await ventas.Proforma_Tiene_DescuentoExtra(_context,codproforma_complementaria,reg.coddesextra))
+                        {
+                            List<itemDataMatriz> dtproforma1 = await _context.veproforma1
+                                .Where(i => i.codproforma == codproforma_complementaria)
+                                .OrderBy(i => i.coditem)
+                                .Select(i => new itemDataMatriz
+                                {
+                                    coditem = i.coditem,
+                                    //descripcion = i.descripcion,
+                                    //medida = i.medida,
+                                    udm = i.udm,
+                                    porceniva = (float)i.porceniva,
+                                    cantidad_pedida = (float)i.cantidad_pedida,
+                                    cantidad = (float)i.cantidad,
+                                    //porcen_mercaderia = i.porcen_mercaderia,
+                                    codtarifa = i.codtarifa,
+                                    coddescuento = i.coddescuento,
+                                    preciolista = (float)i.preciolista,
+                                    niveldesc = i.niveldesc,
+                                    //porcendesc = i.porcendesc,
+                                    //preciodesc = i.preciodesc,
+                                    precioneto = (float)i.precioneto,
+                                    total = (float)i.total,
+                                    //cumple = i.cumple,
+                                    nroitem = i.nroitem ?? 0,
+                                })
+                                .ToListAsync();
+                            var resul = await ventas.DescuentoExtra_CalcularMonto(_context, reg.coddesextra, dtproforma1, "", nit);
+                            monto_desc_pf_complementaria = resul.resultado;
+                        }
+                        else
+                        {
+                            monto_desc_pf_complementaria = 0;
+                        }
+                        //sumar el monto de la proforma complementaria
+                        reg.montodoc = (decimal)await siat.Redondeo_Decimales_SIA_2_decimales_SQL((float)(monto_desc + monto_desc_pf_complementaria));
+                    }
                 }
             }
-            // QUITAR
-            return 0;
+
+            ////////////////////////////////////////////////////////////////////////////////
+            //los que se aplican en el SUBTOTAL
+            ////////////////////////////////////////////////////////////////////////////////
+            foreach (var reg in tabladescuentos)
+            {
+                if (! await ventas.DescuentoExtra_Diferenciado_x_item(_context, reg.coddesextra))
+                {
+                    if (reg.aplicacion == "SUBTOTAL")
+                    {
+                        if (coddesextra_depositos == reg.coddesextra)
+                        {
+                            //el monto por descuento de deposito ya esta calculado
+                            //pero se debe verificar si este monto de este descuento esta en la misma moneda que la proforma
+                            
+                            if (reg.codmoneda != codmoneda)
+                            {
+                                double monto_cambio = (double)await tipocambio._conversion(_context, codmoneda, reg.codmoneda, fecha, reg.montodoc);
+                                reg.montodoc = (decimal)await siat.Redondeo_Decimales_SIA_2_decimales_SQL((float)monto_cambio);
+                                reg.codmoneda = codmoneda;
+                            }
+                        }
+                        else
+                        {
+                            //este descuento se aplica sobre el subtotal de la venta
+                            reg.montodoc = (decimal)await siat.Redondeo_Decimales_SIA_2_decimales_SQL((float)((subtotal / 100) * (double)reg.porcen));
+                        }
+                    }
+                }
+            }
+
+            //totalizar los descuentos que se aplicar al subtotal
+            double total_desctos1 = 0;
+            foreach (var reg in tabladescuentos)
+            {
+                if (reg.aplicacion == "SUBTOTAL")
+                {
+                    total_desctos1 += (double)reg.montodoc;
+                }
+            }
+            //desde 08 / 01 / 2023 redondear el resultado a dos decimales con el SQLServer
+            total_desctos1 = await siat.Redondeo_Decimales_SIA_2_decimales_SQL((float)total_desctos1);
+            // retornar total_desctos1
+
+            ////////////////////////////////////////////////////////////////////////////////
+            //los que se aplican en el TOTAL
+            ////////////////////////////////////////////////////////////////////////////////
+
+            double total_preliminar = subtotal - total_desctos1;
+            foreach (var reg in tabladescuentos)
+            {
+                if (! await ventas.DescuentoExtra_Diferenciado_x_item(_context,reg.coddesextra))
+                {
+                    if (reg.aplicacion == "TOTAL")
+                    {
+                        if (coddesextra_depositos == reg.coddesextra)
+                        {
+                            //el descuento se aplica sobre el monto del deposito
+                            //ya esta calculado
+                        }
+                        else
+                        {
+                            //este descuento se aplica sobre el subtotal de la venta
+                            reg.montodoc = (decimal) await siat.Redondeo_Decimales_SIA_2_decimales_SQL((float)((total_preliminar/100)*(double)reg.porcen));
+                        }
+                    }
+                }
+            }
+            double total_desctos2 = 0;
+            foreach (var reg in tabladescuentos)
+            {
+                if (reg.aplicacion == "TOTAL")
+                {
+                    total_desctos2 += (double)reg.montodoc;
+                }
+            }
+            //desde 08 / 01 / 2023 redondear el resultado a dos decimales con el SQLServer
+            total_desctos2 = await siat.Redondeo_Decimales_SIA_2_decimales_SQL((float)total_desctos2);
+
+            double respdescuentos = await siat.Redondeo_Decimales_SIA_2_decimales_SQL((float)(total_desctos1 + total_desctos2));
+
+            return respdescuentos;
 
         }
 
+        private async Task<double> vertotal(DBContext _context, double subtotal, double recargos, double descuentos, string codcliente_real, string codmoneda, string codempresa, DateTime fecha, List<itemDataMatriz> tabladetalle, List<verecargoprof> tablarecargos)
+        {
+            double suma = subtotal + recargos - descuentos;
+            double totalIva = 0;
+            if (suma < 0)
+            {
+                suma = 0;
+            }
+            if (await cliente.DiscriminaIVA(_context,codcliente_real))
+            {
+                // Calculo de ivas
+                var tablaiva = await CalcularTablaIVA(subtotal, recargos, descuentos, tabladetalle);
+                //fin calculo ivas
+                totalIva = await veriva(tablaiva);
+                suma = suma + totalIva;
+            }
+            //obtener los recargos que se aplican al final
+            var respues = await ventas.Recargos_Sobre_Total_Final(_context, suma, codmoneda, fecha, codempresa, tablarecargos);
+            double ttl_recargos_finales = respues.ttl_recargos_sobre_total_final;
+
+            suma = suma + ttl_recargos_finales;
+            return suma;
+        }
+
+        private async Task<List<veproforma_iva>> CalcularTablaIVA(double subtotal, double recargos, double descuentos, List<itemDataMatriz> tabladetalle)
+        {
+            List<clsDobleDoble> lista = new List<clsDobleDoble>();
+            
+            foreach (var reg in tabladetalle)
+            {
+                bool encontro = false;
+                foreach (var item in lista)
+                {
+                    if (item.dobleA==reg.porceniva)
+                    {
+                        encontro = true;
+                        item.dobleB = item.dobleB + reg.total;
+                        break;
+                    }
+                }
+                if (!encontro)
+                {
+                    clsDobleDoble newReg = new clsDobleDoble();
+                    newReg.dobleA = reg.porceniva;
+                    newReg.dobleB= reg.total;
+                    lista.Add(newReg);
+                }
+            }
+            // pasar a tabla
+            var tablaiva = lista.Select(i => new veproforma_iva
+            {
+                codproforma = 0,
+                porceniva = (decimal)i.dobleA,
+                total = (decimal)i.dobleB,
+                porcenbr = 0,
+                br = 0,
+                iva = 0
+            }).ToList();
+
+            //calcular porcentaje de br
+            double porcenbr = 0;
+            try
+            {
+                if (subtotal > 0)
+                {
+                    porcenbr = ((recargos - descuentos) * 100) / subtotal;
+                }
+            }
+            catch (Exception)
+            {
+                porcenbr = 0;
+            }
+            //calcular en la tabla
+            foreach (var reg in tablaiva)
+            {
+                reg.porcenbr = (decimal)porcenbr;
+                reg.br = (reg.total / 100) * (decimal)porcenbr;
+                reg.iva = ((reg.total + reg.br) / 100) * reg.porceniva;
+            }
+            return tablaiva;
+        }
+
+        private async Task<double> veriva(List<veproforma_iva> tablaiva)
+        {
+            var total = tablaiva.Sum(i => i.iva) ?? 0; 
+            return (double)total;
+        }
     }
+
+    public class cargadofromMatriz
+    {
+        public string coditem { get; set; }
+        public int tarifa { get; set; }
+        public int descuento { get; set; }
+        public decimal cantidad_pedida { get; set; }
+        public decimal cantidad { get; set; }
+        public string codcliente { get; set; }
+        public string opcion_nivel { get; set; }
+        public int codalmacen { get; set; }
+        public string desc_linea_seg_solicitud { get; set; }
+        public string codmoneda { get; set; }
+        public DateTime fecha { get; set; }
+    }
+   
 }

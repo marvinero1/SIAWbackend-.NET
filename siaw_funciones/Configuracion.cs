@@ -35,5 +35,14 @@ namespace siaw_funciones
             }
             return (int)result;
         }
+        public async Task<bool> emp_hab_descto_x_deposito(DBContext _context, string codempresa)
+        {
+            var result = await _context.adparametros
+                    .Where(v => v.codempresa == codempresa)
+                    .Select(parametro => parametro.hab_descto_x_deposito)
+                    .FirstOrDefaultAsync() ??true;
+
+            return result;
+        }
     }
 }

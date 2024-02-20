@@ -5,7 +5,7 @@
         public string coditem { get; set; }
         public string descripcion { get; set; }
         public string medida { get; set; }
-        public string ud { get; set; }
+        public string udm { get; set; }
         public float porceniva { get; set; }
         public float cantidad_pedida { get; set; }
         public float cantidad { get; set; }
@@ -26,5 +26,20 @@
         public double monto_descto { get; set; } = 0;
         public double subtotal_descto_extra { get; set; } = 0;
 
+    }
+
+    public class tabladescuentos
+    {
+        public int codproforma { get; set; }
+        public int coddesextra { get; set; }
+        public decimal porcen { get; set; }
+        public decimal montodoc { get; set; }
+        public int? codcobranza { get; set; }
+        public int? codcobranza_contado { get; set; }
+        public int? codanticipo { get; set; }
+        public int id { get; set; }
+
+        public string? aplicacion { get; set; }
+        public string? codmoneda { get; set; }
     }
 }

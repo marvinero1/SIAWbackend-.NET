@@ -18,6 +18,7 @@ namespace siaw_funciones
         private readonly Depositos_Cliente depositos_cliente = new Depositos_Cliente();
         //private readonly IDepositosCliente depositos_cliente;
         private readonly Cliente cliente = new Cliente();
+        private readonly TipoCambio tipocambio = new TipoCambio();
         /*
         public Ventas(IDepositosCliente depositosCliente)
         {
@@ -428,13 +429,14 @@ namespace siaw_funciones
             return "";
         }
 
-        public async Task<List<vedesextraprof>> Ordenar_Descuentos_Extra(DBContext _context, List<vedesextraprof> tabladescuentos)
+        public async Task<List<tabladescuentos>> Ordenar_Descuentos_Extra(DBContext _context, List<tabladescuentos> tabladescuentos)
         {
-            List < vedesextraprof > dt_subtotal = new List<vedesextraprof> ();
-            List<vedesextraprof> dt_total = new List<vedesextraprof>();
+            List < tabladescuentos > dt_subtotal = new List<tabladescuentos> ();
+            List<tabladescuentos> dt_total = new List<tabladescuentos>();
             foreach (var reg in tabladescuentos)
             {
                 var aplicacion = await Donde_Aplica_Descuento_Extra(_context, reg.coddesextra);
+                reg.aplicacion = aplicacion;
                 if (aplicacion == "SUBTOTAL")
                 {
                     dt_subtotal.Add(reg);
@@ -523,6 +525,45 @@ namespace siaw_funciones
             return false;
         }
 
+        public async Task<int> codproforma(DBContext _context, string id_proforma, int numeroid_proforma)
+        {
+            var resultado = await _context.veproforma.Where(i => i.id == id_proforma && i.numeroid == numeroid_proforma).Select(i => i.codigo).FirstOrDefaultAsync();
+            return resultado;
+        }
+        public async Task<bool> Proforma_Tiene_DescuentoExtra(DBContext _context, int codproforma, int coddesextra)
+        {
+            var resultado = await _context.vedesextraprof.Where(i => i.codproforma == codproforma && i.coddesextra == coddesextra).FirstOrDefaultAsync();
+            if (resultado != null)
+            {
+                return true;
+            }
+            return false;
+        }
+
+        public async Task<(List<verecargoprof> tablarecargos,double ttl_recargos_sobre_total_final)> Recargos_Sobre_Total_Final(DBContext _context, double total, string codmoneda, DateTime fecha, string codempresa, List<verecargoprof> tablarecargos)
+        {
+            int codrecargo_pedido_urg_provincia = await configuracion.emp_codrecargo_pedido_urgente_provincia(_context, codempresa);
+            double ttl_recargos_sobre_total_final = 0;
+
+            //de momento a fecha: 26-10-2021 el unico recargo que va al final es del 8 - RECARGO PEDIDO URG PROVINCIAS
+            foreach (var reg in tablarecargos)
+            {
+                if (reg.codrecargo == codrecargo_pedido_urg_provincia)
+                {
+                    if (reg.porcen > 0)
+                    {
+                        reg.montodoc = (decimal)(total / 100) * reg.porcen;
+                    }
+                    else
+                    {
+                        reg.montodoc = await tipocambio._conversion(_context, codmoneda, reg.moneda, fecha, reg.monto);
+                    }
+                    reg.montodoc = Math.Round(reg.montodoc,2);
+                    ttl_recargos_sobre_total_final += (double)reg.montodoc;
+                }
+            }
+            return (tablarecargos, ttl_recargos_sobre_total_final);
+        }
     }
 
     public class dtcbza
