@@ -34,17 +34,17 @@ namespace siaw_funciones
         private Items items = new Items();
         public async Task<decimal> SaldoItem_CrtlStock_Para_Ventas(string userConnectionString, string agencia, int codalmacen, string coditem, string codempresa, string usuario)
         {
-            List<sldosItemCompleto> saldos;
+            //List<sldosItemCompleto> saldos;
             decimal resultado = 0;
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 //precio unitario del item
-                saldos = await SaldosCompleto(userConnectionString, agencia, codalmacen, coditem, codempresa, usuario);
+                resultado = await SaldosCompletoResult(userConnectionString, codalmacen, coditem, codempresa, usuario);
                 //resultado = tabla;
             }
             //for (int i = 0; (i <= (saldos.Count - 1)); i++)
             //{
-            resultado = (decimal)saldos[7].valor;
+            //resultado = (decimal)saldos[7].valor;
             //}
 
             return resultado;

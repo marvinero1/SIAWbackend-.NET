@@ -113,6 +113,38 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
         }
 
 
+        // GET: api/adempresa/5
+        [HttpGet]
+        [Route("getcodMon/{userConn}/{codEmpresa}")]
+        public async Task<ActionResult<adempresa>> getcodMon(string userConn, string codEmpresa)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    if (_context.adempresa == null)
+                    {
+                        return BadRequest(new { resp = "Entidad adempresa es null." });
+                    }
+                    var codMoneda = await _context.adempresa.Where(i => i.codigo == codEmpresa).Select(i => i.moneda).FirstOrDefaultAsync();
+
+                    if (codMoneda == null)
+                    {
+                        return NotFound(new { resp = "No se encontro un registro con este código" });
+                    }
+
+                    return Ok(codMoneda);
+                }
+
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+            }
+        }
 
 
 

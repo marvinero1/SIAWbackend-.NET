@@ -1187,7 +1187,11 @@ namespace SIAW.Controllers.ventas.transaccion
                         {
                             //List<sldosItemCompleto> sld_ctrlstock_para_vtas = await saldos.SaldoItem_CrtlStock_Para_Ventas(userConnectionString, "311", codalmacen, coditem, "PE", "dpd3");
                             var sld_ctrlstock_para_vtas = await saldos.SaldoItem_CrtlStock_Para_Ventas(userConnectionString, "311", codalmacen, coditem, "PE", "dpd3");
-                            porcen_merca = cantidad * 100 / sld_ctrlstock_para_vtas;
+                            if (sld_ctrlstock_para_vtas > 0)
+                            {
+                                porcen_merca = cantidad * 100 / sld_ctrlstock_para_vtas;
+                            }
+                            else { porcen_merca = 0; }
                         }
                         else { porcen_merca = 0; }
                     }
@@ -1261,7 +1265,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 {
                     return BadRequest(new { resp = "No se esta recibiendo ningun dato, verifique esta situación." });
                 }
-                List< itemDataMatriz > resultado = new List< itemDataMatriz >();
+                
                 //string nivel = "X";
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
@@ -1269,81 +1273,9 @@ namespace SIAW.Controllers.ventas.transaccion
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
-                    foreach (var reg in data)
-                    {
-                        //precio unitario del item
-                        var precioItem = await _context.intarifa1
-                            .Where(i => i.codtarifa == reg.tarifa && i.item == reg.coditem)
-                            .Select(i => i.precio)
-                            .FirstOrDefaultAsync();
-                        //convertir a la moneda el precio item
-                        var monedabase = await ventas.monedabasetarifa(_context, reg.tarifa);
-                        precioItem = await tipocambio.conversion(userConnectionString, reg.codmoneda, monedabase, reg.fecha, (decimal)precioItem);
-                        precioItem = await cliente.Redondear_5_Decimales(userConnectionString, (decimal)precioItem);
-                        //porcentaje de mercaderia
-                        decimal porcen_merca = 0;
-                        if (reg.codalmacen > 0)
-                        {
-                            var controla_stok_seguridad = await empresa.ControlarStockSeguridad(userConnectionString, "PE");
-                            if (controla_stok_seguridad == true)
-                            {
-                                //List<sldosItemCompleto> sld_ctrlstock_para_vtas = await saldos.SaldoItem_CrtlStock_Para_Ventas(userConnectionString, "311", codalmacen, coditem, "PE", "dpd3");
-                                var sld_ctrlstock_para_vtas = await saldos.SaldoItem_CrtlStock_Para_Ventas(userConnectionString, "311", reg.codalmacen, reg.coditem, "PE", "dpd3");
-                                porcen_merca = reg.cantidad * 100 / sld_ctrlstock_para_vtas;
-                            }
-                            else { porcen_merca = 0; }
-                        }
-                        else { porcen_merca = 0; }
+                    var resultado = await calculoPreciosMatriz(_context,userConnectionString,data);
 
-
-                        //descuento de nivel del cliente
-                        var niveldesc = await cliente.niveldesccliente(_context, reg.codcliente, reg.coditem, reg.tarifa, reg.opcion_nivel, false);
-
-                        //porcentaje de descuento de nivel del cliente
-                        var porcentajedesc = await cliente.porcendesccliente(_context, reg.codcliente, reg.coditem, reg.tarifa, reg.opcion_nivel, false);
-
-                        //preciodesc 
-                        var preciodesc = await cliente.Preciodesc(userConnectionString, reg.codcliente, reg.codalmacen, reg.tarifa, reg.coditem, reg.desc_linea_seg_solicitud, niveldesc, reg.opcion_nivel);
-                        preciodesc = await tipocambio.conversion(userConnectionString, reg.codmoneda, monedabase, reg.fecha, (decimal)preciodesc);
-                        preciodesc = await cliente.Redondear_5_Decimales(userConnectionString, preciodesc);
-                        //precioneto 
-                        var precioneto = await cliente.Preciocondescitem(userConnectionString, reg.codcliente, reg.codalmacen, reg.tarifa, reg.coditem, reg.descuento, reg.desc_linea_seg_solicitud, niveldesc, reg.opcion_nivel);
-                        precioneto = await tipocambio.conversion(userConnectionString, reg.codmoneda, monedabase, reg.fecha, (decimal)precioneto);
-                        precioneto = await cliente.Redondear_5_Decimales(userConnectionString, precioneto);
-                        //total
-                        var total = reg.cantidad * precioneto;
-                        total = await cliente.Redondear_5_Decimales(userConnectionString, total);
-
-                        var item = await _context.initem
-                            .Where(i => i.codigo == reg.coditem)
-                            .Select(i => new itemDataMatriz
-                            {
-                                coditem = i.codigo,
-                                descripcion = i.descripcion,
-                                medida = i.medida,
-                                udm = i.unidad,
-                                porceniva = (float)i.iva,
-                                cantidad_pedida = (float)reg.cantidad_pedida,
-                                cantidad = (float)reg.cantidad,
-                                porcen_mercaderia = (float)porcen_merca,
-                                codtarifa = reg.tarifa,
-                                coddescuento = reg.descuento,
-                                preciolista = (float)precioItem,
-                                niveldesc = niveldesc,
-                                porcendesc = (float)porcentajedesc,
-                                preciodesc = (float)preciodesc,
-                                precioneto = (float)precioneto,
-                                total = (float)total
-
-                            })
-                            .FirstOrDefaultAsync();
-
-                        if (item != null)
-                        {
-                            resultado.Add(item);
-                        }
-                    }
-                    if (resultado.Count() < 1)
+                    if (resultado == null)
                     {
                         return BadRequest(new { resp = "No se encontro informacion con los datos proporcionados." });
                     }
@@ -1354,6 +1286,95 @@ namespace SIAW.Controllers.ventas.transaccion
             {
                 return Problem("Error en el servidor");
             }
+        }
+
+
+        private async Task<List<itemDataMatriz>> calculoPreciosMatriz(DBContext _context, string userConnectionString, List<cargadofromMatriz> data)
+        {
+            List<itemDataMatriz> resultado = new List<itemDataMatriz>();
+            foreach (var reg in data)
+            {
+                //precio unitario del item
+                var precioItem = await _context.intarifa1
+                    .Where(i => i.codtarifa == reg.tarifa && i.item == reg.coditem)
+                    .Select(i => i.precio)
+                    .FirstOrDefaultAsync();
+                //convertir a la moneda el precio item
+                var monedabase = await ventas.monedabasetarifa(_context, reg.tarifa);
+                precioItem = await tipocambio._conversion(_context, reg.codmoneda, monedabase, reg.fecha, (decimal)precioItem);
+                precioItem = await cliente.Redondear_5_Decimales(userConnectionString, (decimal)precioItem);
+                //porcentaje de mercaderia
+                decimal porcen_merca = 0;
+                if (reg.codalmacen > 0)
+                {
+                    var controla_stok_seguridad = await empresa.ControlarStockSeguridad(userConnectionString, "PE");
+                    if (controla_stok_seguridad == true)
+                    {
+                        //List<sldosItemCompleto> sld_ctrlstock_para_vtas = await saldos.SaldoItem_CrtlStock_Para_Ventas(userConnectionString, "311", codalmacen, coditem, "PE", "dpd3");
+                        var sld_ctrlstock_para_vtas = await saldos.SaldoItem_CrtlStock_Para_Ventas(userConnectionString, "311", reg.codalmacen, reg.coditem, "PE", "dpd3");
+                        if (sld_ctrlstock_para_vtas > 0)
+                        {
+                            porcen_merca = reg.cantidad * 100 / sld_ctrlstock_para_vtas;
+                        }
+                        else { porcen_merca = 0; }
+                    }
+                    else { porcen_merca = 0; }
+                }
+                else { porcen_merca = 0; }
+
+
+                //descuento de nivel del cliente
+                var niveldesc = await cliente.niveldesccliente(_context, reg.codcliente, reg.coditem, reg.tarifa, reg.opcion_nivel, false);
+
+                //porcentaje de descuento de nivel del cliente
+                var porcentajedesc = await cliente.porcendesccliente(_context, reg.codcliente, reg.coditem, reg.tarifa, reg.opcion_nivel, false);
+
+                //preciodesc 
+                var preciodesc = await cliente.Preciodesc(userConnectionString, reg.codcliente, reg.codalmacen, reg.tarifa, reg.coditem, reg.desc_linea_seg_solicitud, niveldesc, reg.opcion_nivel);
+                preciodesc = await tipocambio.conversion(userConnectionString, reg.codmoneda, monedabase, reg.fecha, (decimal)preciodesc);
+                preciodesc = await cliente.Redondear_5_Decimales(userConnectionString, preciodesc);
+                //precioneto 
+                var precioneto = await cliente.Preciocondescitem(userConnectionString, reg.codcliente, reg.codalmacen, reg.tarifa, reg.coditem, reg.descuento, reg.desc_linea_seg_solicitud, niveldesc, reg.opcion_nivel);
+                precioneto = await tipocambio.conversion(userConnectionString, reg.codmoneda, monedabase, reg.fecha, (decimal)precioneto);
+                precioneto = await cliente.Redondear_5_Decimales(userConnectionString, precioneto);
+                //total
+                var total = reg.cantidad * precioneto;
+                total = await cliente.Redondear_5_Decimales(userConnectionString, total);
+
+                var item = await _context.initem
+                    .Where(i => i.codigo == reg.coditem)
+                    .Select(i => new itemDataMatriz
+                    {
+                        coditem = i.codigo,
+                        descripcion = i.descripcion,
+                        medida = i.medida,
+                        udm = i.unidad,
+                        porceniva = (float)i.iva,
+                        cantidad_pedida = (float)reg.cantidad_pedida,
+                        cantidad = (float)reg.cantidad,
+                        porcen_mercaderia = (float)porcen_merca,
+                        codtarifa = reg.tarifa,
+                        coddescuento = reg.descuento,
+                        preciolista = (float)precioItem,
+                        niveldesc = niveldesc,
+                        porcendesc = (float)porcentajedesc,
+                        preciodesc = (float)preciodesc,
+                        precioneto = (float)precioneto,
+                        total = (float)total
+
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (item != null)
+                {
+                    resultado.Add(item);
+                }
+            }
+            if (resultado.Count() < 1)
+            {
+                return null;
+            }
+            return resultado;
         }
 
         [Authorize]
@@ -1528,10 +1549,10 @@ namespace SIAW.Controllers.ventas.transaccion
             veproforma veproforma = datosProforma.veproforma;
             List<veproforma1> veproforma1 = datosProforma.veproforma1;
             List<veproforma_valida> veproforma_valida = datosProforma.veproforma_valida;
-            List<veproforma_anticipo> veproforma_anticipo = datosProforma.veproforma_anticipo;
-            List<vedesextraprof> vedesextraprof = datosProforma.vedesextraprof;
-            List<verecargoprof> verecargoprof = datosProforma.verecargoprof;
-            List<veproforma_iva> veproforma_iva = datosProforma.veproforma_iva;
+            var veproforma_anticipo = datosProforma.veproforma_anticipo;
+            var vedesextraprof = datosProforma.vedesextraprof;
+            var verecargoprof = datosProforma.verecargoprof;
+            var veproforma_iva = datosProforma.veproforma_iva;
 
             ////////////////////   GRABAR DOCUMENTO
 
@@ -1735,187 +1756,166 @@ namespace SIAW.Controllers.ventas.transaccion
             await _context.SaveChangesAsync();
         }
 
-
-        private async Task<string> RECALCULARPRECIOS(DBContext _context, string usuario, string codmoneda, DateTime fecha, int codtarifadefect, int codalmacen, string idsoldesctos, int nroidsoldesctos, string codcliente_real, bool reaplicar_desc_deposito, bool preguntar_si_aplicare_desc_deposito, bool desclinea_segun_solicitud, string cmbniveles_descuento, string codempresa, List<itemDataMatriz> tabla_detalle, List<verecargoprof> tablarecargos)
+        
+        //[Authorize]
+        [HttpPost]
+        [Route("totabilizarProf/{userConn}/{codempresa}/{desclinea_segun_solicitud}/{cmbtipo_complementopf}")]
+        public async Task<object> totabilizarProf(string userConn, string codempresa, bool desclinea_segun_solicitud, int cmbtipo_complementopf, SaveProformaCompleta datosProforma)
         {
-            //aplicar desctos primavera 2022
-            //Aplicar_Descto_Primavera2022(False)
+            veproforma veproforma = datosProforma.veproforma;
+            List<veproforma1> veproforma1 = datosProforma.veproforma1;
+            List<veproforma_valida> veproforma_valida = datosProforma.veproforma_valida;
+            var veproforma_anticipo = datosProforma.veproforma_anticipo;
+            var vedesextraprof = datosProforma.vedesextraprof;
+            var verecargoprof = datosProforma.verecargoprof;
+            var veproforma_iva = datosProforma.veproforma_iva;
 
-            ////////////////////////////////////////////////////////////
-            //verificar los precios permitidos al usuario
-            string cadena_precios_no_autorizados_al_us = await validar_Vta.Validar_Precios_Permitidos_Usuario(_context, usuario, tabla_detalle);
-            if (cadena_precios_no_autorizados_al_us.Trim().Length > 0)
+            if (veproforma1.Count() < 1)
             {
-                return "El documento tiene items a precio(s): " + cadena_precios_no_autorizados_al_us + " los cuales no estan asignados al usuario " + usuario + " verifique esta situacion!!!";
+                return BadRequest(new { resp = "No se esta recibiendo ningun dato, verifique esta situación." });
             }
-            ////////////////////////////////////////////////////////////
 
-
-
-            ////////////////////////////////////////////////////////////
-            //validar si es con descuentos de linea de una solicitu previamente creada
-            
-            if (!desclinea_segun_solicitud)
+            var data = veproforma1.Select(i => new cargadofromMatriz
             {
-                //ojo aqui revisar
-                if (await ventas.Tarifa_Permite_Desctos_Linea(_context, codtarifadefect))
-                {
+                coditem = i.coditem,
+                tarifa = i.codtarifa,
+                descuento = i.coddescuento,
+                cantidad_pedida = i.cantidad_pedida ?? 0,
+                cantidad = i.cantidad,
+                codcliente = veproforma.codcliente,
+                opcion_nivel = i.niveldesc,
+                codalmacen = veproforma.codalmacen,
+                desc_linea_seg_solicitud = desclinea_segun_solicitud ? "SI":"NO",  //(SI o NO)
+                codmoneda = veproforma.codmoneda,
+                fecha = veproforma.fecha
+            }).ToList();
 
+            var tabla_detalle = veproforma1.Select(i => new itemDataMatriz
+            {
+                coditem = i.coditem,
+                descripcion = "",
+                medida = "",
+                udm = i.udm,
+                porceniva = (float)i.porceniva,
+                cantidad_pedida = (float)i.cantidad_pedida,
+                cantidad = (float)i.cantidad,
+                porcen_mercaderia = 0,
+                codtarifa = i.codtarifa,
+                coddescuento = i.coddescuento,
+                preciolista = (float)i.preciolista,
+                niveldesc = i.niveldesc,
+                porcendesc = 0,
+                preciodesc = (float)i.preciodesc,
+                precioneto = (float)i.precioneto,
+                total = (float)i.total
+            }).ToList();
+            //string nivel = "X";
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+
+                //aplicar desctos primavera 2022
+                //Aplicar_Descto_Primavera2022(False)
+
+                ////////////////////////////////////////////////////////////
+                //verificar los precios permitidos al usuario
+                string cadena_precios_no_autorizados_al_us = await validar_Vta.Validar_Precios_Permitidos_Usuario(_context, veproforma.usuarioreg, tabla_detalle);
+                if (cadena_precios_no_autorizados_al_us.Trim().Length > 0)
+                {
+                    return "El documento tiene items a precio(s): " + cadena_precios_no_autorizados_al_us + " los cuales no estan asignados al usuario " + veproforma.usuarioreg + " verifique esta situacion!!!";
                 }
-                /*
-                 If codtarifadefect.Text.Trim.Length > 0 Then
-                    If sia_funciones.Ventas.Instancia.Tarifa_Permite_Desctos_Linea(codtarifadefect.Text) Then
-                        If cmbniveles_descuento.SelectedIndex < 0 Then
-                            MessageBox.Show("Debe definir si los descuentos de nivel a utilizar seran los actuales o los anteriores!!", "Validar", MessageBoxButtons.OK, MessageBoxIcon.Exclamation, MessageBoxDefaultButton.Button1)
-                            cmbniveles_descuento.Focus()
-                            TabControl1.SelectTab(2)
-                            Exit Sub
+                ////////////////////////////////////////////////////////////
+
+
+
+                ////////////////////////////////////////////////////////////
+                //validar si es con descuentos de linea de una solicitu previamente creada
+
+                if (!desclinea_segun_solicitud)
+                {
+                    //ojo aqui revisar
+                    /*
+                    if (await ventas.Tarifa_Permite_Desctos_Linea(_context, codtarifadefect))
+                    {
+
+                    }
+                    */
+                    /*
+                     If codtarifadefect.Text.Trim.Length > 0 Then
+                        If sia_funciones.Ventas.Instancia.Tarifa_Permite_Desctos_Linea(codtarifadefect.Text) Then
+                            If cmbniveles_descuento.SelectedIndex < 0 Then
+                                MessageBox.Show("Debe definir si los descuentos de nivel a utilizar seran los actuales o los anteriores!!", "Validar", MessageBoxButtons.OK, MessageBoxIcon.Exclamation, MessageBoxDefaultButton.Button1)
+                                cmbniveles_descuento.Focus()
+                                TabControl1.SelectTab(2)
+                                Exit Sub
+                            End If
                         End If
                     End If
-                End If
-                 */
-            }
-
-            //verificar si la solicitud de descuentos de linea existe
-            if (desclinea_segun_solicitud)
-            {
-                if (! await ventas.Existe_Solicitud_Descuento_Nivel(_context, idsoldesctos, nroidsoldesctos))
-                {
-                    return "Ha elegido utilizar la solicitud de descuentos de nivel: " + idsoldesctos + "-" + nroidsoldesctos + " para aplicar descuentos de linea, pero la solicitud indicada no existe!!!";
+                     */
                 }
-                if (codcliente_real != await ventas.Cliente_Solicitud_Descuento_Nivel(_context,idsoldesctos,nroidsoldesctos))
-                {
-                    return "La solicitud de descuentos de nivel: " + idsoldesctos + "-" + nroidsoldesctos + " a la que hace referencia no pertenece al mismo cliente de esta proforma!!!";
-                }
-            }
 
-            /*
-             codmoneda.Text = Trim(codmoneda.Text)
-
-            If Trim(codmoneda.Text) = "" Then
-                codmoneda.Text = sia_funciones.Empresa.Instancia.monedabase(sia_compartidos.temporales.Instancia.codempresa)
-                tdc.Text = "1"
-            Else
-                tdc.Text = sia_funciones.TipoCambio.Instancia.tipocambio(sia_funciones.Empresa.Instancia.monedabase(sia_compartidos.temporales.Instancia.codempresa), codmoneda.Text, fecha.Value.Date)
-            End If
-             */
-            foreach (var reg in tabla_detalle)
-            {
-                reg.cantidad = (float)Math.Round(reg.cantidad, 2, MidpointRounding.AwayFromZero);
-                //***************************************************
-                ////aqui se verifica si los decuentos de nivel se calculan con solicitud directo o lo que esta cargado en sus desctos del cliente
+                //verificar si la solicitud de descuentos de linea existe
                 if (desclinea_segun_solicitud)
                 {
-                    if (idsoldesctos.Trim().Length == 0 || nroidsoldesctos.ToString().Length == 0)
+                    if (!await ventas.Existe_Solicitud_Descuento_Nivel(_context, veproforma.idsoldesctos, veproforma.nroidsoldesctos??0))
                     {
-                        //si la proforma es con descuentos de nivel de una solicitud entonces se recupera de la solicitud los descuentos
-                        reg.niveldesc = "X";
-                        reg.porcendesc = 0;
+                        return "Ha elegido utilizar la solicitud de descuentos de nivel: " + veproforma.idsoldesctos + "-" + veproforma.nroidsoldesctos + " para aplicar descuentos de linea, pero la solicitud indicada no existe!!!";
                     }
-                    else
+                    if (veproforma.codcliente_real != await ventas.Cliente_Solicitud_Descuento_Nivel(_context, veproforma.idsoldesctos, veproforma.nroidsoldesctos ?? 0))
                     {
-                        //si la proforma es con descuentos de nivel de una solicitud entonces se recupera de la solicitud los descuentos
-                        reg.niveldesc = await cliente.niveldesccliente_segun_solicitud(_context, idsoldesctos, nroidsoldesctos, codcliente_real, reg.coditem, reg.codtarifa);
-                        reg.porcendesc = (float)await cliente.porcen_desccliente_segun_solicitud(_context, idsoldesctos, nroidsoldesctos, codcliente_real, reg.coditem, reg.codtarifa);
+                        return "La solicitud de descuentos de nivel: " + veproforma.idsoldesctos + "-" + veproforma.nroidsoldesctos + " a la que hace referencia no pertenece al mismo cliente de esta proforma!!!";
                     }
                 }
-                else
-                {
-                    reg.niveldesc = await cliente.niveldesccliente(_context,codcliente_real,reg.coditem,reg.codtarifa, cmbniveles_descuento, false);
-                    reg.porcendesc = (float)await cliente.porcendesccliente(_context, codcliente_real, reg.coditem, reg.codtarifa, cmbniveles_descuento, false);
-
-                }
-
-                //***************************************************
 
                 /*
-                 If codalmacen.Text.Trim = "" Then
-                    tabladetalle.Rows(i)("porcen_mercaderia") = 0.0
+                 codmoneda.Text = Trim(codmoneda.Text)
+
+                If Trim(codmoneda.Text) = "" Then
+                    codmoneda.Text = sia_funciones.Empresa.Instancia.monedabase(sia_compartidos.temporales.Instancia.codempresa)
+                    tdc.Text = "1"
                 Else
-                    Try
-
-                        '///////////////////////////////////////////////////////////////////////
-                        '//verificar si el item esta en los que no reservan saldos
-                        '///////////////////////////////////////////////////////////////////////
-
-                        'tabladetalle.Rows(i)("porcen_mercaderia") = 0.0
-
-                        'Dim FACTOR_RESERVA_SALDO As Integer = 0
-                        'If sia_funciones.Inventario.Instancia.Item_No_Reserva_Saldo(CStr(tabladetalle.Rows(i)("coditem"))) Then
-                        '    FACTOR_RESERVA_SALDO = 0
-                        'Else
-                        '    FACTOR_RESERVA_SALDO = 1
-                        'End If
-
-                        'If Me.Usar_Bd_Opcional Then
-                        '    If sia_funciones.Empresa.Instancia.ControlarStockSeguridad(sia_compartidos.temporales.Instancia.codempresa) Then
-                        '        tabladetalle.Rows(i)("porcen_mercaderia") = FACTOR_RESERVA_SALDO * ((CDbl(tabladetalle.Rows(i)("cantidad")) * 100) / sia_funciones.Saldos.Instancia.SaldoItem_CrtlStock_Para_Ventas(CStr(tabladetalle.Rows(i)("coditem")), sia_funciones.Configuracion.Instancia.usr_codalmacen_saldo_1(sia_compartidos.temporales.Instancia.usuario), True, "", 0, True))
-                        '    Else
-                        '        tabladetalle.Rows(i)("porcen_mercaderia") = FACTOR_RESERVA_SALDO * ((CDbl(tabladetalle.Rows(i)("cantidad")) * 100) / sia_funciones.Saldos.Instancia.SaldoItem_CrtlStock_Para_Ventas(CStr(tabladetalle.Rows(i)("coditem")), sia_funciones.Configuracion.Instancia.usr_codalmacen_saldo_1(sia_compartidos.temporales.Instancia.usuario), False, "", 0, True))
-                        '    End If
-                        'Else
-                        '    If sia_funciones.Empresa.Instancia.ControlarStockSeguridad(sia_compartidos.temporales.Instancia.codempresa) Then
-                        '        tabladetalle.Rows(i)("porcen_mercaderia") = FACTOR_RESERVA_SALDO * ((CDbl(tabladetalle.Rows(i)("cantidad")) * 100) / sia_funciones.Saldos.Instancia.SaldoItem_CrtlStock_Para_Ventas(CStr(tabladetalle.Rows(i)("coditem")), CInt(codalmacen.Text), True, "", 0, True))
-                        '    Else
-                        '        tabladetalle.Rows(i)("porcen_mercaderia") = FACTOR_RESERVA_SALDO * ((CDbl(tabladetalle.Rows(i)("cantidad")) * 100) / sia_funciones.Saldos.Instancia.SaldoItem_CrtlStock_para_ventas(CStr(tabladetalle.Rows(i)("coditem")), CInt(codalmacen.Text), False,"",0,true))
-                        '    End If
-                        'End If
-
-                    Catch ex As Exception
-                        tabladetalle.Rows(i)("porcen_mercaderia") = 0.0
-                    End Try
+                    tdc.Text = sia_funciones.TipoCambio.Instancia.tipocambio(sia_funciones.Empresa.Instancia.monedabase(sia_compartidos.temporales.Instancia.codempresa), codmoneda.Text, fecha.Value.Date)
                 End If
                  */
 
-                //CALCULO DEL PRECIO FINAL CON DESCUENTO DE LINEA
-                if (reg.codtarifa > 0)
+
+
+
+                var resultado = await calculoPreciosMatriz(_context, userConnectionString, data);
+                if (resultado == null)
                 {
-                    string monBase = await ventas.monedabasetarifa(_context, reg.codtarifa);
-
-                    reg.preciolista = (float)await tipocambio._conversion(_context, codmoneda, monBase, fecha, (decimal)await ventas.preciodelistaitem(_context, reg.codtarifa, reg.coditem));
-                    // redondear a 5 decimales
-                    var precio_lista = reg.preciolista;
-                    precio_lista = (float)await siat.Redondeo_Decimales_SIA_5_decimales_SQL(precio_lista);
-                    reg.preciolista = precio_lista;
-
-                    // si hay descuento
-                    reg.preciodesc = tipocambio._conversion(_context, codmoneda, monBase, fecha, await ventas.preciocliente(_context, codcliente_real, codalmacen, reg.codtarifa, reg.coditem, (desclinea_segun_solicitud == true) ? "SI" : "NO", reg.niveldesc, cmbniveles_descuento));
-                    reg.precioneto = tipocambio._conversion(_context, codmoneda, monBase, fecha, await ventas.preciocondescitem(_context, codcliente_real, codalmacen, reg.codtarifa, reg.coditem, reg.coddescuento, (desclinea_segun_solicitud == true) ? "SI" : "NO", reg.niveldesc, cmbniveles_descuento));
-
-                    // redondear a 5 decimales
-                    var preciodesc = reg.preciodesc;
-                    preciodesc = (float)await siat.Redondeo_Decimales_SIA_5_decimales_SQL(preciodesc);
-                    reg.preciodesc = preciodesc;
-
-                    // redondear a 5 decimales
-                    var precioneto = reg.precioneto;
-                    precioneto = (float)await siat.Redondeo_Decimales_SIA_5_decimales_SQL(precioneto);
-                    reg.precioneto = precioneto;
-
-                    if (reg.cantidad > 0)
-                    {
-                        reg.total = reg.cantidad * reg.precioneto;
-                        // redondear a 5 decimales
-                        var total_item = reg.total;
-                        total_item = (float)await siat.Redondeo_Decimales_SIA_5_decimales_SQL(total_item);
-                        reg.total = total_item;
-                    }
-                    else
-                    {
-                        reg.total = 0;
-                    }
-
+                    return BadRequest(new { resp = "No se encontro informacion con los datos proporcionados." });
                 }
-                else
+                var totales = await RECALCULARPRECIOS(_context, false,codempresa, cmbtipo_complementopf,resultado, verecargoprof, veproforma, vedesextraprof);
+
+                
+                return Ok(new
                 {
-                    reg.preciolista = 0;
-                    reg.preciodesc = 0;
-                    reg.precioneto = 0;
-                    reg.total = 0;
-                }
-
+                    totales = totales,
+                    detalleProf = resultado
+                });
             }
-            var result = await versubtotal(_context,tabla_detalle);
+        }
+
+        private async Task<object> RECALCULARPRECIOS(DBContext _context, bool reaplicar_desc_deposito, string codempresa, int cmbtipo_complementopf, List<itemDataMatriz> tabla_detalle, List<verecargoprof> tablarecargos, veproforma veproforma, List<vedesextraprof> vedesextraprof)
+        {
+            var tabladescuentos = vedesextraprof.Select(i => new tabladescuentos
+            {
+                codproforma = i.codproforma,
+                coddesextra = i.coddesextra,
+                porcen = i.porcen,
+                montodoc = i.montodoc,
+                codcobranza = i.codcobranza,
+                codcobranza_contado = i.codcobranza_contado,
+                codanticipo = i.codanticipo,
+                id = i.id,
+                codmoneda = veproforma.codmoneda
+            }).ToList();
+
+            var result = await versubtotal(_context, tabla_detalle);
             float subtotal = result.st;
             float peso = result.peso;
             if (reaplicar_desc_deposito)
@@ -1923,11 +1923,18 @@ namespace SIAW.Controllers.ventas.transaccion
                 // Revisar_Aplicar_Descto_Deposito(preguntar_si_aplicare_desc_deposito);
             }
 
-            var recargo = await verrecargos(_context,codempresa, codmoneda, fecha, subtotal, tablarecargos);
-            //var descuento = await verdesextra();
-            // var total = vertotal();
+            var recargo = await verrecargos(_context,codempresa, veproforma.codmoneda, veproforma.fecha, subtotal, tablarecargos);
+            var descuento = await verdesextra(_context,codempresa,veproforma.nit,veproforma.codmoneda, cmbtipo_complementopf, veproforma.idpf_complemento, veproforma.nroidpf_complemento ?? 0, subtotal, veproforma.fecha, tabladescuentos, tabla_detalle);
+            var resultados = await vertotal(_context,subtotal, recargo, descuento,veproforma.codcliente_real,veproforma.codmoneda,codempresa,veproforma.fecha, tabla_detalle, tablarecargos);
             //QUITAR
-            return "";
+            return new { 
+                subtotal = subtotal,
+                peso = peso,
+                recargo = recargo,
+                descuento = descuento,
+                iva = resultados.totalIva,
+                total = resultados.TotalGen
+            };
 
         }
 
@@ -2208,7 +2215,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
         }
 
-        private async Task<double> vertotal(DBContext _context, double subtotal, double recargos, double descuentos, string codcliente_real, string codmoneda, string codempresa, DateTime fecha, List<itemDataMatriz> tabladetalle, List<verecargoprof> tablarecargos)
+        private async Task<(double totalIva, double TotalGen)> vertotal(DBContext _context, double subtotal, double recargos, double descuentos, string codcliente_real, string codmoneda, string codempresa, DateTime fecha, List<itemDataMatriz> tabladetalle, List<verecargoprof> tablarecargos)
         {
             double suma = subtotal + recargos - descuentos;
             double totalIva = 0;
@@ -2229,7 +2236,7 @@ namespace SIAW.Controllers.ventas.transaccion
             double ttl_recargos_finales = respues.ttl_recargos_sobre_total_final;
 
             suma = suma + ttl_recargos_finales;
-            return suma;
+            return (totalIva, suma);
         }
 
         private async Task<List<veproforma_iva>> CalcularTablaIVA(double subtotal, double recargos, double descuentos, List<itemDataMatriz> tabladetalle)
