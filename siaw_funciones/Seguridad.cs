@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using siaw_DBContext.Data;
+using siaw_DBContext.Models;
 
 namespace siaw_funciones
 {
@@ -97,6 +98,35 @@ namespace siaw_funciones
                 return true;
             }
                 
+        }
+
+
+        public string Getad_conexion_vpnFromDatabase(string contrasena_sql, string servidor_sql, string usuario_sql, string bd_sql)
+        {
+            var passDesencript = XorString(contrasena_sql, "vpn");
+            string cadConection = "Data Source=" + servidor_sql +
+                ";User ID=" + usuario_sql +
+                ";Password=" + passDesencript +
+                ";Connect Timeout=30;Initial Catalog=" + bd_sql + ";";
+
+            return cadConection;
+        }
+
+        static string XorString(string targetString, string maskValue)
+        {
+            int index = 0;
+            StringBuilder returnValue = new StringBuilder();
+
+            foreach (char charValue in targetString.ToCharArray())
+            {
+                int maskCharCode = maskValue[index % maskValue.Length];
+                int xorResult = charValue ^ maskCharCode;
+                returnValue.Append((char)xorResult);
+
+                index = (index + 1) % maskValue.Length;
+            }
+
+            return returnValue.ToString();
         }
 
     }

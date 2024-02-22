@@ -1694,6 +1694,7 @@ namespace siaw_DBContext.Data
         public virtual DbSet<veclientesiguales_antiguos> veclientesiguales_antiguos { get; set; }
         public virtual DbSet<veclientesiguales_credito> veclientesiguales_credito { get; set; }
         public virtual DbSet<veclientesiguales_credito1> veclientesiguales_credito1 { get; set; }
+        public virtual DbSet<veclientesiguales_nacion> veclientesiguales_nacion { get; set; }
         public virtual DbSet<vecompetencia_control> vecompetencia_control { get; set; }
         public virtual DbSet<vecondicion_iva> vecondicion_iva { get; set; }
         public virtual DbSet<vecostoventas_ajuste> vecostoventas_ajuste { get; set; }
@@ -59944,6 +59945,19 @@ namespace siaw_DBContext.Data
                 entity.Property(e => e.creditodisp).HasColumnType("decimal(18, 2)");
 
                 entity.Property(e => e.saldo_deuda).HasColumnType("decimal(18, 2)");
+            });
+
+            modelBuilder.Entity<veclientesiguales_nacion>(entity =>
+            {
+                entity.HasKey(e => new { e.codcliente_a, e.codcliente_b });
+
+                entity.Property(e => e.codcliente_a)
+                    .HasMaxLength(10)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.codcliente_b)
+                    .HasMaxLength(10)
+                    .IsUnicode(false);
             });
 
             modelBuilder.Entity<vecompetencia_control>(entity =>

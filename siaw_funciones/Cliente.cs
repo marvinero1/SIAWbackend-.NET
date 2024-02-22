@@ -15,6 +15,8 @@ namespace siaw_funciones
     public class Cliente
     {
         //Clase necesaria para el uso del DBContext del proyecto siaw_Context
+        TipoCambio tipocambio = new TipoCambio();
+        Seguridad seguridad = new Seguridad();
         public static class DbContextFactory
         {
             public static DBContext Create(string connectionString)
@@ -488,8 +490,8 @@ namespace siaw_funciones
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 string codigo_principal = await CodigoPrincipal(_context, codcliente);
-                string nit1 = await NIT(userConnectionString, codigo_principal);
-                string nit2 = await NIT(userConnectionString, codcliente);
+                string nit1 = await NIT(_context, codigo_principal);
+                string nit2 = await NIT(_context, codcliente);
                 string resultado = "";
                 if (codigo_principal.Trim() == codcliente.Trim())
                 {
@@ -559,21 +561,18 @@ namespace siaw_funciones
 
         }
 
-        public async Task<string> NIT(string userConnectionString, string codcliente)
+        public async Task<string> NIT(DBContext _context, string codcliente)
         {
-            using (var _context = DbContextFactory.Create(userConnectionString))
-            {
-                var nit = await _context.vecliente
+            var nit = await _context.vecliente
                     .Where(item => item.codigo == codcliente)
                     .Select(item => item.nit)
                     .FirstOrDefaultAsync();
 
-                if (nit == null)
-                {
-                    return "";
-                }
-                return nit;
+            if (nit == null)
+            {
+                return "";
             }
+            return nit;
         }
 
         public async Task<bool> ActualizarParametrosDePrincipal(string userConnectionString, string codcliente)
@@ -785,6 +784,257 @@ namespace siaw_funciones
             return 0;
         }
 
+        public async Task<string> CodigosIgualesMismoNIT(DBContext _context, string codcliente)
+        {
+            try
+            {
+                string resultado = "";
+                string nit = "";
+                nit = await NIT(_context, codcliente);
+
+                var regex = new Regex(@"^\d+$"); // Expresión regular para verificar si la cadena contiene solo dígitos
+                string maincode = await CodigoPrincipal(_context, codcliente);
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var clientesIguales = await _context.veclientesiguales
+                .Where(cliente => cliente.codcliente_a == maincode)
+                .ToListAsync(); // Cargar datos en memoria
+
+                var filteredResult = clientesIguales
+                    .Where(cliente => regex.IsMatch(cliente.codcliente_b))
+                    .OrderBy(cliente => cliente.codcliente_b)
+                    .Select(cliente => cliente.codcliente_b)
+                    .ToList();
+
+                if (filteredResult != null)
+                {
+                    if (nit == await NIT(_context, filteredResult[0]))
+                    //if (filteredResult.Any())
+                    {
+                        //resultado = "'" + string.Join("','", filteredResult) + "'";
+                        resultado = "" + string.Join(",", filteredResult) + "";
+                    }
+                }
+                return resultado;
+                // }
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+
+        }
+
+        public async Task<(double resp,string message)> Cliente_Saldo_Pendiente_Nacional(DBContext _context, string cliente_principal_local, string codmoneda)
+        {
+            string _codigo_Principal = await CodigoPrincipal(_context, cliente_principal_local);
+            decimal saldo_x_pagar_nal = 0;
+            if (await Cliente_Tiene_Sucursal_Nacional(_context,cliente_principal_local))
+            {
+                //si el cliente es parte de una agrupacion cial a nivel nacional entre agencias de Pertec a nivel nacional
+                string casa_matriz_Nacional = await CodigoPrincipal_Nacional(_context, cliente_principal_local);
+                var dt_sucursales = await _context.veclientesiguales_nacion.Where(i => i.codcliente_a == casa_matriz_Nacional)
+                    .Select(i => new
+                    {
+                        i.codcliente_a,
+                        i.codcliente_b,
+                        i.codalmacen_a,
+                        i.codalmacen_b,
+                        saldo = 0
+                    }).ToListAsync();
+                foreach (var reg in dt_sucursales)
+                {
+                    decimal saldo_x_pagar_en_ag = 0;
+                    if (cliente_principal_local == reg.codcliente_b)
+                    {
+                        //no se actualiza porque ya se actualizo lineas mas arriba
+                    }
+                    else
+                    {
+                        //buscar los datos de conexion de la sucursal
+                        var dt_conexion = await _context.ad_conexion_vpn
+                            .Where(c => c.agencia.StartsWith("credito") && c.codalmacen == reg.codalmacen_b)
+                            .FirstOrDefaultAsync();
+                        if (dt_conexion == null)
+                        {
+                            return (-1, "No se encontro la configuracion de conexion para la sucursal!!!");
+                        }
+                        else
+                        {
+                            //OBTENER CADENA DE CONEXION
+                            var newCadConexVPN = seguridad.Getad_conexion_vpnFromDatabase(dt_conexion.contrasena_sql,dt_conexion.servidor_sql, dt_conexion.usuario_sql,dt_conexion.bd_sql);
+                            //alistar la cadena de conexion para conectar a la ag
+                            using (var _contextVPN = DbContextFactory.Create(newCadConexVPN))
+                            {
+                                _codigo_Principal = await CodigoPrincipal(_contextVPN, reg.codcliente_b);
+                                string cliente_principal = "";
+                                string _CodigosIguales = "";
+                                // Solo considerarlo el principal si Tiene el mismo NIT, caso contrario usar solo el codigo individual de cliente
+                                if (await NIT(_contextVPN,_codigo_Principal) == await NIT(_contextVPN,reg.codcliente_b))
+                                {
+                                    cliente_principal = _codigo_Principal;
+                                    _CodigosIguales = await CodigosIgualesMismoNIT(_contextVPN, reg.codcliente_b);   //<------solo los de mismo NIT
+                                }
+                                else
+                                {
+                                    cliente_principal = reg.codcliente_b;
+                                    _CodigosIguales = "'" + reg.codcliente_b + "'";
+                                }
+
+                                //obtener el saldo pendiente de pago de todo el grupo cial
+                                saldo_x_pagar_en_ag = await _contextVPN.coplancuotas
+                                    .Join(
+                                        _contextVPN.veremision,
+                                        p1 => p1.coddocumento,
+                                        p2 => p2.codigo,
+                                        (p1, p2) => new { p1, p2 }
+                                    )
+                                    .Where(joined => joined.p1.moneda == codmoneda &&
+                                           _CodigosIguales.Contains(joined.p1.cliente)&&
+                                           joined.p2.anulada == false)
+                                    .Select(joined => (joined.p1.monto - joined.p1.montopagado) ?? 0)
+                                    .SumAsync();
+                                //acumulativo saldo nacional
+                                saldo_x_pagar_nal += saldo_x_pagar_en_ag;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // QUITAR
+            return ((double)saldo_x_pagar_nal, "");
+
+
+        }
+
+
+
+
+        public async Task<(double resp, string message)> Cliente_Proformas_Aprobadas_Nacional(DBContext _context, string cliente_principal_local, string codmoneda)
+        {
+            string _codigo_Principal = await CodigoPrincipal(_context, cliente_principal_local);
+            decimal ttl_prof_aprobadas_nal = 0;
+            DateTime fecha = DateTime.Now;
+            if (await Cliente_Tiene_Sucursal_Nacional(_context, cliente_principal_local))
+            {
+                //si el cliente es parte de una agrupacion cial a nivel nacional entre agencias de Pertec a nivel nacional
+                string casa_matriz_Nacional = await CodigoPrincipal_Nacional(_context, cliente_principal_local);
+                var dt_sucursales = await _context.veclientesiguales_nacion.Where(i => i.codcliente_a == casa_matriz_Nacional)
+                    .Select(i => new
+                    {
+                        i.codcliente_a,
+                        i.codcliente_b,
+                        i.codalmacen_a,
+                        i.codalmacen_b,
+                        saldo = 0
+                    }).ToListAsync();
+                foreach (var reg in dt_sucursales)
+                {
+                    decimal ttl_prof_aprobadas_en_ag = 0;
+                    if (cliente_principal_local == reg.codcliente_b)
+                    {
+                        //no se actualiza porque ya se actualizo lineas mas arriba
+                    }
+                    else
+                    {
+                        //buscar los datos de conexion de la sucursal
+                        var dt_conexion = await _context.ad_conexion_vpn
+                            .Where(c => c.agencia.StartsWith("credito") && c.codalmacen == reg.codalmacen_b)
+                            .FirstOrDefaultAsync();
+                        if (dt_conexion == null)
+                        {
+                            return (-1, "No se encontro la configuracion de conexion para la sucursal!!!");
+                        }
+                        else
+                        {
+                            //OBTENER CADENA DE CONEXION
+                            var newCadConexVPN = seguridad.Getad_conexion_vpnFromDatabase(dt_conexion.contrasena_sql, dt_conexion.servidor_sql, dt_conexion.usuario_sql, dt_conexion.bd_sql);
+                            //alistar la cadena de conexion para conectar a la ag
+                            using (var _contextVPN = DbContextFactory.Create(newCadConexVPN))
+                            {
+                                _codigo_Principal = await CodigoPrincipal(_contextVPN, reg.codcliente_b);
+                                string cliente_principal = "";
+                                string _CodigosIguales = "";
+                                // Solo considerarlo el principal si Tiene el mismo NIT, caso contrario usar solo el codigo individual de cliente
+                                if (await NIT(_contextVPN, _codigo_Principal) == await NIT(_contextVPN, reg.codcliente_b))
+                                {
+                                    cliente_principal = _codigo_Principal;
+                                    _CodigosIguales = await CodigosIgualesMismoNIT(_contextVPN, reg.codcliente_b);   //<------solo los de mismo NIT
+                                }
+                                else
+                                {
+                                    cliente_principal = reg.codcliente_b;
+                                    _CodigosIguales = "'" + reg.codcliente_b + "'";
+                                }
+
+                                //obtener el saldo pendiente de pago de todo el grupo cial
+                                var dt = await _contextVPN.veproforma
+                                    .Where(p1 => _CodigosIguales.Contains(p1.codcliente) &&
+                                                 p1.anulada == false && p1.aprobada == true && p1.transferida == false &&
+                                                 p1.tipopago == 1 && p1.codmoneda == codmoneda)
+                                    .Select(p1 => new {
+                                        p1.codcliente,
+                                        p1.total,
+                                        p1.codmoneda,
+                                        p1.aprobada,
+                                        p1.transferida
+                                    })
+                                    .ToListAsync();
+                                //proformas aprobadas
+                                foreach (var item in dt)
+                                {
+                                    if (item.codmoneda == codmoneda)
+                                    {
+                                        ttl_prof_aprobadas_en_ag += item.total;
+                                    }
+                                    else
+                                    {
+                                        decimal monto_convertido = await tipocambio._conversion(_context,codmoneda,item.codmoneda,fecha, item.total);
+                                        ttl_prof_aprobadas_en_ag += Math.Round(monto_convertido, 2);
+                                    }
+                                }
+
+                                //acumulativo proformas aprobadas nal
+                                ttl_prof_aprobadas_nal += ttl_prof_aprobadas_en_ag;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // QUITAR
+            return ((double)ttl_prof_aprobadas_nal, "");
+
+
+        }
+
+
+
+        public async Task<string> CodigoPrincipal_Nacional(DBContext _context, string codcliente)
+        {
+            var resultado = await _context.veclientesiguales_nacion.Where(i => i.codcliente_b == codcliente).Select(i => i.codcliente_a).FirstOrDefaultAsync();
+            if (resultado == null)
+            {
+                return codcliente;
+            }
+            if (resultado == "")
+            {
+                return codcliente;
+            }
+            return resultado;
+        }
+
+        public async Task<bool> Cliente_Tiene_Sucursal_Nacional(DBContext _context, string codcliente)
+        {
+            var resultado = await _context.veclientesiguales_nacion.Where(i => i.codcliente_b == codcliente).Select(i => i.codcliente_a).FirstOrDefaultAsync();
+            if (resultado != null)
+            {
+                return true;
+            }
+            return false;
+        }
         public async Task<bool> DiscriminaIVA(DBContext _context, string codcliente)
         {
             var resultado = await _context.vecliente.Where(i => i.codigo == codcliente).Select(i=>i.discrimina_iva).FirstOrDefaultAsync() ?? false;
@@ -793,6 +1043,16 @@ namespace siaw_funciones
         public async Task<bool> Es_Cliente_Casual(DBContext _context, string codcliente)
         {
             var resultado = await _context.vecliente.Where(i => i.codigo == codcliente).Select(i => i.casual).FirstOrDefaultAsync() ?? false;
+            return resultado;
+        }
+
+        public async Task<string> monedacliente(DBContext _context, string codcliente, string usuario, string codempresa)
+        {
+            var resultado = await _context.vecliente.Where(i => i.codigo == codcliente).Select(i => i.moneda).FirstOrDefaultAsync() ?? "";
+            if (resultado == "")
+            {
+                resultado = await tipocambio.monedatdc(_context, usuario,codempresa);
+            }
             return resultado;
         }
 

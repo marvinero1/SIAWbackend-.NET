@@ -60,5 +60,24 @@ namespace siaw_funciones
                 .FirstOrDefaultAsync();
             return codalmacen;
         }
+
+        public async Task<string> monedabase(DBContext _context, string codigoempresa)
+        {
+            //Esta funcion devuelve la moneda base de una determinada empresa
+            string codmoneda = await _context.adempresa
+                .Where(i => i.codigo == codigoempresa)
+                .Select(i => i.moneda)
+                .FirstOrDefaultAsync() ?? "";
+            return codmoneda;
+        }
+        public async Task<string> monedaext(DBContext _context, string codigoempresa)
+        {
+            //Esta funcion devuelve la moneda base de una determinada empresa
+            string codmoneda = await _context.adparametros
+                .Where(i => i.codempresa == codigoempresa)
+                .Select(i => i.monedae)
+                .FirstOrDefaultAsync() ?? "";
+            return codmoneda;
+        }
     }
 }

@@ -250,5 +250,7 @@ namespace siaw_DBContext.Models
         public bool? obtener_cantidades_aprobadas_de_proformas { get; set; }
         public bool? crm_ta_proximos_vencimientos { get; set; }
         public int? codrecargo_pedido_urgente_provincia { get; set; }
+        public int? coddesextra_x_deposito_contado { get; set; }
+        public bool? permitir_desc_x_depo_casual_referencial { get; set; }
     }
 }

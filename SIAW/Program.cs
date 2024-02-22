@@ -86,18 +86,11 @@ app.UseAuthentication();
 
 app.UseMiddleware<UppercaseMiddleware>(); // Agregar aquí el middleware
 
-
 app.UseHttpsRedirection();
-
-
 
 app.UseAuthorization();
 
 app.MapControllers();
-
-
-
-
 
 app.Run();
 

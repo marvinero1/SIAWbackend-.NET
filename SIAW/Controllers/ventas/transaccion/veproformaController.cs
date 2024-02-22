@@ -989,7 +989,7 @@ namespace SIAW.Controllers.ventas.transaccion
             string datosValidos = await clienteCasual.validar_crear_cliente(userConnectionString, cliCasual.codSN, cliCasual.nit_cliente_casual, cliCasual.tipo_doc_cliente_casual);
             if (datosValidos != "Ok")
             {
-                return BadRequest(new { resp = "Datos no validos verifique por favor!!!" });
+                return BadRequest(new { resp = datosValidos });
             }
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
@@ -2302,7 +2302,42 @@ namespace SIAW.Controllers.ventas.transaccion
             var total = tablaiva.Sum(i => i.iva) ?? 0; 
             return (double)total;
         }
+    
+    
+        private async Task<bool> Validar_Credito_Disponible(DBContext _context, string codcliente, string usuario, string codempresa, string codmoneda, double totalProf)
+        {
+            string moneda_cliente = await cliente.monedacliente(_context, codcliente, usuario, codempresa);
+
+            bool resultado = false;
+
+            double monto_proforma = totalProf;
+            
+            string monedae = await empresa.monedaext(_context, codempresa);
+            string monedabase = await empresa.monedabase(_context, codempresa);
+
+            if (codmoneda == monedae)
+            {
+                resultado = false;
+            }
+            else
+            {
+                //convierte el monto de la proforma a la moneda del cliente y con el monto convertido valida
+                //convierte el monto de la proforma a la moneda del cliente y con el monto convertido valida
+                resultado = true;
+            }
+
+            return true;
+        }
+
     }
+
+
+
+
+
+
+
+
 
     public class cargadofromMatriz
     {

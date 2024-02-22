@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using siaw_DBContext.Data;
+using siaw_DBContext.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,6 +12,7 @@ namespace siaw_funciones
     public class TipoCambio
     {
         //Clase necesaria para el uso del DBContext del proyecto siaw_Context
+        Empresa empresa = new Empresa();
         public static class DbContextFactory
         {
             public static DBContext Create(string connectionString)
@@ -215,9 +217,16 @@ namespace siaw_funciones
             return resultado;
         }
 
-        public float _conversion(DBContext context, string codmoneda, string monBase, DateTime fecha, float v)
+
+        public async Task<string> monedatdc(DBContext _context, string usuario, string codempresa)
         {
-            throw new NotImplementedException();
+            var resultado = await _context.adusparametros.Where(v => v.usuario == usuario).Select(i => i.codmonedatdc).FirstOrDefaultAsync();
+            if (resultado == null)
+            {
+                resultado = await empresa.monedabase(_context, codempresa);
+            }
+            return resultado;
         }
+
     }
 }

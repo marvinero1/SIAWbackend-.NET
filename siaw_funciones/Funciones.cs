@@ -57,5 +57,29 @@ namespace siaw_funciones
             byte[] hash = sha.ComputeHash(bytClearString);
             return Convert.ToBase64String(hash).Substring(1, 8);
         }
+
+        public async Task<DateTime> FechaDelServidor(DBContext _context)
+        {
+            DateTime resultado = DateTime.Now;
+
+
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                //resultado = _context.FechaServidor.FromSqlRaw("SELECT GETDATE() AS fecha").FirstOrDefault()?.Fecha ?? DateTime.Now;
+                var query = await _context.Database.ExecuteSqlRawAsync("SELECT GETDATE() AS fecha");
+                resultado = query > 0 ? DateTime.Now : resultado;
+                //}
+            }
+            catch (Exception ex)
+            {
+                // Manejar la excepción según tus necesidades
+                Console.WriteLine($"Error: {ex.Message}");
+            }
+
+            return resultado;
+        }
     }
 }
