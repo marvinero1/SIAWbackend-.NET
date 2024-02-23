@@ -228,5 +228,9 @@ namespace siaw_funciones
             return resultado;
         }
 
+        internal Task<double> _conversion(DBContext context, string moneda_base, string monedae, DateTime now, double saldo_x_pagar_demas_ags_us)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
