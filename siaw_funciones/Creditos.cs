@@ -85,7 +85,7 @@ namespace siaw_funciones
 
         }
 
-        public async Task<bool> ValidarCreditoDisponible_en_Bs(DBContext _context, bool mostrar_detalle, string codcliente, bool incluir_proformas, double totaldoc, string codempresa, string usuario, string monedae, string moneda_pf)
+        public async Task<(bool resultado_func, object data)> ValidarCreditoDisponible_en_Bs(DBContext _context, bool mostrar_detalle, string codcliente, bool incluir_proformas, double totaldoc, string codempresa, string usuario, string monedae, string moneda_pf)
         {
             string codigoPrincipal = await cliente.CodigoPrincipal(_context, codcliente);
             // Solo considerarlo el principal si Tiene el mismo NIT, caso contrario usar solo el codigo individual de cliente
@@ -188,7 +188,7 @@ namespace siaw_funciones
             var resul1 = await cliente.Cliente_Saldo_Pendiente_Nacional(_context, codcliente, monedae);
             if (resul1.message != "")
             {
-                return false;  // devolver error de mensaje REVISAR
+                return (false, new {resp = resul1.message});  // devolver error de mensaje REVISAR
             }
             saldo_x_pagar_demas_ags_us = resul1.resp;
 
@@ -196,7 +196,7 @@ namespace siaw_funciones
             var resul2 = await cliente.Cliente_Saldo_Pendiente_Nacional(_context, codcliente, moneda_base);
             if (resul2.message != "")
             {
-                return false;  // devolver error de mensaje REVISAR
+                return (false, new { resp = resul1.message });   // devolver error de mensaje REVISAR
             }
             saldo_x_pagar_demas_ags_bs = resul2.resp;
 
@@ -207,7 +207,7 @@ namespace siaw_funciones
             var resul3 = await cliente.Cliente_Proformas_Aprobadas_Nacional(_context, codcliente, monedae);
             if (resul3.message != "")
             {
-                return false;  // devolver error de mensaje REVISAR
+                return (false, new { resp = resul3.message });  // devolver error de mensaje REVISAR
             }
             ttl_proformas_aprobadas_demas_ags_us = resul3.resp;
 
@@ -215,7 +215,7 @@ namespace siaw_funciones
             var resul4 = await cliente.Cliente_Proformas_Aprobadas_Nacional(_context, codcliente, moneda_base);
             if (resul4.message != "")
             {
-                return false;  // devolver error de mensaje REVISAR
+                return (false, new { resp = resul4.message });  // devolver error de mensaje REVISAR
             }
             ttl_proformas_aprobadas_demas_ags_bs = resul4.resp;
 
@@ -349,27 +349,40 @@ namespace siaw_funciones
             {
                 // si la moneda de la proforma es en moneda base osea BS se debe convertir todo lo que es a US a BS
                 deuda_actual_total = (double)(deuda_actual_bs + await tipocambio._conversion(_context,moneda_base, monedae, DateTime.Now, deuda_actual_us));
-                saldo_x_pagar_demas_ags_total = saldo_x_pagar_demas_ags_bs + await tipocambio._conversion(_context, moneda_base, monedae, DateTime.Now, saldo_x_pagar_demas_ags_us);
-                monto_prof_aprobadas_total = monto_prof_aprobadas_bs + await tipocambio._conversion(_context, moneda_base, monedae, DateTime.Now, monto_prof_aprobadas_us);
-                ttl_proformas_aprobadas_demas_ags_total = ttl_proformas_aprobadas_demas_ags_bs + await tipocambio._conversion(_context, moneda_base, monedae, DateTime.Now, ttl_proformas_aprobadas_demas_ags_us);
-                ttl_anticipos = anticipos_bs + await tipocambio._conversion(_context, moneda_base, monedae, DateTime.Now, anticipos_us);
+                saldo_x_pagar_demas_ags_total = saldo_x_pagar_demas_ags_bs + (double)await tipocambio._conversion(_context, moneda_base, monedae, DateTime.Now, (decimal)saldo_x_pagar_demas_ags_us);
+                monto_prof_aprobadas_total = monto_prof_aprobadas_bs + (double)await tipocambio._conversion(_context, moneda_base, monedae, DateTime.Now, (decimal)monto_prof_aprobadas_us);
+                ttl_proformas_aprobadas_demas_ags_total = ttl_proformas_aprobadas_demas_ags_bs + (double)await tipocambio._conversion(_context, moneda_base, monedae, DateTime.Now, (decimal)ttl_proformas_aprobadas_demas_ags_us);
+                ttl_anticipos = anticipos_bs + (double) await tipocambio._conversion(_context, moneda_base, monedae, DateTime.Now, (decimal)anticipos_us);
             }
             else
             {
                 // si la moneda de la proforma NO es en moneda base osea US se debe convertir todo lo que es a BS a US
                 deuda_actual_total = (double)(await tipocambio._conversion(_context, monedae, moneda_base, DateTime.Now, deuda_actual_bs) + deuda_actual_us);
-                saldo_x_pagar_demas_ags_total = await tipocambio._conversion(_context, monedae, moneda_base, DateTime.Now, saldo_x_pagar_demas_ags_bs) + saldo_x_pagar_demas_ags_us;
-                monto_prof_aprobadas_total = await tipocambio._conversion(_context, monedae, moneda_base, DateTime.Now, monto_prof_aprobadas_bs) + monto_prof_aprobadas_us;
-                ttl_proformas_aprobadas_demas_ags_total = await tipocambio._conversion(_context, monedae, moneda_base, DateTime.Now, ttl_proformas_aprobadas_demas_ags_bs) + ttl_proformas_aprobadas_demas_ags_us;
-                ttl_anticipos = await tipocambio._conversion(_context, monedae, moneda_base, DateTime.Now, anticipos_bs) + anticipos_us;
+                saldo_x_pagar_demas_ags_total = (double)await tipocambio._conversion(_context, monedae, moneda_base, DateTime.Now, (decimal)saldo_x_pagar_demas_ags_bs) + saldo_x_pagar_demas_ags_us;
+                monto_prof_aprobadas_total = (double)await tipocambio._conversion(_context, monedae, moneda_base, DateTime.Now, (decimal)monto_prof_aprobadas_bs) + monto_prof_aprobadas_us;
+                ttl_proformas_aprobadas_demas_ags_total = (double)await tipocambio._conversion(_context, monedae, moneda_base, DateTime.Now, (decimal)ttl_proformas_aprobadas_demas_ags_bs) + ttl_proformas_aprobadas_demas_ags_us;
+                ttl_anticipos = (double)await tipocambio._conversion(_context, monedae, moneda_base, DateTime.Now, (decimal)anticipos_bs) + anticipos_us;
             }
 
             if (mostrar_detalle)
             {
-
+                var detalle = new
+                {
+                    titulo = "El Credito del Cliente o Agrupacion Cial. En " + moneda_pf == "BS" ? "BS" : "US",
+                    subtitulo = resultado_func == true ? "SI" : "NO)" + " alcanzara",
+                    limite = "(+)  Limite de Credito: " + cred_actual,
+                    anticipo = "(+)Anticipos Sin Dist.: " + ttl_anticipos,
+                    deuLoc = "(-)        Deuda Local: " + deuda_actual_total,
+                    deuAgs = "(-)    Deuda Otras Ags: " + saldo_x_pagar_demas_ags_total,
+                    profApro = "(-)Proformas Aprobadas: " + monto_prof_aprobadas_total,
+                    profApAgs = "(-)Prof. Ap. Otras Ags: " + ttl_proformas_aprobadas_demas_ags_total,
+                    profAct = "(-)    Proforma Actual: " + totaldoc,
+                    saldo = "         Saldo Credito: " + (resultado - totaldoc)
+                };
+                return (resultado_func, detalle);
             }
 
-            return true;
+            return (resultado_func, null);
 
         }
 

@@ -49,6 +49,7 @@ namespace SIAW.Controllers.ventas.transaccion
         private readonly siaw_funciones.Almacen almacen = new siaw_funciones.Almacen();
         private readonly siaw_funciones.SIAT siat = new siaw_funciones.SIAT();
         private readonly siaw_funciones.Configuracion configuracion = new siaw_funciones.Configuracion();
+        private readonly siaw_funciones.Creditos creditos = new siaw_funciones.Creditos();
 
         public veproformaController(UserConnectionManager userConnectionManager)
         {
@@ -2302,11 +2303,29 @@ namespace SIAW.Controllers.ventas.transaccion
             var total = tablaiva.Sum(i => i.iva) ?? 0; 
             return (double)total;
         }
-    
-    
-        private async Task<bool> Validar_Credito_Disponible(DBContext _context, string codcliente, string usuario, string codempresa, string codmoneda, double totalProf)
+
+
+        //[Authorize]
+        [HttpGet]
+        [Route("valCredDispCli/{userConn}/{codcliente_real}/{usuario}/{codempresa}/{codmoneda}/{totalProf}/{fecha}")]
+        public async Task<object> valCredDispCli(string userConn, string codcliente_real, string usuario, string codempresa, string codmoneda, double totalProf, DateTime fecha)
         {
-            string moneda_cliente = await cliente.monedacliente(_context, codcliente, usuario, codempresa);
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var resultados = await Validar_Credito_Disponible(_context,codcliente_real,usuario,codempresa,codmoneda,totalProf, fecha);
+                return Ok(resultados.data);
+            }
+         }
+
+
+
+
+        private async Task<(bool resultado_func, object data)> Validar_Credito_Disponible(DBContext _context, string codcliente_real, string usuario, string codempresa, string codmoneda, double totalProf, DateTime fecha)
+        {
+            string moneda_cliente = await cliente.monedacliente(_context, codcliente_real, usuario, codempresa);
 
             bool resultado = false;
 
@@ -2314,19 +2333,18 @@ namespace SIAW.Controllers.ventas.transaccion
             
             string monedae = await empresa.monedaext(_context, codempresa);
             string monedabase = await empresa.monedabase(_context, codempresa);
-
             if (codmoneda == monedae)
             {
-                resultado = false;
+                var res = await creditos.ValidarCreditoDisponible_en_Bs(_context, true, codcliente_real, true, totalProf, codempresa, usuario, monedae, codmoneda);
+                return (res.resultado_func, res.data);
             }
             else
             {
+                //Desde 17-04-2023
                 //convierte el monto de la proforma a la moneda del cliente y con el monto convertido valida
-                //convierte el monto de la proforma a la moneda del cliente y con el monto convertido valida
-                resultado = true;
+                var res = await creditos.ValidarCreditoDisponible_en_Bs(_context, true, codcliente_real, true, (double)await tipocambio._conversion(_context,monedabase,codmoneda, fecha, (decimal)totalProf), codempresa, usuario, monedae, codmoneda);
+                return (res.resultado_func, res.data);
             }
-
-            return true;
         }
 
     }
