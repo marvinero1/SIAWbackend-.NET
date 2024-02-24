@@ -369,15 +369,39 @@ namespace siaw_funciones
                 var detalle = new
                 {
                     titulo = "El Credito del Cliente o Agrupacion Cial. En " + moneda_pf == "BS" ? "BS" : "US",
-                    subtitulo = resultado_func == true ? "SI" : "NO)" + " alcanzara",
-                    limite = "(+)  Limite de Credito: " + cred_actual,
-                    anticipo = "(+)Anticipos Sin Dist.: " + ttl_anticipos,
-                    deuLoc = "(-)        Deuda Local: " + deuda_actual_total,
-                    deuAgs = "(-)    Deuda Otras Ags: " + saldo_x_pagar_demas_ags_total,
-                    profApro = "(-)Proformas Aprobadas: " + monto_prof_aprobadas_total,
-                    profApAgs = "(-)Prof. Ap. Otras Ags: " + ttl_proformas_aprobadas_demas_ags_total,
-                    profAct = "(-)    Proforma Actual: " + totaldoc,
-                    saldo = "         Saldo Credito: " + (resultado - totaldoc)
+                    subtitulo = resultado_func == true ? "SI, alcanzara " : "NO, alcanzara ",
+                    limite = new {
+                        text = "(+)  Limite de Credito: ",
+                        sld = cred_actual
+                    },
+                    anticipo = new {
+                        text = "(+)  Anticipos Sin Dist.: ",
+                        sld = ttl_anticipos
+                    }, 
+                    deuLoc = new {
+                        text = "(-)  Deuda Local: ",
+                        sld = deuda_actual_total
+                    },
+                    deuAgs = new {
+                        text = "(-)  Deuda Otras Ags: ",
+                        sld = saldo_x_pagar_demas_ags_total
+                    },
+                    profApro = new {
+                        text = "(-)  Proformas Aprobadas: ",
+                        sld = monto_prof_aprobadas_total
+                    },
+                    profApAgs = new {
+                        text = "(-)  Prof. Ap. Otras Ags: ",
+                        sld = ttl_proformas_aprobadas_demas_ags_total
+                    },
+                    profAct = new {
+                        text = "(-)  Proforma Actual: ",
+                        sld = totaldoc
+                    },
+                    saldo = new {
+                        text = "  Saldo Credito: ",
+                        sld = (resultado - totaldoc)
+                    }
                 };
                 return (resultado_func, detalle);
             }
