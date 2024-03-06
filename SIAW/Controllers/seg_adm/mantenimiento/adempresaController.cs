@@ -136,7 +136,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                         return NotFound(new { resp = "No se encontro un registro con este código" });
                     }
 
-                    return Ok(codMoneda);
+                    return Ok(new {moneda = codMoneda });
                 }
 
             }
@@ -185,9 +185,6 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
                 return Ok( new { resp = "206" });   // actualizado con exito
             }
-            
-
-
         }
 
         // POST: api/adempresa
@@ -277,7 +274,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
         {
             try
             {
-                // Obtener el contexto de base de datos correspondiente al usuario
+                // Obtene   r el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
                 using (var _context = DbContextFactory.Create(userConnectionString))

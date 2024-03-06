@@ -28,6 +28,7 @@ namespace siaw_funciones
         private Cliente cliente = new Cliente();
         private Empresa empresa = new Empresa();
         private TipoCambio tipocambio = new TipoCambio();
+        private Seguridad seguridad = new Seguridad();
         public async Task<bool> Cliente_Tiene_Linea_De_Credito_Valida(DBContext _context, string codcliente)
         {
             try
@@ -437,6 +438,121 @@ namespace siaw_funciones
                 return resultado.moneda;
             }
             return "BS";
+        }
+
+
+        ///////////////////////////////////////////////////////////////////////////////
+        //Esta funcion devuelve elcredito disponible del cliente expresado en la moneda indicada tdc del dia
+        ///////////////////////////////////////////////////////////////////////////////
+        public async Task<double> credito(DBContext _context, string codcliente)
+        {
+            var resultado = await _context.vecliente.Where(c => c.codigo == codcliente).Select(c => c.credito).FirstOrDefaultAsync() ?? 0;
+            return (double)resultado;
+        }
+
+        public async Task<double> Obtener_Credito_Casa_Matriz(DBContext _context, string cliente_principal_local, string codmoneda)
+        {
+            double resultado = 0;
+            string _codigo_Principal = await cliente.CodigoPrincipal(_context, cliente_principal_local);
+            if (await cliente.Cliente_Tiene_Sucursal_Nacional(_context, cliente_principal_local))
+            {
+                //si el cliente es parte de una agrupacion cial a nivel nacional entre agencias de Pertec a nivel nacional
+                string casa_matriz_Nacional = await cliente.CodigoPrincipal_Nacional(_context, cliente_principal_local);
+                int CODALM = 0;
+                if (casa_matriz_Nacional.Trim().Length > 0)
+                {
+                    CODALM = await cliente.Almacen_Casa_Matriz_Nacional(_context,casa_matriz_Nacional);
+                }
+                var dt_sucursales = await _context.veclientesiguales_nacion
+                    .Where(i => i.codcliente_a == casa_matriz_Nacional).ToListAsync();
+
+                foreach (var reg in dt_sucursales)
+                {
+                    if (casa_matriz_Nacional == reg.codcliente_b)
+                    {
+                        // buscar los datos de conexion de la sucursal
+                        var dt_conexion = await _context.ad_conexion_vpn
+                            .Where(c => c.agencia.StartsWith("credito") && c.codalmacen == reg.codalmacen_b)
+                            .FirstOrDefaultAsync();
+                        if (dt_conexion == null)
+                        {
+                            return 0;
+                        }
+                        else
+                        {
+                            //OBTENER CADENA DE CONEXION
+                            var newCadConexVPN = seguridad.Getad_conexion_vpnFromDatabase(dt_conexion.contrasena_sql, dt_conexion.servidor_sql, dt_conexion.usuario_sql, dt_conexion.bd_sql);
+                            //alistar la cadena de conexion para conectar a la ag
+                            using (var _contextVPN = DbContextFactory.Create(newCadConexVPN))
+                            {
+                                _codigo_Principal = await cliente.CodigoPrincipal(_contextVPN, reg.codcliente_b);
+                                string cliente_principal = reg.codcliente_b;
+                                string _CodigosIguales = "'" + reg.codcliente_b + "'";
+                                // Solo considerarlo el principal si Tiene el mismo NIT, caso contrario usar solo el codigo individual de cliente
+                                if (await cliente.NIT(_contextVPN,_codigo_Principal)== await cliente.NIT(_contextVPN,reg.codcliente_b))  
+                                {
+                                    cliente_principal = _codigo_Principal;
+                                    _CodigosIguales = await cliente.CodigosIgualesMismoNIT(_contextVPN, reg.codcliente_b);  //<------solo los de mismo NIT
+                                }
+                                // obtener el saldo pendiente de pago de todo el grupo cial
+                                resultado = (double)(await _contextVPN.vecliente.Where(i => _CodigosIguales.Contains(i.codigo)).SumAsync(i => i.credito) ?? 0);
+                            }
+                        }
+                    }
+                }
+
+            }
+            return resultado;
+        }
+
+        public async Task<string> CodigoPrincipalCreditos(DBContext _context, string codcliente)
+        {
+            try
+            {
+                string codigoPrincipal = await cliente.CodigoPrincipal(_context, codcliente);
+                if (await cliente.NIT(_context, codigoPrincipal) != await cliente.NIT(_context, codcliente))
+                {
+                    codigoPrincipal = codcliente;
+                }
+                return codigoPrincipal;
+            }
+            catch (Exception)
+            {
+                return codcliente;
+            }
+        }
+
+        public async Task<string[]> Credito_Otorgado_Vigente(DBContext _context, string codcliente)
+        {
+            string[] resultado = new string[3];
+
+            var dt = await _context.vehcredito
+                .Where(v => v.codtipocredito == "FIJO"
+                    && v.codcliente == codcliente
+                    && v.revertido == false)
+                .FirstOrDefaultAsync();
+            if (dt != null)
+            {
+                if (dt.fechavenc < DateTime.Now)
+                {
+                    resultado[0] = "0";
+                    resultado[1] = dt.fecha.ToShortDateString();
+                    resultado[2] = dt.fechavenc.ToShortDateString();
+                }
+                else
+                {
+                    resultado[0] = dt.credito.ToString() + " (" + dt.moneda + ")";
+                    resultado[1] = dt.fecha.ToShortDateString();
+                    resultado[2] = dt.fechavenc.ToShortDateString();
+                }
+            }
+            else
+            {
+                resultado[0] = "0";
+                resultado[1] = "";
+                resultado[2] = "";
+            }
+            return resultado;
         }
     }
 }

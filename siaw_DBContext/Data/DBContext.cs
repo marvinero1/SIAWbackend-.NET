@@ -1803,6 +1803,7 @@ namespace siaw_DBContext.Data
         public virtual DbSet<veproforma_paquetes> veproforma_paquetes { get; set; }
         public virtual DbSet<veproforma_planpago> veproforma_planpago { get; set; }
         public virtual DbSet<veproforma_valida> veproforma_valida { get; set; }
+        public virtual DbSet<vepromocion_A> vepromocion_A { get; set; }
         public virtual DbSet<vepromventas_cfg> vepromventas_cfg { get; set; }
         public virtual DbSet<vepromventas_cfg1> vepromventas_cfg1 { get; set; }
         public virtual DbSet<vepromventas_clientes_unir> vepromventas_clientes_unir { get; set; }
@@ -63044,6 +63045,21 @@ namespace siaw_DBContext.Data
                     .HasMaxLength(2)
                     .IsUnicode(false)
                     .IsFixedLength();
+            });
+
+            modelBuilder.Entity<vepromocion_A>(entity =>
+            {
+                entity.HasNoKey();
+
+                entity.Property(e => e.codcliente)
+                    .HasMaxLength(10)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.codmoneda)
+                    .HasMaxLength(2)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.monto).HasColumnType("decimal(18, 2)");
             });
 
             modelBuilder.Entity<vepromventas_cfg>(entity =>

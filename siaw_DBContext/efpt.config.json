@@ -7152,6 +7152,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[vepromocion_A]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[vepromventas_cfg]",
          "ObjectType": 0
       },

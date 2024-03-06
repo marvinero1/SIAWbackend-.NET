@@ -1094,5 +1094,15 @@ namespace siaw_funciones
             return resultadosUnion;
             
         }
+
+        public async Task<double> CobranzasSinDistribuir(DBContext _context, string codcliente)
+        {
+            var resultado = await _context.cocobranza
+                .Where(v => v.cliente == codcliente
+                    && v.autorizada == true)
+                .SumAsync(i => i.montorest) ?? 0;
+            return (double)resultado;
+        }
+
     }
 }

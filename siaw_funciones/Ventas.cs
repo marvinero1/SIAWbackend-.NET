@@ -19,6 +19,7 @@ namespace siaw_funciones
         //private readonly IDepositosCliente depositos_cliente;
         private readonly Cliente cliente = new Cliente();
         private readonly TipoCambio tipocambio = new TipoCambio();
+        private const int CODDESEXTRA_PROMOCION = 10;
         /*
         public Ventas(IDepositosCliente depositosCliente)
         {
@@ -564,6 +565,54 @@ namespace siaw_funciones
             }
             return (tablarecargos, ttl_recargos_sobre_total_final);
         }
+
+        public async Task<bool> remision_es_PP(DBContext _context, int codigo)
+        {
+            var resultado = await _context.vedesextraremi
+                .Join(_context.vedesextra,
+                      d => d.coddesextra,
+                      e => e.codigo,
+                      (d, e) => new { D = d, E = e })
+                .Where(de => de.D.codremision == codigo && de.E.prontopago == true)
+                .Select(de => de.D.codremision)
+                .ToListAsync();
+
+            if (resultado != null)
+            {
+                return true;
+            }
+            return false;
+        }
+
+        public async Task<double> promocion_monto(DBContext _context, string codcliente, DateTime fecha)
+        {
+            var resultado = await _context.vepromocion_A
+                .Where(i => i.codcliente == codcliente && i.coddesextra == CODDESEXTRA_PROMOCION && i.mes == fecha.Month && i.anio == fecha.Year)
+                .Select(i => i.monto)
+                .FirstOrDefaultAsync() ?? 0;
+            return (double)resultado;
+        }
+        public async Task<double> promocion_usado(DBContext _context, string codcliente, DateTime fecha)
+        {
+            DateTime startDate = new DateTime(fecha.Year, fecha.Month, 1);
+            DateTime endDate = new DateTime(fecha.Year, fecha.Month, DateTime.DaysInMonth(fecha.Year, fecha.Month));
+
+            var sumMontodoc = _context.veproforma
+                    .Join(_context.vedesextraprof,
+                          c => c.codigo,
+                          d => d.codproforma,
+                          (c, d) => new { Veproforma = c, Vedesextraprof = d })
+                    .Where(joinResult =>
+                           joinResult.Veproforma.codcliente == codcliente &&
+                           joinResult.Veproforma.fecha >= startDate && joinResult.Veproforma.fecha <= endDate &&
+                           joinResult.Vedesextraprof.coddesextra == CODDESEXTRA_PROMOCION &&
+                           joinResult.Veproforma.anulada == false && joinResult.Veproforma.aprobada == true)
+                    .Sum(joinResult => joinResult.Vedesextraprof.montodoc);
+
+            return (double)sumMontodoc;
+        }
+
+
     }
 
     public class dtcbza

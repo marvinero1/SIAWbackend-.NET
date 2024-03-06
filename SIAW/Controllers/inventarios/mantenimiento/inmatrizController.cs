@@ -168,6 +168,34 @@ namespace SIAW.Controllers.inventarios.mantenimiento
         }
 
 
+        // GET: api/inmatriz/5
+        [HttpGet]
+        [Route("hojas/{userConn}")]
+        public async Task<ActionResult<inmatriz>> GetHojas(string userConn)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var hojas = await _context.inmatriz.Select(i => i.hoja).Distinct().OrderBy(i => i).ToListAsync();
+
+                    if (hojas.Count() == 0)
+                    {
+                        return NotFound(new { resp = "No se encontraron hojas de items." });
+                    }
+
+                    return Ok(hojas);
+                }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+            }
+        }
+
 
         // PUT: api/inmatriz/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754

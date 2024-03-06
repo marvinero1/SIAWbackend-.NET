@@ -188,7 +188,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 var instoactual = await empaque_func.GetSaldosActual(userConnectionString, codalmacen, coditem);
                 if (instoactual == null)
                 {
-                    return NotFound( new { resp = "No se encontraron registros con los datos proporcionados." });
+                    return NotFound( new { resp = "No se encontraron registros con los datos pr<porcionados." });
                 }
                 return Ok(instoactual);
             }
@@ -1299,7 +1299,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 var precioItem = await _context.intarifa1
                     .Where(i => i.codtarifa == reg.tarifa && i.item == reg.coditem)
                     .Select(i => i.precio)
-                    .FirstOrDefaultAsync();
+                    .FirstOrDefaultAsync() ?? 0;
                 //convertir a la moneda el precio item
                 var monedabase = await ventas.monedabasetarifa(_context, reg.tarifa);
                 precioItem = await tipocambio._conversion(_context, reg.codmoneda, monedabase, reg.fecha, (decimal)precioItem);
@@ -2346,6 +2346,90 @@ namespace SIAW.Controllers.ventas.transaccion
                 return (res.resultado_func, res.data);
             }
         }
+
+
+
+        [HttpGet]
+        [Route("transfDatosCotizacion/{userConn}/{idCotizacion}/{nroidCotizacion}")]
+        public async Task<object> transfDatosCotizacion(string userConn, string idCotizacion, int nroidCotizacion)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    // obtener cabecera.
+                    var cabecera = await _context.vecotizacion
+                        .Where(i => i.id == idCotizacion && i.numeroid == nroidCotizacion)
+                        .FirstOrDefaultAsync();
+
+                    if (cabecera == null)
+                    {
+                        return BadRequest(new { resp = "No se encontró una cotizacion con los datos proporcionados, revise los datos" });
+                    }
+
+                    // obtener detalles.
+                    var codCotizacion = cabecera.codigo;
+                    var detalle = await _context.vecotizacion1
+                        .Where(i => i.codcotizacion == codCotizacion)
+                        .ToListAsync();
+
+                    return Ok(new
+                    {
+                        cabecera = cabecera,
+                        detalle = detalle
+                    });
+                }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+        }
+
+        [HttpGet]
+        [Route("transfDatosProforma/{userConn}/{idProforma}/{nroidProforma}")]
+        public async Task<object> transfDatosProforma(string userConn, string idProforma, int nroidProforma)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    // obtener cabecera.
+                    var cabecera = await _context.veproforma
+                        .Where(i => i.id == idProforma && i.numeroid == nroidProforma)
+                        .FirstOrDefaultAsync();
+
+                    if (cabecera == null)
+                    {
+                        return BadRequest(new { resp = "No se encontró una proforma con los datos proporcionados, revise los datos" });
+                    }
+
+                    // obtener detalles.
+                    var codProforma = cabecera.codigo;
+                    var detalle = await _context.veproforma1
+                        .Where(i => i.codproforma == codProforma)
+                        .ToListAsync();
+
+                    return Ok(new
+                    {
+                        cabecera = cabecera,
+                        detalle = detalle
+                    });
+                }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+        }
+
+
 
     }
 

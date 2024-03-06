@@ -1055,6 +1055,37 @@ namespace siaw_funciones
             }
             return resultado;
         }
-
+        public async Task<bool> Controla_empaque_cerrado(DBContext _context, string codcliente)
+        {
+            var resultado = await _context.vecliente.Where(i => i.codigo == codcliente).Select(i => i.controla_empaque_cerrado).FirstOrDefaultAsync() ?? false;
+            return resultado;
+        }
+        public async Task<int> Almacen_Casa_Matriz_Nacional(DBContext _context, string codcliente)
+        {
+            var resultado = await _context.veclientesiguales_nacion.Where(i => i.codcliente_a == codcliente).Select(i => i.codalmacen_a).FirstOrDefaultAsync() ?? 0;
+            return resultado;
+        }
+        public async Task<int> almacen_de_cliente(DBContext _context, string codcliente)
+        {
+            var resultado = await _context.vevendedor
+                .Join(_context.vecliente,
+                v => v.codigo,
+                c => c.codvendedor,
+                (v,c) => new {v,c})
+                .Where(i => i.c.codigo == codcliente)
+                .Select(i => i.v.almacen)
+                .FirstOrDefaultAsync();
+            return resultado;
+        }
+        public async Task<string> UltimoEnvioPor(DBContext _context, string codcliente)
+        {
+            string resultado = await _context.vedespacho
+                .Where(i => i.codcliente == codcliente
+                && i.fdespachado != null)
+                .OrderByDescending(i => i.fdespachado)
+                .Select(i => i.tipotrans + " - " + i.nombtrans)
+                .FirstOrDefaultAsync() ?? "";
+            return resultado;
+        }
     }
 }
