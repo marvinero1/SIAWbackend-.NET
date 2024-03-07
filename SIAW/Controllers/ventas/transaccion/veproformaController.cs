@@ -1312,7 +1312,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     if (controla_stok_seguridad == true)
                     {
                         //List<sldosItemCompleto> sld_ctrlstock_para_vtas = await saldos.SaldoItem_CrtlStock_Para_Ventas(userConnectionString, "311", codalmacen, coditem, "PE", "dpd3");
-                        var sld_ctrlstock_para_vtas = await saldos.SaldoItem_CrtlStock_Para_Ventas(userConnectionString, "311", reg.codalmacen, reg.coditem, "PE", "dpd3");
+                        var sld_ctrlstock_para_vtas = await saldos.SaldoItem_CrtlStock_Para_Ventas(userConnectionString, "Ag311", reg.codalmacen, reg.coditem, "PE", "dpd3");
                         if (sld_ctrlstock_para_vtas > 0)
                         {
                             porcen_merca = reg.cantidad * 100 / sld_ctrlstock_para_vtas;

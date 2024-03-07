@@ -611,9 +611,8 @@ namespace siaw_funciones
 
             return (double)sumMontodoc;
         }
-
-
     }
+
 
     public class dtcbza
     {

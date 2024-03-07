@@ -31,7 +31,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
         // GET: api/infoCliente
         [HttpGet("{userConn}/{codcliente}/{codempresa}/{usuario}")]
-        public async Task<ActionResult<IEnumerable<inmatriz>>> getInfoCliente(string userConn, string codcliente, string codempresa, string usuario)
+        public async Task<ActionResult<IEnumerable<object>>> getInfoCliente(string userConn, string codcliente, string codempresa, string usuario)
         {
             try
             {
@@ -75,6 +75,22 @@ namespace SIAW.Controllers.ventas.transaccion
 
                     // otas condiciones de venta
                     var otrasCondVentaCli = await otrasCondVent(_context, codcliente);
+
+                    return Ok(new
+                    {
+                        infoCliente = datosCli,
+                        creditosCliente = creditosCli,
+                        antCobCliente = antCobNoDistriCli,
+                        preciosCliente = preciosCli,
+                        profApnoTransCliente = profAproNoTranfCli,
+                        profnoApronoAnuCliente = profNoAproNoAnulad,
+                        tiendasTitulCliente = tiendasTitulaesCli,
+                        ulttEnvioCliente = ultimoEnvioCli,
+                        ultiCompCliente = ultiComprCli,
+                        promEspCliente = promEspecialCli,
+                        infClienteFinal = inforCliFinal,
+                        otrsCondCliente = otrasCondVentaCli
+                    });
                 }
 
             }
@@ -117,7 +133,9 @@ namespace SIAW.Controllers.ventas.transaccion
 
         private async Task<object> creditosCliente(DBContext _context, string codcliente, string codempresa, string usuario)
         {
-            var respuestaJson = new Dictionary<string, object>();
+            //var respuestaJson = new Dictionary<string, object>();
+            datCreditosCli respCred = new datCreditosCli();
+
             var codigoPrincipal_local = await cliente.CodigoPrincipal(_context, codcliente);
             string cliente_principal_local = codcliente;
             string CodigosIguales_local = "'" + codcliente + "'";
@@ -174,11 +192,15 @@ namespace SIAW.Controllers.ventas.transaccion
                 //busca el SALDO NACIONAL si tiene sucursales en otras agencia
                 //implementado el 09-05-2020
                 var respSld = await cliente.Cliente_Saldo_Pendiente_Nacional(_context, await creditos.CodigoPrincipalCreditos(_context, cliente_principal_local), monedacliente);
+                respCred.CASA_MATRIZ_CREDITOS = casa_matriz_Nacional;
+                respCred.AG_CASA_MATRIZ = CODALM;
+                respCred.CLIENTES_MISMO_NIT = CodigosIguales_local;
 
+                /*
                 respuestaJson.Add("CASA_MATRIZ_CREDITOS", casa_matriz_Nacional);
                 respuestaJson.Add("AG_CASA_MATRIZ", CODALM);
                 respuestaJson.Add("CLIENTES_MISMO_NIT", CodigosIguales_local);
-
+                */
 
                 if (respSld.resp == -1)
                 {
@@ -193,26 +215,46 @@ namespace SIAW.Controllers.ventas.transaccion
                 {
                     string[] datos_credito = new string[3];
                     datos_credito = await creditos.Credito_Otorgado_Vigente(_context, await creditos.CodigoPrincipalCreditos(_context, codcliente));
+                    respCred.CREDITO = credito_principal.ToString();
+                    respCred.OTORGADO = credito_principal.ToString();
+                    respCred.VENCIMIENTO = datos_credito[2];
+
+                    respCred.TTL_POR_PAGAR_LOCAL = saldo_local;
+                    respCred.TTL_POR_OTRAS_AGS = saldo_x_pagar_nal;
+
+                    /*
                     respuestaJson.Add("CREDITO", credito_principal);
                     respuestaJson.Add("OTORGADO", credito_principal);
                     respuestaJson.Add("VENCIMIENTO", datos_credito[2]);
 
                     respuestaJson.Add("TTL_POR_PAGAR_LOCAL", saldo_local);
                     respuestaJson.Add("TTL_POR_OTRAS_AGS", saldo_x_pagar_nal);
+                    */
                     moneda_credito = await creditos.Credito_Fijo_Asignado_Vigente_Moneda(_context, codcliente);
 
+                    respCred.CREDITO_DISPONIBLE = credito_principal - (saldo_local + saldo_x_pagar_nal) + " " + moneda_credito + " ";
+                    /*
                     respuestaJson.Add("CREDITO_DISPONIBLE", credito_principal - (saldo_local + saldo_x_pagar_nal) + " " + moneda_credito + " ");
+                    */
                 }
                 else
                 {
+                    respCred.CREDITO = "NO TIENE";
+                    respCred.CREDITO_DISPONIBLE = "0";
+                    /*
                     respuestaJson.Add("CREDITO", "NO TIENE");
                     respuestaJson.Add("CREDITO_DISPONIBLE", 0);
+                    */
                 }
             }
             else
             {
+                respCred.CASA_MATRIZ_CREDITOS = cliente_principal_local;
+                respCred.CLIENTES_MISMO_NIT = CodigosIguales_local;
+                /*
                 respuestaJson.Add("CASA_MATRIZ_CREDITOS", cliente_principal_local);
                 respuestaJson.Add("CLIENTES_MISMO_NIT", CodigosIguales_local);
+                */
                 if (await creditos.Cliente_Tiene_Linea_De_Credito_Valida(_context,await creditos.CodigoPrincipalCreditos(_context, codcliente)))
                 {
                     var creditodisp_cliente = await _context.vecliente
@@ -220,23 +262,34 @@ namespace SIAW.Controllers.ventas.transaccion
 
                     string[] datos_credito = new string[3];
                     datos_credito = await creditos.Credito_Otorgado_Vigente(_context, await creditos.CodigoPrincipalCreditos(_context, codcliente));
+                    respCred.CREDITO = datos_credito[0];
+                    respCred.OTORGADO = datos_credito[1];
+                    respCred.VENCIMIENTO = datos_credito[2];
+                    /*
                     respuestaJson.Add("CREDITO", datos_credito[0]);
                     respuestaJson.Add("OTORGADO", datos_credito[1]);
                     respuestaJson.Add("VENCIMIENTO", datos_credito[2]);
-
+                    */
                     moneda_credito = await creditos.Credito_Fijo_Asignado_Vigente_Moneda(_context, codcliente);
+                    respCred.CREDITO_DISPONIBLE = creditodisp_cliente + " " + moneda_credito + " ";
+                    /*
                     respuestaJson.Add("CREDITO_DISPONIBLE", creditodisp_cliente + " " + moneda_credito + " ");
+                    */
                 }
                 else
                 {
+                    respCred.CREDITO = "NO TIENE";
+                    respCred.CREDITO_DISPONIBLE = "0";
+                    /*
                     respuestaJson.Add("CREDITO", "NO TIENE");
                     respuestaJson.Add("CREDITO_DISPONIBLE", 0);
+                    */
                 }
             }
 
 
-
-            return respuestaJson;
+            return respCred;
+            //return respuestaJson;
 
         }
 
@@ -421,5 +474,20 @@ namespace SIAW.Controllers.ventas.transaccion
         public DateTime FECHA { get; set; }
         public string TIPO { get; set; }
         
+    }
+
+
+    public class datCreditosCli
+    {
+        public string CASA_MATRIZ_CREDITOS { get; set; }
+        public int AG_CASA_MATRIZ { get; set; }
+        public string CLIENTES_MISMO_NIT { get; set; }
+        public string CREDITO { get; set; }
+        public string OTORGADO { get; set; }
+        public string VENCIMIENTO { get; set; }
+        public double TTL_POR_PAGAR_LOCAL { get; set; }
+        public double TTL_POR_OTRAS_AGS { get; set; }
+        public string CREDITO_DISPONIBLE { get; set; }
+
     }
 }
