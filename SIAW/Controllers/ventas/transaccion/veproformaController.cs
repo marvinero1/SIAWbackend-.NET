@@ -26,6 +26,7 @@ using System.Collections.Generic;
 using Microsoft.AspNetCore.Authorization;
 using Humanizer;
 using System.Net;
+using System.Drawing.Drawing2D;
 
 namespace SIAW.Controllers.ventas.transaccion
 {
@@ -1257,8 +1258,8 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
         [HttpPost]
-        [Route("getItemMatriz_AnadirbyGroup/{userConn}")]
-        public async Task<ActionResult<itemDataMatriz>> getItemMatriz_AnadirbyGroup(string userConn, List<cargadofromMatriz> data )
+        [Route("getItemMatriz_AnadirbyGroup/{userConn}/{addbyEmpqMin}")]
+        public async Task<ActionResult<itemDataMatriz>> getItemMatriz_AnadirbyGroup(string userConn, bool addbyEmpqMin, List<cargadofromMatriz> data )
         {
             try
             {
@@ -1274,6 +1275,24 @@ namespace SIAW.Controllers.ventas.transaccion
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
+                    if (addbyEmpqMin)
+                    {
+                        // si es agregar por empaques minimos, debe validar tambien que el descuento corresponda al precio.
+                        // como se agrega en conjunto, en teoria todos tienen mismo precio y mismo descuento.
+                        var tarifa = data[0].tarifa;
+                        var descuento = data[0].descuento;
+                        var comprueba = await _context.vedescuento_tarifa.Where(i => i.codtarifa == tarifa && i.coddescuento==descuento).FirstOrDefaultAsync();
+                        if (comprueba==null)
+                        {
+                            return BadRequest(new { resp = "El descuento seleccionado no corresponde a la tarifa aplicada, revise los datos." });
+                        }
+                        int empaque = await _context.vedescuento.Where(i => i.codigo == descuento).Select(i => i.codempaque).FirstOrDefaultAsync();
+                        foreach (var reg in data)
+                        {
+                            reg.cantidad = await _context.veempaque1.Where(i => i.codempaque==empaque && i.item == reg.coditem).Select(i => i.cantidad).FirstOrDefaultAsync() ?? 0;
+                            reg.cantidad_pedida = reg.cantidad;
+                        }
+                    }
                     var resultado = await calculoPreciosMatriz(_context,userConnectionString,data);
 
                     if (resultado == null)
@@ -2036,7 +2055,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
             // desde 08/01/2023 redondear el resultado a dos decimales con el SQLServer
             // REVISAR SI HAY OTRO MODO NO DA CON LINQ.
-            st = (float)await siat.Redondeo_Decimales_SIA_5_decimales_SQL(st);
+            st = (float)await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context,(decimal)st);
             return (st, peso);
         }
 
@@ -2426,6 +2445,68 @@ namespace SIAW.Controllers.ventas.transaccion
             {
                 return Problem("Error en el servidor");
                 throw;
+            }
+        }
+
+
+        [HttpGet]
+        [Route("getDataEtiqueta/{userConn}/{codcliente_real}/{id}/{numeroid}/{codcliente}/{nomcliente}/{desclinea_segun_solicitud}/{idsoldesctos}/{nroidsoldesctos}")]
+        public async Task<object> getDataEtiqueta(string userConn, string codcliente_real, string id, int numeroid, string codcliente, string nomcliente, bool desclinea_segun_solicitud, string idsoldesctos, int nroidsoldesctos)
+        {
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                //verificar si hay descuentos segun solicitud, pero puede que sea segun solicitud pero no con cliente referencia
+                string codcliente_ref = codcliente_real;
+                if (desclinea_segun_solicitud == true && idsoldesctos.Trim().Length > 0 && nroidsoldesctos > 0)
+                {
+                    codcliente_ref = await ventas.Cliente_Referencia_Solicitud_Descuentos(_context, idsoldesctos, nroidsoldesctos);
+                    if (codcliente_ref.Trim().Length == 0)
+                    {
+                        codcliente_ref = codcliente;
+                    }
+                }
+                // falta esto detalle codcliente_ref
+                
+                if (await cliente.EsClienteSinNombre(_context,codcliente_real))
+                {
+                    return Ok(new
+                    {
+                        codigo = 0,
+                        id = id,
+                        numeroid = numeroid,
+                        codcliente = codcliente,
+                        linea1 = nomcliente,
+                        linea2 = "",
+                        representante = "direccion",
+                        telefono = "telefono",
+                        celular = "celular",
+                        ciudad = "ciudad",
+                        latitud_entrega = "0",
+                        longitud_entrega = "0"
+                    });
+                }
+
+
+                var dirCliente = await cliente.direccioncliente(_context, codcliente_ref);
+                var coordenadasCliente = await cliente.latitud_longitud_cliente(_context,codcliente_ref);
+                return Ok(new
+                {
+                    codigo = 0,
+                    id = id,
+                    numeroid = numeroid,
+                    codcliente = codcliente_ref,
+                    linea1 = await cliente.Razonsocial(_context,codcliente_ref),
+                    linea2 = "",
+                    representante = dirCliente + " (" + await cliente.PuntoDeVentaCliente_Segun_Direccion(_context,codcliente_ref,dirCliente) + ")",
+                    telefono = await cliente.TelefonoPrincipal(_context,codcliente_ref),
+                    celular = await cliente.CelularPrincipal(_context, codcliente_ref),
+                    ciudad = await cliente.UbicacionCliente(_context, codcliente_ref),
+                    latitud_entrega = coordenadasCliente.latitud,
+                    longitud_entrega = coordenadasCliente.longitud
+                });
             }
         }
 

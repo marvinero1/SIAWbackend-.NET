@@ -63982,6 +63982,8 @@ namespace siaw_DBContext.Data
                     .HasMaxLength(10)
                     .IsUnicode(false);
 
+                entity.Property(e => e.codcliente_referencia).HasMaxLength(10);
+
                 entity.Property(e => e.codigo).ValueGeneratedOnAdd();
 
                 entity.Property(e => e.fecha).HasColumnType("smalldatetime");

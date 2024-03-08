@@ -1087,5 +1087,116 @@ namespace siaw_funciones
                 .FirstOrDefaultAsync() ?? "";
             return resultado;
         }
+        public async Task<bool> EsClienteSinNombre(DBContext _context, string codcliente)
+        {
+            var codcliente_sn = await _context.vecliente_sinnombre
+                .Where(i => i.codcliente == codcliente)
+                .CountAsync();
+            if (codcliente_sn > 0)
+            {
+                return true;
+            }
+            return false;
+        }
+        public async Task<string> Razonsocial(DBContext _context, string codcliente)
+        {
+            string resultado = await _context.vecliente
+                .Where(i => i.codigo == codcliente)
+                .Select(i => i.razonsocial)
+                .FirstOrDefaultAsync() ?? "";
+            return resultado;
+        }
+        public async Task<string> direccioncliente(DBContext _context, string codcliente)
+        {
+            string resultado = await _context.vetienda
+                .Where(i => i.codcliente == codcliente && i.central == true)
+                .Select(i => i.direccion)
+                .FirstOrDefaultAsync() ?? "---";
+            return resultado;
+        }
+        public async Task<string> PuntoDeVentaCliente_Segun_Direccion(DBContext _context, string codcliente, string direccion)
+        {
+            //modo 0: ambos 1: provinvcia 2 = pto
+            if (codcliente.Trim() == "")
+            {
+                return "NSE";
+            }
+            try
+            {
+                var codptoventa = await _context.vetienda.Where(i => i.direccion == direccion && i.codcliente == codcliente)
+                .Select(i => i.codptoventa).FirstOrDefaultAsync();
+
+                var resultado = await _context.veptoventa
+                    .Where(i => i.codigo == codptoventa)
+                    .Select(i => new
+                    {
+                        i.descripcion,
+                        i.codprovincia
+                    })
+                    .FirstOrDefaultAsync();
+                if (resultado == null)
+                {
+                    return "";
+                }
+                return resultado.descripcion + " - " + resultado.codprovincia;
+            }
+            catch (Exception)
+            {
+                return "NSE";
+            }
+            
+        }
+
+        public async Task<string> TelefonoPrincipal(DBContext _context, string codcliente)
+        {
+            string resultado = await _context.vetienda
+                .Where(i => i.codcliente == codcliente && i.central == true)
+                .Select(i => i.telefono)
+                .FirstOrDefaultAsync() ?? "---";
+            return resultado;
+        }
+        public async Task<string> CelularPrincipal(DBContext _context, string codcliente)
+        {
+            string resultado = await _context.vetienda
+                .Where(i => i.codcliente == codcliente && i.central == true)
+                .Select(i => i.celular)
+                .FirstOrDefaultAsync() ?? "---";
+            return resultado;
+        }
+        public async Task<string> UbicacionCliente(DBContext _context, string codcliente)
+        {
+            string resultado = await _context.vetienda
+                .Where(t => t.central == true && t.codcliente == codcliente)
+                .Join(_context.veptoventa,
+                      t => t.codptoventa,
+                      v => v.codigo,
+                      (t, v) => new { t, v })
+                .Join(_context.adprovincia,
+                      tv => tv.v.codprovincia,
+                      p => p.codigo,
+                      (tv, p) => new { tv, p })
+                .Join(_context.addepto,
+                      tvp => tvp.p.coddepto,
+                      d => d.codigo,
+                      (tvp, d) => d.codigo + " " + tvp.p.codigo + " " + tvp.tv.v.descripcion)
+                .FirstOrDefaultAsync() ?? "---";
+            return resultado;
+        }
+        public async Task<(string latitud, string longitud)> latitud_longitud_cliente(DBContext _context, string codcliente)
+        {
+            var resultado = await _context.vetienda
+                .Where(i => i.codcliente == codcliente && i.central == true)
+                .Select(i => new
+                {
+                    i.latitud,
+                    i.longitud
+                })
+                .FirstOrDefaultAsync();
+            if (resultado == null)
+            {
+                return ("0", "0");
+            }
+            return (resultado.latitud, resultado.longitud);
+        }
     }
 }

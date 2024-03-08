@@ -21,7 +21,6 @@ namespace siaw_DBContext.Models
         public bool? para_venta_especial { get; set; }
         public string idproforma { get; set; }
         public int? numeroid_proforma { get; set; }
-        public int? codremision { get; set; }
-        public int? codproforma { get; set; }
+        public string codcliente_referencia { get; set; }
     }
 }

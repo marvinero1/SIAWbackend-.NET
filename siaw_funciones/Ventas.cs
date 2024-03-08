@@ -611,6 +611,27 @@ namespace siaw_funciones
 
             return (double)sumMontodoc;
         }
+
+        public async Task<string> Cliente_Referencia_Solicitud_Descuentos(DBContext _context, string idsol_des, int nroidsol_des)
+        {
+            var resultado = await _context.vesoldsctos
+                .Where(i => i.id == idsol_des && i.numeroid == nroidsol_des)
+                .Select(i => new
+                {
+                    i.codcliente,
+                    i.codcliente_referencia
+                })
+                .FirstOrDefaultAsync();
+            if (resultado == null)
+            {
+                return "";
+            }
+            if (resultado.codcliente_referencia == null)
+            {
+                return resultado.codcliente;
+            }
+            return resultado.codcliente_referencia;
+        }
     }
 
 
