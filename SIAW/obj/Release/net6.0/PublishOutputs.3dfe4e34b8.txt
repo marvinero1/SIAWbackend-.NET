@@ -232,5 +232,4 @@ C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\runtimes\win\
 C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\siaw_DBContext.dll
 C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\siaw_funciones.dll
 C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\siaw_DBContext.pdb
-C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\siaw_funciones.pdb
 C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\SIAW.deps.json

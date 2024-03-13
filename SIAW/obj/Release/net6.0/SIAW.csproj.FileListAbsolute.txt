@@ -762,7 +762,6 @@ D:\Fuente SIAW2023\siawbackend-.net\SIAW\obj\Release\net6.0\ref\SIAW.dll
 C:\laragon\www\siawbackend-.net\SIAW\bin\Release\net6.0\siaw_DBContext.dll
 C:\laragon\www\siawbackend-.net\SIAW\bin\Release\net6.0\siaw_funciones.dll
 C:\laragon\www\siawbackend-.net\SIAW\bin\Release\net6.0\siaw_DBContext.pdb
-C:\laragon\www\siawbackend-.net\SIAW\bin\Release\net6.0\siaw_funciones.pdb
 D:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Release\net6.0\siaw_DBContext.dll
 D:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Release\net6.0\siaw_funciones.dll
 D:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Release\net6.0\siaw_DBContext.pdb

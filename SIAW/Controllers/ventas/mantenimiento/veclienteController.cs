@@ -68,10 +68,13 @@ namespace SIAW.Controllers.ventas.mantenimiento
             {
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    string resultado = await cliente.TipoSegunClientesIguales(_context, codcliente);
 
-                string resultado = await cliente.TipoSegunClientesIguales(userConnectionString, codcliente);
-
-                return Ok(new { resultado = resultado});
+                    return Ok(new { resultado = resultado });
+                }
+                    
 
             }
             catch (Exception)

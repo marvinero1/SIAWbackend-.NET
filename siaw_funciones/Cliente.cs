@@ -158,7 +158,7 @@ namespace siaw_funciones
             resultado = porcentaje;
             return resultado;
         }
-        public async Task<decimal> Preciodesc(string userConnectionString, string codcliente, int codalmacen, int codtarifa, string coditem, string desc_linea_seg_solicitud, string desc_linea, string opcion_nivel)
+        public async Task<decimal> Preciodesc(DBContext context, string codcliente, int codalmacen, int codtarifa, string coditem, string desc_linea_seg_solicitud, string desc_linea, string opcion_nivel)
         {
             try
             {
@@ -172,27 +172,23 @@ namespace siaw_funciones
                 else
                 {
                     decimal preciofinal1 = 0;
-                    using (var context = DbContextFactory.Create(userConnectionString))
+                    var preciofinal = new SqlParameter("@preciofinal", SqlDbType.Decimal)
                     {
-
-                        var preciofinal = new SqlParameter("@preciofinal", SqlDbType.Decimal)
-                        {
-                            Direction = ParameterDirection.Output,
-                            Precision = 18,
-                            Scale = 5
-                        };
-                        await context.Database.ExecuteSqlRawAsync
-                            ("EXEC preciocliente @cliente, @almacen, @tarifa, @item, @nivel_desc_segun_solicitud, @nivel_desc_solicitud, @opcion_nivel_desctos, @preciofinal OUTPUT",
-                                new SqlParameter("@cliente", codcliente),
-                                new SqlParameter("@almacen", codalmacen),
-                                new SqlParameter("@tarifa", codtarifa),
-                                new SqlParameter("@item", coditem),
-                                new SqlParameter("@nivel_desc_segun_solicitud", desc_linea_seg_solicitud),
-                                new SqlParameter("@nivel_desc_solicitud", desc_linea),
-                                new SqlParameter("@opcion_nivel_desctos", opcion_nivel),
-                                preciofinal);
-                        preciofinal1 = (decimal)Convert.ToSingle(preciofinal.Value);
-                    }
+                        Direction = ParameterDirection.Output,
+                        Precision = 18,
+                        Scale = 5
+                    };
+                    await context.Database.ExecuteSqlRawAsync
+                        ("EXEC preciocliente @cliente, @almacen, @tarifa, @item, @nivel_desc_segun_solicitud, @nivel_desc_solicitud, @opcion_nivel_desctos, @preciofinal OUTPUT",
+                            new SqlParameter("@cliente", codcliente),
+                            new SqlParameter("@almacen", codalmacen),
+                            new SqlParameter("@tarifa", codtarifa),
+                            new SqlParameter("@item", coditem),
+                            new SqlParameter("@nivel_desc_segun_solicitud", desc_linea_seg_solicitud),
+                            new SqlParameter("@nivel_desc_solicitud", desc_linea),
+                            new SqlParameter("@opcion_nivel_desctos", opcion_nivel),
+                            preciofinal);
+                    preciofinal1 = (decimal)Convert.ToSingle(preciofinal.Value);
                     preciocdescuento = preciofinal1;
 
                 }
@@ -206,7 +202,7 @@ namespace siaw_funciones
             }
         }
 
-        public async Task<decimal> Preciocondescitem(string userConnectionString, string codcliente, int codalmacen, int codtarifa, string coditem, int coddescuento, string desc_linea_seg_solicitud, string desc_linea, string opcion_nivel)
+        public async Task<decimal> Preciocondescitem(DBContext context, string codcliente, int codalmacen, int codtarifa, string coditem, int coddescuento, string desc_linea_seg_solicitud, string desc_linea, string opcion_nivel)
         {
             try
             {
@@ -220,28 +216,24 @@ namespace siaw_funciones
                 else
                 {
                     decimal preciofinal1 = 0;
-                    using (var context = DbContextFactory.Create(userConnectionString))
+                    var preciofinal = new SqlParameter("@preciofinal", SqlDbType.Decimal)
                     {
-
-                        var preciofinal = new SqlParameter("@preciofinal", SqlDbType.Decimal)
-                        {
-                            Direction = ParameterDirection.Output,
-                            Precision = 18,
-                            Scale = 5
-                        };
-                        await context.Database.ExecuteSqlRawAsync
-                            ("EXEC preciocondesc @cliente, @almacen, @tarifa, @item,@descuento, @nivel_desc_segun_solicitud, @nivel_desc_solicitud, @opcion_nivel_desctos, @preciofinal OUTPUT",
-                                new SqlParameter("@cliente", codcliente),
-                                new SqlParameter("@almacen", codalmacen),
-                                new SqlParameter("@tarifa", codtarifa),
-                                new SqlParameter("@item", coditem),
-                                new SqlParameter("@descuento", coddescuento),
-                                new SqlParameter("@nivel_desc_segun_solicitud", desc_linea_seg_solicitud),
-                                new SqlParameter("@nivel_desc_solicitud", desc_linea),
-                                new SqlParameter("@opcion_nivel_desctos", opcion_nivel),
-                                preciofinal);
-                        preciofinal1 = (decimal)Convert.ToSingle(preciofinal.Value);
-                    }
+                        Direction = ParameterDirection.Output,
+                        Precision = 18,
+                        Scale = 5
+                    };
+                    await context.Database.ExecuteSqlRawAsync
+                        ("EXEC preciocondesc @cliente, @almacen, @tarifa, @item,@descuento, @nivel_desc_segun_solicitud, @nivel_desc_solicitud, @opcion_nivel_desctos, @preciofinal OUTPUT",
+                            new SqlParameter("@cliente", codcliente),
+                            new SqlParameter("@almacen", codalmacen),
+                            new SqlParameter("@tarifa", codtarifa),
+                            new SqlParameter("@item", coditem),
+                            new SqlParameter("@descuento", coddescuento),
+                            new SqlParameter("@nivel_desc_segun_solicitud", desc_linea_seg_solicitud),
+                            new SqlParameter("@nivel_desc_solicitud", desc_linea),
+                            new SqlParameter("@opcion_nivel_desctos", opcion_nivel),
+                            preciofinal);
+                    preciofinal1 = (decimal)Convert.ToSingle(preciofinal.Value);
                     preciocondescitem = preciofinal1;
 
                 }
@@ -255,7 +247,7 @@ namespace siaw_funciones
             }
         }
 
-        public async Task<decimal> Redondear_5_Decimales(string userConnectionString, decimal numero)
+        public async Task<decimal> Redondear_5_Decimales(DBContext context, decimal numero)
         {
             try
             {
@@ -268,21 +260,17 @@ namespace siaw_funciones
                 else
                 {
                     decimal preciofinal1 = 0;
-                    using (var context = DbContextFactory.Create(userConnectionString))
+                    var redondeado = new SqlParameter("@resultado", SqlDbType.Decimal)
                     {
-
-                        var redondeado = new SqlParameter("@resultado", SqlDbType.Decimal)
-                        {
-                            Direction = ParameterDirection.Output,
-                            Precision = 18,
-                            Scale = 5
-                        };
-                        await context.Database.ExecuteSqlRawAsync
-                            ("EXEC Redondeo_Decimales_SIA_5_decimales_SQL @minumero, @resultado OUTPUT",
-                                new SqlParameter("@minumero", numero),
-                                redondeado);
-                        preciofinal1 = (decimal)Convert.ToSingle(redondeado.Value);
-                    }
+                        Direction = ParameterDirection.Output,
+                        Precision = 18,
+                        Scale = 5
+                    };
+                    await context.Database.ExecuteSqlRawAsync
+                        ("EXEC Redondeo_Decimales_SIA_5_decimales_SQL @minumero, @resultado OUTPUT",
+                            new SqlParameter("@minumero", numero),
+                            redondeado);
+                    preciofinal1 = (decimal)Convert.ToSingle(redondeado.Value);
                     resultado = preciofinal1;
 
                 }
@@ -485,33 +473,30 @@ namespace siaw_funciones
 
         }
 
-        public async Task<string> TipoSegunClientesIguales(string userConnectionString, string codcliente)
+        public async Task<string> TipoSegunClientesIguales(DBContext _context, string codcliente)
         {
-            using (var _context = DbContextFactory.Create(userConnectionString))
+            string codigo_principal = await CodigoPrincipal(_context, codcliente);
+            string nit1 = await NIT(_context, codigo_principal);
+            string nit2 = await NIT(_context, codcliente);
+            string resultado = "";
+            if (codigo_principal.Trim() == codcliente.Trim())
             {
-                string codigo_principal = await CodigoPrincipal(_context, codcliente);
-                string nit1 = await NIT(_context, codigo_principal);
-                string nit2 = await NIT(_context, codcliente);
-                string resultado = "";
-                if (codigo_principal.Trim() == codcliente.Trim())
+                resultado = "Casa Matriz de: " + codcliente;
+            }
+            else
+            {
+                if (nit1.Trim() == nit2.Trim())
                 {
-                    resultado = "Casa Matriz de: " + codcliente;
+                    //si es mismo NIT es sucursal
+                    resultado = "Sucursal de: " + codigo_principal;
                 }
                 else
                 {
-                    if (nit1.Trim() == nit2.Trim())
-                    {
-                        //si es mismo NIT es sucursal
-                        resultado = "Sucursal de: " + codigo_principal;
-                    }
-                    else
-                    {
-                        resultado = "Parte del Grupo Cial. Con Casa Matriz: " + codigo_principal;
-                    }
+                    resultado = "Parte del Grupo Cial. Con Casa Matriz: " + codigo_principal;
                 }
-                return resultado;
             }
-                
+            return resultado;
+
         }
 
 
@@ -538,21 +523,18 @@ namespace siaw_funciones
 
         }
 
-        public async Task<bool> ExisteCliente(string userConnectionString, string codcliente)
+        public async Task<bool> ExisteCliente(DBContext _context, string codcliente)
         {
             try
             {
-                using (var _context = DbContextFactory.Create(userConnectionString))
-                {
-                    var result = await _context.vecliente
+                var result = await _context.vecliente
                         .Where(codigo => codigo.codigo == codcliente.Trim())
                        .CountAsync();
-                    if (result > 0)
-                    {
-                        return true;
-                    }
-                    return false;
+                if (result > 0)
+                {
+                    return true;
                 }
+                return false;
             }
             catch (Exception)
             {
@@ -575,123 +557,119 @@ namespace siaw_funciones
             return nit;
         }
 
-        public async Task<bool> ActualizarParametrosDePrincipal(string userConnectionString, string codcliente)
+        public async Task<bool> ActualizarParametrosDePrincipal(DBContext _context, string codcliente)
         {
-            
 
-            using (var _context = DbContextFactory.Create(userConnectionString))
+            string codigo_principal = await CodigoPrincipal(_context, codcliente);
+            if (codigo_principal.Trim() == "")
             {
-                string codigo_principal = await CodigoPrincipal(_context, codcliente);
-                if (codigo_principal.Trim() == "")
+                return false;
+            }
+            if (codigo_principal.Trim() == codcliente.Trim())
+            {
+                return true;
+            }
+            bool existCli = await ExisteCliente(_context, codcliente);
+            if (!existCli)
+            {
+                return false;
+            }
+            using (var dbContexTransaction = _context.Database.BeginTransaction())
+            {
+                try
                 {
-                    return false;
-                }
-                if (codigo_principal.Trim() == codcliente.Trim())
-                {
+                    // actualizar precios permitidos
+                    var veclienteprecio = await _context.veclienteprecio
+                        .Where(c => c.codcliente == codcliente).ToListAsync();
+                    if (veclienteprecio.Count() > 0)
+                    {
+                        _context.veclienteprecio.RemoveRange(veclienteprecio);
+                        await _context.SaveChangesAsync();
+                    }
+                    var veclienteprecioAdd = await _context.veclienteprecio
+                        .Where(c => c.codcliente == codigo_principal)
+                        .Select(c => new veclienteprecio
+                        {
+                            codcliente = codcliente,
+                            codtarifa = c.codtarifa
+                        }).ToListAsync();
+                    _context.veclienteprecio.AddRange(veclienteprecioAdd);
+                    await _context.SaveChangesAsync();
+
+                    // actualizar descuentos permitidos
+                    var vecliente_desextra = await _context.vecliente_desextra
+                        .Where(c => c.codcliente == codcliente).ToListAsync();
+                    if (vecliente_desextra.Count() > 0)
+                    {
+                        _context.vecliente_desextra.RemoveRange(vecliente_desextra);
+                        await _context.SaveChangesAsync();
+                    }
+                    var vecliente_desextraAdd = await _context.vecliente_desextra
+                        .Where(c => c.codcliente == codigo_principal)
+                        .Select(c => new vecliente_desextra
+                        {
+                            codcliente = codcliente,
+                            coddesextra = c.coddesextra,
+                            dias = c.dias
+                        }).ToListAsync();
+                    _context.vecliente_desextra.AddRange(vecliente_desextraAdd);
+                    await _context.SaveChangesAsync();
+
+                    // actualizar descuentos de nivel
+                    // añadido en fecha: 22-09-2022
+                    // primero asignar el descto del cliente pivote
+                    var vedescliente = await _context.vedescliente
+                        .Where(c => c.cliente == codigo_principal).ToListAsync();
+                    if (vedescliente.Count() > 0)
+                    {
+                        _context.vedescliente.RemoveRange(vedescliente);
+                        await _context.SaveChangesAsync();
+                    }
+                    // ahhora insertar en el codigo del principal los desctos del cliente pivote DESNIV
+                    var vedesclienteAdd = await _context.vedescliente
+                        .Where(c => c.cliente == "DESNIV")
+                        .Select(c => new vedescliente
+                        {
+                            cliente = codigo_principal,
+                            coditem = c.coditem,
+                            nivel = c.nivel,
+                            estado = c.estado,
+                            nivel_anterior = c.nivel_anterior,
+                            nivel_actual_copia = c.nivel_actual_copia
+                        }).ToListAsync();
+                    _context.vedescliente.AddRange(vedesclienteAdd);
+                    await _context.SaveChangesAsync();
+
+
+
+                    var vedescliente2 = await _context.vedescliente
+                        .Where(c => c.cliente == codcliente).ToListAsync();
+                    if (vedescliente.Count() > 0)
+                    {
+                        _context.vedescliente.RemoveRange(vedescliente2);
+                        await _context.SaveChangesAsync();
+                    }
+                    var vedesclienteAdd2 = vedesclienteAdd
+                        .Select(c => new vedescliente
+                        {
+                            cliente = codcliente,
+                            coditem = c.coditem,
+                            nivel = c.nivel,
+                            estado = c.estado,
+                            nivel_anterior = c.nivel_anterior,
+                            nivel_actual_copia = c.nivel_actual_copia
+                        }).ToList();
+                    _context.vedescliente.AddRange(vedesclienteAdd2);
+                    await _context.SaveChangesAsync();
+
+                    dbContexTransaction.Commit();
                     return true;
                 }
-                bool existCli = await ExisteCliente(userConnectionString, codcliente);
-                if (!existCli)
+                catch (Exception)
                 {
+                    dbContexTransaction.Rollback();
                     return false;
-                }
-                using (var dbContexTransaction = _context.Database.BeginTransaction())
-                {
-                    try
-                    {
-                        // actualizar precios permitidos
-                        var veclienteprecio = await _context.veclienteprecio
-                            .Where(c => c.codcliente == codcliente).ToListAsync();
-                        if (veclienteprecio.Count() > 0)
-                        {
-                            _context.veclienteprecio.RemoveRange(veclienteprecio);
-                            await _context.SaveChangesAsync();
-                        }
-                        var veclienteprecioAdd = await _context.veclienteprecio
-                            .Where(c => c.codcliente == codigo_principal)
-                            .Select(c => new veclienteprecio
-                            {
-                                codcliente = codcliente,
-                                codtarifa = c.codtarifa
-                            }).ToListAsync();
-                        _context.veclienteprecio.AddRange(veclienteprecioAdd);
-                        await _context.SaveChangesAsync();
-
-                        // actualizar descuentos permitidos
-                        var vecliente_desextra = await _context.vecliente_desextra
-                            .Where(c => c.codcliente == codcliente).ToListAsync();
-                        if (vecliente_desextra.Count() > 0)
-                        {
-                            _context.vecliente_desextra.RemoveRange(vecliente_desextra);
-                            await _context.SaveChangesAsync();
-                        }
-                        var vecliente_desextraAdd = await _context.vecliente_desextra
-                            .Where(c => c.codcliente == codigo_principal)
-                            .Select(c => new vecliente_desextra
-                            {
-                                codcliente = codcliente,
-                                coddesextra = c.coddesextra,
-                                dias = c.dias
-                            }).ToListAsync();
-                        _context.vecliente_desextra.AddRange(vecliente_desextraAdd);
-                        await _context.SaveChangesAsync();
-
-                        // actualizar descuentos de nivel
-                        // añadido en fecha: 22-09-2022
-                        // primero asignar el descto del cliente pivote
-                        var vedescliente = await _context.vedescliente
-                            .Where(c => c.cliente == codigo_principal).ToListAsync();
-                        if (vedescliente.Count() > 0)
-                        {
-                            _context.vedescliente.RemoveRange(vedescliente);
-                            await _context.SaveChangesAsync();
-                        }
-                        // ahhora insertar en el codigo del principal los desctos del cliente pivote DESNIV
-                        var vedesclienteAdd = await _context.vedescliente
-                            .Where(c => c.cliente == "DESNIV")
-                            .Select(c => new vedescliente
-                            {
-                                cliente = codigo_principal,
-                                coditem = c.coditem,
-                                nivel = c.nivel,
-                                estado = c.estado,
-                                nivel_anterior = c.nivel_anterior,
-                                nivel_actual_copia = c.nivel_actual_copia
-                            }).ToListAsync();
-                        _context.vedescliente.AddRange(vedesclienteAdd);
-                        await _context.SaveChangesAsync();
-
-
-
-                        var vedescliente2 = await _context.vedescliente
-                            .Where(c => c.cliente == codcliente).ToListAsync();
-                        if (vedescliente.Count() > 0)
-                        {
-                            _context.vedescliente.RemoveRange(vedescliente2);
-                            await _context.SaveChangesAsync();
-                        }
-                        var vedesclienteAdd2 = vedesclienteAdd
-                            .Select(c => new vedescliente
-                            {
-                                cliente = codcliente,
-                                coditem = c.coditem,
-                                nivel = c.nivel,
-                                estado = c.estado,
-                                nivel_anterior = c.nivel_anterior,
-                                nivel_actual_copia = c.nivel_actual_copia
-                            }).ToList();
-                        _context.vedescliente.AddRange(vedesclienteAdd2);
-                        await _context.SaveChangesAsync();
-
-                        dbContexTransaction.Commit();
-                        return true;
-                    }
-                    catch (Exception)
-                    {
-                        dbContexTransaction.Rollback();
-                        return false;
-                        throw;
-                    }
+                    throw;
                 }
             }
         }

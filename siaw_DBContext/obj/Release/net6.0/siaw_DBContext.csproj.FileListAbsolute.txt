@@ -1,17 +1,3 @@
-C:\laragon\www\siawbackend-.net\siaw_DBContext\bin\Release\net6.0\siaw_DBContext.deps.json
-C:\laragon\www\siawbackend-.net\siaw_DBContext\bin\Release\net6.0\siaw_DBContext.runtimeconfig.json
-C:\laragon\www\siawbackend-.net\siaw_DBContext\bin\Release\net6.0\siaw_DBContext.dll
-C:\laragon\www\siawbackend-.net\siaw_DBContext\bin\Release\net6.0\siaw_DBContext.pdb
-C:\laragon\www\siawbackend-.net\siaw_DBContext\obj\Release\net6.0\siaw_DBContext.csproj.AssemblyReference.cache
-C:\laragon\www\siawbackend-.net\siaw_DBContext\obj\Release\net6.0\siaw_DBContext.GeneratedMSBuildEditorConfig.editorconfig
-C:\laragon\www\siawbackend-.net\siaw_DBContext\obj\Release\net6.0\siaw_DBContext.AssemblyInfoInputs.cache
-C:\laragon\www\siawbackend-.net\siaw_DBContext\obj\Release\net6.0\siaw_DBContext.AssemblyInfo.cs
-C:\laragon\www\siawbackend-.net\siaw_DBContext\obj\Release\net6.0\siaw_DBContext.csproj.CoreCompileInputs.cache
-C:\laragon\www\siawbackend-.net\siaw_DBContext\obj\Release\net6.0\siaw_DBContext.dll
-C:\laragon\www\siawbackend-.net\siaw_DBContext\obj\Release\net6.0\refint\siaw_DBContext.dll
-C:\laragon\www\siawbackend-.net\siaw_DBContext\obj\Release\net6.0\siaw_DBContext.pdb
-C:\laragon\www\siawbackend-.net\siaw_DBContext\obj\Release\net6.0\siaw_DBContext.genruntimeconfig.cache
-C:\laragon\www\siawbackend-.net\siaw_DBContext\obj\Release\net6.0\ref\siaw_DBContext.dll
 D:\Fuente SIAW2023\siawbackend-.net\siaw_DBContext\bin\Release\net6.0\siaw_DBContext.deps.json
 D:\Fuente SIAW2023\siawbackend-.net\siaw_DBContext\bin\Release\net6.0\siaw_DBContext.runtimeconfig.json
 D:\Fuente SIAW2023\siawbackend-.net\siaw_DBContext\bin\Release\net6.0\siaw_DBContext.dll
@@ -26,3 +12,17 @@ D:\Fuente SIAW2023\siawbackend-.net\siaw_DBContext\obj\Release\net6.0\refint\sia
 D:\Fuente SIAW2023\siawbackend-.net\siaw_DBContext\obj\Release\net6.0\siaw_DBContext.pdb
 D:\Fuente SIAW2023\siawbackend-.net\siaw_DBContext\obj\Release\net6.0\siaw_DBContext.genruntimeconfig.cache
 D:\Fuente SIAW2023\siawbackend-.net\siaw_DBContext\obj\Release\net6.0\ref\siaw_DBContext.dll
+C:\laragon\www\siawbackend-.net\siaw_DBContext\bin\Release\net6.0\siaw_DBContext.deps.json
+C:\laragon\www\siawbackend-.net\siaw_DBContext\bin\Release\net6.0\siaw_DBContext.runtimeconfig.json
+C:\laragon\www\siawbackend-.net\siaw_DBContext\bin\Release\net6.0\siaw_DBContext.dll
+C:\laragon\www\siawbackend-.net\siaw_DBContext\bin\Release\net6.0\siaw_DBContext.pdb
+C:\laragon\www\siawbackend-.net\siaw_DBContext\obj\Release\net6.0\siaw_DBContext.csproj.AssemblyReference.cache
+C:\laragon\www\siawbackend-.net\siaw_DBContext\obj\Release\net6.0\siaw_DBContext.GeneratedMSBuildEditorConfig.editorconfig
+C:\laragon\www\siawbackend-.net\siaw_DBContext\obj\Release\net6.0\siaw_DBContext.AssemblyInfoInputs.cache
+C:\laragon\www\siawbackend-.net\siaw_DBContext\obj\Release\net6.0\siaw_DBContext.AssemblyInfo.cs
+C:\laragon\www\siawbackend-.net\siaw_DBContext\obj\Release\net6.0\siaw_DBContext.csproj.CoreCompileInputs.cache
+C:\laragon\www\siawbackend-.net\siaw_DBContext\obj\Release\net6.0\siaw_DBContext.dll
+C:\laragon\www\siawbackend-.net\siaw_DBContext\obj\Release\net6.0\refint\siaw_DBContext.dll
+C:\laragon\www\siawbackend-.net\siaw_DBContext\obj\Release\net6.0\siaw_DBContext.pdb
+C:\laragon\www\siawbackend-.net\siaw_DBContext\obj\Release\net6.0\siaw_DBContext.genruntimeconfig.cache
+C:\laragon\www\siawbackend-.net\siaw_DBContext\obj\Release\net6.0\ref\siaw_DBContext.dll

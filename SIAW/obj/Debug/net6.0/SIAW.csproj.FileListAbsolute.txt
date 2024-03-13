@@ -745,7 +745,6 @@ C:\laragon\www\siawbackend-.net\SIAW\bin\Debug\net6.0\runtimes\win\lib\net6.0\Sy
 C:\laragon\www\siawbackend-.net\SIAW\bin\Debug\net6.0\siaw_DBContext.dll
 C:\laragon\www\siawbackend-.net\SIAW\bin\Debug\net6.0\siaw_funciones.dll
 C:\laragon\www\siawbackend-.net\SIAW\bin\Debug\net6.0\siaw_DBContext.pdb
-C:\laragon\www\siawbackend-.net\SIAW\bin\Debug\net6.0\siaw_funciones.pdb
 C:\laragon\www\siawbackend-.net\SIAW\obj\Debug\net6.0\SIAW.csproj.AssemblyReference.cache
 C:\laragon\www\siawbackend-.net\SIAW\obj\Debug\net6.0\SIAW.GeneratedMSBuildEditorConfig.editorconfig
 C:\laragon\www\siawbackend-.net\SIAW\obj\Debug\net6.0\SIAW.AssemblyInfoInputs.cache

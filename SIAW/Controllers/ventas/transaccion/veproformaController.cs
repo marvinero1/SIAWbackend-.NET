@@ -1179,7 +1179,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     //convertir a la moneda el precio item
                     var monedabase = await ventas.monedabasetarifa(_context, tarifa);
                     precioItem = await tipocambio.conversion(userConnectionString, codmoneda, monedabase, fecha, (decimal)precioItem);
-                    precioItem = await cliente.Redondear_5_Decimales(userConnectionString, (decimal)precioItem);
+                    precioItem = await cliente.Redondear_5_Decimales(_context, (decimal)precioItem);
                     //porcentaje de mercaderia
                     decimal porcen_merca = 0;
                     if (codalmacen > 0)
@@ -1207,16 +1207,16 @@ namespace SIAW.Controllers.ventas.transaccion
                     var porcentajedesc = await cliente.porcendesccliente(_context, codcliente, coditem, tarifa, opcion_nivel, false);
 
                     //preciodesc 
-                    var preciodesc = await cliente.Preciodesc(userConnectionString, codcliente, codalmacen, tarifa, coditem, desc_linea_seg_solicitud, niveldesc, opcion_nivel);
+                    var preciodesc = await cliente.Preciodesc(_context, codcliente, codalmacen, tarifa, coditem, desc_linea_seg_solicitud, niveldesc, opcion_nivel);
                     preciodesc = await tipocambio.conversion(userConnectionString, codmoneda, monedabase, fecha, (decimal)preciodesc);
-                    preciodesc = await cliente.Redondear_5_Decimales(userConnectionString, preciodesc);
+                    preciodesc = await cliente.Redondear_5_Decimales(_context, preciodesc);
                     //precioneto 
-                    var precioneto = await cliente.Preciocondescitem(userConnectionString, codcliente, codalmacen, tarifa, coditem, descuento, desc_linea_seg_solicitud, niveldesc, opcion_nivel);
+                    var precioneto = await cliente.Preciocondescitem(_context, codcliente, codalmacen, tarifa, coditem, descuento, desc_linea_seg_solicitud, niveldesc, opcion_nivel);
                     precioneto = await tipocambio.conversion(userConnectionString, codmoneda, monedabase, fecha, (decimal)precioneto);
-                    precioneto = await cliente.Redondear_5_Decimales(userConnectionString, precioneto);
+                    precioneto = await cliente.Redondear_5_Decimales(_context, precioneto);
                     //total
                     var total = cantidad * precioneto;
-                    total = await cliente.Redondear_5_Decimales(userConnectionString, total);
+                    total = await cliente.Redondear_5_Decimales(_context, total);
 
                     var item = await _context.initem
                         .Where(i => i.codigo == coditem)
@@ -1322,7 +1322,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 //convertir a la moneda el precio item
                 var monedabase = await ventas.monedabasetarifa(_context, reg.tarifa);
                 precioItem = await tipocambio._conversion(_context, reg.codmoneda, monedabase, reg.fecha, (decimal)precioItem);
-                precioItem = await cliente.Redondear_5_Decimales(userConnectionString, (decimal)precioItem);
+                precioItem = await cliente.Redondear_5_Decimales(_context, (decimal)precioItem);
                 //porcentaje de mercaderia
                 decimal porcen_merca = 0;
                 if (reg.codalmacen > 0)
@@ -1350,16 +1350,17 @@ namespace SIAW.Controllers.ventas.transaccion
                 var porcentajedesc = await cliente.porcendesccliente(_context, reg.codcliente, reg.coditem, reg.tarifa, reg.opcion_nivel, false);
 
                 //preciodesc 
-                var preciodesc = await cliente.Preciodesc(userConnectionString, reg.codcliente, reg.codalmacen, reg.tarifa, reg.coditem, reg.desc_linea_seg_solicitud, niveldesc, reg.opcion_nivel);
+                var preciodesc = await cliente.Preciodesc(_context, reg.codcliente, reg.codalmacen, reg.tarifa, reg.coditem, reg.desc_linea_seg_solicitud, niveldesc, reg.opcion_nivel);
                 preciodesc = await tipocambio.conversion(userConnectionString, reg.codmoneda, monedabase, reg.fecha, (decimal)preciodesc);
-                preciodesc = await cliente.Redondear_5_Decimales(userConnectionString, preciodesc);
+                
+                preciodesc = await cliente.Redondear_5_Decimales(_context, preciodesc);
                 //precioneto 
-                var precioneto = await cliente.Preciocondescitem(userConnectionString, reg.codcliente, reg.codalmacen, reg.tarifa, reg.coditem, reg.descuento, reg.desc_linea_seg_solicitud, niveldesc, reg.opcion_nivel);
+                var precioneto = await cliente.Preciocondescitem(_context, reg.codcliente, reg.codalmacen, reg.tarifa, reg.coditem, reg.descuento, reg.desc_linea_seg_solicitud, niveldesc, reg.opcion_nivel);
                 precioneto = await tipocambio.conversion(userConnectionString, reg.codmoneda, monedabase, reg.fecha, (decimal)precioneto);
-                precioneto = await cliente.Redondear_5_Decimales(userConnectionString, precioneto);
+                precioneto = await cliente.Redondear_5_Decimales(_context, precioneto);
                 //total
                 var total = reg.cantidad * precioneto;
-                total = await cliente.Redondear_5_Decimales(userConnectionString, total);
+                total = await cliente.Redondear_5_Decimales(_context, total);
 
                 var item = await _context.initem
                     .Where(i => i.codigo == reg.coditem)
@@ -1417,24 +1418,7 @@ namespace SIAW.Controllers.ventas.transaccion
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
 
-            // ###############################
-            // ACTUALIZAR DATOS DE CODIGO PRINCIPAL SI ES APLICABLE
-            await cliente.ActualizarParametrosDePrincipal(userConnectionString, veproforma.codcliente);
-            // ###############################
-
-            if (veproforma1.Count()<=0)
-            {
-                return BadRequest(new { resp = "No hay ningun item en su documento!!!" });
-            }
-
-
-
-            // ###############################  FALTA
-
-            // RECALCULARPRECIOS(True, True);
-
-
-
+           
 
             
 
@@ -1446,6 +1430,24 @@ namespace SIAW.Controllers.ventas.transaccion
 
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
+
+                // ###############################
+                // ACTUALIZAR DATOS DE CODIGO PRINCIPAL SI ES APLICABLE
+                await cliente.ActualizarParametrosDePrincipal(_context, veproforma.codcliente);
+                // ###############################
+
+                if (veproforma1.Count() <= 0)
+                {
+                    return BadRequest(new { resp = "No hay ningun item en su documento!!!" });
+                }
+
+
+
+                // ###############################  FALTA
+
+                // RECALCULARPRECIOS(True, True);
+
+
                 using (var dbContexTransaction = _context.Database.BeginTransaction())
                 {
                     try
@@ -1779,8 +1781,8 @@ namespace SIAW.Controllers.ventas.transaccion
         
         //[Authorize]
         [HttpPost]
-        [Route("totabilizarProf/{userConn}/{codempresa}/{desclinea_segun_solicitud}/{cmbtipo_complementopf}")]
-        public async Task<object> totabilizarProf(string userConn, string codempresa, bool desclinea_segun_solicitud, int cmbtipo_complementopf, SaveProformaCompleta datosProforma)
+        [Route("totabilizarProf/{userConn}/{codempresa}/{desclinea_segun_solicitud}/{cmbtipo_complementopf}/{opcion_nivel}")]
+        public async Task<object> totabilizarProf(string userConn, string codempresa, bool desclinea_segun_solicitud, int cmbtipo_complementopf, string opcion_nivel, SaveProformaCompleta datosProforma)
         {
             veproforma veproforma = datosProforma.veproforma;
             List<veproforma1> veproforma1 = datosProforma.veproforma1;
@@ -1803,7 +1805,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 cantidad_pedida = i.cantidad_pedida ?? 0,
                 cantidad = i.cantidad,
                 codcliente = veproforma.codcliente,
-                opcion_nivel = i.niveldesc,
+                opcion_nivel = opcion_nivel,
                 codalmacen = veproforma.codalmacen,
                 desc_linea_seg_solicitud = desclinea_segun_solicitud ? "SI":"NO",  //(SI o NO)
                 codmoneda = veproforma.codmoneda,
@@ -1953,7 +1955,8 @@ namespace SIAW.Controllers.ventas.transaccion
                 recargo = recargo,
                 descuento = descuento,
                 iva = resultados.totalIva,
-                total = resultados.TotalGen
+                total = resultados.TotalGen,
+                tablaIva = resultados.tablaiva
             };
 
         }
@@ -2235,7 +2238,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
         }
 
-        private async Task<(double totalIva, double TotalGen)> vertotal(DBContext _context, double subtotal, double recargos, double descuentos, string codcliente_real, string codmoneda, string codempresa, DateTime fecha, List<itemDataMatriz> tabladetalle, List<verecargoprof> tablarecargos)
+        private async Task<(double totalIva, double TotalGen, List<veproforma_iva> tablaiva)> vertotal(DBContext _context, double subtotal, double recargos, double descuentos, string codcliente_real, string codmoneda, string codempresa, DateTime fecha, List<itemDataMatriz> tabladetalle, List<verecargoprof> tablarecargos)
         {
             double suma = subtotal + recargos - descuentos;
             double totalIva = 0;
@@ -2243,10 +2246,11 @@ namespace SIAW.Controllers.ventas.transaccion
             {
                 suma = 0;
             }
+            List<veproforma_iva> tablaiva = new List<veproforma_iva>();
             if (await cliente.DiscriminaIVA(_context,codcliente_real))
             {
                 // Calculo de ivas
-                var tablaiva = await CalcularTablaIVA(subtotal, recargos, descuentos, tabladetalle);
+                tablaiva = await CalcularTablaIVA(subtotal, recargos, descuentos, tabladetalle);
                 //fin calculo ivas
                 totalIva = await veriva(tablaiva);
                 suma = suma + totalIva;
@@ -2256,7 +2260,7 @@ namespace SIAW.Controllers.ventas.transaccion
             double ttl_recargos_finales = respues.ttl_recargos_sobre_total_final;
 
             suma = suma + ttl_recargos_finales;
-            return (totalIva, suma);
+            return (totalIva, suma, tablaiva);
         }
 
         private async Task<List<veproforma_iva>> CalcularTablaIVA(double subtotal, double recargos, double descuentos, List<itemDataMatriz> tabladetalle)
@@ -2506,6 +2510,90 @@ namespace SIAW.Controllers.ventas.transaccion
                     ciudad = await cliente.UbicacionCliente(_context, codcliente_ref),
                     latitud_entrega = coordenadasCliente.latitud,
                     longitud_entrega = coordenadasCliente.longitud
+                });
+            }
+        }
+
+
+        //[Authorize]
+        [HttpPost]
+        [Route("versubTotal/{userConn}/{codcliente}/{desclinea_segun_solicitud}/{codalmacen}/{codmoneda}/{fecha}")]
+        public async Task<object> versubTotal(string userConn, string codcliente, bool desclinea_segun_solicitud, int codalmacen, string codmoneda, DateTime fecha, List<cargadofromMatriz> data)
+        {
+            if (data.Count() < 1)
+            {
+                return BadRequest(new { resp = "No se esta recibiendo ningun dato, verifique esta situación." });
+            }
+            /*
+            var data = veproforma1.Select(i => new cargadofromMatriz
+            {
+                coditem = i.coditem,
+                tarifa = i.codtarifa,
+                descuento = i.coddescuento,
+                cantidad_pedida = i.cantidad_pedida ?? 0,
+                cantidad = i.cantidad,
+                codcliente = codcliente,
+                opcion_nivel = i.niveldesc,
+                codalmacen = codalmacen,
+                desc_linea_seg_solicitud = desclinea_segun_solicitud ? "SI" : "NO",  //(SI o NO)
+                codmoneda = codmoneda,
+                fecha = fecha
+            }).ToList();
+            */
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+
+                var resultado = await calculoPreciosMatriz(_context, userConnectionString, data);
+                if (resultado == null)
+                {
+                    return BadRequest(new { resp = "No se encontro informacion con los datos proporcionados." });
+                }
+
+                
+                double tot = resultado.Sum(i => (i.cantidad * i.preciolista));
+                double totlinea = resultado.Sum(i => (i.cantidad * i.preciodesc));
+                double subtotal = resultado.Sum(i => i.total);
+
+                // para el desgloce
+                // sacar precios
+                var descuentos = resultado
+                    .GroupBy(obj => obj.coddescuento)
+                    .Select(grp => grp.First())
+                    .Select(i => i.coddescuento)
+                    .ToList();
+
+
+
+                // sacartotales
+                List<double> totales = new List<double>();
+
+                for (int i = 0; i < descuentos.Count(); i++)
+                {
+                    double total = resultado
+                        .Where(row => row.coddescuento == descuentos[i])
+                    .Sum(row => row.cantidad * (row.preciodesc - row.precioneto));
+
+                    totales.Add(total);
+                }
+
+                var desglose = totales.Select((i, index) => new
+                {
+                    total = i,
+                    descuento = descuentos[index]
+                }).ToList();
+
+                return Ok(new
+                {
+                    resul = resultado,
+                    a = tot,
+                    b = tot- totlinea,
+                    c = totlinea,
+                    d = totlinea - subtotal,
+                    e = subtotal,
+                    desgloce = desglose
                 });
             }
         }
