@@ -2517,8 +2517,8 @@ namespace SIAW.Controllers.ventas.transaccion
 
         //[Authorize]
         [HttpPost]
-        [Route("versubTotal/{userConn}/{codcliente}/{desclinea_segun_solicitud}/{codalmacen}/{codmoneda}/{fecha}")]
-        public async Task<object> versubTotal(string userConn, string codcliente, bool desclinea_segun_solicitud, int codalmacen, string codmoneda, DateTime fecha, List<cargadofromMatriz> data)
+        [Route("versubTotal/{userConn}")]
+        public async Task<object> versubTotal(string userConn, List<cargadofromMatriz> data)
         {
             if (data.Count() < 1)
             {
@@ -2597,9 +2597,6 @@ namespace SIAW.Controllers.ventas.transaccion
                 });
             }
         }
-
-
-
     }
 
 
