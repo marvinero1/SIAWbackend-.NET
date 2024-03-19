@@ -117,7 +117,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                     if (initem == null)
                     {
-                        return NotFound( new { resp = "No se encontro un registro con este código" });
+                        return NotFound( new { resp = 801 });
                     }
 
                     return Ok(initem);

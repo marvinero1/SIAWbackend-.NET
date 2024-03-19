@@ -827,7 +827,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
                     if (empaques.Count() == 0)
                     {
-                        return NotFound(new { resp = "No se encontraron registros con los datos proporcionados." });
+                        return NotFound(new { resp = 801 });
                     }
                     return Ok(empaques);
                 }
@@ -1258,8 +1258,8 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
         [HttpPost]
-        [Route("getItemMatriz_AnadirbyGroup/{userConn}/{addbyEmpqMin}")]
-        public async Task<ActionResult<itemDataMatriz>> getItemMatriz_AnadirbyGroup(string userConn, bool addbyEmpqMin, List<cargadofromMatriz> data )
+        [Route("getItemMatriz_AnadirbyGroup/{userConn}")]
+        public async Task<ActionResult<itemDataMatriz>> getItemMatriz_AnadirbyGroup(string userConn, List<cargadofromMatriz> data )
         {
             try
             {
@@ -1275,6 +1275,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
+                    /*
                     if (addbyEmpqMin)
                     {
                         // si es agregar por empaques minimos, debe validar tambien que el descuento corresponda al precio.
@@ -1292,7 +1293,8 @@ namespace SIAW.Controllers.ventas.transaccion
                             reg.cantidad = await _context.veempaque1.Where(i => i.codempaque==empaque && i.item == reg.coditem).Select(i => i.cantidad).FirstOrDefaultAsync() ?? 0;
                             reg.cantidad_pedida = reg.cantidad;
                         }
-                    }
+                    }*/
+
                     var resultado = await calculoPreciosMatriz(_context,userConnectionString,data);
 
                     if (resultado == null)
@@ -1307,6 +1309,55 @@ namespace SIAW.Controllers.ventas.transaccion
                 return Problem("Error en el servidor");
             }
         }
+
+
+
+        [HttpGet]
+        [Route("getCantfromEmpaque/{userConn}")]
+        public async Task<ActionResult<cargadofromMatriz>> getCantfromEmpaque(string userConn, List<cargadofromMatriz> data)
+        {
+            try
+            {
+                if (data.Count() < 1)
+                {
+                    return BadRequest(new { resp = "No se esta recibiendo ningun dato, verifique esta situación." });
+                }
+
+                //string nivel = "X";
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    // como se agrega en conjunto por empaque, en teoria todos tienen mismo precio y mismo descuento.
+                    var tarifa = data[0].tarifa;
+                    var descuento = data[0].descuento;
+                    if (descuento!=0)
+                    {
+                        var comprueba = await _context.vedescuento_tarifa.Where(i => i.codtarifa == tarifa && i.coddescuento == descuento).FirstOrDefaultAsync();
+                        if (comprueba == null)
+                        {
+                            return BadRequest(new { resp = "El descuento seleccionado no corresponde a la tarifa aplicada, revise los datos." });
+                        }
+                    }
+                    
+                    int empaque = await _context.intarifa.Where(i => i.codigo == tarifa).Select(i => i.codempaque).FirstOrDefaultAsync();
+                    foreach (var reg in data)
+                    {
+                        reg.cantidad = await _context.veempaque1.Where(i => i.codempaque == empaque && i.item == reg.coditem).Select(i => i.cantidad).FirstOrDefaultAsync() ?? 0;
+                        reg.cantidad_pedida = reg.cantidad;
+                    }
+                    return Ok(data);
+                }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+            }
+        }
+
+
 
 
         private async Task<List<itemDataMatriz>> calculoPreciosMatriz(DBContext _context, string userConnectionString, List<cargadofromMatriz> data)
@@ -2595,6 +2646,41 @@ namespace SIAW.Controllers.ventas.transaccion
                     e = subtotal,
                     desgloce = desglose
                 });
+            }
+        }
+
+
+
+        [HttpGet]
+        [Route("getSugerenciaTarfromDesc/{userConn}/{coddescuento}/{usuario}")]
+        public async Task<object> getSugerenciaTarfromDesc(string userConn, int coddescuento, string usuario)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var tarifaSugerencia = await _context.vedescuento_tarifa
+                        .Join(_context.adusuario_tarifa,
+                        vt => vt.codtarifa,
+                        at => at.codtarifa,
+                        (vt, at) => new {vt,at}
+                        )
+                        .Where(i => i.vt.coddescuento == coddescuento && i.at.usuario == usuario)
+                        .Select(i => i.vt.codtarifa)
+                        .FirstOrDefaultAsync();
+
+                    return Ok(new
+                    {
+                        codTarifa = tarifaSugerencia
+                    });
+                }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
             }
         }
     }

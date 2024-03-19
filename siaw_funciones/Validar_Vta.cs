@@ -24,6 +24,7 @@ namespace siaw_funciones
         public Validar_Vta() { }
 
         Ventas ventas = new Ventas();
+        TipoCambio tipoCambio = new TipoCambio();
         //private readonly siaw_funciones.IVentas ventas;
        
         //Clase necesaria para el uso del DBContext del proyecto siaw_Context
@@ -603,5 +604,117 @@ namespace siaw_funciones
             }
             return cadena_precios_no_autorizados_al_us;
         }
+
+        public async Task<List<int>> Lista_Precios_En_El_Documento(List<itemDataMatriz> tabladetalle)
+        {
+            var elementosUnicos = tabladetalle
+                .GroupBy(objeto => objeto.codtarifa)
+                .Where(grupo => grupo.Count() == 1)
+                .SelectMany(grupo => grupo)
+                .Select(i => i.codtarifa).ToList();
+            return elementosUnicos;
+        }
+
+        public async Task<int> Tarifa_Monto_Min_Mayor(DBContext _context, List<int> milista_precios, veproforma DVTA)
+        {
+            bool cliente_nuevo = await cliente.EsClienteNuevo(_context, DVTA.codcliente_real);
+            double MONTO_MAYOR = 0;
+            int resultado = 0;
+            if (milista_precios.Count() == 1)
+            {
+                return milista_precios[0];
+            }
+            foreach (var reg in milista_precios)
+            {
+                intarifaMonMinMay tabla = new intarifaMonMinMay();
+                if (DVTA.tipopago == 0)   // "CONTADO"
+                {
+                    // contado
+                    if (cliente_nuevo)
+                    {
+
+                        tabla = await _context.intarifa
+                            .Where(i => i.codigo == reg)
+                            .Select(i => new intarifaMonMinMay
+                            {
+                                codtarifa = i.codigo,
+                                montomin = i.min_nuevo_contado ?? 0,
+                                moneda = i.codmoneda_min_nuevo_contado
+                            })
+                            .Distinct()
+                            .FirstOrDefaultAsync() ?? tabla;
+                    }
+                    else
+                    {
+                        tabla = await _context.intarifa
+                            .Where(i => i.codigo == reg)
+                            .Select(i => new intarifaMonMinMay
+                            {
+                                codtarifa = i.codigo,
+                                montomin = i.min_contado ?? 0,
+                                moneda = i.codmoneda_min_contado
+                            })
+                            .Distinct()
+                            .FirstOrDefaultAsync() ?? tabla;
+                    }
+                }
+                else  //  CREDITO  == 1
+                {
+                    // credito
+                    if (cliente_nuevo)
+                    {
+
+                        tabla = await _context.intarifa
+                            .Where(i => i.codigo == reg)
+                            .Select(i => new intarifaMonMinMay
+                            {
+                                codtarifa = i.codigo,
+                                montomin = i.min_nuevo_credito ?? 0,
+                                moneda = i.codmoneda_min_nuevo_credito
+                            })
+                            .Distinct()
+                            .FirstOrDefaultAsync() ?? tabla;
+                    }
+                    else
+                    {
+                        tabla = await _context.intarifa
+                            .Where(i => i.codigo == reg)
+                            .Select(i => new intarifaMonMinMay
+                            {
+                                codtarifa = i.codigo,
+                                montomin = i.min_credito ?? 0,
+                                moneda = i.codmoneda_min_credito
+                            })
+                            .Distinct()
+                            .FirstOrDefaultAsync() ?? tabla;
+                    }
+                    // convertir a la moneda en la cual se esta haciendo la proforma
+                    double Monto_Min_Tarifa = (double)await tipoCambio._conversion(_context, DVTA.codmoneda, tabla.moneda, DVTA.fecha, tabla.montomin);
+
+                    // verificar si el monto min del tipo de precio es mayor, si es mayo se obtiene su codtarifa
+                    if (MONTO_MAYOR == 0)
+                    {
+                        MONTO_MAYOR = Monto_Min_Tarifa;
+                        resultado = tabla.codtarifa;
+                    }
+                    else
+                    {
+                        if (Monto_Min_Tarifa > MONTO_MAYOR)
+                        {
+                            MONTO_MAYOR = Monto_Min_Tarifa;
+                            resultado = tabla.codtarifa;
+                        }
+                    }
+                }
+            }
+            return resultado;
+        }
+    }
+
+    public class intarifaMonMinMay
+    {
+        public int codtarifa { get; set; }
+        public decimal montomin { get; set; }
+        public string moneda { get; set; }
     }
 }

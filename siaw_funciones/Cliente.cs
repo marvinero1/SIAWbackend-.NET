@@ -1176,5 +1176,23 @@ namespace siaw_funciones
             }
             return (resultado.latitud, resultado.longitud);
         }
+
+        public async Task<bool> EsClienteNuevo(DBContext _context, string codcliente)
+        {
+            var situacion = await _context.vecliente
+                .Where(i => i.codigo == codcliente)
+                .Select(i => i.situacion)
+                .FirstOrDefaultAsync();
+            if (situacion == null)
+            {
+                return false;
+            }
+            if (situacion != "HABITUAL")
+            {
+                return true;
+            }
+            return false;
+        }
+        
     }
 }
