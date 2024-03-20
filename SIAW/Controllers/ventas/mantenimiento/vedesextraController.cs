@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace SIAW.Controllers.ventas.mantenimiento
 {
-    [Route("api/[controller]")]
+    [Route("api/venta/mant/[controller]")]
     [ApiController]
     public class vedesextraController : ControllerBase
     {
@@ -76,6 +76,44 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 return Problem("Error en el servidor");
             }
         }
+
+        // GET: api/vedesextra/5
+        [HttpGet]
+        [Route("getvedesextrafromTarifa/{userConn}/{codtarifa}")]
+        public async Task<ActionResult<vedesextra>> getvedesextrafromTarifa(string userConn, int codtarifa)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var codigosDesextra =await _context.vedesextra_tarifa
+                        .Where(t => t.codtarifa == codtarifa &&
+                                    _context.vedesextra.Any(e => e.codigo == t.coddesextra && e.habilitado == true))
+                        .Select(t => t.coddesextra)
+                        .Distinct().ToListAsync();
+
+                    var resultado = await _context.vedesextra
+                        .Where(d => codigosDesextra.Contains(d.codigo))
+                        .Select(d => new
+                        {
+                            codigo = d.codigo,
+                            descripcion = d.descripcion
+                        })
+                        .ToListAsync();
+
+                    return Ok(resultado);
+                }
+
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+            }
+        }
+
 
         // PUT: api/vedesextra/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754

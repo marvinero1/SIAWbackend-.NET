@@ -2392,7 +2392,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 var resultados = await Validar_Credito_Disponible(_context,codcliente_real,usuario,codempresa,codmoneda,totalProf, fecha);
                 return Ok(resultados.data);
             }
-         }
+        }
 
 
 
@@ -2683,6 +2683,33 @@ namespace SIAW.Controllers.ventas.transaccion
                 throw;
             }
         }
+
+
+        [HttpGet]
+        [Route("getTarifaPrincipal/{userConn}")]
+        public async Task<object> getTarifaPrincipal(string userConn, getTarifaPrincipal data)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var tarifa = await validar_Vta.Tarifa_Monto_Min_Mayor(_context, await validar_Vta.Lista_Precios_En_El_Documento(data.tabladetalle), data.DVTA);
+
+                    return Ok(new
+                    {
+                        codTarifa = tarifa
+                    });
+                }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+        }
+
     }
 
 
@@ -2707,5 +2734,10 @@ namespace SIAW.Controllers.ventas.transaccion
         public string codmoneda { get; set; }
         public DateTime fecha { get; set; }
     }
-   
+    public class getTarifaPrincipal
+    {
+        public List<itemDataMatriz> tabladetalle { get; set; }
+        public veproforma DVTA { get; set; }
+    }
+
 }
