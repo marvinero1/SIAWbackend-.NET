@@ -1159,8 +1159,8 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
         [HttpGet]
-        [Route("getItemMatriz_Anadir/{userConn}/{coditem}/{tarifa}/{descuento}/{cantidad_pedida}/{cantidad}/{codcliente}/{opcion_nivel}/{codalmacen}/{desc_linea_seg_solicitud}/{codmoneda}/{fecha}")]
-        public async Task<ActionResult<itemDataMatriz>> getItemMatriz_Anadir(string userConn, string coditem, int tarifa, int descuento, decimal cantidad_pedida, decimal cantidad, string codcliente, string opcion_nivel, int codalmacen, string desc_linea_seg_solicitud, string codmoneda, DateTime fecha)
+        [Route("getItemMatriz_Anadir/{userConn}/{codempresa}/{usuario}/{coditem}/{tarifa}/{descuento}/{cantidad_pedida}/{cantidad}/{codcliente}/{opcion_nivel}/{codalmacen}/{desc_linea_seg_solicitud}/{codmoneda}/{fecha}")]
+        public async Task<ActionResult<itemDataMatriz>> getItemMatriz_Anadir(string userConn, string codempresa, string usuario, string coditem, int tarifa, int descuento, decimal cantidad_pedida, decimal cantidad, string codcliente, string opcion_nivel, int codalmacen, string desc_linea_seg_solicitud, string codmoneda, DateTime fecha)
         {
             try
             {
@@ -1184,11 +1184,11 @@ namespace SIAW.Controllers.ventas.transaccion
                     decimal porcen_merca = 0;
                     if (codalmacen > 0)
                     {
-                        var controla_stok_seguridad = await empresa.ControlarStockSeguridad(userConnectionString, "PE");
+                        var controla_stok_seguridad = await empresa.ControlarStockSeguridad(userConnectionString, codempresa);
                         if (controla_stok_seguridad == true)
                         {
                             //List<sldosItemCompleto> sld_ctrlstock_para_vtas = await saldos.SaldoItem_CrtlStock_Para_Ventas(userConnectionString, "311", codalmacen, coditem, "PE", "dpd3");
-                            var sld_ctrlstock_para_vtas = await saldos.SaldoItem_CrtlStock_Para_Ventas(userConnectionString, "311", codalmacen, coditem, "PE", "dpd3");
+                            var sld_ctrlstock_para_vtas = await saldos.SaldoItem_CrtlStock_Para_Ventas(userConnectionString, "", codalmacen, coditem, codempresa, usuario);
                             if (sld_ctrlstock_para_vtas > 0)
                             {
                                 porcen_merca = cantidad * 100 / sld_ctrlstock_para_vtas;
@@ -1258,8 +1258,8 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
         [HttpPost]
-        [Route("getItemMatriz_AnadirbyGroup/{userConn}")]
-        public async Task<ActionResult<itemDataMatriz>> getItemMatriz_AnadirbyGroup(string userConn, List<cargadofromMatriz> data )
+        [Route("getItemMatriz_AnadirbyGroup/{userConn}/{codempresa}/{usuario}")]
+        public async Task<ActionResult<itemDataMatriz>> getItemMatriz_AnadirbyGroup(string userConn, string codempresa, string usuario, List<cargadofromMatriz> data )
         {
             try
             {
@@ -1295,7 +1295,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         }
                     }*/
 
-                    var resultado = await calculoPreciosMatriz(_context,userConnectionString,data);
+                    var resultado = await calculoPreciosMatriz(_context, codempresa, usuario, userConnectionString,data);
 
                     if (resultado == null)
                     {
@@ -1360,7 +1360,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
-        private async Task<List<itemDataMatriz>> calculoPreciosMatriz(DBContext _context, string userConnectionString, List<cargadofromMatriz> data)
+        private async Task<List<itemDataMatriz>> calculoPreciosMatriz(DBContext _context, string codEmpresa, string usuario, string userConnectionString, List<cargadofromMatriz> data)
         {
             List<itemDataMatriz> resultado = new List<itemDataMatriz>();
             foreach (var reg in data)
@@ -1378,11 +1378,11 @@ namespace SIAW.Controllers.ventas.transaccion
                 decimal porcen_merca = 0;
                 if (reg.codalmacen > 0)
                 {
-                    var controla_stok_seguridad = await empresa.ControlarStockSeguridad(userConnectionString, "PE");
+                    var controla_stok_seguridad = await empresa.ControlarStockSeguridad(userConnectionString, codEmpresa);
                     if (controla_stok_seguridad == true)
                     {
                         //List<sldosItemCompleto> sld_ctrlstock_para_vtas = await saldos.SaldoItem_CrtlStock_Para_Ventas(userConnectionString, "311", codalmacen, coditem, "PE", "dpd3");
-                        var sld_ctrlstock_para_vtas = await saldos.SaldoItem_CrtlStock_Para_Ventas(userConnectionString, "Ag311", reg.codalmacen, reg.coditem, "PE", "dpd3");
+                        var sld_ctrlstock_para_vtas = await saldos.SaldoItem_CrtlStock_Para_Ventas(userConnectionString, "", reg.codalmacen, reg.coditem, codEmpresa, usuario);
                         if (sld_ctrlstock_para_vtas > 0)
                         {
                             porcen_merca = reg.cantidad * 100 / sld_ctrlstock_para_vtas;
@@ -1832,8 +1832,8 @@ namespace SIAW.Controllers.ventas.transaccion
         
         //[Authorize]
         [HttpPost]
-        [Route("totabilizarProf/{userConn}/{codempresa}/{desclinea_segun_solicitud}/{cmbtipo_complementopf}/{opcion_nivel}")]
-        public async Task<object> totabilizarProf(string userConn, string codempresa, bool desclinea_segun_solicitud, int cmbtipo_complementopf, string opcion_nivel, SaveProformaCompleta datosProforma)
+        [Route("totabilizarProf/{userConn}/{usuario}/{codempresa}/{desclinea_segun_solicitud}/{cmbtipo_complementopf}/{opcion_nivel}")]
+        public async Task<object> totabilizarProf(string userConn, string usuario, string codempresa, bool desclinea_segun_solicitud, int cmbtipo_complementopf, string opcion_nivel, SaveProformaCompleta datosProforma)
         {
             veproforma veproforma = datosProforma.veproforma;
             List<veproforma1> veproforma1 = datosProforma.veproforma1;
@@ -1957,7 +1957,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
-                var resultado = await calculoPreciosMatriz(_context, userConnectionString, data);
+                var resultado = await calculoPreciosMatriz(_context, codempresa,usuario, userConnectionString, data);
                 if (resultado == null)
                 {
                     return BadRequest(new { resp = "No se encontro informacion con los datos proporcionados." });
@@ -2568,8 +2568,8 @@ namespace SIAW.Controllers.ventas.transaccion
 
         //[Authorize]
         [HttpPost]
-        [Route("versubTotal/{userConn}")]
-        public async Task<object> versubTotal(string userConn, List<cargadofromMatriz> data)
+        [Route("versubTotal/{userConn}/{codempresa}/{usuario}")]
+        public async Task<object> versubTotal(string userConn, string codempresa, string usuario, List<cargadofromMatriz> data)
         {
             if (data.Count() < 1)
             {
@@ -2597,7 +2597,7 @@ namespace SIAW.Controllers.ventas.transaccion
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
 
-                var resultado = await calculoPreciosMatriz(_context, userConnectionString, data);
+                var resultado = await calculoPreciosMatriz(_context, codempresa, usuario, userConnectionString, data);
                 if (resultado == null)
                 {
                     return BadRequest(new { resp = "No se encontro informacion con los datos proporcionados." });
@@ -2709,6 +2709,80 @@ namespace SIAW.Controllers.ventas.transaccion
                 throw;
             }
         }
+
+
+
+
+        // GET: api/vedesextra/5
+        [HttpGet]
+        [Route("validaAddDescExtraProf/{userConn}/{coddesextra}/{codigodescripcionm}/{codcliente_real}")]
+        public async Task<ActionResult<vedesextra>> validaAddDescExtraProf(string userConn, int coddesextra, string codigodescripcionm, string codcliente_real, List<vedesextraprof> vedesextraprof)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                string descuentoCredito = "";
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    // Verificar si el descuento esta habilitado
+                    var habilitado = await ventas.Descuento_Extra_Habilitado(_context, coddesextra);
+                    if (!habilitado)
+                    {
+                        return BadRequest(new { resp = "El descuento: " + coddesextra + " esta deshabilitado, por favor verifique esta situacion!!!" });
+                    }
+                    // verificar si hay descuentos excluyentes
+                    var verificaResp = await hay_descuentos_excluyentes(_context, coddesextra, vedesextraprof);
+                    if (verificaResp.val == false)
+                    {
+                        return BadRequest(new { resp = verificaResp.msg });
+                    }
+                    // validar si el descuento que esta intentando añadir valida 
+                    // si el cliente deberia tener linea de credito valida
+                    if (await ventas.Descuento_Extra_Valida_Linea_Credito(_context,coddesextra))
+                    {
+                        // implementado en fecha 27-01-2020
+                        // si es cliente pertec aunque no tenga credito si se le puede orotegar el descuento
+                        if (await cliente.EsClientePertec(_context,codcliente_real) == false)
+                        {
+                            // validar que el cliente tenga linea de credito, vigente no revertida
+                            if (await creditos.Cliente_Tiene_Linea_De_Credito_Valida(_context,codcliente_real) == false)
+                            {
+                                // sia_funciones.Cliente.Instancia.cliente
+                                // si el cliente no tiene linea de credito valida se puede dar el descuento con clave
+                                // si se llena el mensaje enviar en respuesta json
+                                descuentoCredito = "El descuento: " + coddesextra + " - " + codigodescripcionm + " no puede ser añadido porque el cliente: " + codcliente_real + " no tiene linea de credito valida o vigente, sin embargo se añadira pero al momento de grabar y aprobar se requerira clave!!!";
+                            }
+                        }
+                    }
+
+                    return Ok(resultado);
+                }
+
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+            }
+        }
+
+        private async Task<(bool val, string msg)> hay_descuentos_excluyentes(DBContext _context, int coddesextra, List<vedesextraprof> vedesextraprof)
+        {
+            foreach (var reg in vedesextraprof)
+            {
+                var valida = await _context.vedesextra_excluyentes
+                    .Where(i => (i.coddesextra1 == coddesextra && i.coddesextra2 == reg.coddesextra) || (i.coddesextra1 == reg.coddesextra && i.coddesextra2 == coddesextra))
+                    .FirstOrDefaultAsync();
+                if (valida != null)
+                {
+                    return (false, "El descuento: " + coddesextra + " y el descuento: " + reg.coddesextra + " no pueden ser aplicados de manera simultanea en una misma proforma.");
+                }
+            }
+            return (true, "");
+        }
+
+
+
 
     }
 

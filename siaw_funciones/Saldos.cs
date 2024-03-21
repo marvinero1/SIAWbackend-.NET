@@ -36,16 +36,9 @@ namespace siaw_funciones
         {
             //List<sldosItemCompleto> saldos;
             decimal resultado = 0;
-            using (var _context = DbContextFactory.Create(userConnectionString))
-            {
-                //precio unitario del item
-                resultado = await SaldosCompletoResult(userConnectionString, codalmacen, coditem, codempresa, usuario);
-                //resultado = tabla;
-            }
-            //for (int i = 0; (i <= (saldos.Count - 1)); i++)
-            //{
-            //resultado = (decimal)saldos[7].valor;
-            //}
+            //precio unitario del item
+            resultado = await SaldosCompletoResult(userConnectionString, codalmacen, coditem, codempresa, usuario);
+            //resultado = tabla;
 
             return resultado;
         }

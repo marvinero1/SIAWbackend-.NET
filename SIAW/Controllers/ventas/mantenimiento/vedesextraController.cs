@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using siaw_DBContext.Data;
 using siaw_DBContext.Models;
 using Microsoft.AspNetCore.Authorization;
+using siaw_funciones;
 
 namespace SIAW.Controllers.ventas.mantenimiento
 {
@@ -12,6 +13,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
     public class vedesextraController : ControllerBase
     {
         private readonly UserConnectionManager _userConnectionManager;
+        private readonly Ventas ventas = new Ventas();
         public vedesextraController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;

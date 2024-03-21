@@ -1193,6 +1193,44 @@ namespace siaw_funciones
             }
             return false;
         }
-        
+
+        public async Task<bool> EsClientePertec(DBContext _context, string codcliente)
+        {
+            bool resultado = false;
+
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var cliente = await _context.vecliente
+                                .Where(v => v.codigo == codcliente)
+                                .Select(v => new { v.codigo, v.cliente_pertec })
+                                .FirstOrDefaultAsync();
+
+                if (cliente != null)
+                {
+                    if (cliente.cliente_pertec.HasValue)
+                    {
+                        resultado = cliente.cliente_pertec.Value;
+                    }
+                    else
+                    {
+                        resultado = false;
+                    }
+                }
+                else
+                {
+                    resultado = true;
+                }
+                //}
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+            return resultado;
+        }
+
     }
 }

@@ -632,6 +632,45 @@ namespace siaw_funciones
             }
             return resultado.codcliente_referencia;
         }
+        public async Task<bool> Descuento_Extra_Habilitado(DBContext _context, int coddesextra)
+        {
+            var resultado = await _context.vedesextra
+                .Where(i => i.codigo == coddesextra)
+                .FirstOrDefaultAsync();
+            if (resultado != null)
+            {
+                return resultado.habilitado??false;
+            }
+            return false;
+        }
+
+        public async Task<bool> Descuento_Extra_Valida_Linea_Credito(DBContext _context, int coddesextra)
+        {
+            try
+            {
+                bool resultado = false;
+                //using (_context)
+                //{
+                var result = await _context.vedesextra
+                    .Where(v => v.codigo == coddesextra)
+                    .Select(v => v.valida_linea_credito)
+                    .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = (bool)result;
+                }
+                else { resultado = false; }
+                //}
+                return resultado;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return false;
+            }
+        }
+
+
     }
 
 
