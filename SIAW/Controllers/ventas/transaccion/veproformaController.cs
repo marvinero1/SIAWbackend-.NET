@@ -2711,12 +2711,46 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
 
-
-
         // GET: api/vedesextra/5
         [HttpGet]
-        [Route("validaAddDescExtraProf/{userConn}/{coddesextra}/{codigodescripcionm}/{codcliente_real}")]
-        public async Task<ActionResult<vedesextra>> validaAddDescExtraProf(string userConn, int coddesextra, string codigodescripcionm, string codcliente_real, List<vedesextraprof> vedesextraprof)
+        [Route("validaAddRecargo/{userConn}/{codrecargo}/{codempresa}")]
+        public async Task<ActionResult<object>> validaAddRecargo(string userConn, int codrecargo, string codempresa)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    // verificacion aplicacion de RECARGOS por descuento excedente deposito bancario
+                    // primero verifica si la empresa esta habilitada para aplicar recargos por descto excedente de deposito aplicado
+                    int codrecargo_deposito = await configuracion.emp_codrecargo_x_deposito(_context, codempresa);
+                    // si esta intentando asignar RECARGO POR DEPOSITO
+                    if (codrecargo == codrecargo_deposito)
+                    {
+                        return BadRequest(new { resp = "La aplicacion manual de recargos por excedente de descuentos por deposito no esta habilitada!!!" });
+                        /*
+                        'If Not sia_funciones.Configuracion.Instancia.emp_aplica_recargos_por_descto_deposito_excedente(sia_compartidos.temporales.Instancia.codempresa) Then
+                        '    MessageBox.Show("La aplicacion de recargos por excedente de deascuentos por deposito no esta habilitada!!!", "Validacion", MessageBoxButtons.OK, MessageBoxIcon.Exclamation)
+                        '    resultado = False
+                        'End If
+                         */
+                    }
+                    return Ok(true);
+
+                }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+            }
+        }
+
+            // GET: api/vedesextra/5
+            [HttpGet]
+        [Route("validaAddDescExtraProf/{userConn}/{coddesextra}/{codigodescripcion}/{codcliente}/{codcliente_real}/{codempresa}/{tipopago}/{contra_entrega}")]
+        public async Task<ActionResult<object>> validaAddDescExtraProf(string userConn, int coddesextra, string codigodescripcion, string codcliente, string codcliente_real, string codempresa, string tipopago, bool contra_entrega, List<vedesextraprof> vedesextraprof)
         {
             try
             {
@@ -2751,12 +2785,90 @@ namespace SIAW.Controllers.ventas.transaccion
                                 // sia_funciones.Cliente.Instancia.cliente
                                 // si el cliente no tiene linea de credito valida se puede dar el descuento con clave
                                 // si se llena el mensaje enviar en respuesta json
-                                descuentoCredito = "El descuento: " + coddesextra + " - " + codigodescripcionm + " no puede ser añadido porque el cliente: " + codcliente_real + " no tiene linea de credito valida o vigente, sin embargo se añadira pero al momento de grabar y aprobar se requerira clave!!!";
+                                descuentoCredito = "El descuento: " + coddesextra + " - " + codigodescripcion + " no puede ser añadido porque el cliente: " + codcliente_real + " no tiene linea de credito valida o vigente, sin embargo se añadira pero al momento de grabar y aprobar se requerira clave!!!";
                             }
                         }
                     }
 
-                    return Ok(resultado);
+
+                    ////////////////////////////////////////////////////////////////////////////////////////
+                    // verificar que el descto extra este asignado al CLIENTE REAL
+                    // implementado en fecha: 30-11-2021
+                    if (await cliente.Cliente_Tiene_Descto_Extra_Asignado(_context,coddesextra,codcliente_real) == false)
+                    {
+                        return BadRequest(new { resp = "El cliente: " + codcliente_real + " no tiene asignado el descuento: " + coddesextra + ", verificque esta situacion!!!" });
+                    }
+
+                    ////////////////////////////////////////////////////////////////////////////////////////
+                    // verificar que el descto extra este asignado CLIENTE
+                    // implementado en fecha: 30-11-2021
+                    if (codcliente != codcliente_real)
+                    {
+                        if (await cliente.Cliente_Tiene_Descto_Extra_Asignado(_context, coddesextra, codcliente) == false)
+                        {
+                            return BadRequest(new { resp = "El cliente: " + codcliente + " no tiene asignado el descuento: " + coddesextra + ", verificque esta situacion!!!" });
+                        }
+                    }
+
+                    ////////////////////////////////////////////////////////////////////////////////////////
+                    // verificar si es el descuento por deposito
+                    // si es impedir que se añada manualmente
+                    int cod_desextra = await configuracion.emp_coddesextra_x_deposito(_context, codempresa);
+                    if (cod_desextra != 0)
+                    {
+                        if (coddesextra == cod_desextra)
+                        {
+                            return BadRequest(new { resp = "El descuento por desposito: " + coddesextra + " no puede ser añadido manualmente!!!" });
+                        }
+                    }
+
+                    // verificar si es el descuento por deposito contado 
+                    // si es impedir que se añada si
+                    // 1.- antes no hay un enlace con un anticipo contado
+                    // 2.- que el anticipo este enlazado a un deposito de cliente
+                    // 3.- que la proforma solo este marcada como contado y no asi contado - contra entrega
+                    int cod_desextra_contado = await configuracion.emp_coddesextra_x_deposito_contado(_context, codempresa);
+                    if (cod_desextra != 0)
+                    {
+                        if (coddesextra == cod_desextra_contado)
+                        {
+                            // 1.- antes no hay un enlace con un anticipo contado
+                            // If dt_anticipo_pf.Rows.Count = 0 Then
+                            // MessageBox.Show("El descuento por desposito CONTADO: " & codigo.Text & " debe tener asignado un anticipo!!!", "Validar Descuento", MessageBoxButtons.OK, MessageBoxIcon.Exclamation, MessageBoxDefaultButton.Button1)
+                            // resultado = False
+                            // End If
+                            // 2.- que la proforma no sea contra entrega
+                            // Dim id_nroid_deposito As String()
+                            // id_nroid_deposito = sia_funciones.Depositos_Cliente.Instancia.IdNroid_Deposito_Asignado_Anticipo(dt_anticipo_pf.Rows(0)("id_anticipo"), dt_anticipo_pf.Rows(0)("nroid_anticipo"))
+                            if (contra_entrega && tipopago == "CONTADO")
+                            {
+                                return BadRequest(new { resp = "La proforma es de tipo pago CONTADO - CONTRA ENTREGA lo cual no esta permitido para este descuento!!!" });
+                            }
+                            if (tipopago == "CREDITO")
+                            {
+                                return BadRequest(new { resp = "La proforma es de tipo pago CREDITO lo cual no esta permitido para este descuento!!!" });
+                            }
+                            /*
+                             ''//3.- que el anticipo este enlazado a un deposito de cliente
+                            'If resultado Then
+                            '    Dim id_nroid_deposito As String()
+                            '    id_nroid_deposito = sia_funciones.Depositos_Cliente.Instancia.IdNroid_Deposito_Asignado_Anticipo(dt_anticipo_pf.Rows(0)("id_anticipo"), dt_anticipo_pf.Rows(0)("nroid_anticipo"))
+                            '    If id_nroid_deposito(0) = "NSE" Then
+                            '        MessageBox.Show("El anticipo: " & dt_anticipo_pf.Rows(0)("id_anticipo") & "-" & dt_anticipo_pf.Rows(0)("nroid_anticipo") & " asignado a la proforma no esta enlazado a algun deposito de cliente!!!", "Validar Descuento", MessageBoxButtons.OK, MessageBoxIcon.Exclamation, MessageBoxDefaultButton.Button1)
+                            '        resultado = False
+                            '    End If
+                            'End If
+
+                            '//3.- que la proforma solo este marcada como contado y no asi contado - contra entrega
+                            'If dt_anticipo_pf.Rows.Count = 0 Then
+                            '    MessageBox.Show("El descuento por desposito CONTADO: " & codigo.Text & " debe tener asignado un anticipo!!!", "Validar Descuento", MessageBoxButtons.OK, MessageBoxIcon.Exclamation, MessageBoxDefaultButton.Button1)
+                            '    resultado = False
+                            'End If
+                             */
+                        }
+                    }
+
+                    return Ok(true);
                 }
 
             }
@@ -2765,6 +2877,8 @@ namespace SIAW.Controllers.ventas.transaccion
                 return Problem("Error en el servidor");
             }
         }
+
+
 
         private async Task<(bool val, string msg)> hay_descuentos_excluyentes(DBContext _context, int coddesextra, List<vedesextraprof> vedesextraprof)
         {

@@ -1232,5 +1232,25 @@ namespace siaw_funciones
             return resultado;
         }
 
+        public async Task<bool> Cliente_Tiene_Descto_Extra_Asignado(DBContext _context, int coddesextra, string codcliente)
+        {
+            try
+            {
+                int situacion = await _context.vecliente_desextra
+                .Where(i => i.codcliente == codcliente && i.coddesextra == coddesextra)
+                .CountAsync();
+                if (situacion > 0)
+                {
+                    return true;
+                }
+                return false;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+            
+        }
+
     }
 }
