@@ -1104,5 +1104,11 @@ namespace siaw_funciones
             return (double)resultado;
         }
 
+
+        public async Task<int> CodAnticipo(DBContext _context, string id_anticipo, int numeroid_anticipo)
+        {
+            var resultado = await _context.coanticipo.Where(i => i.id == id_anticipo && i.numeroid == numeroid_anticipo).Select(i => i.codigo).FirstOrDefaultAsync();
+            return resultado;
+        }
     }
 }
