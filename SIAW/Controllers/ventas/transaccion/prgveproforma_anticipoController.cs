@@ -185,6 +185,31 @@ namespace SIAW.Controllers.ventas.transaccion
                 return Problem("Error en el servidor");
             }
         }
+
+
+
+        private async Task<double> refrescar_anticipos_pendientes(DBContext _context, string codmoneda_proforma, List<tabla_veproformaAnticipo> tabla_veproformaAnticipo)
+        {
+            double resultado = 0;
+            foreach (var reg in tabla_veproformaAnticipo)
+            {
+                if (reg.monto != null)
+                {
+                    // Desde 14/12/2023 realizar la conversion del monto asignado segun la moneda del anticipo y proforma
+                    if (reg.codmoneda == codmoneda_proforma)
+                    {
+                        resultado += reg.monto;
+                    }
+                    else
+                    {
+                        resultado += (double)(await tipoCambio._conversion(_context, codmoneda_proforma, reg.codmoneda, DateTime.Now, (decimal)(reg.monto)));
+                    }
+                    resultado = Math.Round(resultado, 2);
+                }
+            }
+            return resultado;
+        }
+
     }
 
 

@@ -1312,7 +1312,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
-        [HttpGet]
+        [HttpPost]
         [Route("getCantfromEmpaque/{userConn}")]
         public async Task<ActionResult<cargadofromMatriz>> getCantfromEmpaque(string userConn, List<cargadofromMatriz> data)
         {
@@ -1621,7 +1621,7 @@ namespace SIAW.Controllers.ventas.transaccion
         {
             veproforma veproforma = datosProforma.veproforma;
             List<veproforma1> veproforma1 = datosProforma.veproforma1;
-            List<veproforma_valida> veproforma_valida = datosProforma.veproforma_valida;
+            var veproforma_valida = datosProforma.veproforma_valida;
             var veproforma_anticipo = datosProforma.veproforma_anticipo;
             var vedesextraprof = datosProforma.vedesextraprof;
             var verecargoprof = datosProforma.verecargoprof;
@@ -1633,7 +1633,7 @@ namespace SIAW.Controllers.ventas.transaccion
             // verificar si valido el documento, si es tienda no es necesario que valide primero
             if (!await almacen.Es_Tienda(_context, _ag))
             {
-                if (veproforma_valida.Count() < 1)
+                if (veproforma_valida.Count() < 1 || veproforma_valida == null)
                 {
                     return "Antes de grabar el documento debe previamente validar el mismo!!!";
                 }
@@ -1650,7 +1650,7 @@ namespace SIAW.Controllers.ventas.transaccion
             If Not Validar_Datos() Then
                 Return False
             End If
-
+             
             //************************************************
             //control implementado en fecha: 09-10-2020
 
@@ -2447,6 +2447,28 @@ namespace SIAW.Controllers.ventas.transaccion
                     var codCotizacion = cabecera.codigo;
                     var detalle = await _context.vecotizacion1
                         .Where(i => i.codcotizacion == codCotizacion)
+                        .Join(_context.initem,
+                        c => c.coditem,
+                        i => i.codigo,
+                        (c, i) => new { c, i })
+                        .Select(i => new
+                        {
+                            i.c.codcotizacion,
+                            i.c.coditem,
+                            descripcion = i.i.descripcion,
+                            medida = i.i.medida,
+                            i.c.cantidad,
+                            i.c.udm,
+                            i.c.precioneto,
+                            i.c.preciodesc,
+                            i.c.niveldesc,
+                            i.c.preciolista,
+                            i.c.codtarifa,
+                            i.c.coddescuento,
+                            i.c.total,
+                            i.c.porceniva,
+                            i.c.peso
+                        })
                         .ToListAsync();
 
                     return Ok(new
@@ -2487,6 +2509,34 @@ namespace SIAW.Controllers.ventas.transaccion
                     var codProforma = cabecera.codigo;
                     var detalle = await _context.veproforma1
                         .Where(i => i.codproforma == codProforma)
+                        .Join(_context.initem,
+                        p => p.coditem,
+                        i => i.codigo,
+                        (p,i) => new {p,i})
+                        .Select(i => new
+                        {
+                            i.p.codproforma,
+                            i.p.coditem,
+                            descripcion = i.i.descripcion,
+                            medida = i.i.medida,
+                            i.p.cantidad,
+                            i.p.udm,
+                            i.p.precioneto,
+                            i.p.preciodesc,
+                            i.p.niveldesc,
+                            i.p.preciolista,
+                            i.p.codtarifa,
+                            i.p.coddescuento,
+                            i.p.total,
+                            i.p.cantaut,
+                            i.p.totalaut,
+                            i.p.obs,
+                            i.p.porceniva,
+                            i.p.cantidad_pedida,
+                            i.p.peso,
+                            i.p.nroitem,
+                            i.p.id
+                        })
                         .ToListAsync();
 
                     return Ok(new
@@ -2747,8 +2797,8 @@ namespace SIAW.Controllers.ventas.transaccion
             }
         }
 
-            // GET: api/vedesextra/5
-            [HttpGet]
+        // GET: api/vedesextra/5
+        [HttpGet]
         [Route("validaAddDescExtraProf/{userConn}/{coddesextra}/{codigodescripcion}/{codcliente}/{codcliente_real}/{codempresa}/{tipopago}/{contra_entrega}")]
         public async Task<ActionResult<object>> validaAddDescExtraProf(string userConn, int coddesextra, string codigodescripcion, string codcliente, string codcliente_real, string codempresa, string tipopago, bool contra_entrega, List<vedesextraprof> vedesextraprof)
         {
@@ -2895,10 +2945,23 @@ namespace SIAW.Controllers.ventas.transaccion
             return (true, "");
         }
 
+        // GET: api/getUbicacionCliente/5
+        [HttpGet]
+        [Route("getUbicacionCliente/{userConn}/{codcliente}/{direccion}")]
+        public async Task<ActionResult<object>> getUbicacionCliente(string userConn, string codcliente, string direccion)
+        {
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var codPtoVenta = await cliente.Codigo_PuntoDeVentaCliente_Segun_Direccion(_context,codcliente, direccion);
+                var ubicacion = await cliente.Ubicacion_PtoVenta(_context, codPtoVenta);
+                return Ok(new { ubi = ubicacion });
+            }
+        }
 
 
-
-    }
+     }
 
 
 

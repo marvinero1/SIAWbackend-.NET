@@ -1194,6 +1194,34 @@ namespace siaw_funciones
             return false;
         }
 
+        public async Task<int> Codigo_PuntoDeVentaCliente_Segun_Direccion(DBContext _context, string codcliente, string direccion)
+        {
+            if (codcliente.Trim() == "")
+            {
+                return 0;
+            }
+            var result = await _context.vetienda
+                .Where(i => i.direccion == direccion && i.codcliente == codcliente)
+                .FirstOrDefaultAsync();
+            if (result == null)
+            {
+                return 0;
+            }
+            return result.codptoventa;
+        }
+
+        public async Task<string> Ubicacion_PtoVenta(DBContext _context, int codptovta)
+        {
+            var result = await _context.veptoventa
+                .Where(i => i.codigo == codptovta)
+                .FirstOrDefaultAsync();
+            if (result == null)
+            {
+                return "NSE";
+            }
+            return result.ubicacion;
+        }
+
         public async Task<bool> EsClientePertec(DBContext _context, string codcliente)
         {
             bool resultado = false;
