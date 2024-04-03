@@ -1327,22 +1327,26 @@ namespace SIAW.Controllers.ventas.transaccion
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
-
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
+                    int empaque = 0;
                     // como se agrega en conjunto por empaque, en teoria todos tienen mismo precio y mismo descuento.
                     var tarifa = data[0].tarifa;
                     var descuento = data[0].descuento;
-                    if (descuento!=0)
+                    if (descuento!=0)  // o sea si colocaron descuento, por lo tanto se debe sacar empaques dependiendo del descuento
                     {
                         var comprueba = await _context.vedescuento_tarifa.Where(i => i.codtarifa == tarifa && i.coddescuento == descuento).FirstOrDefaultAsync();
                         if (comprueba == null)
                         {
                             return BadRequest(new { resp = "El descuento seleccionado no corresponde a la tarifa aplicada, revise los datos." });
                         }
+                        empaque = await _context.vedescuento.Where(i => i.codigo == descuento).Select(i => i.codempaque).FirstOrDefaultAsync();
                     }
-                    
-                    int empaque = await _context.intarifa.Where(i => i.codigo == tarifa).Select(i => i.codempaque).FirstOrDefaultAsync();
+                    else
+                    {
+                        // como no se coloco descuento, se obtiene empaques de los precios.
+                        empaque = await _context.intarifa.Where(i => i.codigo == tarifa).Select(i => i.codempaque).FirstOrDefaultAsync();
+                    }
                     foreach (var reg in data)
                     {
                         reg.cantidad = await _context.veempaque1.Where(i => i.codempaque == empaque && i.item == reg.coditem).Select(i => i.cantidad).FirstOrDefaultAsync() ?? 0;
@@ -2735,7 +2739,7 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
 
-        [HttpGet]
+        [HttpPost]
         [Route("getTarifaPrincipal/{userConn}")]
         public async Task<object> getTarifaPrincipal(string userConn, getTarifaPrincipal data)
         {
@@ -2798,7 +2802,7 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
         // GET: api/vedesextra/5
-        [HttpGet]
+        [HttpPost]
         [Route("validaAddDescExtraProf/{userConn}/{coddesextra}/{codigodescripcion}/{codcliente}/{codcliente_real}/{codempresa}/{tipopago}/{contra_entrega}")]
         public async Task<ActionResult<object>> validaAddDescExtraProf(string userConn, int coddesextra, string codigodescripcion, string codcliente, string codcliente_real, string codempresa, string tipopago, bool contra_entrega, List<vedesextraprof> vedesextraprof)
         {
@@ -2960,6 +2964,13 @@ namespace SIAW.Controllers.ventas.transaccion
             }
         }
 
+        // GET: api/aplicar_descuento_por_deposito/5
+        [HttpGet]
+        [Route("aplicar_descuento_por_deposito/{userConn}/{codcliente}/{direccion}")]
+        public async Task<ActionResult<object>> aplicar_descuento_por_deposito(string userConn, string codcliente, string direccion)
+        {
+            return Ok("aaaa");
+        }
 
      }
 

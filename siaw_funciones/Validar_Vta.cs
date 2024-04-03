@@ -608,10 +608,9 @@ namespace siaw_funciones
         public async Task<List<int>> Lista_Precios_En_El_Documento(List<itemDataMatriz> tabladetalle)
         {
             var elementosUnicos = tabladetalle
-                .GroupBy(objeto => objeto.codtarifa)
-                .Where(grupo => grupo.Count() == 1)
-                .SelectMany(grupo => grupo)
-                .Select(i => i.codtarifa).ToList();
+                .Select(objeto => objeto.codtarifa)
+                .Distinct()
+                .ToList();
             return elementosUnicos;
         }
 
