@@ -670,7 +670,15 @@ namespace siaw_funciones
             }
         }
 
-
+        public async Task<bool> Descuento_Extra_Habilitado_Para_Precio(DBContext _context, int coddesextra, int codtarifa)
+        {
+            var resultado = await _context.vedesextra_tarifa.Where(i => i.coddesextra == coddesextra && i.codtarifa == codtarifa).FirstOrDefaultAsync();
+            if (resultado != null)
+            {
+                return true;
+            }
+            return false;
+        }
     }
 
 

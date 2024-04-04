@@ -51,6 +51,7 @@ namespace SIAW.Controllers.ventas.transaccion
         private readonly siaw_funciones.SIAT siat = new siaw_funciones.SIAT();
         private readonly siaw_funciones.Configuracion configuracion = new siaw_funciones.Configuracion();
         private readonly siaw_funciones.Creditos creditos = new siaw_funciones.Creditos();
+        private readonly siaw_funciones.Cobranzas cobranzas = new siaw_funciones.Cobranzas();
 
         public veproformaController(UserConnectionManager userConnectionManager)
         {
@@ -240,8 +241,8 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
                 // Falta validacion para saber si traera datos de manera local o por vpn
-                // Obtener el contexto de base de datos correspondiente al usuario
-                bool usar_bd_opcional = await saldos.get_usar_bd_opcional(userConnectionString, usuario);
+                // Obtener el contexto de base de datos correspondiente a la empresa
+                bool usar_bd_opcional = await saldos.Obtener_Saldos_Otras_Agencias_Localmente(userConnectionString, codempresa);
                 if (usar_bd_opcional)
                 {
                     conexion = empaque_func.Getad_conexion_vpnFromDatabase(userConnectionString, agencia);
@@ -2965,14 +2966,117 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
         // GET: api/aplicar_descuento_por_deposito/5
-        [HttpGet]
-        [Route("aplicar_descuento_por_deposito/{userConn}/{codcliente}/{direccion}")]
-        public async Task<ActionResult<object>> aplicar_descuento_por_deposito(string userConn, string codcliente, string direccion)
+        [HttpPost]
+        [Route("aplicar_descuento_por_deposito/{userConn}/{codcliente}/{codcliente_real}/{nit}/{codempresa}")]
+        public async Task<ActionResult<object>> aplicar_descuento_por_deposito(string userConn, string codcliente, string codcliente_real, string nit, string codempresa, getTarifaPrincipal data)
         {
+            // si el cliente referencia no es el mismo al cliente al cual saldra el pedido
+            // entonces no se busca desctos por deposito
+            // de acuerdo a la nueva politica de desctos, vigente desde el 01-08-2022
+            if (codcliente != codcliente_real)
+            {
+                return BadRequest(new { resp = "Cliente referencia no es el mismo que el cliente del pedido." });
+            }
+            
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                // clientes casualas no deben tener descto por deposito seg/poliita desde el 01-08-2022
+                if (await cliente.Es_Cliente_Casual(_context,codcliente))
+                {
+                    return BadRequest(new { resp = "Cliente es casual, no puede tener descuento por depósito." });
+                }
+                // verificar si es cliente competencia
+                if (await cliente.EsClienteCompetencia(_context, nit))
+                {
+                    return BadRequest(new { resp = "Cliente es cliente competencia, no puede tener descuento por depósito." });
+                }
+                // verificar que los desctos esten habilitados para el precio principal de la proforma
+                var coddesextra_deposito = await configuracion.emp_coddesextra_x_deposito(_context, codempresa);
+                var tarifa_main = await validar_Vta.Tarifa_Monto_Min_Mayor(_context, await validar_Vta.Lista_Precios_En_El_Documento(data.tabladetalle), data.DVTA);
+                if (await ventas.Descuento_Extra_Habilitado_Para_Precio(_context,coddesextra_deposito,tarifa_main) == false)
+                {
+                    return BadRequest(new { resp = "El descuento no esta habilitado para el precio principal de la proforma." });
+                }
+
+                // la aplicacion del descuento por deposito no esta permitido para 
+                // proformas con codigo de cliente sin nombre
+
+                // +++++SE QUITO LA RESTRICCION DE NO PERMITIR APLICAR DESCTOS POR DEPOSITOS A VENTAS CONTADO SIN NOMBRE EN FECHA 15-05-2019
+
+                // If Not sia_funciones.Cliente.Instancia.EsClienteSinNombre(codcliente.Text, False) Then
+                // verificacion si le corresponde descuento por deposito
+                DateTime Depositos_Desde_Fecha = await configuracion.Depositos_Nuevos_Desde_Fecha(_context);
+                bool buscar_por_nit = false;
+                if (await cliente.EsClienteSinNombre(_context,codcliente))
+                {
+                    buscar_por_nit = true;
+                }
+
+                /////////////////////////////////////////////////////////////////////////////////////////////
+                // DEPOSITOS PENDIENTE DE CBZAS CREDITO
+                var dt_depositos_pendientes = await cobranzas.Depositos_Cobranzas_Credito_Cliente_Sin_Aplicar(_context, "cliente", "", codcliente, nit, codcliente_real, buscar_por_nit, "APLICAR_DESCTO", 0, "Proforma_Nueva", codempresa, false, Depositos_Desde_Fecha, true);
+                foreach (var reg in dt_depositos_pendientes)
+                {
+                    reg.tipo_pago = "es_cbza_credito";
+                    if (reg.tipo == 0)
+                    {
+                        // la moneda de pago igual a dela cobrzna
+                        reg.monpago = reg.moncbza;
+                    }
+                    else
+                    {
+                        reg.monpago = await cobranzas.Moneda_De_Pago_de_una_Cobranza2(_context, reg.codcobranza, reg.codremision);
+                    }
+                }
+                var dt_credito_depositos_pendientes = await cobranzas.Totalizar_Cobranzas_Depositos_Pendientes(_context, dt_depositos_pendientes);
+
+                /////////////////////////////////////////////////////////////////////////////////////////////
+
+
+                /*
+                 
+                '/////////////////////////////////////////////////////////////////////////////////////////////
+                '//DEPOSITOS PENDIENTE DE CBZAS CONTADO
+                'dt_depositos_pendientes.Clear()
+                'dt_depositos_pendientes = sia_funciones.Cobranzas.Instancia.Depositos_Cobranzas_Contado_Cliente_Sin_Aplicar(codcliente_real, codigo.Text, "Proforma_Nueva", sia_compartidos.temporales.Instancia.codempresa)
+                'If Not dt_depositos_pendientes.Columns.Contains("tipo_pago") Then dt_depositos_pendientes.Columns.Add("tipo_pago", System.Type.GetType("System.String"))
+                'For y As Integer = 0 To dt_depositos_pendientes.Rows.Count - 1
+                '    dt_depositos_pendientes.Rows(y)("tipo_pago") = "es_cbza_contado"
+                'Next
+
+                'dt_contado_depositos_pendientes.Clear()
+                'dt_contado_depositos_pendientes = sia_funciones.Cobranzas.Instancia.Totalizar_Cobranzas_Depositos_Pendientes(dt_depositos_pendientes)
+                '/////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+                '/////////////////////////////////////////////////////////////////////////////////////////////
+                '//DEPOSITOS PENDIENTES DE ANTICIPOS PARA VENTAS CONTADO APLICADOS EN PROFORMAS DIRECTAMENTE
+                'dt_depositos_pendientes.Clear()
+                'dt_depositos_pendientes = sia_funciones.Cobranzas.Instancia.Depositos_Anticipos_Contado_Cliente_Sin_Aplicar(codcliente_real, 0, "Proforma_Nueva", sia_compartidos.temporales.Instancia.codempresa)
+                'If Not dt_depositos_pendientes.Columns.Contains("tipo_pago") Then dt_depositos_pendientes.Columns.Add("tipo_pago", System.Type.GetType("System.String"))
+                'For y As Integer = 0 To dt_depositos_pendientes.Rows.Count - 1
+                '    dt_depositos_pendientes.Rows(y)("tipo_pago") = "es_anticipo_contado"
+                'Next
+                'dt_anticipos_depositos_pendientes.Clear()
+                'dt_anticipos_depositos_pendientes = sia_funciones.Cobranzas.Instancia.Totalizar_Cobranzas_Depositos_Pendientes(dt_depositos_pendientes)
+                '/////////////////////////////////////////////////////////////////////////////////////////////
+
+                 */
+
+
+                // esta instruccion es para copiar la estructura de una de las tablas a la tabla final de resultado: dt_depositos_pendientes
+
+
+
+            }
+
             return Ok("aaaa");
         }
 
-     }
+
+    }
 
 
 

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using siaw_DBContext.Models;
 
 namespace siaw_funciones
 {
@@ -65,6 +66,15 @@ namespace siaw_funciones
                     .Where(v => v.codempresa == codempresa)
                     .Select(parametro => parametro.hab_descto_x_deposito)
                     .FirstOrDefaultAsync() ??true;
+
+            return result;
+        }
+        public async Task<DateTime> Depositos_Nuevos_Desde_Fecha(DBContext _context)
+        {
+            //esta fecha es la que se empezo con los descuentos por deposito
+            var result = await _context.adparametros
+                    .Select(parametro => parametro.nuevos_depositos_desde)
+                    .FirstOrDefaultAsync() ?? new DateTime(2015, 5, 13);
 
             return result;
         }

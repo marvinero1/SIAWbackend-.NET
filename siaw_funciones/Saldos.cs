@@ -389,7 +389,7 @@ namespace siaw_funciones
 
                 // Falta validacion para saber si traera datos de manera local o por vpn
                 // Obtener el contexto de base de datos correspondiente al usuario
-                bool usar_bd_opcional = await get_usar_bd_opcional(userConnectionString, usuario);
+                bool usar_bd_opcional = await Obtener_Saldos_Otras_Agencias_Localmente(userConnectionString, codempresa);
 
                 if (usar_bd_opcional)
                 {
@@ -627,6 +627,20 @@ namespace siaw_funciones
                 return usar_bd_opcional;
             }
                 
+        }
+
+        public async Task<bool> Obtener_Saldos_Otras_Agencias_Localmente(string userConnectionString, string codempresa)
+        {
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var usar_bd_opcional = await _context.adparametros
+                    .Where(item => item.codempresa == codempresa)
+                    .Select(item => item.obtener_saldos_otras_ags_localmente)
+                    .FirstOrDefaultAsync() ?? false;
+
+                return usar_bd_opcional;
+            }
+
         }
 
         public async Task<object> infoitem(string userConnectionString, string coditem, bool ControlarStockSeguridad, string codempresa, string usuario)
