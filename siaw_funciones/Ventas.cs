@@ -679,6 +679,18 @@ namespace siaw_funciones
             }
             return false;
         }
+
+
+        public async Task<bool> AdicionarDescuentoPorDeposito(DBContext _context, double subtotal_proforma, string codmoneda_prof, List<tabladescuentos> tabladescuentos, List<dtdepositos_pendientes> dt_depositos_pendientes, List<tblcbza_deposito> tblcbza_deposito, int codproforma, string codcliente, string codempresa)
+        {
+            // codproforma debe ser 0 si no hay proforma.
+
+            bool resultado = false;
+
+            //verifica si el descuento por desposito esta habilitado
+            return resultado;
+        }
+
     }
 
 

@@ -42,4 +42,15 @@
         public string? aplicacion { get; set; }
         public string? codmoneda { get; set; }
     }
+
+    public class tblcbza_deposito
+    {
+        public int codproforma { get; set; }
+        public int codcobranza { get; set; }
+        public int codcobranza_contado { get; set; }
+        public int codanticipo { get; set; }
+        public double montodist { get; set; }
+        public double montodescto { get; set; }
+        public double montorest { get; set; }
+    }
 }

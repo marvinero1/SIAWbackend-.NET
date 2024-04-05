@@ -243,7 +243,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 // Falta validacion para saber si traera datos de manera local o por vpn
                 // Obtener el contexto de base de datos correspondiente a la empresa
                 bool usar_bd_opcional = await saldos.Obtener_Saldos_Otras_Agencias_Localmente(userConnectionString, codempresa);
-                if (usar_bd_opcional)
+                if (!usar_bd_opcional)
                 {
                     conexion = empaque_func.Getad_conexion_vpnFromDatabase(userConnectionString, agencia);
                     resultados.Add(new { resp = "Los Saldos (Para Ventas) del Item Se obtienen por medio de VPN" });
@@ -1451,6 +1451,7 @@ namespace SIAW.Controllers.ventas.transaccion
             {
                 return null;
             }
+            resultado = resultado.OrderBy(i => i.coditem).ToList();
             return resultado;
         }
 
@@ -2818,13 +2819,13 @@ namespace SIAW.Controllers.ventas.transaccion
                     var habilitado = await ventas.Descuento_Extra_Habilitado(_context, coddesextra);
                     if (!habilitado)
                     {
-                        return BadRequest(new { resp = "El descuento: " + coddesextra + " esta deshabilitado, por favor verifique esta situacion!!!" });
+                        return StatusCode(203,new { resp = "El descuento: " + coddesextra + " esta deshabilitado, por favor verifique esta situacion!!!" });
                     }
                     // verificar si hay descuentos excluyentes
                     var verificaResp = await hay_descuentos_excluyentes(_context, coddesextra, vedesextraprof);
                     if (verificaResp.val == false)
                     {
-                        return BadRequest(new { resp = verificaResp.msg });
+                        return StatusCode(203,new { resp = verificaResp.msg });
                     }
                     // validar si el descuento que esta intentando añadir valida 
                     // si el cliente deberia tener linea de credito valida
@@ -2851,7 +2852,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     // implementado en fecha: 30-11-2021
                     if (await cliente.Cliente_Tiene_Descto_Extra_Asignado(_context,coddesextra,codcliente_real) == false)
                     {
-                        return BadRequest(new { resp = "El cliente: " + codcliente_real + " no tiene asignado el descuento: " + coddesextra + ", verificque esta situacion!!!" });
+                        return StatusCode(203, new { resp = "El cliente: " + codcliente_real + " no tiene asignado el descuento: " + coddesextra + ", verificque esta situacion!!!" });
                     }
 
                     ////////////////////////////////////////////////////////////////////////////////////////
@@ -2861,7 +2862,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     {
                         if (await cliente.Cliente_Tiene_Descto_Extra_Asignado(_context, coddesextra, codcliente) == false)
                         {
-                            return BadRequest(new { resp = "El cliente: " + codcliente + " no tiene asignado el descuento: " + coddesextra + ", verificque esta situacion!!!" });
+                            return StatusCode(203, new { resp = "El cliente: " + codcliente + " no tiene asignado el descuento: " + coddesextra + ", verificque esta situacion!!!" });
                         }
                     }
 
@@ -2873,7 +2874,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     {
                         if (coddesextra == cod_desextra)
                         {
-                            return BadRequest(new { resp = "El descuento por desposito: " + coddesextra + " no puede ser añadido manualmente!!!" });
+                            return StatusCode(203, new { resp = "El descuento por desposito: " + coddesextra + " no puede ser añadido manualmente!!!" });
                         }
                     }
 
@@ -2897,11 +2898,11 @@ namespace SIAW.Controllers.ventas.transaccion
                             // id_nroid_deposito = sia_funciones.Depositos_Cliente.Instancia.IdNroid_Deposito_Asignado_Anticipo(dt_anticipo_pf.Rows(0)("id_anticipo"), dt_anticipo_pf.Rows(0)("nroid_anticipo"))
                             if (contra_entrega && tipopago == "CONTADO")
                             {
-                                return BadRequest(new { resp = "La proforma es de tipo pago CONTADO - CONTRA ENTREGA lo cual no esta permitido para este descuento!!!" });
+                                return StatusCode(203, new { resp = "La proforma es de tipo pago CONTADO - CONTRA ENTREGA lo cual no esta permitido para este descuento!!!" });
                             }
                             if (tipopago == "CREDITO")
                             {
-                                return BadRequest(new { resp = "La proforma es de tipo pago CREDITO lo cual no esta permitido para este descuento!!!" });
+                                return StatusCode(203, new { resp = "La proforma es de tipo pago CREDITO lo cual no esta permitido para este descuento!!!" });
                             }
                             /*
                              ''//3.- que el anticipo este enlazado a un deposito de cliente
@@ -2922,8 +2923,7 @@ namespace SIAW.Controllers.ventas.transaccion
                              */
                         }
                     }
-
-                    return Ok(true);
+                    return Ok(new { resp = descuentoCredito, status = true });
                 }
 
             }
@@ -2951,15 +2951,15 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
         // GET: api/getUbicacionCliente/5
-        [HttpGet]
-        [Route("getUbicacionCliente/{userConn}/{codcliente}/{direccion}")]
-        public async Task<ActionResult<object>> getUbicacionCliente(string userConn, string codcliente, string direccion)
+        [HttpPost]
+        [Route("getUbicacionCliente/{userConn}")]
+        public async Task<ActionResult<object>> getUbicacionCliente(string userConn, ubicacionCliente ubicacionCliente)
         {
             // Obtener el contexto de base de datos correspondiente al usuario
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
-                var codPtoVenta = await cliente.Codigo_PuntoDeVentaCliente_Segun_Direccion(_context,codcliente, direccion);
+                var codPtoVenta = await cliente.Codigo_PuntoDeVentaCliente_Segun_Direccion(_context, ubicacionCliente.codcliente, ubicacionCliente.dircliente);
                 var ubicacion = await cliente.Ubicacion_PtoVenta(_context, codPtoVenta);
                 return Ok(new { ubi = ubicacion });
             }
@@ -2967,8 +2967,8 @@ namespace SIAW.Controllers.ventas.transaccion
 
         // GET: api/aplicar_descuento_por_deposito/5
         [HttpPost]
-        [Route("aplicar_descuento_por_deposito/{userConn}/{codcliente}/{codcliente_real}/{nit}/{codempresa}")]
-        public async Task<ActionResult<object>> aplicar_descuento_por_deposito(string userConn, string codcliente, string codcliente_real, string nit, string codempresa, getTarifaPrincipal data)
+        [Route("aplicar_descuento_por_deposito/{userConn}/{codcliente}/{codcliente_real}/{nit}/{codempresa}/{subtotal}/{codmoneda}/{codproforma}")]
+        public async Task<ActionResult<object>> aplicar_descuento_por_deposito(string userConn, string codcliente, string codcliente_real, string nit, string codempresa, double subtotal, string codmoneda, int codproforma, objetoDescDepositos objetoDescDepositos)
         {
             // si el cliente referencia no es el mismo al cliente al cual saldra el pedido
             // entonces no se busca desctos por deposito
@@ -2977,7 +2977,9 @@ namespace SIAW.Controllers.ventas.transaccion
             {
                 return BadRequest(new { resp = "Cliente referencia no es el mismo que el cliente del pedido." });
             }
-            
+            getTarifaPrincipal data = objetoDescDepositos.getTarifaPrincipal;
+
+
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
@@ -3068,8 +3070,66 @@ namespace SIAW.Controllers.ventas.transaccion
 
                 // esta instruccion es para copiar la estructura de una de las tablas a la tabla final de resultado: dt_depositos_pendientes
 
+                /*
+                 If dt_credito_depositos_pendientes.Rows.Count > 0 Then
+                    dt_depositos_pendientes = dt_credito_depositos_pendientes.Copy
+                    dt_depositos_pendientes.Clear()
+                ElseIf dt_contado_depositos_pendientes.Rows.Count > 0 Then
+                    dt_depositos_pendientes = dt_contado_depositos_pendientes.Copy
+                    dt_depositos_pendientes.Clear()
+                ElseIf dt_anticipos_depositos_pendientes.Rows.Count > 0 Then
+                    dt_depositos_pendientes = dt_anticipos_depositos_pendientes.Copy
+                    dt_depositos_pendientes.Clear()
+                End If
+                 */
+                // ***********************************************************************************************************
+                // *********************************UNIR EN UNA SOLA TABLA****************************************************
+                // ***********************************************************************************************************
+                // copiar los depositos pendientes de cbzas credito
+                /*For h As Integer = 0 To dt_credito_depositos_pendientes.Rows.Count - 1
+                    dt_depositos_pendientes.ImportRow(dt_credito_depositos_pendientes.Rows(h))
+                Next
+                */
 
 
+
+                // DE MOMENTO SE PUEDE UTILIZAR SOLO ESTO: 
+                ////////////////////////////////////////// dt_credito_depositos_pendientes //////////////////////////////////////////////////////
+
+
+
+                // copiar los depositos pendientes de cbzas contado
+                /*For h As Integer = 0 To dt_contado_depositos_pendientes.Rows.Count - 1
+                    dt_depositos_pendientes.ImportRow(dt_contado_depositos_pendientes.Rows(h))
+                Next
+                */
+                // copiar los depositos de anticipos contado aplicados a proforma
+                /*For h As Integer = 0 To dt_anticipos_depositos_pendientes.Rows.Count - 1
+                    dt_depositos_pendientes.ImportRow(dt_anticipos_depositos_pendientes.Rows(h))
+                Next
+                */
+                /*
+                //***********************************************************************************************************
+                'Desde 17-04-2023 Se debe añadir un nuevo campo monpago para determinar con ese tipo de moneda el descueto por deposito
+                'ese campo monpago es la moneda con q se realizo el pago y dio el descuento por deposito respectivo
+                'If Not dt_depositos_pendientes.Columns.Contains("monpago") Then
+                '    'Desde 17-04-2023
+                '    dt_depositos_pendientes.Columns.Add("monpago", System.Type.GetType("System.String"))
+                'End If
+                'Dim j As Integer = 0
+                'Dim reg_1 As DataRow
+                'For j = 0 To dt_depositos_pendientes.Rows.Count - 1
+                '    reg_1 = dt_depositos_pendientes.Rows(j)
+                '    reg_1("monpago") = sia_funciones.Cobranzas.Instancia.Moneda_De_Pago_de_una_Cobranza2(reg_1("codcobranza"), reg_1("monto_dis"))
+                'Next
+                 */
+                string message = "";
+                if (dt_credito_depositos_pendientes.Count() > 0)
+                {
+                    message = "El cliente tiene descuentos por deposito pendientes de aplicacion, desea aplicar el descuento a esta proforma?";
+                }
+
+                //var seAplicoDsctoPorDeposito = await ventas.AdicionarDescuentoPorDeposito(_context, subtotal, codmoneda, tabladescuentos, dt_credito_depositos_pendientes, tblcbza_deposito, codproforma, codcliente_real, codempresa);
             }
 
             return Ok("aaaa");
@@ -3104,6 +3164,19 @@ namespace SIAW.Controllers.ventas.transaccion
     {
         public List<itemDataMatriz> tabladetalle { get; set; }
         public veproforma DVTA { get; set; }
+    }
+
+    public class objetoDescDepositos
+    {
+        public getTarifaPrincipal getTarifaPrincipal { get; set; }
+        List<tabladescuentos> tabladescuentos { get; set; }
+        List <tblcbza_deposito> tblcbza_deposito { get; set; }
+    }
+
+    public class ubicacionCliente
+    {
+        public string codcliente { get; set; }
+        public string dircliente { get; set; }
     }
 
 }
