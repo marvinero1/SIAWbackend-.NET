@@ -690,7 +690,15 @@ namespace siaw_funciones
             //verifica si el descuento por desposito esta habilitado
             return resultado;
         }
-
+        public async Task<List<veproforma1>> Actualizar_Peso_Detalle_Proforma(DBContext _context, List<veproforma1> veproforma1)
+        {
+            foreach (var reg in veproforma1)
+            {
+                var pesoItem = await _context.initem.Where(i => i.codigo == reg.coditem).Select(i => i.peso).FirstOrDefaultAsync() ?? 0;
+                reg.peso = pesoItem * reg.cantidad;
+            }
+            return veproforma1;
+        }
     }
 
 

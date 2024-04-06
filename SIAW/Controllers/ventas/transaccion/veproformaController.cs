@@ -1704,9 +1704,14 @@ namespace SIAW.Controllers.ventas.transaccion
             // guarda detalle (veproforma1)
             // actualizar codigoproforma para agregar
             veproforma1 = veproforma1.Select(p => { p.codproforma = codProforma; return p; }).ToList();
+            // actualizar peso del detalle.
+            veproforma1 = await ventas.Actualizar_Peso_Detalle_Proforma(_context, veproforma1);
 
             _context.veproforma1.AddRange(veproforma1);
             await _context.SaveChangesAsync();
+
+            
+
 
             // actualiza numero id
             var numeracion = _context.venumeracion.FirstOrDefault(n => n.id == idProf);
