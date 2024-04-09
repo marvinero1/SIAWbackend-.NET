@@ -296,7 +296,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (adautorizacion_deshabilitadasExists(adautorizacion_deshabilitadas.nivel, _context))
+                    if (adautorizacion_deshabilitadasExists((int)adautorizacion_deshabilitadas.nivel, _context))
                     {
                         return Conflict( new { resp = "Ya existe un registro con ese código" });
                     }

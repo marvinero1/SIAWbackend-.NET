@@ -624,7 +624,7 @@ namespace siaw_funciones
                     return false;
                 }
 
-                return usar_bd_opcional;
+                return (bool)usar_bd_opcional;
             }
                 
         }

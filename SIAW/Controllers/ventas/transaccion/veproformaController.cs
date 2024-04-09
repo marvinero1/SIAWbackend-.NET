@@ -1330,28 +1330,37 @@ namespace SIAW.Controllers.ventas.transaccion
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
-                    int empaque = 0;
                     // como se agrega en conjunto por empaque, en teoria todos tienen mismo precio y mismo descuento.
                     var tarifa = data[0].tarifa;
                     var descuento = data[0].descuento;
-                    if (descuento!=0)  // o sea si colocaron descuento, por lo tanto se debe sacar empaques dependiendo del descuento
+                    if (descuento!=0)  
                     {
                         var comprueba = await _context.vedescuento_tarifa.Where(i => i.codtarifa == tarifa && i.coddescuento == descuento).FirstOrDefaultAsync();
                         if (comprueba == null)
                         {
                             return BadRequest(new { resp = "El descuento seleccionado no corresponde a la tarifa aplicada, revise los datos." });
                         }
-                        empaque = await _context.vedescuento.Where(i => i.codigo == descuento).Select(i => i.codempaque).FirstOrDefaultAsync();
+                        
                     }
-                    else
-                    {
-                        // como no se coloco descuento, se obtiene empaques de los precios.
-                        empaque = await _context.intarifa.Where(i => i.codigo == tarifa).Select(i => i.codempaque).FirstOrDefaultAsync();
-                    }
+                    int empaqueDesc = await _context.vedescuento.Where(i => i.codigo == descuento).Select(i => i.codempaque).FirstOrDefaultAsync();
+                    int empaquePrecio = await _context.intarifa.Where(i => i.codigo == tarifa).Select(i => i.codempaque).FirstOrDefaultAsync();
+
+                    
                     foreach (var reg in data)
                     {
-                        reg.cantidad = await _context.veempaque1.Where(i => i.codempaque == empaque && i.item == reg.coditem).Select(i => i.cantidad).FirstOrDefaultAsync() ?? 0;
-                        reg.cantidad_pedida = reg.cantidad;
+                        var cantDesc = await _context.veempaque1.Where(i => i.codempaque == empaqueDesc && i.item == reg.coditem).Select(i => i.cantidad).FirstOrDefaultAsync() ?? 0;
+                        var cantPrecio = await _context.veempaque1.Where(i => i.codempaque == empaquePrecio && i.item == reg.coditem).Select(i => i.cantidad).FirstOrDefaultAsync() ?? 0;
+                        if (cantDesc > cantPrecio)
+                        {
+                            reg.cantidad = cantDesc;
+                            reg.cantidad_pedida = cantDesc;
+                        }
+                        else
+                        {
+                            reg.cantidad = cantPrecio;
+                            reg.cantidad_pedida = cantPrecio;
+                        }
+                        
                     }
                     return Ok(data);
                 }
@@ -1909,7 +1918,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 string cadena_precios_no_autorizados_al_us = await validar_Vta.Validar_Precios_Permitidos_Usuario(_context, veproforma.usuarioreg, tabla_detalle);
                 if (cadena_precios_no_autorizados_al_us.Trim().Length > 0)
                 {
-                    return "El documento tiene items a precio(s): " + cadena_precios_no_autorizados_al_us + " los cuales no estan asignados al usuario " + veproforma.usuarioreg + " verifique esta situacion!!!";
+                    return BadRequest(new { resp = "El documento tiene items a precio(s): " + cadena_precios_no_autorizados_al_us + " los cuales no estan asignados al usuario " + veproforma.usuarioreg + " verifique esta situacion!!!" });
                 }
                 ////////////////////////////////////////////////////////////
 
@@ -1946,11 +1955,11 @@ namespace SIAW.Controllers.ventas.transaccion
                 {
                     if (!await ventas.Existe_Solicitud_Descuento_Nivel(_context, veproforma.idsoldesctos, veproforma.nroidsoldesctos??0))
                     {
-                        return "Ha elegido utilizar la solicitud de descuentos de nivel: " + veproforma.idsoldesctos + "-" + veproforma.nroidsoldesctos + " para aplicar descuentos de linea, pero la solicitud indicada no existe!!!";
+                        return BadRequest(new { resp = "Ha elegido utilizar la solicitud de descuentos de nivel: " + veproforma.idsoldesctos + "-" + veproforma.nroidsoldesctos + " para aplicar descuentos de linea, pero la solicitud indicada no existe!!!" });
                     }
                     if (veproforma.codcliente_real != await ventas.Cliente_Solicitud_Descuento_Nivel(_context, veproforma.idsoldesctos, veproforma.nroidsoldesctos ?? 0))
                     {
-                        return "La solicitud de descuentos de nivel: " + veproforma.idsoldesctos + "-" + veproforma.nroidsoldesctos + " a la que hace referencia no pertenece al mismo cliente de esta proforma!!!";
+                        return BadRequest(new { resp = "La solicitud de descuentos de nivel: " + veproforma.idsoldesctos + "-" + veproforma.nroidsoldesctos + " a la que hace referencia no pertenece al mismo cliente de esta proforma!!!" });
                     }
                 }
 
@@ -2435,8 +2444,8 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
         [HttpGet]
-        [Route("transfDatosCotizacion/{userConn}/{idCotizacion}/{nroidCotizacion}")]
-        public async Task<object> transfDatosCotizacion(string userConn, string idCotizacion, int nroidCotizacion)
+        [Route("transfDatosCotizacion/{userConn}/{idCotizacion}/{nroidCotizacion}/{codempresa}")]
+        public async Task<object> transfDatosCotizacion(string userConn, string idCotizacion, int nroidCotizacion, string codempresa)
         {
             try
             {
@@ -2481,11 +2490,18 @@ namespace SIAW.Controllers.ventas.transaccion
                             i.c.peso
                         })
                         .ToListAsync();
-
+                    // obtener cod descuentos x deposito
+                    var codDesextraxDeposito = await configuracion.emp_coddesextra_x_deposito(_context, codempresa);
+                    var codDesextraxDepositoContado = await configuracion.emp_coddesextra_x_deposito_contado(_context, codempresa);
+                    // obtener descuentos
+                    var descuentosExtra = await _context.vedesextracoti
+                        .Where(i => i.codcotizacion == codCotizacion && i.coddesextra != codDesextraxDeposito && i.coddesextra != codDesextraxDepositoContado)
+                        .ToListAsync();
                     return Ok(new
                     {
                         cabecera = cabecera,
-                        detalle = detalle
+                        detalle = detalle,
+                        descuentos = descuentosExtra
                     });
                 }
             }
@@ -2497,8 +2513,8 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
         [HttpGet]
-        [Route("transfDatosProforma/{userConn}/{idProforma}/{nroidProforma}")]
-        public async Task<object> transfDatosProforma(string userConn, string idProforma, int nroidProforma)
+        [Route("transfDatosProforma/{userConn}/{idProforma}/{nroidProforma}/{codempresa}")]
+        public async Task<object> transfDatosProforma(string userConn, string idProforma, int nroidProforma, string codempresa)
         {
             try
             {
@@ -2549,11 +2565,18 @@ namespace SIAW.Controllers.ventas.transaccion
                             i.p.id
                         })
                         .ToListAsync();
-
+                    // obtener cod descuentos x deposito
+                    var codDesextraxDeposito = await configuracion.emp_coddesextra_x_deposito(_context, codempresa);
+                    var codDesextraxDepositoContado = await configuracion.emp_coddesextra_x_deposito_contado(_context, codempresa);
+                    // obtener descuentos
+                    var descuentosExtra = await _context.vedesextraprof
+                        .Where(i => i.codproforma == codProforma && i.coddesextra != codDesextraxDeposito && i.coddesextra != codDesextraxDepositoContado)
+                        .ToListAsync();
                     return Ok(new
                     {
                         cabecera = cabecera,
-                        detalle = detalle
+                        detalle = detalle,
+                        descuentos = descuentosExtra
                     });
                 }
             }
