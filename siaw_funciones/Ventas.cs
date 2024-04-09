@@ -14,12 +14,7 @@ namespace siaw_funciones
 {
     public class Ventas
     {
-        //Clase necesaria para el uso del DBContext del proyecto siaw_Context
-        private readonly Depositos_Cliente depositos_cliente = new Depositos_Cliente();
-        //private readonly IDepositosCliente depositos_cliente;
-        private readonly Cliente cliente = new Cliente();
-        private readonly TipoCambio tipocambio = new TipoCambio();
-        private const int CODDESEXTRA_PROMOCION = 10;
+        
         /*
         public Ventas(IDepositosCliente depositosCliente)
         {
@@ -35,7 +30,16 @@ namespace siaw_funciones
                 return new DBContext(optionsBuilder.Options);
             }
         }
+        //Clase necesaria para el uso del DBContext del proyecto siaw_Context
+        private readonly Depositos_Cliente depositos_cliente = new Depositos_Cliente();
         private Configuracion configuracion = new Configuracion();
+        private Creditos creditos = new Creditos();
+        private readonly Cliente cliente = new Cliente();
+        private readonly TipoCambio tipocambio = new TipoCambio();
+        private Funciones funciones = new Funciones();
+        //private readonly IDepositosCliente depositos_cliente;
+
+        private const int CODDESEXTRA_PROMOCION = 10;
         public async Task<string> monedabasetarifa(DBContext _context, int codtarifa)
         {
             string resultado = "";
@@ -53,8 +57,104 @@ namespace siaw_funciones
             }
             return resultado;
         }
+        public async Task<bool> Tarifa_EmpaqueCerrado(DBContext _context, int codtarifa)
+        {
+            try
+            {
+                bool resultado = false;
+                //using (_context)
+                //{
+                var result = await _context.intarifa
+                    .Where(v => v.codigo == codtarifa)
+                    .Select(v => v.solo_empaque_cerrado)
+                    .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = (bool)result;
+                }
+                else { resultado = false; }
+                //}
+                return resultado;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return false;
+            }
+        }
+        public async Task<bool> Tarifa_PermiteEmpaquesMixtos(DBContext _context, int codtarifa)
+        {
+            try
+            {
+                bool resultado = false;
+                //using (_context)
+                //{
+                var result = await _context.intarifa
+                    .Where(v => v.codigo == codtarifa)
+                    .Select(v => v.permitir_empaques_mixtos)
+                    .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = (bool)result;
+                }
+                else { resultado = false; }
+                //}
+                return resultado;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return false;
+            }
+        }
+        public async Task<string> MonedaPF(DBContext _context, int codproforma)
+        {
+            string resultado = "";
 
+            //using (var _context = DbContextFactory.Create(userConnectionString))
+            //{
+            var result = await _context.veproforma
+                .Where(v => v.codigo == codproforma)
+                .Select(parametro => new
+                {
+                    parametro.codmoneda
+                })
+                .FirstOrDefaultAsync();
+            if (result != null)
+            {
+                resultado = result.codmoneda;
+            }
 
+            // }
+            return resultado;
+        }
+        public async Task<decimal> SubTotal_Proforma(DBContext _context, int codproforma)
+        {
+            decimal resultado = 0;
+            try
+            {
+                //using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var result = await _context.veproforma
+                .Where(v => v.codigo == codproforma)
+                .Select(parametro => new
+                {
+                    parametro.subtotal
+                })
+                .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = result.subtotal;
+                }
+
+                // }
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+            return resultado;
+        }
         public async Task<bool> Grabar_Descuento_Por_deposito_Pendiente(DBContext _context, int codproforma, string codempresa, string usuarioreg, List<vedesextraprof> vedesextraprof)
         {
             int coddesextra_depositos = await configuracion.emp_coddesextra_x_deposito(_context, codempresa);
@@ -144,7 +244,26 @@ namespace siaw_funciones
                     .FirstOrDefaultAsync();
             return result;
         }
+        public async Task<List<string>> DescuentosPromocionAplicadosAsync(DBContext _context, List<vedesextraDatos> tabladescuentos, int coddesextraDepositos)
+        {
+            List<string> resultado = new List<string>();
+            //genera una lista con los descuentos extra que son 
+            //de promocion(diferenciados por item)
+            //pero no inclutye el descto por deposito
+            foreach (var reg in tabladescuentos)
+            {
+                if (!reg.coddesextra.ToString().Equals(coddesextraDepositos))
+                {
+                    int codDesextra = Convert.ToInt32(reg.coddesextra);
+                    if (await DescuentoExtra_Diferenciado_x_item(_context, codDesextra))
+                    {
+                        resultado.Add(codDesextra.ToString());
+                    }
+                }
+            }
 
+            return resultado;
+        }
 
         public async Task<int> Disminuir_Fecha_Vence(DBContext _context, int codremision, string codcliente)
         {
@@ -540,7 +659,104 @@ namespace siaw_funciones
             }
             return false;
         }
+        public async Task<bool> Solicitud_Descuento_Ya_Utilizada(DBContext _context, string idsolicitud, string nroidsolicitud)
+        {
+            bool resultado = false;
+            try
+            {
+                //using (_context)
+                //// using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var yaUtilizada = await _context.veproforma
+                    .AnyAsync(v => v.idsoldesctos == idsolicitud && v.nroidsoldesctos == int.Parse(nroidsolicitud) && v.anulada == false && v.desclinea_segun_solicitud == true);
+                resultado = yaUtilizada;
+                //}
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return false;
+            }
+            return resultado;
+        }
+        public async Task<string> ProformaConSolicitudDescuentoYaUtilizada(DBContext _context, string idsolicitud, string nroidsolicitud)
+        {
+            string resultado = "";
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var proforma = await _context.veproforma
+                .Where(p => p.anulada == false && p.desclinea_segun_solicitud == true && p.idsoldesctos == idsolicitud && p.nroidsoldesctos == int.Parse(nroidsolicitud))
+                .Select(p => new { p.id, p.numeroid })
+                .FirstOrDefaultAsync();
 
+                if (proforma != null)
+                {
+                    resultado = $"{proforma.id}-{proforma.numeroid}";
+                }
+                //}
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return "";
+            }
+            return resultado;
+        }
+        public async Task<DateTime> Descuento_Extra_Valido_Desde_Fecha(DBContext _context, int coddesextra)
+        {
+            DateTime resultado = new DateTime(1900, 1, 1);
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var result = await _context.vedesextra
+                    .Where(v => v.codigo == coddesextra)
+                    .Select(v => v.valido_desde)
+                    .FirstOrDefaultAsync();
+
+                if (result.HasValue)
+                {
+                    resultado = result.Value;
+                }
+                // }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+
+            }
+            return resultado;
+        }
+        public async Task<DateTime> Descuento_Extra_Valido_Hasta_Fecha(DBContext _context, int coddesextra)
+        {
+            DateTime resultado = new DateTime(1900, 1, 1);
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var result = await _context.vedesextra
+                    .Where(v => v.codigo == coddesextra)
+                    .Select(v => v.valido_hasta)
+                    .FirstOrDefaultAsync();
+
+                if (result.HasValue)
+                {
+                    resultado = result.Value;
+                }
+                //}
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+
+            }
+            return resultado;
+        }
         public async Task<(List<verecargoprof> tablarecargos,double ttl_recargos_sobre_total_final)> Recargos_Sobre_Total_Final(DBContext _context, double total, string codmoneda, DateTime fecha, string codempresa, List<verecargoprof> tablarecargos)
         {
             int codrecargo_pedido_urg_provincia = await configuracion.emp_codrecargo_pedido_urgente_provincia(_context, codempresa);
@@ -632,6 +848,31 @@ namespace siaw_funciones
             }
             return resultado.codcliente_referencia;
         }
+        public async Task<bool> Descuento_Extra_Es_Pronto_Pago(DBContext _context, int coddesextra)
+        {
+            try
+            {
+                bool resultado = false;
+                //using (_context)
+                //{
+                var result = await _context.vedesextra
+                    .Where(v => v.codigo == coddesextra)
+                    .Select(v => v.prontopago)
+                    .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = (bool)result;
+                }
+                else { resultado = false; }
+                //}
+                return resultado;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return false;
+            }
+        }
         public async Task<bool> Descuento_Extra_Habilitado(DBContext _context, int coddesextra)
         {
             var resultado = await _context.vedesextra
@@ -698,6 +939,668 @@ namespace siaw_funciones
                 reg.peso = pesoItem * reg.cantidad;
             }
             return veproforma1;
+        }
+        public async Task<bool> Cliente_de_vendedor(DBContext _context, string codcliente, int codvendedor)
+        {
+            try
+            {
+                bool resultado = true;
+                //using (_context)
+                //{
+                int count = _context.vecliente
+                    .Where(vc => vc.codigo == codcliente && vc.codvendedor == codvendedor)
+                    .Count();
+                resultado = count > 0;
+                return resultado;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return false;
+            }
+        }
+        public async Task<string> Descuento_Extra_Tipo_Venta(DBContext _context, int coddesextra)
+        {
+            try
+            {
+                string resultado = "";
+                //using (_context)
+                //{
+                var result = await _context.vedesextra
+                    .Where(v => v.codigo == coddesextra)
+                    .Select(v => v.tipo_venta)
+                    .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = result;
+                }
+                else { resultado = "SIN RESTRICCION"; }
+                //}
+                return resultado;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return "SIN RESTRICCION";
+            }
+        }
+        public async Task<List<string>> AlinearItemsAsync(DBContext _context, List<string> listaItems)
+        {
+            List<string> resultado = new List<string>();
+
+            try
+            {
+                string cadenaItems = string.Join(", ", listaItems.Select(item => $"'{item}'"));
+
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var query = from p1 in _context.initem
+                            join p2 in _context.inlinea on p1.codlinea equals p2.codigo
+                            where listaItems.Contains(p1.codigo)
+                            select p1.codlinea;
+
+                resultado = await query.Distinct().ToListAsync();
+                // }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                // Manejar la excepción según tus necesidades.
+                throw;
+            }
+
+            return resultado;
+        }
+        public async Task<List<string>> ListaPromocionesPorLineaAplicablesAsync(DBContext _context, string codLinea, int codTarifa, string codCliente, DateTime fechaProforma, double subttlDoc, string codMonedaDoc, string tipoVta)
+        {
+            List<string> resultado = new List<string>();
+
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var result = (from p1 in _context.vedesextra_item
+                              join p2 in _context.initem on p1.coditem equals p2.codigo
+                              join p3 in _context.inlinea on p2.codlinea equals p3.codigo
+                              join p4 in _context.ingrupo on p3.codgrupo equals p4.codigo
+                              join p5 in _context.vedesextra on p1.coddesextra equals p5.codigo
+                              where p2.codlinea == codLinea &&
+                                    p1.porcentaje > 0 &&
+                                    p1.habilitado_para_desc == true &&
+                                    _context.vedesextra
+                                        .Where(v => v.habilitado == true && v.diferenciado_x_item == true &&
+                                                    fechaProforma >= v.valido_desde && fechaProforma <= v.valido_hasta)
+                                        .Select(v => v.codigo)
+                                        .Contains(p1.coddesextra) &&
+                                    _context.vedesextra_tarifa
+                                        .Where(t => t.codtarifa == codTarifa)
+                                        .Select(t => t.coddesextra)
+                                        .Contains(p1.coddesextra) &&
+                                    _context.vecliente_desextra
+                                        .Where(c => c.codcliente == codCliente)
+                                        .Select(c => c.coddesextra)
+                                        .Contains(p1.coddesextra)
+                              select new
+                              {
+                                  Codlinea = p2.codlinea,
+                                  Descripcion = p3.descripcion,
+                                  p1.coddesextra,
+                                  p1.porcentaje,
+                                  ValidaLineaCredito = p5.valida_linea_credito,
+                                  MinContado = p5.min_contado,
+                                  CodmonedaMinContado = p5.codmoneda_min_contado,
+                                  MinCredito = p5.min_credito,
+                                  CodmonedaMinCredito = p5.codmoneda_min_credito
+                              }).Distinct().OrderBy(p1 => p1.coddesextra).ToList();
+
+                resultado.Clear();
+                foreach (var item in result)
+                {
+                    double montoMinDescto = 0;
+
+                    if (item.ValidaLineaCredito == true)
+                    {
+                        //verificar si el cliente tiene linea de credito valida o si es cliente PERTEC
+                        if (await creditos.Cliente_Tiene_Linea_De_Credito_Valida(_context, codCliente) == true || await cliente.EsClientePertec(_context, codCliente) == true)
+                        {
+                            if (tipoVta == "CONTADO")
+                            {
+                                montoMinDescto = (double)await tipocambio._conversion(_context, codMonedaDoc, item.CodmonedaMinContado, fechaProforma, item.MinContado);
+                            }
+                            else
+                            {
+                                montoMinDescto = (double)await tipocambio._conversion(_context, codMonedaDoc, item.CodmonedaMinCredito, fechaProforma, item.MinCredito);
+                            }
+
+                            if (subttlDoc >= montoMinDescto)
+                            {
+                                resultado.Add(item.coddesextra.ToString());
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (tipoVta == "CONTADO")
+                        {
+                            montoMinDescto = (double)await tipocambio._conversion(_context, codMonedaDoc, item.CodmonedaMinContado, fechaProforma, item.MinContado);
+                        }
+                        else
+                        {
+                            montoMinDescto = (double)await tipocambio._conversion(_context, codMonedaDoc, item.CodmonedaMinCredito, fechaProforma, item.MinCredito);
+                        }
+
+                        if (subttlDoc >= montoMinDescto)
+                        {
+                            resultado.Add(item.coddesextra.ToString());
+                        }
+                    }
+                }
+                //}
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                // Manejar la excepción según tus necesidades.
+                throw;
+            }
+
+            return resultado;
+        }
+
+        public string MostrarMensajesPromocionesAplicar(DataTable dt_promo)
+        {
+            string cadena = "";
+
+            if (dt_promo.Rows.Count > 0)
+            {
+                cadena = funciones.Rellenar("DESCUENTOS POR APLICAR y/o DESCUENTOS DE LINEA POR APLICAR", 118, " ", false) + "\n";
+                cadena += "---------------------------------------------------------------------------------------------\n";
+                cadena += funciones.Rellenar("COD    COD    DESCRIPCION           NIV  NIV  NIV POR   DESCTO    DESCTO          DESCTO POR", 96, " ", false) + "\n";
+                cadena += funciones.Rellenar("GRUPO  LINEA  LINEA                 ACT  SUG  APLICAR   APLICADO  APLICABLE       APLICAR", 96, " ", false) + "\n";
+                cadena += "---------------------------------------------------------------------------------------------\n\n";
+
+                foreach (DataRow reg in dt_promo.Rows)
+                {
+                    cadena += funciones.Rellenar(reg["codgrupo"].ToString(), 4, " ", false);
+                    cadena += "   " + funciones.Rellenar(reg["codlinea"].ToString(), 4, " ", false);
+                    cadena += "   " + funciones.Rellenar(reg["desclinea"].ToString(), 20, " ", false);
+                    cadena += "  " + funciones.Rellenar(reg["nivel"].ToString(), 3, " ", false);
+                    cadena += "  " + funciones.Rellenar(reg["nivel_sugerido"].ToString(), 3, " ", false);
+                    cadena += "  " + funciones.Rellenar(reg["nivel_por_aplicar"].ToString(), 8, " ", false);
+                    cadena += "  " + funciones.Rellenar(reg["promo_aplicado"].ToString(), 15, " ", false);
+                    cadena += "  " + funciones.Rellenar(reg["promo_aplicable"].ToString(), 15, " ", false);
+                    cadena += "  " + funciones.Rellenar(reg["por_aplicar"].ToString(), 15, " ", false) + "\n";
+                }
+                cadena += "----------------------------------------------------------------------------------------------\n";
+            }
+
+            return cadena;
+        }
+        public async Task<int> Nro_Reversiones_Pendientes_de_Pago_Cliente(DBContext _context, string codcliente)
+        {
+            int resultado = 0;
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var res = _context.veremision
+                     .Join(_context.coplancuotas,
+                         p1 => p1.codigo,
+                         p2 => p2.coddocumento,
+                         (p1, p2) => new { p1, p2 })
+                     .Where(x => !x.p1.anulada && x.p2.monto > x.p2.montopagado && x.p1.obs.Contains("rever") && x.p1.codcliente == codcliente)
+                     .Select(x => new { x.p1.codcliente, x.p1.numeroid })
+                     .Distinct()
+                     .Count();
+                if (res != null)
+                {
+                    resultado = (int)res;
+                }
+                //}
+            }
+            catch (Exception ex)
+            {
+                //Console.WriteLine($"Error: {ex.Message}");
+                return 0;
+            }
+            return resultado;
+        }
+        public async Task<int> Nro_Reversiones_Pendientes_Pago_Permitido(DBContext _context, string codempresa)
+        {
+            int resultado = 0;
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var res = await _context.adparametros
+                .Where(v => v.codempresa == codempresa)
+                .Select(v => v.nro_reversiones_pendientes)
+                .FirstOrDefaultAsync();
+
+                if (res != null)
+                {
+                    resultado = (int)res;
+                }
+                //}
+            }
+            catch (Exception ex)
+            {
+                //Console.WriteLine($"Error: {ex.Message}");
+                return 0;
+            }
+            return resultado;
+        }
+        public async Task<string> Notas_de_Reversion_Pendientes_de_Pago(DBContext _context, string codcliente)
+        {
+            //StringBuilder cadena = new StringBuilder();
+            string cadena = "";
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var notasPendientes = (from p1 in _context.veremision
+                                       join p2 in _context.coplancuotas on p1.codigo equals p2.coddocumento
+                                       where !p1.anulada && p2.monto > p2.montopagado && p1.obs.Contains("rev") && p1.codcliente == codcliente
+                                       group new { p1.codcliente, p1.id, p1.numeroid, p1.fecha, p2.monto, p2.montopagado } by new { p1.codcliente, p1.id, p1.numeroid, p1.fecha } into g
+                                       select new
+                                       {
+                                           CodCliente = g.Key.codcliente,
+                                           Id = g.Key.id,
+                                           NumeroId = g.Key.numeroid,
+                                           Fecha = g.Key.fecha,
+                                           Saldo = g.Sum(x => x.monto - x.montopagado)
+                                       }).ToList();
+
+                if (notasPendientes.Any())
+                {
+                    cadena = "\r\n" + funciones.Rellenar("NOTAS DE REMISION-REVERSION PENDIENTES DE PAGO", 50, " ", false);
+                    cadena = "\r\n" + "-----------------------------------------------------";
+                    cadena = "\r\n" + funciones.Rellenar("COD      DOC                           ", 50, " ", false);
+                    cadena = "\r\n" + funciones.Rellenar("CLIENTE  REMISION         FECHA       SALDO   ", 50, " ", false);
+                    cadena = "\r\n" + "-----------------------------------------------------\n";
+
+                    foreach (var nota in notasPendientes)
+                    {
+                        cadena = "\r\n" + funciones.Rellenar(nota.CodCliente, 7, " ", false);
+                        cadena = "\r\n" + "  " + funciones.Rellenar(nota.Id + "-" + nota.NumeroId, 15, " ", false);
+                        cadena = "\r\n" + "  " + funciones.Rellenar(nota.Fecha.ToString(), 10, " ", false);
+                        cadena = "\r\n" + "  " + funciones.Rellenar(nota.Saldo.ToString(), 8, " ", false);
+                    }
+                    cadena = "\r\n" + "---------------------------------------------------";
+                }
+                //}
+            }
+            catch (Exception ex)
+            {
+                //Console.WriteLine($"Error: {ex.Message}");
+                return "";
+            }
+            return cadena;
+        }
+        public async Task<bool> CumpleEmpaqueCerrado(DBContext _context, string coditem, int codtarifa, int coddescuento, decimal cantidad, string codcliente)
+        {
+            try
+            {
+                bool resultado = false;
+                if (cantidad > 0)
+                {
+                    bool es_cliente_final = await cliente.EsClienteFinal(_context, codcliente);
+                    bool cliente_final_controla_empaque_cerrado = await cliente.Controla_empaque_cerrado(_context, codcliente);
+
+                    decimal empaque_precio, empaque_precio_alternativo, empaque_descuento, empaque_mayor, mod_final;
+
+                    // var cant_empaque_precio = _context.veempaque1
+                    //.Join(_context.intarifa,
+                    //    e => e.codempaque,
+                    //    t => t.codempaque,
+                    //    (e, t) => new { E = e, T = t })
+                    //.Where(x => x.E.item == coditem && x.T.codigo == codtarifa)
+                    //.Select(x => x.E.cantidad)
+                    //.FirstOrDefault();
+
+                    // if (cant_empaque_precio == null)
+                    // {
+                    //     empaque_precio = 0;
+                    // }
+                    // else { empaque_precio = (decimal)cant_empaque_precio; }
+
+                    // var cant_empaque_descuento = _context.veempaque1
+                    //.Join(_context.vedescuento,
+                    //    e => e.codempaque,
+                    //    t => t.codempaque,
+                    //    (e, t) => new { E = e, T = t })
+                    //.Where(x => x.E.item == coditem && x.T.codigo == coddescuento)
+                    //.Select(x => x.E.cantidad)
+                    //.FirstOrDefault();
+
+                    //if (cant_empaque_descuento == null)
+                    //{
+                    //    empaque_descuento = 0;
+                    //}
+                    //else { empaque_descuento = (decimal)cant_empaque_descuento; }
+                    empaque_precio = await EmpaquePrecio(_context, coditem, codtarifa);
+                    empaque_descuento = await EmpaquePrecio(_context, coditem, coddescuento);
+
+
+                    //si es cliente final y no controla empaque segun el archivo de clientes finales entonces no tiene empaque de precio
+                    //asi se deifinio con JRA en fecha 29-06-2017
+                    if (es_cliente_final == true && cliente_final_controla_empaque_cerrado == false)
+                    {
+                        empaque_precio = 0;
+                    }
+
+                    if (empaque_descuento > empaque_precio)
+                    {
+                        empaque_mayor = empaque_descuento;
+                    }
+                    else
+                    {
+                        empaque_mayor = empaque_precio;
+                    }
+
+                    resultado = CantidadCumpleEmpaque(_context, cantidad, empaque_descuento, empaque_precio, await Tarifa_PermiteEmpaquesMixtos(_context, codtarifa));
+
+                    //Si el resultado es falso entonces tratar con el empaque alternativo y mezclando
+                    //este empaque alternativo se refiere a empaques de caja cerrada, en la practica
+                    if (!resultado)
+                    {
+                        // var cant_empaque_precio_alternativo = _context.veempaque1
+                        //   .Join(_context.intarifa,
+                        //       e => e.codempaque,
+                        //       t => t.codempaque_alternativo,
+                        //       (e, t) => new { E = e, T = t })
+                        //   .Where(x => x.E.item == coditem && x.T.codigo == codtarifa)
+                        //   .Select(x => x.E.cantidad)
+                        //   .FirstOrDefault();
+
+                        //if (cant_empaque_precio_alternativo == null)
+                        //{
+                        //    empaque_precio_alternativo = 0;
+                        //}
+                        //else { empaque_precio_alternativo = (decimal)cant_empaque_precio_alternativo; }
+                        empaque_precio_alternativo = await EmpaqueAlternativo(_context, coditem, codtarifa);
+
+                        mod_final = 0;
+                        if (empaque_mayor > empaque_precio_alternativo)
+                        {
+                            if (empaque_mayor > 0)
+                            {
+                                mod_final = cantidad % empaque_mayor;
+                                if (mod_final > 0)
+                                {
+                                    if (empaque_precio_alternativo > 0)
+                                    {
+                                        mod_final = mod_final % empaque_precio_alternativo;
+                                    }
+                                }
+                            }
+                            else if (empaque_precio_alternativo > 0)
+                            {
+                                mod_final = cantidad % empaque_precio_alternativo;
+                            }
+                        }
+                        else if (empaque_precio_alternativo > 0)
+                        {
+                            mod_final = cantidad % empaque_precio_alternativo;
+                            if (mod_final > 0)
+                            {
+                                if (empaque_mayor > 0)
+                                {
+                                    mod_final = mod_final % empaque_mayor;
+                                }
+
+                            }
+
+                        }
+                        else if (empaque_mayor > 0)
+                        {
+                            mod_final = cantidad % empaque_mayor;
+                        }
+
+                        if (mod_final == 0)
+                        {
+                            resultado = true;
+                        }
+                        else
+                        {
+                            resultado = false;
+                        }
+                    }
+                    //Si no resulto ver si el empaque de precio o descuento tienen empaques alternativos
+                    if (!resultado)
+                    {
+                        //los empaques alternativos deben ser cabales
+                        DataTable tabla = new DataTable();
+                        DataRow[] registro;
+                        //DEL DESCUENTO
+                        var query = from ve in _context.veempaque1
+                                    where ve.item == coditem &&
+                                          _context.veempaque_alternativo
+                                            .Where(alternativo => _context.vedescuento
+                                                .Any(descuento => descuento.codigo == coddescuento && descuento.codempaque == alternativo.codempaque))
+                                            .Select(alternativo => alternativo.codempaque_alternativo)
+                                            .Contains(ve.codempaque)
+                                    select ve.cantidad;
+
+                        var result = query.Distinct().ToList();
+                        tabla = funciones.ToDataTable(result);
+
+                        foreach (DataRow row in tabla.Rows)
+                        {
+                            if (cantidad % decimal.Parse(row[1].ToString()) == 0)
+                            {
+                                resultado = true;
+                                break;
+                            }
+                        }
+                        //DEL PRECIO
+                        var query1 = from ve in _context.veempaque1
+                                     where ve.item == coditem &&
+                                           _context.veempaque_alternativo
+                                             .Where(alternativo => _context.intarifa
+                                                 .Any(descuento => descuento.codigo == codtarifa && descuento.codempaque == alternativo.codempaque))
+                                             .Select(alternativo => alternativo.codempaque_alternativo)
+                                             .Contains(ve.codempaque)
+                                     select ve.cantidad;
+
+                        var result1 = query1.Distinct().ToList();
+                        tabla = funciones.ToDataTable(result1);
+
+                        foreach (DataRow row in tabla.Rows)
+                        {
+                            if (cantidad % decimal.Parse(row[1].ToString()) == 0)
+                            {
+                                resultado = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    resultado = true;
+
+                }
+
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+
+        }
+        public async Task<int> EmpaquePrecio(DBContext _context, string coditem, int codtarifa)
+        {
+            try
+            {
+                int resultado = 0;
+                var cant_empaque_precio = await _context.veempaque1
+                .Join(_context.intarifa,
+                e => e.codempaque,
+                t => t.codempaque,
+                (e, t) => new { E = e, T = t })
+                .Where(x => x.E.item == coditem && x.T.codigo == codtarifa)
+                .Select(x => x.E.cantidad)
+                .FirstOrDefaultAsync();
+
+                if (cant_empaque_precio == null)
+                {
+                    resultado = 0;
+                }
+                else { resultado = (int)cant_empaque_precio; }
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+
+        }
+        public async Task<int> EmpaqueDescuento(DBContext _context, string coditem, int coddescuento)
+        {
+            try
+            {
+                int resultado = 0;
+                var cant_empaque_descuento = await _context.veempaque1
+                .Join(_context.vedescuento,
+                e => e.codempaque,
+                t => t.codempaque,
+                (e, t) => new { E = e, T = t })
+                .Where(x => x.E.item == coditem && x.T.codigo == coddescuento)
+                .Select(x => x.E.cantidad)
+                .FirstOrDefaultAsync();
+                if (cant_empaque_descuento == null)
+                {
+                    resultado = 0;
+                }
+                else { resultado = (int)cant_empaque_descuento; }
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+
+        }
+        public async Task<int> EmpaqueAlternativo(DBContext _context, string coditem, int codtarifa)
+        {
+            try
+            {
+                int resultado = 0;
+                var cant_empaque_precio_alternativo = await _context.veempaque1
+                .Join(_context.intarifa,
+                e => e.codempaque,
+                t => t.codempaque_alternativo,
+                (e, t) => new { E = e, T = t })
+                .Where(x => x.E.item == coditem && x.T.codigo == codtarifa)
+                .Select(x => x.E.cantidad)
+                 .FirstOrDefaultAsync();
+
+                if (cant_empaque_precio_alternativo == null)
+                {
+                    resultado = 0;
+                }
+                else { resultado = (int)cant_empaque_precio_alternativo; }
+
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+
+        }
+        public async Task<List<double>> Empaques_Alternativos_Lista(DBContext _context, int codtarifa, string coditem)
+        {
+            try
+            {
+                var query = await _context.intarifa
+                    .Join(_context.veempaque_alternativo,
+                        p1 => p1.codempaque,
+                        p3 => p3.codempaque,
+                        (p1, p3) => new { p1, p3 })
+                    .Join(_context.veempaque1,
+                        p => p.p3.codempaque_alternativo,
+                        p4 => p4.codempaque,
+                        (p, p4) => new { p, p4 })
+                    .Where(x => x.p.p1.codigo == codtarifa && x.p4.item == coditem)
+                    .Select(x => x.p4.cantidad)
+                    .Distinct()
+                    .ToListAsync();
+
+                return query.Select(x => Convert.ToDouble(x)).ToList();
+            }
+            catch (Exception ex)
+            {
+                // Manejar la excepción según sea necesario
+                return new List<double>();
+            }
+
+        }
+        public bool CantidadCumpleEmpaque(DbContext _context, decimal cantidad, decimal empaque1, decimal empaque2, bool permite_mixtos)
+        {
+            bool resultado = false;
+            decimal empaque_mayor = 0;
+            decimal mod_final = 0;
+            if ((empaque1 > empaque2))
+            {
+                empaque_mayor = empaque1;
+                if ((empaque1 > 0))
+                {
+                    mod_final = (cantidad % empaque1);
+                    if ((mod_final > 0))
+                    {
+                        if (permite_mixtos)
+                        {
+                            if ((empaque2 > 0))
+                            {
+                                mod_final = (mod_final % empaque2);
+                            }
+                        }
+                    }
+                }
+                else if ((empaque2 > 0))
+                {
+                    mod_final = (cantidad % empaque2);
+                }
+            }
+            else
+            {
+                empaque_mayor = empaque2;
+                if ((empaque2 > 0))
+                {
+                    mod_final = (cantidad % empaque2);
+                    if ((mod_final > 0))
+                    {
+                        if (permite_mixtos)
+                        {
+                            if ((empaque1 > 0))
+                            {
+                                mod_final = (mod_final % empaque1);
+                            }
+                        }
+                    }
+                }
+                else if ((empaque1 > 0))
+                {
+                    mod_final = (cantidad % empaque1);
+                }
+            }
+            if ((mod_final == 0))
+            {
+                resultado = true;
+            }
+            else
+            {
+                resultado = false;
+            }
+            return resultado;
         }
     }
 

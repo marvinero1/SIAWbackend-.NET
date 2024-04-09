@@ -36,7 +36,20 @@ namespace siaw_funciones
             }
             return resultado;
         }
-
+        public async Task<bool> ControlarStockSeguridad_context(DBContext _context, string codigoempresa)
+        {
+            bool resultado;
+            //using (var _context = DbContextFactory.Create(userConnectionString))
+            //{
+            //precio unitario del item
+            var stock_seguridad = await _context.adparametros
+                .Where(i => i.codempresa == codigoempresa)
+                .Select(i => i.stock_seguridad)
+                .FirstOrDefaultAsync();
+            resultado = (bool)stock_seguridad;
+            // }
+            return resultado;
+        }
 
         public async Task<int> CodAlmacen(string userConnectionString, string codigoempresa)
         {
@@ -60,7 +73,18 @@ namespace siaw_funciones
                 .FirstOrDefaultAsync();
             return codalmacen;
         }
-
+        public async Task<int> AlmacenLocalEmpresa_context(DBContext _context, string codigoempresa)
+        {
+            //using (var _context = DbContextFactory.Create(userConnectionString))
+            //{
+            //precio unitario del item
+            int codalmacen = (int)await _context.adempresa
+                .Where(i => i.codigo == codigoempresa)
+                .Select(i => i.codalmacen)
+                .FirstOrDefaultAsync();
+            return codalmacen;
+            //}
+        }
         public async Task<string> monedabase(DBContext _context, string codigoempresa)
         {
             //Esta funcion devuelve la moneda base de una determinada empresa
@@ -78,6 +102,58 @@ namespace siaw_funciones
                 .Select(i => i.monedae)
                 .FirstOrDefaultAsync() ?? "";
             return codmoneda;
+        }
+        public async Task<bool> Forzar_Etiquetas(DBContext _context, string codempresa)
+        {
+            bool resultado = false;
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var forzar_etiqueta = await _context.adparametros
+                .Where(v => v.codempresa == codempresa)
+                .Select(v => v.forzar_etiqueta)
+                .FirstOrDefaultAsync();
+
+                if (forzar_etiqueta != null)
+                {
+                    resultado = (bool)forzar_etiqueta;
+                }
+                //}
+            }
+            catch (Exception ex)
+            {
+                //Console.WriteLine($"Error: {ex.Message}");
+                return false;
+            }
+            return resultado;
+        }
+        public async Task<bool> Permitir_Items_Repetidos(DBContext _context, string codempresa)
+        {
+            bool resultado = false;
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var permitir_items_repetidos = await _context.adparametros
+                .Where(v => v.codempresa == codempresa)
+                .Select(v => v.permitir_items_repetidos)
+                .FirstOrDefaultAsync();
+
+                if (permitir_items_repetidos != null)
+                {
+                    resultado = (bool)permitir_items_repetidos;
+                }
+                //}
+            }
+            catch (Exception ex)
+            {
+                //Console.WriteLine($"Error: {ex.Message}");
+                return false;
+            }
+            return resultado;
         }
     }
 }

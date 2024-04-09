@@ -10,5 +10,6 @@ namespace siaw_DBContext.Models
         public int? coddesextra { get; set; }
         public string coditem { get; set; }
         public decimal? porcentaje { get; set; }
+        public bool habilitado_para_desc { get; set; }
     }
 }

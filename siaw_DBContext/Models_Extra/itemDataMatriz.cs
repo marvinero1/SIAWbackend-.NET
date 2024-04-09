@@ -27,7 +27,35 @@
         public double subtotal_descto_extra { get; set; } = 0;
 
     }
+    public class itemDataMatrizMaxVta
+    {
+        public string coditem { get; set; }
+        public string descripcion { get; set; }
+        public string medida { get; set; }
+        public string udm { get; set; }
+        public float porceniva { get; set; }
+        public string niveldesc { get; set; }
+        public float porcendesc { get; set; }
+        public float porcen_mercaderia { get; set; }
+        public float cantidad_pedida { get; set; }
+        public float cantidad { get; set; }
+        public int codtarifa { get; set; }
+        public int coddescuento { get; set; }
+        public float precioneto { get; set; }
+        public float preciodesc { get; set; }
+        public float preciolista { get; set; }
+        public float total { get; set; }
+        public bool cumple { get; set; } = true;
+        public int nroitem { get; set; } = 0;
 
+        // no mostrar 
+        public double porcentaje { get; set; } = 0;
+        public double monto_descto { get; set; } = 0;
+        public double subtotal_descto_extra { get; set; } = 0;
+        public double cantidad_pf_anterior { get; set; } = 0;
+        public double cantidad_pf_total { get; set; } = 0;
+
+    }
     public class tabladescuentos
     {
         public int codproforma { get; set; }

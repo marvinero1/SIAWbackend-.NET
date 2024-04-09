@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -80,6 +82,90 @@ namespace siaw_funciones
             }
 
             return resultado;
+        }
+        public string Rellenar(string cadena, int ancho, string relleno, bool ElRellenoALaIzquierda = true)
+        {
+            string cadena2 = "";
+
+            if (ElRellenoALaIzquierda)
+            {
+                if (cadena.Length > ancho)
+                {
+                    cadena2 = cadena.Substring(cadena.Length - ancho, ancho);
+                }
+                else if (cadena.Length == ancho)
+                {
+                    cadena2 = cadena;
+                }
+                else
+                {
+                    for (int i = 1; i <= (ancho - cadena.Length); i++)
+                    {
+                        cadena2 += relleno;
+                    }
+                    cadena2 += cadena;
+                }
+            }
+            else
+            {
+                if (cadena.Length > ancho)
+                {
+                    cadena2 = cadena.Substring(0, ancho);
+                }
+                else if (cadena.Length == ancho)
+                {
+                    cadena2 = cadena;
+                }
+                else
+                {
+                    for (int i = 1; i <= (ancho - cadena.Length); i++)
+                    {
+                        cadena2 = relleno + cadena2;
+                    }
+                    cadena2 = cadena + cadena2;
+                }
+            }
+
+            return cadena2;
+        }
+        public double LimpiarDoble(object valor)
+        {
+            if (valor == DBNull.Value || valor == null)
+            {
+                return 0;
+            }
+            else
+            {
+                return Convert.ToDouble(valor);
+            }
+        }
+        public DataTable ToDataTable<T>(List<T> items)
+        {
+            DataTable dataTable = new DataTable(typeof(T).Name);
+
+            // Get all the properties
+            PropertyInfo[] Props = typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance);
+            foreach (PropertyInfo prop in Props)
+            {
+                // Setting column names as Property names
+                dataTable.Columns.Add(prop.Name, Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType);
+            }
+
+            foreach (T item in items)
+            {
+                var values = new object[Props.Length];
+                for (int i = 0; i < Props.Length; i++)
+                {
+                    // Setting values for the columns
+                    values[i] = Props[i].GetValue(item, null);
+                }
+
+                // Adding values to DataTable
+                dataTable.Rows.Add(values);
+            }
+
+            // Return the datatable
+            return dataTable;
         }
     }
 }

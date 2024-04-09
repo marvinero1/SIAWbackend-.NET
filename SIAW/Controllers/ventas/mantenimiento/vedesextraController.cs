@@ -181,7 +181,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 }
                 catch (DbUpdateException)
                 {
-                    if (vedesextraExists(vedesextra.codigo, _context))
+                    if (vedesextraExists((int)vedesextra.codigo, _context))
                     {
                         return Conflict( new { resp = "Ya existe un registro con ese código" });
                     }

@@ -7,7 +7,7 @@ namespace siaw_DBContext.Models
 {
     public partial class vedesextra_tarifa
     {
-        public int coddesextra { get; set; }
-        public int codtarifa { get; set; }
+        public int? coddesextra { get; set; }
+        public int? codtarifa { get; set; }
     }
 }

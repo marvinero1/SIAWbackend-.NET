@@ -24,6 +24,29 @@ namespace siaw_funciones
             }
             return (int)result;
         }
+        public async Task<int> emp_coddesextra_x_deposito_context(DBContext _context, string codempresa)
+        {
+            try
+            {
+                int resultado = 0;
+                //using (_context )
+                //{
+                var result = await _context.adparametros
+                    .Where(v => v.codempresa == codempresa)
+                    .Select(parametro => parametro.coddesextra_x_deposito)
+                   .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = (int)result;
+                }
+                return resultado;
+                //}
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
         public async Task<int> emp_coddesextra_x_deposito_contado(DBContext _context, string codempresa)
         {
             var result = await _context.adparametros
@@ -77,6 +100,78 @@ namespace siaw_funciones
                     .FirstOrDefaultAsync() ?? new DateTime(2015, 5, 13);
 
             return result;
+        }
+        public async Task<bool> emp_clientevendedor(DBContext _context, string codempresa)
+        {
+            try
+            {
+                bool resultado = false;
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var result = await _context.adparametros
+                    .Where(v => v.codempresa == codempresa)
+                    .Select(parametro => parametro.clientevendedor)
+                   .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = (bool)result;
+                }
+                return resultado;
+                //}
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+        public async Task<int> Dias_Proforma_Vta_Item_Cliente(DBContext _context, string codempresa)
+        {
+            try
+            {
+                int resultado = 0;
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var result = await _context.adparametros
+                    .Where(v => v.codempresa == codempresa)
+                    .Select(parametro => parametro.dias_proforma_vta_item_cliente)
+                   .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = (int)result;
+                }
+                return resultado;
+                //}
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
+        public async Task<string> Valida_Maxvta_NR_PF(DBContext _context, string codempresa)
+        {
+            try
+            {
+                string resultado = "";
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var result = await _context.adparametros
+                    .Where(v => v.codempresa == codempresa)
+                    .Select(parametro => parametro.valida_max_vta_nr_pf)
+                   .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = (string)result;
+                }
+                return resultado;
+                //}
+            }
+            catch (Exception)
+            {
+                return "NN";
+            }
         }
     }
 }
