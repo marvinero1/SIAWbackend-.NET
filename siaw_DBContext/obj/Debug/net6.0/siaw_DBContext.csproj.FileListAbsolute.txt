@@ -54,3 +54,4 @@ C:\laragon\www\siawbackend-.net\siaw_DBContext\obj\Debug\net6.0\refint\siaw_DBCo
 C:\laragon\www\siawbackend-.net\siaw_DBContext\obj\Debug\net6.0\siaw_DBContext.pdb
 C:\laragon\www\siawbackend-.net\siaw_DBContext\obj\Debug\net6.0\siaw_DBContext.genruntimeconfig.cache
 C:\laragon\www\siawbackend-.net\siaw_DBContext\obj\Debug\net6.0\ref\siaw_DBContext.dll
+D:\Fuente SIAW2023\siawbackend-.net\siaw_DBContext\obj\Debug\net6.0\siaw_DBContext.sourcelink.json

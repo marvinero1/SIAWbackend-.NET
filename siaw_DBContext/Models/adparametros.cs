@@ -226,6 +226,7 @@ namespace siaw_DBContext.Models
         public bool? validar_version_sia { get; set; }
         public DateTime? vtascontado_ce_sinpago_desde { get; set; }
         public int? nro_items_urgentes_empaque_cerrado { get; set; }
+        public int? dias_proforma_vta_item_cliente { get; set; }
         public bool? aplicar_recargo_descdeposito_excedente { get; set; }
         public int? codrecargo_descdeposito_excendente { get; set; }
         public bool? aplicar_ajuste_descdeposito { get; set; }

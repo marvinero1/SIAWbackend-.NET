@@ -1739,6 +1739,7 @@ namespace siaw_DBContext.Data
         public virtual DbSet<vedsctos_credito1> vedsctos_credito1 { get; set; }
         public virtual DbSet<vedsctos_credito_linea> vedsctos_credito_linea { get; set; }
         public virtual DbSet<veempaque> veempaque { get; set; }
+        public virtual DbSet<veempaque_alternativo> veempaque_alternativo { get; set; }
         public virtual DbSet<veempaque1> veempaque1 { get; set; }
         public virtual DbSet<veespeciales> veespeciales { get; set; }
         public virtual DbSet<veestadistico> veestadistico { get; set; }
@@ -60928,6 +60929,14 @@ namespace siaw_DBContext.Data
                 entity.Property(e => e.usuarioreg)
                     .IsRequired()
                     .HasMaxLength(10);
+            });
+
+            modelBuilder.Entity<veempaque_alternativo>(entity =>
+            {
+
+                entity.HasKey(e => new { e.codempaque, e.codempaque_alternativo })
+                    .HasName("PK_veempaque_alternativo");
+
             });
 
             modelBuilder.Entity<veempaque1>(entity =>

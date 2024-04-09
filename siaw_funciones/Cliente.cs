@@ -158,6 +158,64 @@ namespace siaw_funciones
             resultado = porcentaje;
             return resultado;
         }
+        public async Task<decimal> CantidadVendida_PF(DBContext _context, string coditem, string codcliente, DateTime desde, DateTime hasta)
+        {
+            decimal resultado;
+            //decimal cant_item;
+
+            try
+            {
+                // Cantidad vendida con el código de ese item
+                decimal cant_item = (decimal)(_context.veproforma1
+                .Join(_context.veproforma,
+                    detalle => detalle.codproforma,
+                    proforma => proforma.codigo,
+                    (detalle, proforma) => new { Detalle = detalle, Proforma = proforma })
+                .Where(joinResult =>
+                    !joinResult.Proforma.anulada == false &&
+                    joinResult.Proforma.codcliente_real == codcliente &&
+                    joinResult.Proforma.aprobada == true &&
+                    joinResult.Proforma.fecha >= desde && joinResult.Proforma.fecha <= hasta &&
+                    joinResult.Detalle.coditem == coditem)
+                .Sum(joinResult => (double?)joinResult.Detalle.cantidad) ?? 0);
+                resultado = cant_item; // + cant_partes + cant_conj;
+                return resultado;
+            }
+            catch (Exception ex)
+            {
+                return 0;
+            }
+        }
+        public async Task<decimal> CantidadVendida_NR(DBContext _context, string coditem, string codcliente, DateTime desde, DateTime hasta)
+        {
+            decimal resultado;
+            //decimal cant_item;
+
+            try
+            {
+                // Cantidad vendida con el código de ese item
+                decimal cant_item = (decimal)(_context.veremision1
+                .Join(_context.veremision,
+                    detalle => detalle.codremision,
+                    remision => remision.codigo,
+                    (detalle, remision) => new { Detalle = detalle, Remision = remision })
+                .Where(joinResult =>
+                    !joinResult.Remision.anulada == false &&
+                    joinResult.Remision.codcliente_real == codcliente &&
+                    joinResult.Remision.anulada == false &&
+                    joinResult.Remision.transferida == true &&
+                    joinResult.Remision.fecha >= desde && joinResult.Remision.fecha <= hasta &&
+                    joinResult.Detalle.coditem == coditem)
+                .Sum(joinResult => (double?)joinResult.Detalle.cantidad) ?? 0);
+                resultado = cant_item; // + cant_partes + cant_conj;
+                return resultado;
+            }
+            catch (Exception ex)
+            {
+                return 0;
+            }
+        }
+
         public async Task<decimal> Preciodesc(DBContext context, string codcliente, int codalmacen, int codtarifa, string coditem, string desc_linea_seg_solicitud, string desc_linea, string opcion_nivel)
         {
             try
@@ -556,7 +614,47 @@ namespace siaw_funciones
             }
             return nit;
         }
+        public async Task<string> Tipo_Cliente(DBContext _context, string codcliente, bool opcional = false)
+        {
+            string resultado = "";
+            try
+            {
+                //using (_context)
+                ////using (var context = DbContextFactory.Create(userConnectionString))
+                //{
+                //var tipo = null;
+                if (!opcional)
+                {
+                    var tipo_cli = await _context.vecliente
+                    .Where(c => c.codigo == codcliente)
+                    .Select(c => c.tipo)
+                    .FirstOrDefaultAsync();
 
+                    if (tipo_cli != null)
+                    {
+                        resultado = tipo_cli;
+                    }
+                }
+                else
+                {
+                    var tipo_cli = await _context.vecliente
+                    .Where(c => c.codigo == codcliente)
+                    .Select(c => c.tipo)
+                    .FirstOrDefaultAsync();
+
+                    if (tipo_cli != null)
+                    {
+                        resultado = tipo_cli;
+                    }
+                }
+                //}
+            }
+            catch (Exception)
+            {
+                resultado = "";
+            }
+            return resultado;
+        }
         public async Task<bool> ActualizarParametrosDePrincipal(DBContext _context, string codcliente)
         {
 
@@ -673,7 +771,94 @@ namespace siaw_funciones
                 }
             }
         }
+        public async Task<string> NivelDescclienteLinea(DBContext _context, string codcliente, string codlinea, int codtarifa)
+        {
+            //verifica si el cliente esta en la tabla de los clasificados como competencia segun su nit
+            try
+            {
+                string resultado = "";
+                if (string.IsNullOrWhiteSpace(codcliente))
+                {
+                    resultado = "Z";
+                }
+                else
+                {
+                    //using (_context)
+                    //{
+                    var tabla = await _context.intarifa.Where(t => t.codigo == codtarifa).Select(t => t.desitem).FirstOrDefaultAsync();
 
+                    if (tabla != null && tabla)
+                    {
+                        var qry = from p1 in _context.vedescliente
+                                  join p2 in _context.initem on p1.coditem equals p2.codigo
+                                  where p2.codlinea == codlinea && p1.cliente == codcliente
+                                  orderby p1.nivel
+                                  select new { p1.coditem, p1.nivel };
+
+                        var result = await qry.FirstOrDefaultAsync();
+
+                        resultado = result != null ? result.nivel : "Z";
+                    }
+                    else
+                    {
+                        resultado = "Z";
+                    }
+                    //}
+                }
+
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return "Z";
+            }
+
+        }
+
+        public async Task<string> NiveldescClientesugeridoSegunAuditoria(DBContext _context, string codcliente, string codlinea, int codtarifa)
+        {
+            //verifica si el cliente esta en la tabla de los clasificados como competencia segun su nit
+            try
+            {
+                string resultado = "";
+                if (string.IsNullOrWhiteSpace(codcliente))
+                {
+                    resultado = "Z";
+                }
+                else
+                {
+                    //using (_context)
+                    //{
+                    var tabla = await _context.intarifa.Where(t => t.codigo == codtarifa).Select(t => t.desitem).FirstOrDefaultAsync();
+
+                    if (tabla != null && tabla)
+                    {
+                        var qry = from p1 in _context.adaudit_compraslinea
+                                  join p2 in _context.ingrupo on p1.codgrupo equals p2.codigo
+                                  join p3 in _context.inlinea on p2.codigo equals p3.codgrupo
+                                  where p3.codigo == codlinea && p1.codcliente == codcliente
+                                  orderby p1.codcliente
+                                  select new { p1.codcliente, p1.Cnivelpos };
+
+                        var result = await qry.FirstOrDefaultAsync();
+
+                        resultado = result != null ? result.Cnivelpos : "Z";
+                    }
+                    else
+                    {
+                        resultado = "Z";
+                    }
+                    //}
+                }
+
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return "Z";
+            }
+
+        }
         public async Task<string> niveldesccliente_segun_solicitud(DBContext _context, string idsolicitud, int nroidsolicitud, string codcliente, string coditem, int codtarifa)
         {
             if (codcliente.Trim() == "")
@@ -803,7 +988,41 @@ namespace siaw_funciones
             }
 
         }
+        public async Task<List<string>> CodigosIgualesListAsync(DBContext _context, string codcliente)
+        {
+            List<string> resultado = new List<string>();
+            try
+            {
 
+                var regex = new Regex(@"^\d+$"); // Expresión regular para verificar si la cadena contiene solo dígitos
+                string codcliente_principal = await CodigoPrincipal(_context, codcliente);
+                //using (_context)
+                //using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var clientesIguales = await _context.veclientesiguales
+                .Where(cliente => cliente.codcliente_a == codcliente_principal)
+                .ToListAsync(); // Cargar datos en memoria
+
+                var filteredResult = clientesIguales
+                    .Where(cliente => regex.IsMatch(cliente.codcliente_b))
+                    .OrderBy(cliente => cliente.codcliente_b)
+                    .Select(cliente => cliente.codcliente_b)
+                    .ToList();
+                resultado = filteredResult;
+                if (resultado.Count == 0)
+                {
+                    resultado.Add(codcliente);
+                }
+                //}
+                return resultado;
+            }
+            catch (Exception)
+            {
+                resultado.Add(codcliente);
+                return resultado;
+            }
+
+        }
         public async Task<(double resp,string message)> Cliente_Saldo_Pendiente_Nacional(DBContext _context, string cliente_principal_local, string codmoneda)
         {
             string _codigo_Principal = await CodigoPrincipal(_context, cliente_principal_local);
@@ -1033,10 +1252,291 @@ namespace siaw_funciones
             }
             return resultado;
         }
+        public async Task<bool> Controla_Monto_Minimo(DBContext _context, string codcliente)
+        {
+            bool resultado = false;
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var cliente = await _context.vecliente
+                                .Where(v => v.codigo == codcliente)
+                                .Select(v => new { v.codigo, v.controla_monto_minimo })
+                                .FirstOrDefaultAsync();
+                if (cliente != null)
+                {
+                    if (cliente.controla_monto_minimo.HasValue)
+                    {
+                        resultado = cliente.controla_monto_minimo.Value;
+                    }
+                    else
+                    {
+                        resultado = true;
+                    }
+                }
+                else
+                {
+                    resultado = true;
+                }
+                //}
+            }
+            catch (Exception)
+            {
+                return true;
+            }
+            return resultado;
+        }
+        public async Task<bool> Controla_empaque_minimo(DBContext _context, string codcliente)
+        {
+            bool resultado = false;
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var cliente = await _context.vecliente
+                                .Where(v => v.codigo == codcliente)
+                                .Select(v => new { v.codigo, v.controla_empaque_minimo })
+                                .FirstOrDefaultAsync();
+                if (cliente != null)
+                {
+                    if (cliente.controla_empaque_minimo.HasValue)
+                    {
+                        resultado = cliente.controla_empaque_minimo.Value;
+                    }
+                    else
+                    {
+                        resultado = true;
+                    }
+                }
+                else
+                {
+                    resultado = true;
+                }
+                //}
+            }
+            catch (Exception)
+            {
+                return true;
+            }
+            return resultado;
+        }
         public async Task<bool> Controla_empaque_cerrado(DBContext _context, string codcliente)
         {
             var resultado = await _context.vecliente.Where(i => i.codigo == codcliente).Select(i => i.controla_empaque_cerrado).FirstOrDefaultAsync() ?? false;
             return resultado;
+        }
+        public async Task<bool> Permite_Descuento_caja_cerrada(DBContext _context, string codcliente)
+        {
+            try
+            {
+                var cliente = await _context.vecliente
+                                        .Where(v => v.codigo == codcliente)
+                                        .Select(v => v.permite_desc_caja_cerrada ?? false)
+                                        .FirstOrDefaultAsync();
+
+                return cliente;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+        public async Task<bool> Permite_items_repetidos(DBContext _context, string codcliente)
+        {
+            bool resultado = false;
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var cliente = await _context.vecliente
+                                .Where(v => v.codigo == codcliente)
+                                .Select(v => new { v.codigo, v.permite_items_repetidos })
+                                .FirstOrDefaultAsync();
+                if (cliente != null)
+                {
+                    if (cliente.permite_items_repetidos.HasValue)
+                    {
+                        resultado = cliente.permite_items_repetidos.Value;
+                    }
+                    else
+                    {
+                        resultado = true;
+                    }
+                }
+                else
+                {
+                    resultado = false;
+                }
+                //}
+            }
+            catch (Exception)
+            {
+                return true;
+            }
+            return resultado;
+        }
+        public async Task<bool> ClienteCompetenciaPermiteDesctoLinea(DBContext _context, string nit_cliente)
+        {
+            //verifica si el cliente esta en la tabla de los clasificados como competencia segun su nit
+            try
+            {
+                bool resultado = false;
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var permite_descto_linea = await _context.cpcompetencia
+                 .Join(_context.vecompetencia_control,
+                 p1 => p1.codgrupo_control,
+                 p2 => p2.codigo,
+                 (p1, p2) => new { p1, p2 })
+                 .Where(joined => joined.p1.nit == nit_cliente)
+                 .Select(joined => joined.p2.permite_descto_linea)
+                 .FirstOrDefaultAsync();
+                if (permite_descto_linea != null)
+                {
+                    resultado = (bool)permite_descto_linea;
+                }
+                else { resultado = false; }
+
+                //}
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+
+        }
+        public async Task<bool> ClienteCompetenciaPermiteDesctoProveedor(DBContext _context, string nit_cliente)
+        {
+            //verifica si el cliente esta en la tabla de los clasificados como competencia segun su nit
+            try
+            {
+                bool resultado = false;
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var permite_descto_proveedor = await _context.cpcompetencia
+                 .Join(_context.vecompetencia_control,
+                 p1 => p1.codgrupo_control,
+                 p2 => p2.codigo,
+                 (p1, p2) => new { p1, p2 })
+                 .Where(joined => joined.p1.nit == nit_cliente)
+                 .Select(joined => joined.p2.permite_descto_proveedor)
+                 .FirstOrDefaultAsync();
+                if (permite_descto_proveedor != null)
+                {
+                    resultado = (bool)permite_descto_proveedor;
+                }
+                else { resultado = false; }
+
+                //}
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+
+        }
+        public async Task<bool> ClienteCompetenciaPermiteDesctoVolumen(DBContext _context, string nit_cliente)
+        {
+            //verifica si el cliente esta en la tabla de los clasificados como competencia segun su nit
+            try
+            {
+                bool resultado = false;
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var permite_descto_volumen = await _context.cpcompetencia
+                 .Join(_context.vecompetencia_control,
+                 p1 => p1.codgrupo_control,
+                 p2 => p2.codigo,
+                 (p1, p2) => new { p1, p2 })
+                 .Where(joined => joined.p1.nit == nit_cliente)
+                 .Select(joined => joined.p2.permite_descto_volumen)
+                 .FirstOrDefaultAsync();
+                if (permite_descto_volumen != null)
+                {
+                    resultado = (bool)permite_descto_volumen;
+                }
+                else { resultado = false; }
+
+                //}
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+
+        }
+        public async Task<bool> ClienteCompetenciaPermiteDesctoPromocion(DBContext _context, string nit_cliente)
+        {
+            //verifica si el cliente esta en la tabla de los clasificados como competencia segun su nit
+            try
+            {
+                bool resultado = false;
+                //using (_context)
+                //// using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var permite_descto_promocion = await _context.cpcompetencia
+                 .Join(_context.vecompetencia_control,
+                 p1 => p1.codgrupo_control,
+                 p2 => p2.codigo,
+                 (p1, p2) => new { p1, p2 })
+                 .Where(joined => joined.p1.nit == nit_cliente)
+                 .Select(joined => joined.p2.permite_descto_promocion)
+                 .FirstOrDefaultAsync();
+                if (permite_descto_promocion != null)
+                {
+                    resultado = (bool)permite_descto_promocion;
+                }
+                else { resultado = false; }
+
+                // }
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+
+        }
+        public async Task<bool> ClienteCompetenciaPermiteDesctoExtra(DBContext _context, string nit_cliente)
+        {
+            //verifica si el cliente esta en la tabla de los clasificados como competencia segun su nit
+            try
+            {
+                bool resultado = false;
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var permite_descto_extra = await _context.cpcompetencia
+                 .Join(_context.vecompetencia_control,
+                 p1 => p1.codgrupo_control,
+                 p2 => p2.codigo,
+                 (p1, p2) => new { p1, p2 })
+                 .Where(joined => joined.p1.nit == nit_cliente)
+                 .Select(joined => joined.p2.permite_descto_extra)
+                 .FirstOrDefaultAsync();
+                if (permite_descto_extra != null)
+                {
+                    resultado = (bool)permite_descto_extra;
+                }
+                else { resultado = false; }
+
+                // }
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+
         }
         public async Task<int> Almacen_Casa_Matriz_Nacional(DBContext _context, string codcliente)
         {
@@ -1075,6 +1575,80 @@ namespace siaw_funciones
                 return true;
             }
             return false;
+        }
+        public async Task<bool> EsClienteCasual(DBContext _context, string codcliente)
+        {
+            bool resultado = false;
+
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var cliente = await _context.vecliente
+                                .Where(v => v.codigo == codcliente)
+                                .Select(v => new { v.codigo, v.casual })
+                                .FirstOrDefaultAsync();
+
+                if (cliente != null)
+                {
+                    if (cliente.casual.HasValue)
+                    {
+                        resultado = cliente.casual.Value;
+                    }
+                    else
+                    {
+                        resultado = false;
+                    }
+                }
+                else
+                {
+                    resultado = true;
+                }
+                //}
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+            return resultado;
+        }
+        public async Task<bool> EsClienteFinal(DBContext _context, string codcliente)
+        {
+            bool resultado = false;
+
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var cliente = await _context.vecliente
+                                .Where(v => v.codigo == codcliente)
+                                .Select(v => new { v.codigo, v.es_cliente_final })
+                                .FirstOrDefaultAsync();
+
+                if (cliente != null)
+                {
+                    if (cliente.es_cliente_final.HasValue)
+                    {
+                        resultado = cliente.es_cliente_final.Value;
+                    }
+                    else
+                    {
+                        resultado = false;
+                    }
+                }
+                else
+                {
+                    resultado = true;
+                }
+                //}
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+            return resultado;
         }
         public async Task<string> Razonsocial(DBContext _context, string codcliente)
         {

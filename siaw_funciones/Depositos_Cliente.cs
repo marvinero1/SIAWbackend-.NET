@@ -215,6 +215,98 @@ namespace siaw_funciones
             resultado = Math.Round(resultado, 2);
             return resultado;
         }
+        public async Task<string[]> IdNroid_Deposito_Asignado_Anticipo(DBContext _context, string id, int numeroid)
+        {
+            //List<string> resultado = new List<string>();
+            string[] resultado = new string[2];
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var result = await _context.coanticipo
+                .Where(v => v.id == id && v.numeroid == numeroid)
+                .Select(v => new { v.iddeposito, v.numeroiddeposito })
+                .FirstOrDefaultAsync();
+
+                if (result != null)
+                {
+                    resultado[0] = result.iddeposito.ToString();
+                    resultado[1] = result.numeroiddeposito.ToString();
+                }
+                else
+                {
+                    resultado[0] = "NSE";
+                    resultado[1] = "0";
+                }
+                //}
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                resultado[0] = "NSE";
+                resultado[1] = "0";
+            }
+            return resultado;
+        }
+        public async Task<string> Anticipo_Asignado_A_Deposito_a_Proforma(DBContext _context, string iddeposito, string nroiddeposito, bool para_pf)
+        {
+            string resultado = "";
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var dtanticipos = _context.coanticipo
+                .Where(a => a.anulado == false && a.iddeposito == iddeposito && a.numeroiddeposito == int.Parse(nroiddeposito))
+                .Select(v => new { v.id, v.numeroid })
+                .ToList();
+
+                if (dtanticipos.Count == 0)
+                {
+                    resultado = "";
+                }
+                else if (dtanticipos.Count > 0)
+                {
+                    foreach (var anticipo in dtanticipos)
+                    {
+                        resultado = anticipo.id + "-" + anticipo.numeroid;
+                        if (para_pf == true)
+                        {
+                            var qry = from p1 in _context.coanticipo
+                                      join p2 in _context.cocobranza_anticipo on p1.codigo equals p2.codanticipo
+                                      join p3 in _context.cocobranza on p2.codcobranza equals p3.codigo
+                                      where p1.id == anticipo.id && p1.numeroid == anticipo.numeroid && p3.reciboanulado == false
+                                      orderby p3.fecha
+                                      select new { p1.id, p1.numeroid, p1.monto, monto_rever = p2.monto, IdCb = p3.id, NroidCb = p3.numeroid, p3.fecha, Monto_cb = p3.monto };
+
+                            foreach (var rever in qry)
+                            {
+                                resultado += "->" + rever.IdCb + "-" + rever.NroidCb + "  ";
+                            }
+                        }
+                        var qry2 = from p1 in _context.coanticipo
+                                   join p2 in _context.veproforma_anticipo on p1.codigo equals p2.codanticipo
+                                   join p3 in _context.veproforma on p2.codproforma equals p3.codigo
+                                   where p1.id == anticipo.id && p1.numeroid == anticipo.numeroid && p3.anulada == false
+                                   orderby p3.fecha
+                                   select new { p1.id, p1.numeroid, p1.monto, MontoRever = p2.monto, IdPf = p3.id, NroidPf = p3.numeroid, p3.fecha, p3.total };
+
+                        foreach (var proforma in qry2)
+                        {
+                            resultado += "->" + proforma.IdPf + "-" + proforma.NroidPf + "  ";
+                        }
+                    }
+                }
+                //}
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                resultado = "NSE";
+            }
+            return resultado;
+        }
         public async Task<bool> Cobranza_Se_Aplico_Para_Descuento_Por_Deposito_2(DBContext _context, int codcobranza, int codproforma)
         {
             if (codcobranza==0)

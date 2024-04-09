@@ -122,6 +122,52 @@ namespace siaw_funciones
             resultado = descripcion;
             return resultado;
         }
+        public async Task<string> nombredesextra(DBContext _context, int codigo)
+        {
+            string resultado;
+            string descripcion = "";
+            //using (_context)
+            ////using (var _context = DbContextFactory.Create(userConnectionString))
+            //{
+            var result = await _context.vedesextra
+                .Where(v => v.codigo == codigo)
+                .Select(parametro => new
+                {
+                    parametro.descripcion
+                })
+                .FirstOrDefaultAsync();
+            if (result != null)
+            {
+                descripcion = result.descripcion;
+            }
+
+            //}
+            resultado = descripcion.Trim();
+            return resultado;
+        }
+        public async Task<string> nombrelinea(DBContext _context, string codigo)
+        {
+            string resultado;
+            string descripcion = "";
+            //using (_context)
+            ////using (var _context = DbContextFactory.Create(userConnectionString))
+            //{
+            var result = await _context.inlinea
+                .Where(v => v.codigo == codigo)
+                .Select(parametro => new
+                {
+                    parametro.descripcion
+                })
+                .FirstOrDefaultAsync();
+            if (result != null)
+            {
+                descripcion = result.descripcion;
+            }
+
+            //}
+            resultado = descripcion.Trim();
+            return resultado;
+        }
 
     }
 }

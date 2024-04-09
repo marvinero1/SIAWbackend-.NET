@@ -1020,7 +1020,8 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
         [HttpPost]
-        [Route("validarProforma/{userConn}/{cadena_controles}/{entidad}/{opcion_validar}")]
+        //[Route("validarProforma/{userConn}/{cadena_controles}/{entidad}/{opcion_validar}")]
+        [Route("validarProforma/{userConn}/{cadena_controles}/{entidad}/{opcion_validar}/{codempresa}/{usuario}")]
         //Task<ActionResult<itemDataMatriz>>
         //Task<object> ValidarProforma
         //para opcion_validar
@@ -1033,7 +1034,7 @@ namespace SIAW.Controllers.ventas.transaccion
         //para cadena_controles
         // vacio si no va controlar controles en especifico
         // cadena con el siguiente formato 00001+00002+00003 con los controles en especifico que se quiere controlar
-        public async Task<ActionResult<List<Controles>>> ValidarProforma(string userConn, string cadena_controles, string entidad, string opcion_validar, RequestValidacion RequestValidacion)
+        public async Task<ActionResult<List<Controles>>> ValidarProforma(string userConn, string cadena_controles, string entidad, string opcion_validar, string codempresa, string usuario, RequestValidacion RequestValidacion)
         {
             try
             {
@@ -1053,7 +1054,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 verecargosDatos = RequestValidacion.detalleRecargos;
 
 
-                var resultado = await validar_Vta.DocumentoValido(userConnectionString, cadena_controles, entidad, opcion_validar, datosDocVta, itemDataMatriz, vedesextraDatos, vedetalleEtiqueta, vedetalleanticipoProforma, verecargosDatos);
+                var resultado = await validar_Vta.DocumentoValido(userConnectionString, cadena_controles, entidad, opcion_validar, datosDocVta, itemDataMatriz, vedesextraDatos, vedetalleEtiqueta, vedetalleanticipoProforma, verecargosDatos, codempresa, usuario);
                 if (resultado != null)
                 {
                     ///
@@ -2771,7 +2772,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
         [HttpPost]
         [Route("getTarifaPrincipal/{userConn}")]
-        public async Task<object> getTarifaPrincipal(string userConn, getTarifaPrincipal data)
+        public async Task<object> getTarifaPrincipal(string userConn, getTarifaPrincipal_Rodrigo data)
         {
             try
             {
@@ -2779,7 +2780,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
-                    var tarifa = await validar_Vta.Tarifa_Monto_Min_Mayor(_context, await validar_Vta.Lista_Precios_En_El_Documento(data.tabladetalle), data.DVTA);
+                    var tarifa = await validar_Vta.Tarifa_Monto_Min_Mayor_Rodrigo(_context, await validar_Vta.Lista_Precios_En_El_Documento(data.tabladetalle), data.DVTA);
 
                     return Ok(new
                     {
@@ -3005,14 +3006,14 @@ namespace SIAW.Controllers.ventas.transaccion
             {
                 return BadRequest(new { resp = "Cliente referencia no es el mismo que el cliente del pedido." });
             }
-            getTarifaPrincipal data = objetoDescDepositos.getTarifaPrincipal;
+            getTarifaPrincipal_Rodrigo data = objetoDescDepositos.getTarifaPrincipal;
 
 
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 // clientes casualas no deben tener descto por deposito seg/poliita desde el 01-08-2022
-                if (await cliente.Es_Cliente_Casual(_context,codcliente))
+                if (await cliente.Es_Cliente_Casual(_context, codcliente))
                 {
                     return BadRequest(new { resp = "Cliente es casual, no puede tener descuento por depósito." });
                 }
@@ -3023,8 +3024,8 @@ namespace SIAW.Controllers.ventas.transaccion
                 }
                 // verificar que los desctos esten habilitados para el precio principal de la proforma
                 var coddesextra_deposito = await configuracion.emp_coddesextra_x_deposito(_context, codempresa);
-                var tarifa_main = await validar_Vta.Tarifa_Monto_Min_Mayor(_context, await validar_Vta.Lista_Precios_En_El_Documento(data.tabladetalle), data.DVTA);
-                if (await ventas.Descuento_Extra_Habilitado_Para_Precio(_context,coddesextra_deposito,tarifa_main) == false)
+                var tarifa_main = await validar_Vta.Tarifa_Monto_Min_Mayor_Rodrigo(_context, await validar_Vta.Lista_Precios_En_El_Documento(data.tabladetalle), data.DVTA);
+                if (await ventas.Descuento_Extra_Habilitado_Para_Precio(_context, coddesextra_deposito, tarifa_main) == false)
                 {
                     return BadRequest(new { resp = "El descuento no esta habilitado para el precio principal de la proforma." });
                 }
@@ -3038,7 +3039,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 // verificacion si le corresponde descuento por deposito
                 DateTime Depositos_Desde_Fecha = await configuracion.Depositos_Nuevos_Desde_Fecha(_context);
                 bool buscar_por_nit = false;
-                if (await cliente.EsClienteSinNombre(_context,codcliente))
+                if (await cliente.EsClienteSinNombre(_context, codcliente))
                 {
                     buscar_por_nit = true;
                 }
@@ -3111,7 +3112,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 End If
                  */
                 // ***********************************************************************************************************
-                // *********************************UNIR EN UNA SOLA TABLA****************************************************
+                // ********************************UNIR EN UNA SOLA TABLA***************************************************
                 // ***********************************************************************************************************
                 // copiar los depositos pendientes de cbzas credito
                 /*For h As Integer = 0 To dt_credito_depositos_pendientes.Rows.Count - 1
@@ -3188,15 +3189,16 @@ namespace SIAW.Controllers.ventas.transaccion
         public string codmoneda { get; set; }
         public DateTime fecha { get; set; }
     }
-    public class getTarifaPrincipal
+    public class getTarifaPrincipal_Rodrigo
     {
         public List<itemDataMatriz> tabladetalle { get; set; }
         public veproforma DVTA { get; set; }
+        //public DatosDocVta DVTA { get; set; }
     }
 
     public class objetoDescDepositos
     {
-        public getTarifaPrincipal getTarifaPrincipal { get; set; }
+        public getTarifaPrincipal_Rodrigo getTarifaPrincipal { get; set; }
         List<tabladescuentos> tabladescuentos { get; set; }
         List <tblcbza_deposito> tblcbza_deposito { get; set; }
     }

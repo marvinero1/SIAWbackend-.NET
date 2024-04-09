@@ -13,7 +13,7 @@
         public string tipo_doc_id { get; set; }
         public string codcliente_real { get; set; }
         public string nomcliente_real { get; set; }
-        public string codtarifadefecto { get; set; }
+        public int codtarifadefecto { get; set; }
         public string codmoneda { get; set; }
         public double subtotaldoc { get; set; }
         public double totaldoc { get; set; }

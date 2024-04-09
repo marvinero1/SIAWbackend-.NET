@@ -1094,7 +1094,230 @@ namespace siaw_funciones
             return resultadosUnion;
             
         }
+        public async Task<string[]> Id_Nroid_Cobranza(DBContext _context, int codcobranza)
+        {
+            //List<string> resultado = new List<string>();
+            string[] resultado = new string[2];
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var result = await _context.cocobranza
+                .Where(v => v.codigo == codcobranza)
+                .Select(v => new { v.id, v.numeroid })
+                .FirstOrDefaultAsync();
 
+                if (result != null)
+                {
+                    resultado[0] = result.id.ToString();
+                    resultado[1] = result.numeroid.ToString();
+                }
+                else
+                {
+                    resultado[0] = "NSE";
+                    resultado[1] = "0";
+                }
+                //}
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                resultado[0] = "NSE";
+                resultado[1] = "0";
+            }
+            return resultado;
+        }
+        public async Task<string[]> Id_Nroid_Cobranza_Contado(DBContext _context, int codcobranza)
+        {
+            //List<string> resultado = new List<string>();
+            string[] resultado = new string[2];
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var result = await _context.cocobranza_contado
+                .Where(v => v.codigo == codcobranza)
+                .Select(v => new { v.id, v.numeroid })
+                .FirstOrDefaultAsync();
+
+                if (result != null)
+                {
+                    resultado[0] = result.id.ToString();
+                    resultado[1] = result.numeroid.ToString();
+                }
+                else
+                {
+                    resultado[0] = "NSE";
+                    resultado[1] = "0";
+                }
+                //}
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                resultado[0] = "NSE";
+                resultado[1] = "0";
+            }
+            return resultado;
+        }
+        public async Task<string[]> Id_Nroid_Anticipo(DBContext _context, int codcobranza)
+        {
+            //List<string> resultado = new List<string>();
+            string[] resultado = new string[2];
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var result = await _context.coanticipo
+                .Where(v => v.codigo == codcobranza)
+                .Select(v => new { v.id, v.numeroid })
+                .FirstOrDefaultAsync();
+
+                if (result != null)
+                {
+                    resultado[0] = result.id.ToString();
+                    resultado[1] = result.numeroid.ToString();
+                }
+                else
+                {
+                    resultado[0] = "NSE";
+                    resultado[1] = "0";
+                }
+                //}
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                resultado[0] = "NSE";
+                resultado[1] = "0";
+            }
+            return resultado;
+        }
+        public async Task<bool> Existe_Cobranza(DBContext _context, string id, string nroid)
+        {
+            bool resultado = false;
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+
+                int count = _context.cocobranza
+                .Where(c => c.id == id && c.numeroid == int.Parse(nroid))
+                .Count();
+
+                if (count > 0)
+                {
+                    resultado = true;
+                }
+                else
+                {
+                    resultado = false;
+                }
+                //}
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return false;
+            }
+            return resultado;
+        }
+        public async Task<bool> Existe_Cobranza_Contado(DBContext _context, string id, string nroid)
+        {
+            bool resultado = false;
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+
+                int count = _context.cocobranza_contado
+                .Where(c => c.id == id && c.numeroid == int.Parse(nroid))
+                .Count();
+
+                if (count > 0)
+                {
+                    resultado = true;
+                }
+                else
+                {
+                    resultado = false;
+                }
+                //}
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return false;
+            }
+            return resultado;
+        }
+        public async Task<DateTime> Fecha_De_Cobranza(DBContext _context, string id, string nroid)
+        {
+            DateTime resultado;
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+
+                var fecha = _context.cocobranza
+                   .Where(c => c.id == id && c.numeroid == int.Parse(nroid))
+                   .OrderByDescending(c => c.fecha)
+                   .Select(c => c.fecha)
+                   .FirstOrDefault();
+
+                if (fecha != null)
+                {
+                    resultado = fecha;
+                }
+                else
+                {
+                    resultado = DateTime.Today;
+                }
+                //}
+            }
+            catch (Exception ex)
+            {
+                resultado = DateTime.Today;
+            }
+            return resultado;
+        }
+        public async Task<DateTime> Fecha_De_Cobranza_Contado(DBContext _context, string id, string nroid)
+        {
+            DateTime resultado;
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+
+                var fecha = _context.cocobranza_contado
+                   .Where(c => c.id == id && c.numeroid == int.Parse(nroid))
+                   .OrderByDescending(c => c.fecha)
+                   .Select(c => c.fecha)
+                   .FirstOrDefault();
+
+                if (fecha != null)
+                {
+                    resultado = fecha;
+                }
+                else
+                {
+                    resultado = DateTime.Today;
+                }
+                //}
+            }
+            catch (Exception ex)
+            {
+                resultado = DateTime.Today;
+            }
+            return resultado;
+        }
         public async Task<double> CobranzasSinDistribuir(DBContext _context, string codcliente)
         {
             var resultado = await _context.cocobranza
