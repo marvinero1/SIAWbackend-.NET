@@ -16,6 +16,7 @@ namespace SIAW.Controllers.ventas.transaccion
         private readonly TipoCambio tipoCambio = new TipoCambio();
         private readonly Ventas ventas = new Ventas();
         private readonly Cobranzas cobranzas = new Cobranzas();
+        private readonly Cliente cliente = new Cliente();
         public prgveproforma_anticipoController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;
@@ -188,8 +189,16 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
-        private async Task<double> refrescar_anticipos_pendientes(DBContext _context, string codmoneda_proforma, List<tabla_veproformaAnticipo> tabla_veproformaAnticipo)
+        private async Task<string> refrescar_anticipos_pendientes(DBContext _context, string codmoneda_proforma, DateTime fdesde, DateTime fhasta, string nit, string codclienteReal, List<tabla_veproformaAnticipo> tabla_veproformaAnticipo)
         {
+            var valida = validar_refrescar(fdesde, fhasta, nit, codclienteReal);
+            if (!valida.bandera)
+            {
+                return valida.mensaje;
+            }
+            //est primera ves se obtiene los datos para actualizar los saldos de los anticipos
+
+
             double resultado = 0;
             foreach (var reg in tabla_veproformaAnticipo)
             {
@@ -206,6 +215,64 @@ namespace SIAW.Controllers.ventas.transaccion
                     }
                     resultado = Math.Round(resultado, 2);
                 }
+            }
+            return resultado;
+        }
+
+        private (bool bandera, string mensaje) validar_refrescar(DateTime fdesde, DateTime fhasta, string nit, string codclienteReal)
+        {
+            if (fdesde > fhasta)
+            {
+                return (false, "La fecha inicial no puede ser mayor a la fecha final!!!");
+            }
+            if (nit.Trim().Length == 0)
+            {
+                return (false, "Debe ingresar el NIT del cliente del cual se registro anticipo para venta contado!!!");
+            }
+            if (codclienteReal.Trim().Length == 0)
+            {
+                return (false, "Debe ingresar el codigo del cliente real!!!");
+            }
+            return (true, "");
+        }
+
+
+        private async Task<object> buscar_anticipos_pendientes(DBContext _context,DateTime fdesde, DateTime fhasta, string nit, string codcliente)
+        {
+            var resultado = await _context.coanticipo
+                .Where(p1 => p1.anulado == false &&
+                              p1.fecha >= fdesde &&
+                              p1.fecha <= fhasta &&
+                              p1.codcliente == codcliente)
+                .OrderByDescending(p => p.fecha)
+                .Select(p1 => new
+                {
+                    codanticipo = p1.codigo,
+                    p1.id,
+                    p1.numeroid,
+                    docanticipo = p1.id + "-" + p1.numeroid,
+                    p1.codcliente,
+                    p1.codvendedor,
+                    p1.codcliente_real,
+                    p1.nit,
+                    p1.nomcliente_nit,
+                    p1.fecha,
+                    p1.monto,
+                    p1.montorest,
+                    p1.codmoneda,
+                    p1.anulado,
+                    desc_anulado = p1.anulado ? "Si": "No",
+                    p1.para_venta_contado,
+                    pvc = (p1.para_venta_contado ?? false) ? "Si": "No",
+                    p1.fechareg,
+                    p1.horareg,
+                    p1.usuarioreg
+                }).ToListAsync();
+
+            // Desde 05/12/2023 no validar que el cliente sea sin nombre sino que valide que si los codigos son diferentes entonces que busque ademas por NIT
+            if (await cliente.EsClienteSinNombre(_context, codcliente))
+            {
+                resultado = resultado.Where(i => i.nit == nit).ToList();
             }
             return resultado;
         }

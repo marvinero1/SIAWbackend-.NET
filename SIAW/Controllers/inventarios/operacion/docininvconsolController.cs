@@ -148,7 +148,7 @@ namespace SIAW.Controllers.inventarios.operacion
 
                     if (result.Count() == 0)
                     {
-                        return NotFound( new { resp = "No se encontraron registros con los datos proporcionados." });
+                        return StatusCode(204, new { resp = "No se encontraron registros con los datos proporcionados." });
                     }
                     return Ok(result);
                 }
