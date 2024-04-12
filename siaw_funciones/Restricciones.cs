@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using siaw_DBContext.Models;
 using siaw_DBContext.Models_Extra;
 using System.Data;
+using Microsoft.Data.SqlClient;
 
 namespace siaw_funciones
 {
@@ -419,6 +420,36 @@ namespace siaw_funciones
             }
             return resultado;
         }
+        public async Task<bool> Validar_Contraentrega_Descuento(DBContext _context, bool ContraEntrega, int coddescuento)
+        {
+            bool resultado = true;
+            if (ContraEntrega)
+            {
+                float precioFinal;
 
+                var contra_entrega = new SqlParameter("@contra_entrega", SqlDbType.Int) { Value = 1 };
+                var descuento = new SqlParameter("@coddescuento", SqlDbType.Int) { Value = coddescuento };
+                var result = new SqlParameter("@resultado", SqlDbType.Int) { Direction = ParameterDirection.Output };
+
+                await _context.Database
+                    .ExecuteSqlRawAsync("EXECUTE val_contraentrega @contra_entrega, @coddescuento, @resultado OUTPUT",
+                        contra_entrega,
+                        descuento,
+                        result);
+                if ((int)result.Value > 0)
+                {
+                    resultado = true;
+                }
+                else
+                {
+                    resultado = false;
+                }
+            }
+            else
+            {
+                resultado = true;
+            }
+            return resultado;
+        }
     }
 }

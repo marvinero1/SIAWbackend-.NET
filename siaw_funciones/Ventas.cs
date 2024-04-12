@@ -1602,6 +1602,199 @@ namespace siaw_funciones
             }
             return resultado;
         }
+
+        public async Task<bool> TarifaValidaDescuento(DBContext _context, int codtarifa, int coddesextra)
+        {
+            bool resultado = false;
+            try
+            {
+
+                int count = await _context.vedesextra_tarifa
+                .CountAsync(t => t.coddesextra == coddesextra && t.codtarifa == codtarifa);
+
+                if (count > 0)
+                {
+                    resultado = true;
+                }
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return false;
+            }
+            return resultado;
+        }
+
+        public async Task<bool> DescuentoEspecialValidoDescuento(DBContext _context, int coddescuento, int coddesextra)
+        {
+            bool resultado = false;
+            try
+            {
+
+                int count = await _context.vedesextra_descuento
+                .CountAsync(t => t.coddesextra == coddesextra && t.coddescuento == coddescuento);
+
+                if (count > 0)
+                {
+                    resultado = true;
+                }
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return false;
+            }
+            return resultado;
+        }
+
+        public async Task<bool> DescuentoExtra_ItemValido(DBContext _context, string coditem, int coddesextra)
+        {
+            bool resultado = false;
+            try
+            {
+
+                int count = await _context.vedesextra_item
+                .CountAsync(t => t.coddesextra == coddesextra && t.coditem == coditem);
+
+                if (count > 0)
+                {
+                    resultado = true;
+                }
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return false;
+            }
+            return resultado;
+        }
+
+        public async Task<(bool EsValido, string Mensaje)> Validar_NIT_Correcto(DBContext _context, string nit, string tipo_doc_id)
+        {
+            try
+            {
+                int max_largo = await Longitud_Max_NIT_Facturacion(_context);
+                int min_largo = await Longitud_Min_NIT_Facturacion(_context);
+                int largo = nit.Trim().Length;
+                bool esValido = true;
+                string cadena = "";
+
+                // 1 CI - CEDULA DE IDENTIDAD
+                // 2 CEX - CEDULA DE IDENTIDAD DE EXTRANJERO
+                // 3 PAS - PASAPORTE
+                // 4 OD - OTRO DOCUMENTO DE IDENTIDAD
+                // 5 NIT - NUMERO DE IDENTIFICACION TRIBUTARIA
+
+                if (largo <= 0)
+                {
+                    cadena = "Debe ingresar un NIT/CI u otro documento de identidad válido.";
+                    esValido = false;
+                    return (esValido, cadena);
+                }
+
+                if (largo == 1 && nit != "0")
+                {
+                    cadena = "Si el NIT/CI u otro documento de identidad es de un solo dígito, debe ser: 0.";
+                    esValido = false;
+                    return (esValido, cadena);
+                }
+
+                if (largo > 1)
+                {
+                    // Si es CI o NIT, validar así
+                    if (tipo_doc_id == "1" || tipo_doc_id == "5")
+                    {
+                        if (!IsNumeric(nit))
+                        {
+                            cadena = "Debe ingresar un NIT/CI numérico.";
+                            esValido = false;
+                            return (esValido, cadena);
+                        }
+
+                        if (largo > max_largo)
+                        {
+                            cadena = "El NIT/CI debe ser un valor numérico de " + max_largo + " dígitos como máximo, verifique por favor.";
+                            esValido = false;
+                            return (esValido, cadena);
+                        }
+
+                        if (largo < max_largo && largo < min_largo)
+                        {
+                            cadena = "El NIT/CI debe ser un valor numérico de " + min_largo + " dígitos como mínimo y {max_largo} dígitos como máximo, verifique el NIT.";
+                            esValido = false;
+                            return (esValido, cadena);
+                        }
+                    }
+                    else
+                    {
+                        // Aquí sería para pasaporte, carnet extranjero y otros
+                        // 2 CEX - CEDULA DE IDENTIDAD DE EXTRANJERO
+                        // 3 PAS - PASAPORTE
+                        // 4 OD - OTRO DOCUMENTO DE IDENTIDAD
+                        cadena = "";
+                        esValido = true;
+                        return (esValido, cadena);
+                    }
+                }
+
+                // Todo está correcto
+                return (esValido, cadena);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return (false, "Error en la validación");
+            }
+        }
+
+        public async Task<int> Longitud_Max_NIT_Facturacion(DBContext _context)
+        {
+            int resultado = 13;
+            try
+            {
+                var parametro = await _context.adparametros.FirstOrDefaultAsync();
+                if (parametro != null)
+                {
+                    resultado = (int)parametro.longitud_maxima_nit_facturacion;
+                }
+            }
+            catch (Exception)
+            {
+                // Manejar excepción aquí si es necesario
+                throw;
+            }
+            return resultado;
+
+        }
+
+        public async Task<int> Longitud_Min_NIT_Facturacion(DBContext _context)
+        {
+            int resultado = 13;
+            try
+            {
+                var parametro = await _context.adparametros.FirstOrDefaultAsync();
+                if (parametro != null)
+                {
+                    resultado = (int)parametro.longitud_minima_nit_facturacion;
+                }
+            }
+            catch (Exception)
+            {
+                // Manejar excepción aquí si es necesario
+                throw;
+            }
+            return resultado;
+
+        }
+
+        public bool IsNumeric(string value)
+        {
+            double result;
+            return double.TryParse(value, out result);
+        }
     }
 
 

@@ -29,6 +29,7 @@ namespace siaw_funciones
         private Empresa empresa = new Empresa();
         private TipoCambio tipocambio = new TipoCambio();
         private Seguridad seguridad = new Seguridad();
+        private Configuracion configuracion = new Configuracion();
         public async Task<bool> Cliente_Tiene_Linea_De_Credito_Valida(DBContext _context, string codcliente)
         {
             try
@@ -554,6 +555,210 @@ namespace siaw_funciones
             }
             return resultado;
         }
+
+
+        public async Task<bool> ClienteEnMora(DBContext _context, string codcliente, string codempresa)
+        {
+            bool resultado = false;
+            int dias_limite_mora = await configuracion.dias_mora_limite(_context, codempresa);
+            double monto_minimo_mora = 0;
+            int nrocuentas_en_mora = 0;
+            string CodigosIguales = "";
+            string codigoPrincipal = await cliente.CodigoPrincipal(_context, codcliente);
+            CodigosIguales = await cliente.CodigosIguales(_context, codigoPrincipal);
+
+            try
+            {
+                //var notasPendientesPago = await _context.coplancuotas
+                //    .Where(c => CodigosIguales.Contains(c.cliente) && c.montopagado < c.monto)
+                //    .Join(_context.veremision, c => c.coddocumento, r => r.codigo, (c, r) => new { c, r })
+                //    .Join(_context.vecliente, x => x.c.cliente, p1 => p1.codigo, (x, p1) => new { x, p1 })
+                //    .GroupBy(grp => new { grp.x.r.codigo, grp.x.r.codalmacen, grp.x.r.codcliente, grp.x.r.id, grp.x.r.numeroid, grp.x.r.codmoneda, grp.x.r.total, grp.x.r.fecha })
+                //    .Select(grp => new
+                //    {
+                //        grp.Key.codigo,
+                //        grp.Key.codalmacen,
+                //        grp.Key.codcliente,
+                //        grp.Key.id,
+                //        grp.Key.numeroid,
+                //        grp.Key.codmoneda,
+                //        grp.Key.total,
+                //        grp.Key.fecha,
+                //        limite = grp.Max(x => x.x.c.vencimiento),
+                //        por_pagar = grp.Sum(x => x.x.c.monto - x.x.c.montopagado),
+                //        mora = (int)(DateTime.Now.Date - grp.Max(x => x.x.c.vencimiento.Date)).TotalDays
+                //        //mora = _context.coplancuotas.Any(c => c.coddocumento == grp.Key.codigo) ?
+                //        //(int)_context.coplancuotas.Max(c => DbFunctions.DiffDays(c.vencimiento, DateTime.Now)) : 0
+
+                //    }).ToListAsync();
+                var notasPendientesPago = await _context.coplancuotas
+                     .Where(c => CodigosIguales.Contains(c.cliente) && c.montopagado < c.monto)
+                     .Join(_context.veremision, c => c.coddocumento, r => r.codigo, (c, r) => new { c, r })
+                     .Join(_context.vecliente, x => x.c.cliente, p1 => p1.codigo, (x, p1) => new { x, p1 })
+                     .GroupBy(grp => new { grp.x.r.codigo, grp.x.r.codalmacen, grp.x.r.codcliente, grp.x.r.id, grp.x.r.numeroid, grp.x.r.codmoneda, grp.x.r.total, grp.x.r.fecha })
+                     .Select(grp => new
+                     {
+                         grp.Key.codigo,
+                         grp.Key.codalmacen,
+                         grp.Key.codcliente,
+                         grp.Key.id,
+                         grp.Key.numeroid,
+                         grp.Key.codmoneda,
+                         grp.Key.total,
+                         grp.Key.fecha,
+                         limite = grp.Max(x => x.x.c.vencimiento),
+                         por_pagar = grp.Sum(x => x.x.c.monto - x.x.c.montopagado),
+                         //mora = (int)_context.coplancuotas.Max(c => EF.Functions.DateDiffDay(c.vencimiento, DateTime.Now))
+                         //mora = grp.Max(x => (DateTime.Now - x.x.c.vencimiento).TotalDays)
+                         mora = grp.Max(x => (EF.Functions.DateDiffDay(x.x.c.vencimiento, DateTime.Now)))
+                     }).ToListAsync();
+
+                foreach (var nota in notasPendientesPago)
+                {
+                    int dias_extension = await _context.veppextension
+                        .Where(x => x.id == nota.id && x.numeroid == nota.numeroid)
+                        .SumAsync(x => (int?)x.dias) ?? 0;
+
+                    var mora_con_extension = nota.mora - dias_extension;
+
+                    if (mora_con_extension > dias_limite_mora)
+                    {
+                        monto_minimo_mora = (double)await configuracion.monto_maximo_mora_clientes(_context, codempresa, nota.codmoneda, nota.codalmacen);
+
+                        if (nota.por_pagar > (decimal)monto_minimo_mora)
+                        {
+                            nrocuentas_en_mora++;
+                        }
+                    }
+                }
+
+                if (nrocuentas_en_mora > 0)
+                {
+                    resultado = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                resultado = false;
+            }
+
+            return resultado;
+
+        }
+
+        public async Task<string> Cadena_Notas_De_Remision_En_Mora(DBContext _context, string codcliente, string codempresa)
+        {
+            string resultado = "";
+            string Cadena1 = "";
+            string Cadena2 = "";
+            int dias_limite_mora = await configuracion.dias_mora_limite(_context, codempresa);
+            decimal monto_minimo_mora = 0;
+            int nrocuentas_en_mora = 0;
+            string CodigosIguales = "";
+            string codigoPrincipal = "";
+
+            codigoPrincipal = await cliente.CodigoPrincipal(_context, codcliente);
+            CodigosIguales = await cliente.CodigosIguales(_context, codigoPrincipal);
+
+            try
+            {
+                //var notasConPendientesPago = (from c in _context.coplancuotas
+                //                              join r in _context.veremision on c.coddocumento equals r.codigo
+                //                              join p1 in _context.vecliente on c.cliente equals p1.codigo
+                //                              where CodigosIguales.Contains(c.cliente) && c.montopagado < c.monto
+                //                              group new { c, r } by new { r.codigo, r.codalmacen, r.codcliente, r.id, r.numeroid, r.codmoneda, r.total, r.fecha, c.nrocuota } into grp
+                //                              select new
+                //                              {
+                //                                  grp.Key.codigo,
+                //                                  grp.Key.codalmacen,
+                //                                  grp.Key.codcliente,
+                //                                  grp.Key.id,
+                //                                  grp.Key.numeroid,
+                //                                  grp.Key.codmoneda,
+                //                                  grp.Key.total,
+                //                                  grp.Key.fecha,
+                //                                  grp.Key.nrocuota,
+                //                                  limite = grp.Max(x => x.c.vencimiento),
+                //                                  por_pagar = grp.Sum(x => x.c.monto - x.c.montopagado),
+                //                                  mora = (DateTime.Now - grp.Max(x => x.c.vencimiento)).TotalDays
+                //                              }).ToList();
+                var notasConPendientesPago = await _context.coplancuotas
+                    .Join(_context.veremision, c => c.coddocumento, r => r.codigo, (c, r) => new { c, r })
+                    .Join(_context.vecliente, x => x.c.cliente, p1 => p1.codigo, (x, p1) => new { x, p1 })
+                    .Where(grp => CodigosIguales.Contains(grp.x.c.cliente) && grp.x.c.montopagado < grp.x.c.monto)
+                    .GroupBy(grp => new { grp.x.r.codigo, grp.x.r.codalmacen, grp.x.r.codcliente, grp.x.r.id, grp.x.r.numeroid, grp.x.r.codmoneda, grp.x.r.total, grp.x.r.fecha, grp.x.c.nrocuota })
+                    .Select(grp => new
+                    {
+                        grp.Key.codigo,
+                        grp.Key.codalmacen,
+                        grp.Key.codcliente,
+                        grp.Key.id,
+                        grp.Key.numeroid,
+                        grp.Key.codmoneda,
+                        grp.Key.total,
+                        grp.Key.fecha,
+                        grp.Key.nrocuota,
+                        limite = grp.Max(x => x.x.c.vencimiento),
+                        por_pagar = grp.Sum(x => x.x.c.monto - x.x.c.montopagado),
+                        //mora = grp.Max(x => (DateTime.Now - x.x.c.vencimiento).TotalDays)
+                        mora = grp.Max(x => (EF.Functions.DateDiffDay(x.x.c.vencimiento, DateTime.Now)))
+                    })
+                    .ToListAsync();
+
+                foreach (var nota in notasConPendientesPago)
+                {
+                    int dias_extension = await _context.veppextension
+                        .Where(x => x.id == nota.id && x.numeroid == nota.numeroid)
+                        .SumAsync(x => (int?)x.dias) ?? 0;
+
+                    var mora_con_extension = nota.mora - dias_extension;
+
+                    if (mora_con_extension > dias_limite_mora)
+                    {
+                        monto_minimo_mora = await configuracion.monto_maximo_mora_clientes(_context, codempresa, nota.codmoneda, nota.codalmacen);
+
+                        if (nota.por_pagar > monto_minimo_mora)
+                        {
+                            nrocuentas_en_mora++;
+                            Cadena2 += funciones.Rellenar(nota.codcliente, 12, " ", false);
+                            Cadena2 += "  " + funciones.Rellenar(nota.id + "-" + nota.numeroid, 20, " ", false);
+                            Cadena2 += "  " + funciones.Rellenar(nota.nrocuota.ToString(), 5, " ", false);
+                            Cadena2 += "  " + funciones.Rellenar(monto_minimo_mora.ToString() + " " + nota.codmoneda, 12, " ", false);
+                            Cadena2 += "  " + funciones.Rellenar(nota.por_pagar.ToString(), 12, " ", false) + "\n";
+                        }
+                    }
+                }
+
+                if (nrocuentas_en_mora > 0)
+                {
+                    Cadena1 = "---------------------------------------------------------------------------\n";
+                    Cadena1 += funciones.Rellenar("Cliente      Remision           Cuota   MontoMaxMora       PorPagar", 96, " ", false) + "\n";
+                    Cadena1 += "--------------------------------------------------------------------------\n";
+                    resultado += Cadena1 + Cadena2;
+                }
+            }
+            catch (Exception ex)
+            {
+                resultado = "";
+            }
+            return resultado;
+        }
+
+        public async Task<int> NroDeTiendas(DBContext _context, string codcliente)
+        {
+            int resultado = 0;
+            try
+            {
+                resultado = await _context.vetienda.CountAsync(v => v.codcliente == codcliente);
+            }
+            catch (Exception ex)
+            {
+                resultado = 0;
+            }
+            return resultado;
+        }
+
+
 
     }
 }

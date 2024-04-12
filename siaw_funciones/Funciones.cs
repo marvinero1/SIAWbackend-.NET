@@ -167,5 +167,25 @@ namespace siaw_funciones
             // Return the datatable
             return dataTable;
         }
+
+        public bool EsNumero(string cadena)
+        {
+            bool resultado = true;
+            cadena = cadena.Trim();
+            if (cadena == "")
+            {
+                resultado = false;
+            }
+            else
+            {
+                double valor;
+                if (!double.TryParse(cadena, out valor))
+                {
+                    resultado = false;
+                }
+            }
+            return resultado;
+        }
+
     }
 }

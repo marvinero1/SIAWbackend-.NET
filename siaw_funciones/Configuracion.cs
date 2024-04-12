@@ -11,7 +11,8 @@ namespace siaw_funciones
 {
     public class Configuracion
     {
-
+        private TipoCambio tipocambio= new TipoCambio();
+        private Funciones funciones= new Funciones();
         public async Task<int> emp_coddesextra_x_deposito(DBContext _context, string codempresa)
         {
             var result = await _context.adparametros
@@ -172,6 +173,89 @@ namespace siaw_funciones
             {
                 return "NN";
             }
+        }
+
+        public async Task<int> dias_mora_limite(DBContext _context, string codempresa)
+        {
+            try
+            {
+                int resultado = 0;
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var result = await _context.adparametros
+                    .Where(v => v.codempresa == codempresa)
+                    .Select(parametro => parametro.dias_mora_limite)
+                   .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = (int)result;
+                }
+                return resultado;
+                //}
+            }
+            catch (Exception)
+            {
+                return 3;
+            }
+        }
+
+        public async Task<double> monto_maximo_facturas_sin_nombre(DBContext _context, string codempresa)
+        {
+            try
+            {
+                int resultado = 0;
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var result = await _context.adparametros
+                    .Where(v => v.codempresa == codempresa)
+                    .Select(parametro => parametro.monto_maximo_facturas_sin_nombre)
+                   .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = (int)result;
+                }
+                return resultado;
+                //}
+            }
+            catch (Exception)
+            {
+                return 9999;
+            }
+        }
+
+        public async Task<decimal> monto_maximo_mora_clientes(DBContext _context, string codempresa, string moneda, int codalmacen)
+        {
+            decimal resultado = 3;
+            try
+            {
+                var parametros = _context.adparametros.FirstOrDefault(p => p.codempresa == codempresa);
+                if (parametros != null)
+                {
+                    if (string.IsNullOrWhiteSpace(parametros.codmoneda_monto_max_mora))
+                    {
+                        //MessageBox.Show("La moneda del monto máximo de mora permitido por cuota no está definida en los parámetros. Corrija esta situación.", "Validar Datos", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                        resultado = 100;
+                    }
+                    else
+                    {
+                        if (parametros.codmoneda_monto_max_mora == moneda)
+                        {
+                            resultado = (decimal)parametros.monto_maximo_mora;
+                        }
+                        else
+                        {
+                            resultado = await tipocambio._conversion_alm(_context, moneda, parametros.codmoneda_monto_max_mora, await funciones.FechaDelServidor(_context), (decimal)parametros.monto_maximo_mora, codalmacen);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                resultado = 1; // Indicar un error
+            }
+            return resultado;
         }
     }
 }

@@ -1854,5 +1854,30 @@ namespace siaw_funciones
             
         }
 
+        public async Task<int> NroDeTiendas(DBContext _context, string codcliente)
+        {
+            int resultado = 0;
+            try
+            {
+                resultado = await _context.vetienda.CountAsync(v => v.codcliente == codcliente);
+            }
+            catch (Exception ex)
+            {
+                resultado = 0;
+            }
+            return resultado;
+        }
+
+        public async Task<string> Maximo_Vta_Moneda(DBContext _context, string codcliente, string usuario, string codempresa)
+        {
+            var resultado = await _context.vecliente.Where(i => i.codigo == codcliente).Select(i => i.codmoneda_maximo_vta).FirstOrDefaultAsync() ?? "";
+            if (resultado == "")
+            {
+                resultado = await tipocambio.monedatdc(_context, usuario, codempresa);
+            }
+            return resultado;
+        }
+
+
     }
 }

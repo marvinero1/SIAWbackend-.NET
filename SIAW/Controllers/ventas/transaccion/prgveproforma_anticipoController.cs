@@ -17,6 +17,7 @@ namespace SIAW.Controllers.ventas.transaccion
         private readonly Ventas ventas = new Ventas();
         private readonly Cobranzas cobranzas = new Cobranzas();
         private readonly Cliente cliente = new Cliente();
+        private readonly Anticipos_Vta_Contado anticipos_vta_contado = new Anticipos_Vta_Contado();
         public prgveproforma_anticipoController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;
@@ -189,34 +190,52 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
-        private async Task<string> refrescar_anticipos_pendientes(DBContext _context, string codmoneda_proforma, DateTime fdesde, DateTime fhasta, string nit, string codclienteReal, List<tabla_veproformaAnticipo> tabla_veproformaAnticipo)
+
+
+        /// PESTAÑA NRO 2
+        [Authorize]
+        [HttpPut]
+        [Route("btnrefrescar_Anticipos/{userConn}/{codcliente}/{fdesde}/{fhasta}/{nit}/{codclienteReal}/{codigoempresa}")]
+        public async Task<ActionResult<IEnumerable<tabla_anticipos_pendientes>>> btnrefrescar_Anticipos(string userConn, string codcliente, DateTime fdesde, DateTime fhasta, string nit, string codclienteReal, string codigoempresa)
         {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var resultados = await refrescatabla_anticipos_pendientesr_anticipos_pendientes(_context, codcliente, fdesde, fhasta, nit, codclienteReal, codigoempresa);
+                    if (resultados.tabla_anticipos_pendientes == null)
+                    {
+                        return BadRequest(new { resp = resultados.mensaje });
+                    }
+                    return Ok (resultados.tabla_anticipos_pendientes);
+                }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+            }
+        }
+
+        private async Task<(List<tabla_anticipos_pendientes> ? tabla_anticipos_pendientes, string mensaje)> refrescatabla_anticipos_pendientesr_anticipos_pendientes(DBContext _context, string codcliente, DateTime fdesde, DateTime fhasta, string nit, string codclienteReal, string codigoempresa)
+        {
+            // List<tabla_veproformaAnticipo> tabla_veproformaAnticipo
             var valida = validar_refrescar(fdesde, fhasta, nit, codclienteReal);
             if (!valida.bandera)
             {
-                return valida.mensaje;
+                return (null, valida.mensaje);
             }
             //est primera ves se obtiene los datos para actualizar los saldos de los anticipos
 
+            var tabla_veproformaAnticipo = await buscar_anticipos_pendientes(_context, fdesde, fhasta, nit, codcliente);
+            await Actualizar_Restantes(_context, codigoempresa, tabla_veproformaAnticipo);
 
-            double resultado = 0;
-            foreach (var reg in tabla_veproformaAnticipo)
-            {
-                if (reg.monto != null)
-                {
-                    // Desde 14/12/2023 realizar la conversion del monto asignado segun la moneda del anticipo y proforma
-                    if (reg.codmoneda == codmoneda_proforma)
-                    {
-                        resultado += reg.monto;
-                    }
-                    else
-                    {
-                        resultado += (double)(await tipoCambio._conversion(_context, codmoneda_proforma, reg.codmoneda, DateTime.Now, (decimal)(reg.monto)));
-                    }
-                    resultado = Math.Round(resultado, 2);
-                }
-            }
-            return resultado;
+            //esta segunda vez se obtiene para mostrar los anticipos pendientes con sus saldos restantes correctos
+            tabla_veproformaAnticipo = await buscar_anticipos_pendientes(_context, fdesde, fhasta, nit, codcliente);
+
+            return (tabla_veproformaAnticipo, "");
         }
 
         private (bool bandera, string mensaje) validar_refrescar(DateTime fdesde, DateTime fhasta, string nit, string codclienteReal)
@@ -237,7 +256,7 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
 
-        private async Task<object> buscar_anticipos_pendientes(DBContext _context,DateTime fdesde, DateTime fhasta, string nit, string codcliente)
+        private async Task<List<tabla_anticipos_pendientes>> buscar_anticipos_pendientes(DBContext _context,DateTime fdesde, DateTime fhasta, string nit, string codcliente)
         {
             var resultado = await _context.coanticipo
                 .Where(p1 => p1.anulado == false &&
@@ -245,28 +264,28 @@ namespace SIAW.Controllers.ventas.transaccion
                               p1.fecha <= fhasta &&
                               p1.codcliente == codcliente)
                 .OrderByDescending(p => p.fecha)
-                .Select(p1 => new
+                .Select(p1 => new tabla_anticipos_pendientes
                 {
                     codanticipo = p1.codigo,
-                    p1.id,
-                    p1.numeroid,
+                    id = p1.id,
+                    numeroid = p1.numeroid,
                     docanticipo = p1.id + "-" + p1.numeroid,
-                    p1.codcliente,
-                    p1.codvendedor,
-                    p1.codcliente_real,
-                    p1.nit,
-                    p1.nomcliente_nit,
-                    p1.fecha,
-                    p1.monto,
-                    p1.montorest,
-                    p1.codmoneda,
-                    p1.anulado,
+                    codcliente = p1.codcliente,
+                    codvendedor = p1.codvendedor,
+                    codcliente_real = p1.codcliente_real,
+                    nit = p1.nit,
+                    nomcliente_nit = p1.nomcliente_nit,
+                    fecha = p1.fecha,
+                    monto = p1.monto,
+                    montorest = p1.montorest,
+                    codmoneda = p1.codmoneda,
+                    anulado = p1.anulado,
                     desc_anulado = p1.anulado ? "Si": "No",
-                    p1.para_venta_contado,
+                    para_venta_contado = p1.para_venta_contado,
                     pvc = (p1.para_venta_contado ?? false) ? "Si": "No",
-                    p1.fechareg,
-                    p1.horareg,
-                    p1.usuarioreg
+                    fechareg = p1.fechareg,
+                    horareg = p1.horareg,
+                    usuarioreg = p1.usuarioreg
                 }).ToListAsync();
 
             // Desde 05/12/2023 no validar que el cliente sea sin nombre sino que valide que si los codigos son diferentes entonces que busque ademas por NIT
@@ -275,6 +294,15 @@ namespace SIAW.Controllers.ventas.transaccion
                 resultado = resultado.Where(i => i.nit == nit).ToList();
             }
             return resultado;
+        }
+
+
+        private async Task Actualizar_Restantes(DBContext _context, string codigoempresa, List<tabla_anticipos_pendientes> tabla_anticipos_pendientes)
+        {
+            foreach (var reg in tabla_anticipos_pendientes)
+            {
+                await anticipos_vta_contado.ActualizarMontoRestAnticipo(_context, reg.id, reg.numeroid, 0, reg.codanticipo, 0, codigoempresa);
+            }
         }
 
     }
@@ -297,4 +325,34 @@ namespace SIAW.Controllers.ventas.transaccion
         public string horareg { get; set; }
         public string codvendedor { get; set; }
     }
+
+
+    public class tabla_anticipos_pendientes
+    {
+        public int codanticipo { get; set; }
+        public string id { get; set; }
+        public int numeroid { get; set; }
+
+        public string docanticipo { get; set; }
+        public string codcliente { get; set; }
+
+        public int codvendedor { get; set; }
+        public string codcliente_real { get; set; }
+        public string nit { get; set; }
+        public string nomcliente_nit { get; set; }
+        public DateTime fecha { get; set; }
+        public decimal ? monto { get; set; }
+        public decimal ? montorest { get; set; }
+
+        public string codmoneda { get; set; }
+        public bool anulado { get; set; }
+        public string desc_anulado { get; set; }
+        public bool ? para_venta_contado { get; set; }
+
+        public string pvc { get; set; }
+        public DateTime fechareg { get; set; }
+        public string horareg { get; set; }
+        public string usuarioreg { get; set; }
+    }
+
 }

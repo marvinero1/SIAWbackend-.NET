@@ -22,6 +22,63 @@ namespace siaw_funciones
                 return new DBContext(optionsBuilder.Options);
             }
         }
+        public async Task<bool> periodo_fechaabierta_context(DBContext _context, DateTime fecha, int modulo)
+        {
+            /*
+            'detalle de modulos
+            '1 : administracion
+            '2 : inventario
+            '3 : ventas
+            '4 : cuentas por cobrar
+            '5 : contabilidad
+            '6 : activos fijos
+            '7 : costo y costeo
+            '8 : compras y ctas por pagar
+            '9 : personal y planillas
+            '10: seguridad
+            '11: compras menores
+            '12: fondos
+            */
+
+            bool resultado = await periodo_abierto_context(_context, fecha.Year, fecha.Month, modulo);
+
+            return resultado;
+        }
+
+        public async Task<bool> periodo_abierto_context(DBContext _context, int anio, int mes, int modulo)
+        {
+            /*
+            'detalle de modulos
+            '1 : administracion
+            '2 : inventario
+            '3 : ventas
+            '4 : cuentas por cobrar
+            '5 : contabilidad
+            '6 : activos fijos
+            '7 : costo y costeo
+            '8 : compras y ctas por pagar
+            '9 : personal y planillas
+            '10: seguridad
+            '11: compras menores
+            '12: fondos
+            */
+
+            var count = await _context.adapertura1
+                    .Join(
+                        _context.adapertura,
+                        a1 => a1.codigo,
+                        a => a.codigo,
+                        (a1, a) => new { a1, a }
+                    )
+                    .Where(joined => joined.a.mes == mes && joined.a.ano == anio && joined.a1.sistema == modulo)
+                    .CountAsync();
+
+            if (count > 0)
+            {
+                return false;   // si hay registro quiere decir que esta cerrado
+            }
+            return true;   // esta abierto no hay registro
+        }
 
         public async Task<bool> periodo_fechaabierta(string userConnectionString, DateTime fecha, int modulo)
         {
