@@ -78,7 +78,7 @@ namespace siaw_funciones
                     objdatos_dep.idcbza = reg.idcbza;
                     objdatos_dep.nroidcbza = reg.nroidcbza;
                     objdatos_dep.codcliente = reg.cliente;
-                    objdatos_dep.cod_cbza = reg.codcobranza;
+                    objdatos_dep.cod_cbza = reg.codcobranza ?? 0;
                     objdatos_dep.cod_cbza_contado = 0;
                     objdatos_dep.cod_anticipo = 0;
                     objdatos_dep.codproforma = 0;

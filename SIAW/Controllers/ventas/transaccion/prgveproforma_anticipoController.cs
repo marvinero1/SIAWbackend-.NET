@@ -63,7 +63,6 @@ namespace SIAW.Controllers.ventas.transaccion
             {
                 return Problem("Error en el servidor");
             }
-
         }
 
         // GET: api/vedesextra

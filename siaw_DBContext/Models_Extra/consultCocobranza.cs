@@ -56,7 +56,7 @@ namespace siaw_DBContext.Models_Extra
     public class dtdepositos_pendientes
     {
         public string cliente { get; set; }
-        public int codcobranza { get; set; }
+        public int ? codcobranza { get; set; }
         public string idcbza { get; set; }
         public int nroidcbza { get; set; }
         public string iddeposito { get; set; }

@@ -37,6 +37,9 @@ namespace siaw_funciones
         private readonly Cliente cliente = new Cliente();
         private readonly TipoCambio tipocambio = new TipoCambio();
         private Funciones funciones = new Funciones();
+        private readonly Nombres nombres = new Nombres();
+        private readonly Empresa empresa = new Empresa();
+        private readonly SIAT siat = new SIAT();
         //private readonly IDepositosCliente depositos_cliente;
 
         private const int CODDESEXTRA_PROMOCION = 10;
@@ -922,14 +925,831 @@ namespace siaw_funciones
         }
 
 
-        public async Task<bool> AdicionarDescuentoPorDeposito(DBContext _context, double subtotal_proforma, string codmoneda_prof, List<tabladescuentos> tabladescuentos, List<dtdepositos_pendientes> dt_depositos_pendientes, List<tblcbza_deposito> tblcbza_deposito, int codproforma, string codcliente, string codempresa)
+        public async Task<(bool, string)> AdicionarDescuentoPorDeposito(DBContext _context, double subtotal_proforma, string codmoneda_prof, List<tabladescuentos> tabladescuentos, List<dtdepositos_pendientes> dt_depositos_pendientes, List<tblcbza_deposito> tblcbza_deposito, int codproforma, string codcliente, string codempresa)
         {
             // codproforma debe ser 0 si no hay proforma.
 
             bool resultado = false;
 
             //verifica si el descuento por desposito esta habilitado
-            return resultado;
+            if (!await configuracion.emp_hab_descto_x_deposito(_context, codempresa))
+            {
+                return (false,"");
+            }
+
+            int coddesextra = await configuracion.emp_coddesextra_x_deposito(_context, codempresa);
+            if (coddesextra <= 0)
+            {
+                return (false, "La aplicacion del descuento por deposito esta habilitado, sin embargo no se ha definido cual es el descuento por deposito.");
+            }
+
+            // obtener el porcentaje limite del subtotal de la proforma(hasta el cual se puede aplicar descuento por deposito)
+            // Dim porcen_limite_descto As Double = sia_funciones.Ventas.Instancia.Porcentaje_Limite_Descuento_Deposito(subtotal_proforma)
+            // desde 28-09-2021 (se configura por cliente el descto maximo de deposito)
+            double porcen_limite_descto = await Porcentaje_Limite_Descuento_Deposito_Cliente(_context, codcliente);
+            if (porcen_limite_descto == 0)
+            {
+                return (false, "El porcentaje limite del subtotal de la proforma definido hasta el cual se puede aplicar el descuento por deposito es cero, por tanto no se puede aplicar el descuento por deposito, verifique esta situacion en el perfil de datos del cliente.");
+            }
+
+            // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            // Aplicacion del descuento por deposito segun especificaciones de la politica
+            // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            // 1° primero borrar los descuentos por deposito que haya en la tabla para aplicarlos de nuevo si corresponde
+            // para no duplicar
+            tabladescuentos = tabladescuentos.Where(i => i.coddesextra != coddesextra).ToList();
+
+
+            // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            // 2° Buscar en la tabla de depositos pendientes de aplicacion y añadirlos a la tabla de descuentos
+            // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            double Porcen_Descto = (double)await DescuentoExtra_Porcentaje(_context, coddesextra);
+            int nro = 0;
+            foreach (var reg in dt_depositos_pendientes)
+            {
+                double monto_descto = 0;
+                // verificar si ya esta asignado el descuento por deposito para la cbza indicada
+                // solo se añade un descuento por deposito por cada cbza
+                if (reg.codcobranza == null)
+                {
+                    reg.codcobranza = 0;
+                }
+
+                var verifica = await Verificar_Si_CodCbza_Ya_Esta(_context, tabladescuentos, reg.codcobranza ?? 0, reg.tipo_pago);
+                // si el mensaje de verifica no es vacio se debe devolver mas adelante
+                if (verifica.bandera)
+                {
+                    if (reg.tipo_pago == "es_cbza_credito")
+                    {
+                        // **************SI ES UN DESCTO DE CBZA CREDITO
+                        foreach (var k in tabladescuentos)
+                        {
+                            if (k.codcobranza == reg.codcobranza)
+                            {
+                                // si es un deposito ya grabado en cocobranza
+                                // como descuento por deposito con saldo pendiente de aplicacion
+                                // entonces de toma la totalidad del monto
+                                if (reg.tipo == 0)
+                                {
+                                    monto_descto = (double)reg.monto_dis;
+                                }
+                                else
+                                {
+                                    monto_descto = Porcen_Descto * 0.01 * (double)reg.monto_dis;
+                                    monto_descto = Math.Round(monto_descto, 2);
+                                }
+                                k.total_dist += (double)reg.monto_dis;
+                                k.total_desc += monto_descto;
+                                k.montodoc += (decimal)monto_descto;
+                                k.montorest += (double)k.total_desc - (double)k.montodoc;
+                            }
+                        }
+
+                    }
+                    else if (reg.tipo_pago == "es_cbza_contado")
+                    {
+                        // **************SI ES UN DESCTO DE CBZA CONTADO
+                        foreach (var k in tabladescuentos)
+                        {
+                            if (k.codcobranza_contado == reg.codcobranza)
+                            {
+                                // si es un deposito ya grabado en cocobranza
+                                // como descuento por deposito con saldo pendiente de aplicacion
+                                // entonces de toma la totalidad del monto
+                                if (reg.tipo == 0)
+                                {
+                                    monto_descto = (double)reg.monto_dis;
+                                }
+                                else
+                                {
+                                    monto_descto = Porcen_Descto * 0.01 * (double)reg.monto_dis;
+                                    monto_descto = Math.Round(monto_descto, 2);
+                                }
+                                k.total_dist += (double)reg.monto_dis;
+                                k.total_desc += monto_descto;
+                                k.montodoc += (decimal)monto_descto;
+                                k.montorest += (double)k.total_desc - (double)k.montodoc;
+                            }
+                        }
+                    }
+                    else if (reg.tipo_pago == "es_anticipo_contado")
+                    {
+                        // **************SI ANTICIPO APLICADO A PROFORMA
+                        foreach (var k in tabladescuentos)
+                        {
+                            if (k.codanticipo == reg.codcobranza)
+                            {
+                                // si es un anticipo aplicado a proforma
+                                // como descuento por deposito con saldo pendiente de aplicacion
+                                // entonces de toma la totalidad del monto
+                                if (reg.tipo == 0)
+                                {
+                                    monto_descto = (double)reg.monto_dis;
+                                }
+                                else
+                                {
+                                    monto_descto = Porcen_Descto * 0.01 * (double)reg.monto_dis;
+                                    monto_descto = Math.Round(monto_descto, 2);
+                                }
+                                k.total_dist += (double)reg.monto_dis;
+                                k.total_desc += monto_descto;
+                                k.montodoc += (decimal)monto_descto;
+                                k.montorest += (double)k.total_desc - (double)k.montodoc;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    tabladescuentos dr = new tabladescuentos();
+                    dr.coddesextra = coddesextra;
+                    dr.descrip = await nombres.nombredesextra(_context, coddesextra);
+                    // tipo=0 si es un deposito ya grabado en cocobranza
+                    // como descuento por deposito con saldo pendiente de aplicacion
+                    // entonces de toma la totalidad del monto
+                    if (reg.tipo_pago == "es_cbza_credito")
+                    {
+                        if (reg.tipo == 0)
+                        {
+                            // es saldo restante de descto, por eso el monto del descuento es el 100 
+                            dr.porcen = 100;
+                            monto_descto = (double)reg.monto_dis;
+                            dr.total_desc = monto_descto;
+                            dr.montodoc = (decimal)monto_descto;
+                        }else if(reg.tipo == 1)
+                        {
+                            // es deposito nuevo
+                            dr.porcen = (decimal)Porcen_Descto;
+                            monto_descto = (double)dr.porcen * 0.01 * (double)reg.monto_dis;
+                            monto_descto = Math.Round(monto_descto, 2);
+                            dr.total_desc = monto_descto;
+                            dr.montodoc = (decimal)monto_descto;
+                        }
+                        else
+                        {
+                            //es deposito nuevo
+                            dr.porcen = (decimal)Porcen_Descto;
+                            monto_descto = (double)dr.porcen * 0.01 * (double)reg.monto_dis;
+                            monto_descto = Math.Round(monto_descto, 2);
+                            dr.total_desc = monto_descto;
+                            dr.montodoc = (decimal)monto_descto;
+                        }
+                        // si es deposito de cobranza al credito
+                        dr.codcobranza = reg.codcobranza;
+                        dr.codcobranza_contado = 0;
+                        dr.codanticipo = 0;
+
+                        dr.total_dist = (double)reg.monto_dis;
+                        dr.montorest = dr.total_desc - (double)dr.montodoc;
+                        // Desde 17-04-2023 ya no toma la moneda de moncbza sino de monpago
+                        dr.codmoneda = reg.moncbza;
+                        // dr("codmoneda") = reg("monpago")
+                    }
+                    else if(reg.tipo_pago == "es_cbza_contado")
+                    {
+                        if (reg.tipo == 0)
+                        {
+                            // es saldo restante de descto, por eso el monto del descuento es el 100 
+                            dr.porcen = 100;
+                            monto_descto = (double)reg.monto_dis;
+                            dr.total_desc = monto_descto;
+                            dr.montodoc = (decimal)monto_descto;
+                        }
+                        else if (reg.tipo == 1)
+                        {
+                            // es deposito nuevo
+                            dr.porcen = (decimal)Porcen_Descto;
+                            monto_descto = (double)dr.porcen * 0.01 * (double)reg.monto_dis;
+                            monto_descto = Math.Round(monto_descto, 2);
+                            dr.total_desc = monto_descto;
+                            dr.montodoc = (decimal)monto_descto;
+                        }
+                        else
+                        {
+                            //es deposito nuevo
+                            dr.porcen = (decimal)Porcen_Descto;
+                            monto_descto = (double)dr.porcen * 0.01 * (double)reg.monto_dis;
+                            monto_descto = Math.Round(monto_descto, 2);
+                            dr.total_desc = monto_descto;
+                            dr.montodoc = (decimal)monto_descto;
+                        }
+                        // si es cobranza contado
+                        dr.codcobranza = 0;
+                        dr.codcobranza_contado = reg.codcobranza;
+                        dr.codanticipo = 0;
+
+                        dr.total_dist = (double)reg.monto_dis;
+                        dr.montorest = dr.total_desc - (double)dr.montodoc;
+                        // Desde 17-04-2023 ya no toma la moneda de moncbza sino de monpago
+                        dr.codmoneda = reg.moncbza;
+                        // dr("codmoneda") = reg("monpago")
+                    }
+                    else if(reg.tipo_pago == "es_anticipo_contado")
+                    {
+                        if (reg.tipo == 0)
+                        {
+                            // es saldo restante de descto, por eso el monto del descuento es el 100 
+                            dr.porcen = 100;
+                            monto_descto = (double)reg.monto_dis;
+                            dr.total_desc = monto_descto;
+                            dr.montodoc = (decimal)monto_descto;
+                        }
+                        else if (reg.tipo == 1)
+                        {
+                            // es deposito nuevo
+                            dr.porcen = (decimal)Porcen_Descto;
+                            monto_descto = (double)dr.porcen * 0.01 * (double)reg.monto_dis;
+                            monto_descto = Math.Round(monto_descto, 2);
+                            dr.total_desc = monto_descto;
+                            dr.montodoc = (decimal)monto_descto;
+                        }
+                        else
+                        {
+                            //es deposito nuevo
+                            dr.porcen = (decimal)Porcen_Descto;
+                            monto_descto = (double)dr.porcen * 0.01 * (double)reg.monto_dis;
+                            monto_descto = Math.Round(monto_descto, 2);
+                            dr.total_desc = monto_descto;
+                            dr.montodoc = (decimal)monto_descto;
+                        }
+                        // si es cobranza contado
+                        dr.codcobranza = 0;
+                        dr.codcobranza_contado = 0;
+                        dr.codanticipo = reg.codcobranza;
+
+                        dr.total_dist = (double)reg.monto_dis;
+                        dr.montorest = dr.total_desc - (double)dr.montodoc;
+                        // Desde 17-04-2023 ya no toma la moneda de moncbza sino de monpago
+                        dr.codmoneda = reg.moncbza;
+                        // dr("codmoneda") = reg("monpago")
+                    }
+
+                    tabladescuentos.Add(dr);
+                    nro += 1;
+                }
+            }
+
+            // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            // 3° verificar que el monto del descuento no supere el 10% o el limite definido del subtotal de la proforma
+            // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            // verificar si hay descuentos por depositos 
+            // que estan demas, es decir que su monto de descto supera el 10%  del subtotal(el monto limite de descuento)
+
+            double tot_descto_deposito = 0;
+            double limite_descuento_deposito = subtotal_proforma * porcen_limite_descto * 0.01;
+            limite_descuento_deposito = Math.Round(limite_descuento_deposito, 2);
+            double diferencia = 0;
+
+            List<tabladescuentos> tabladescuentos_aux = new List<tabladescuentos>();
+            string monedae = await empresa.monedaext(_context, codempresa);
+            DateTime fecha = await funciones.FechaDelServidor(_context);
+
+            foreach (var reg in tabladescuentos)
+            {
+                if (reg.coddesextra == coddesextra)
+                {
+                    // si es descto por deposito, solo copiar los necesarios
+                    if (codmoneda_prof == reg.codmoneda)
+                    {
+                        // si la moneda de la pf es igual a la moneda del descuento por deposito no convertir
+                        if (tot_descto_deposito == 0)
+                        {
+                            if ((tot_descto_deposito + (double)reg.montodoc) >= limite_descuento_deposito)
+                            {
+                                // si el acumulado mas el nuevo descuento ya supera el 10% ya no se lo toma en cuenta
+                                tabladescuentos_aux.Add(reg);
+                                tot_descto_deposito += (double)reg.montodoc;
+                                break;
+                            }
+                            else
+                            {
+                                // si no supera se lo toma en cuenta
+                                tabladescuentos_aux.Add(reg);
+                                tot_descto_deposito += (double)reg.montodoc;
+                            }
+                        }
+                        else
+                        {
+                            if ((tot_descto_deposito + (double)reg.montodoc) >= limite_descuento_deposito)
+                            {
+                                // si el acumulado mas el nuevo descuento ya supera el 10% ya no se lo toma en cuenta
+                                tabladescuentos_aux.Add(reg);
+                                tot_descto_deposito += (double)reg.montodoc;
+                                break;
+                            }
+                            else
+                            {
+                                // si no supera se lo toma en cuenta
+                                tabladescuentos_aux.Add(reg);
+                                tot_descto_deposito += (double)reg.montodoc;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // si la moneda de la pf esta en BS y el descuento en US, entonces convertir el descuento en BS
+                        if ("BS" == codmoneda_prof && "US" == reg.codmoneda)
+                        {
+                            if (tot_descto_deposito == 0)
+                            {
+                                if ((tot_descto_deposito + (double)await tipocambio._conversion(_context,codmoneda_prof, reg.codmoneda, fecha,reg.montodoc) >= limite_descuento_deposito))
+                                {
+                                    // si el acumulado mas el nuevo descuento ya supera el 10% ya no se lo toma en cuenta
+                                    tabladescuentos_aux.Add(reg);
+                                    tot_descto_deposito += (double)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, reg.montodoc);
+                                    break;
+                                }
+                                else
+                                {
+                                    // si no supera se lo toma en cuenta
+                                    tabladescuentos_aux.Add(reg);
+                                    tot_descto_deposito += (double)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, reg.montodoc);
+                                }
+                            }
+                            else
+                            {
+                                if ((tot_descto_deposito + (double)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, reg.montodoc) >= limite_descuento_deposito))
+                                {
+                                    // si el acumulado mas el nuevo descuento ya supera el 10% ya no se lo toma en cuenta
+                                    tabladescuentos_aux.Add(reg);
+                                    tot_descto_deposito += (double)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, reg.montodoc);
+                                    break;
+                                }
+                                else
+                                {
+                                    // si no supera se lo toma en cuenta
+                                    tabladescuentos_aux.Add(reg);
+                                    tot_descto_deposito += (double)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, reg.montodoc);
+                                }
+                            }
+                        }
+                        // si la moneda de la pf esta en US y el descuento en BS, entonces convertir el descuento en US
+                        if ("US" == codmoneda_prof && "BS" == reg.codmoneda)
+                        {
+                            if (tot_descto_deposito == 0)
+                            {
+                                if ((tot_descto_deposito + (double)await tipocambio._conversion(_context,codmoneda_prof,reg.codmoneda,fecha,reg.montodoc)) >= limite_descuento_deposito)
+                                {
+                                    // si el acumulado mas el nuevo descuento ya supera el 10% ya no se lo toma en cuenta
+                                    tabladescuentos_aux.Add(reg);
+                                    tot_descto_deposito += (double)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, reg.montodoc);
+                                    break;
+                                }
+                                else
+                                {
+                                    // si no supera se lo toma en cuenta
+                                    tabladescuentos_aux.Add(reg);
+                                    tot_descto_deposito += (double)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, reg.montodoc);
+                                }
+                            }
+                            else
+                            {
+                                if ((tot_descto_deposito + (double)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, reg.montodoc)) >= limite_descuento_deposito)
+                                {
+                                    // si el acumulado mas el nuevo descuento ya supera el 10% ya no se lo toma en cuenta
+                                    tabladescuentos_aux.Add(reg);
+                                    tot_descto_deposito += (double)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, reg.montodoc);
+                                    break;
+                                }
+                                else
+                                {
+                                    // si no supera se lo toma en cuenta
+                                    tabladescuentos_aux.Add(reg);
+                                    tot_descto_deposito += (double)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, reg.montodoc);
+                                }
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    tabladescuentos_aux.Add(reg);
+                }
+            }
+
+            tabladescuentos.Clear();
+            tabladescuentos = tabladescuentos_aux;
+
+
+
+            // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            // Totalizar el descuento por deposito
+            // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            tot_descto_deposito = 0;
+            foreach (var reg in tabladescuentos)
+            {
+                if (reg.coddesextra == coddesextra)
+                {
+                    if (codmoneda_prof == reg.codmoneda)
+                    {
+                        tot_descto_deposito += (double)reg.montodoc;
+                    }
+                    else
+                    {
+                        // si la moneda de la pf esta en BS y el descuento en US, entonces convertir el descuento en BS
+                        if ("BS" == codmoneda_prof && "US" == reg.codmoneda)
+                        {
+                            tot_descto_deposito += (double)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, reg.montodoc);
+                        }
+                        // si la moneda de la pf esta en US y el descuento en BS, entonces convertir el descuento en US
+                        if ("US" == codmoneda_prof && "BS" == reg.codmoneda)
+                        {
+                            // convertir el descuento que esta en US a BS
+                            tot_descto_deposito += (double)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, reg.montodoc);
+                        }
+                    }
+                    // tot_descto_deposito += reg("montodoc")
+                }
+            }
+            tot_descto_deposito = Math.Round(tot_descto_deposito, 2);
+
+            // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            // Realizar el ajuste del total del descuento para que no supere el 10%
+            // el ajuste se realiza solo en la cbza que ocaciona que el descuento se exceda
+            // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            tblcbza_deposito.Clear();
+            if (tot_descto_deposito > limite_descuento_deposito)
+            {
+                diferencia = tot_descto_deposito - limite_descuento_deposito;
+                diferencia = Math.Round(diferencia, 2);
+                tot_descto_deposito = 0;
+                foreach (var reg in tabladescuentos)
+                {
+                    if (reg.coddesextra == coddesextra)
+                    {
+                        if (codmoneda_prof == reg.codmoneda)
+                        {
+                            if (tot_descto_deposito == 0)
+                            {
+                                if ((double)reg.montodoc > limite_descuento_deposito)
+                                {
+                                    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                                    // Relizar el ajuste
+                                    reg.montodoc -= (decimal)diferencia;
+                                    reg.montorest = reg.total_desc - (double)reg.montodoc;
+                                    tot_descto_deposito += (double)reg.montodoc;
+                                    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+                                    /*
+                                    ''//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                                    ''//añadir la cbza-deposito a la tabla cocobranza_deposito
+                                    'Dim dr As DataRow
+                                    'dr = tblcbza_deposito.NewRow
+                                    'dr("codproforma") = codproforma
+                                    'dr("codcobranza") = reg("codcobranza")
+                                    'dr("montodist") = reg("total_dist")
+                                    'dr("montodescto") = reg("montodoc")
+                                    'dr("montorest") = reg("montodoc") - limite_descuento_deposito
+                                    'tblcbza_deposito.Rows.Add(dr)
+                                    ''//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ 
+                                     */
+                                }
+                                else
+                                {
+                                    tot_descto_deposito += (double)reg.montodoc;
+                                }
+                            }
+                            else
+                            {
+                                if ((tot_descto_deposito + (double)reg.montodoc) > limite_descuento_deposito)
+                                {
+                                    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                                    // Relizar el ajuste
+                                    reg.montodoc -= (decimal)diferencia;
+                                    reg.montorest = reg.total_desc - (double)reg.montodoc;
+                                    tot_descto_deposito += (double)reg.montodoc;
+                                    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+                                    /*
+                                    ''//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                                    ''//añadir la cbza-deposito a la tabla cocobranza_deposito
+                                    'Dim dr As DataRow
+                                    'dr = tblcbza_deposito.NewRow
+                                    'dr("codproforma") = codproforma
+                                    'dr("codcobranza") = reg("codcobranza")
+                                    'dr("montodist") = reg("total_dist")
+                                    'dr("montodescto") = reg("montodoc")
+                                    'dr("montorest") = reg("montodoc") - limite_descuento_deposito
+                                    'tblcbza_deposito.Rows.Add(dr)
+                                    ''//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ 
+                                     */
+                                    break;
+                                }
+                                else
+                                {
+                                    tot_descto_deposito += (double)reg.montodoc;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            if (codmoneda_prof == "BS" && reg.codmoneda == "BS")
+                            {
+                                if (tot_descto_deposito == 0)
+                                {
+                                    if ((double)reg.montodoc > limite_descuento_deposito)
+                                    {
+                                        // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                                        // Relizar el ajuste
+                                        reg.montodoc -= (decimal)diferencia;
+                                        reg.montorest = reg.total_desc - (double)reg.montodoc;
+                                        tot_descto_deposito += (double)reg.montodoc;
+                                        // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+                                        /*
+                                        ''//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                                        ''//añadir la cbza-deposito a la tabla cocobranza_deposito
+                                        'Dim dr As DataRow
+                                        'dr = tblcbza_deposito.NewRow
+                                        'dr("codproforma") = codproforma
+                                        'dr("codcobranza") = reg("codcobranza")
+                                        'dr("montodist") = reg("total_dist")
+                                        'dr("montodescto") = reg("montodoc")
+                                        'dr("montorest") = reg("montodoc") - limite_descuento_deposito
+                                        'tblcbza_deposito.Rows.Add(dr)
+                                        ''//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ 
+                                         */
+                                    }
+                                    else
+                                    {
+                                        tot_descto_deposito += (double)reg.montodoc;
+                                    }
+                                }
+                                else
+                                {
+                                    if ((tot_descto_deposito + (double)reg.montodoc) > limite_descuento_deposito)
+                                    {
+                                        // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                                        // Relizar el ajuste
+                                        reg.montodoc -= (decimal)diferencia;
+                                        reg.montorest = reg.total_desc - (double)reg.montodoc;
+                                        tot_descto_deposito += (double)reg.montodoc;
+                                        // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+                                        /*
+                                        ''//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                                        ''//añadir la cbza-deposito a la tabla cocobranza_deposito
+                                        'Dim dr As DataRow
+                                        'dr = tblcbza_deposito.NewRow
+                                        'dr("codproforma") = codproforma
+                                        'dr("codcobranza") = reg("codcobranza")
+                                        'dr("montodist") = reg("total_dist")
+                                        'dr("montodescto") = reg("montodoc")
+                                        'dr("montorest") = reg("montodoc") - limite_descuento_deposito
+                                        'tblcbza_deposito.Rows.Add(dr)
+                                        ''//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ 
+                                         */
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        tot_descto_deposito += (double)reg.montodoc;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                if (tot_descto_deposito == 0)
+                                {
+                                    if ((double)await tipocambio._conversion(_context,codmoneda_prof,reg.codmoneda,fecha,reg.montodoc) > limite_descuento_deposito)
+                                    {
+                                        // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                                        // Relizar el ajuste
+                                        // reg("montodoc") = sia_funciones.TipoCambio.Instancia.conversion(codmoneda_prof, reg("codmoneda"), fecha, reg("montodoc"))
+                                        reg.montodoc -= await tipocambio._conversion(_context, reg.codmoneda, codmoneda_prof, fecha, (decimal)diferencia);
+                                        // reg("montorest") = sia_funciones.TipoCambio.Instancia.conversion(codmoneda_prof, reg("codmoneda"), fecha, reg("total_desc")) - reg("montodoc")
+                                        reg.montorest = reg.total_desc - (double)reg.montodoc;
+                                        tot_descto_deposito += (double)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, reg.montodoc);
+                                        // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                                        /*
+                                         
+                                        ''//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                                        ''//añadir la cbza-deposito a la tabla cocobranza_deposito
+                                        'Dim dr As DataRow
+                                        'dr = tblcbza_deposito.NewRow
+                                        'dr("codproforma") = codproforma
+                                        'dr("codcobranza") = reg("codcobranza")
+                                        'dr("montodist") = reg("total_dist")
+                                        'dr("montodescto") = reg("montodoc")
+                                        'dr("montorest") = reg("montodoc") - limite_descuento_deposito
+                                        'tblcbza_deposito.Rows.Add(dr)
+                                        ''//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                                         
+                                         */
+                                    }
+                                    else
+                                    {
+                                        tot_descto_deposito += (double)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, reg.montodoc);
+                                    }
+                                }
+                                else
+                                {
+                                    if (tot_descto_deposito + (double)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, reg.montodoc) > limite_descuento_deposito)
+                                    {
+                                        // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                                        // Relizar el ajuste
+                                        // reg("montodoc") = sia_funciones.TipoCambio.Instancia.conversion(codmoneda_prof, reg("codmoneda"), fecha, reg("montodoc"))
+                                        reg.montodoc -= await tipocambio._conversion(_context, reg.codmoneda, codmoneda_prof, fecha, (decimal)diferencia);
+                                        // reg("montorest") = sia_funciones.TipoCambio.Instancia.conversion(codmoneda_prof, reg("codmoneda"), fecha, reg("total_desc")) - reg("montodoc")
+                                        reg.montorest = reg.total_desc - (double)reg.montodoc;
+                                        tot_descto_deposito += (double)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, reg.montodoc);
+                                        // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                                        /*
+                                         
+                                        ''//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                                        ''//añadir la cbza-deposito a la tabla cocobranza_deposito
+                                        'Dim dr As DataRow
+                                        'dr = tblcbza_deposito.NewRow
+                                        'dr("codproforma") = codproforma
+                                        'dr("codcobranza") = reg("codcobranza")
+                                        'dr("montodist") = reg("total_dist")
+                                        'dr("montodescto") = reg("montodoc")
+                                        'dr("montorest") = reg("montodoc") - limite_descuento_deposito
+                                        'tblcbza_deposito.Rows.Add(dr)
+                                        ''//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                                         
+                                         */
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        tot_descto_deposito += (double)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, reg.montodoc);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+
+            }
+            else
+            {
+                // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                // verificar si se añadio en la tabla 
+                // cocobranza_deposito las cbza que son de saldos pendientes
+                // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                List<int> lista_saldos = dt_depositos_pendientes.Where(i => i.tipo_pago == "es_cbza_credito").Select(i => i.codcobranza ?? 0).ToList();
+                List<int> lista_saldos_contado = dt_depositos_pendientes.Where(i => i.tipo_pago == "es_cbza_contado").Select(i => i.codcobranza ?? 0).ToList();
+                List<int> lista_saldos_anticipos_contado = dt_depositos_pendientes.Where(i => i.tipo_pago == "es_anticipo_contado").Select(i => i.codcobranza ?? 0).ToList();
+
+                tblcbza_deposito.Clear();
+                foreach (var reg in tabladescuentos)
+                {
+                    if (reg.codcobranza_contado == null)
+                    {
+                        reg.codcobranza_contado = 0;
+                    }
+                    if (reg.codcobranza == null)
+                    {
+                        reg.codcobranza = 0;
+                    }
+                    if (reg.codanticipo == null)
+                    {
+                        reg.codanticipo = 0;
+                    }
+
+                    if (reg.codcobranza != 0 && !lista_saldos.Contains(reg.codcobranza ?? 0))
+                    {
+                        tblcbza_deposito dr = new tblcbza_deposito();
+                        dr.codproforma = codproforma;
+                        dr.codcobranza = reg.codcobranza ?? 0;
+                        dr.codcobranza_contado = 0;
+                        dr.codanticipo = 0;
+                        dr.montodist = reg.total_dist;
+                        dr.montodescto = (double)reg.montodoc;
+                        dr.montorest = (double)reg.montodoc;
+                        // dr("codmoneda") = reg("moncbza")
+                        tblcbza_deposito.Add(dr);
+                    }
+                    if (reg.codcobranza_contado != 0 && !lista_saldos_contado.Contains(reg.codcobranza_contado ?? 0))
+                    {
+                        tblcbza_deposito dr = new tblcbza_deposito();
+                        dr.codproforma = codproforma;
+                        dr.codcobranza = 0;
+                        dr.codcobranza_contado = reg.codcobranza_contado ?? 0;
+                        dr.codanticipo = 0;
+                        dr.montodist = reg.total_dist;
+                        dr.montodescto = (double)reg.montodoc;
+                        dr.montorest = (double)reg.montodoc;
+                        // dr("codmoneda") = reg("moncbza")
+                        tblcbza_deposito.Add(dr);
+                    }
+                    if (reg.codanticipo != 0 && !lista_saldos_anticipos_contado.Contains(reg.codanticipo ?? 0))
+                    {
+                        tblcbza_deposito dr = new tblcbza_deposito();
+                        dr.codproforma = codproforma;
+                        dr.codcobranza = 0;
+                        dr.codcobranza_contado = 0;
+                        dr.codanticipo = reg.codanticipo ?? 0;
+                        dr.montodist = reg.total_dist;
+                        dr.montodescto = (double)reg.montodoc;
+                        dr.montorest = (double)reg.montodoc;
+                        // dr("codmoneda") = reg("moncbza")
+                        tblcbza_deposito.Add(dr);
+                    }
+                }
+            }
+
+            // aqui verificar si la moneda de la tabla de los descuentos es igual a la moneda de la proforma sino es igual convertir a la moneda de la proforma
+            foreach (var reg in tabladescuentos)
+            {
+                if (reg.coddesextra == coddesextra)
+                {
+                    if (reg.codmoneda != codmoneda_prof)
+                    {
+                        // si la moneda de la pf esta en BS y el descuento en US, entonces convertir el descuento en BS
+                        if ("BS" == codmoneda_prof && "US" == reg.codmoneda)
+                        {
+                            reg.montodoc = (decimal)await siat.Redondeo_Decimales_SIA_2_decimales_SQL((float)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, reg.montodoc));
+                            reg.total_dist = await siat.Redondeo_Decimales_SIA_2_decimales_SQL((float)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, (decimal)reg.total_dist));
+                            reg.total_desc = await siat.Redondeo_Decimales_SIA_2_decimales_SQL((float)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, (decimal)reg.total_desc));
+                            reg.codmoneda = "BS";
+                        }
+                        // si la moneda de la pf esta en US y el descuento en BS, entonces convertir el descuento en US
+                        if ("US" == codmoneda_prof && "BS" == reg.codmoneda)
+                        {
+                            reg.montodoc = (decimal)await siat.Redondeo_Decimales_SIA_2_decimales_SQL((float)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, reg.montodoc));
+                            reg.total_dist = await siat.Redondeo_Decimales_SIA_2_decimales_SQL((float)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, (decimal)reg.total_dist));
+                            reg.total_desc = await siat.Redondeo_Decimales_SIA_2_decimales_SQL((float)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, (decimal)reg.total_desc));
+                            reg.codmoneda = "US";
+                        }
+                    }
+                }
+            }
+
+            if (nro>0)
+            {
+                resultado = true;
+            }
+            else
+            {
+                resultado = false;
+            }
+
+
+            return (resultado, "");
+        }
+
+
+
+        public async Task<(bool bandera, string mensaje)> Verificar_Si_CodCbza_Ya_Esta(DBContext _context, List<tabladescuentos> tabladescuentos, int cod_cbza, string tipo_pago)
+        {
+            /*
+                '--tipo pago  es_cbza_credito
+                '--tipo pago  es_cbza_contado
+                '--tipo pago  es_anticipo
+             */
+
+            // si el valor de cod cbza credito s dfte de cero quiere decir que es cbza de credito
+            if (tipo_pago == "es_cbza_credito")
+            {
+                //// busca si la cbza CREDITO ya esta
+                var prueba = tabladescuentos.Where(i => i.codcobranza == cod_cbza).FirstOrDefault();
+                if (prueba != null)
+                {
+                    return (true, "");
+                }
+            }
+            else if(tipo_pago == "es_cbza_contado")
+            {
+                var prueba = tabladescuentos.Where(i => i.codcobranza_contado == cod_cbza).FirstOrDefault();
+                if (prueba != null)
+                {
+                    return (true, "");
+                }
+            }
+            else if(tipo_pago == "es_anticipo_contado")
+            {
+                var prueba = tabladescuentos.Where(i => i.codanticipo == cod_cbza).FirstOrDefault();
+                if (prueba != null)
+                {
+                    return (true,"");
+                }
+            }
+            else
+            {
+                // si no concide con ninguna mejor que devuelva true es decir que diga que la cocobranza ya esta
+                return (true, "No se pudo verificar si la cobranza que esta enlazada a deposito ya esta en la tabla de descuentos del documento actual de venta!!!");
+            }
+            return (false, "");
+        }
+
+        public async Task<double> Porcentaje_Limite_Descuento_Deposito_Cliente(DBContext _context, string codcliente)
+        {
+            try
+            {
+                var dt = await _context.vecliente.Where(i => i.codigo == codcliente).FirstOrDefaultAsync();
+                if (dt != null)
+                {
+                    return (double)(dt.porcentaje_limite_descto_deposito ?? 0);
+                }
+                return 0;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
         }
         public async Task<List<veproforma1>> Actualizar_Peso_Detalle_Proforma(DBContext _context, List<veproforma1> veproforma1)
         {

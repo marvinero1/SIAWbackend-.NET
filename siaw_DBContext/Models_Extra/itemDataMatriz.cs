@@ -69,6 +69,12 @@
 
         public string? aplicacion { get; set; }
         public string? codmoneda { get; set; }
+        public string? descrip { get; set; }
+
+        // no mostrar
+        public double total_dist { get; set; } = 0;
+        public double total_desc { get; set; } = 0;
+        public double montorest { get; set; } = 0;
     }
 
     public class tblcbza_deposito

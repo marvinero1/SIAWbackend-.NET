@@ -38,7 +38,7 @@ namespace siaw_funciones
                    .FirstOrDefaultAsync();
                 if (result != null)
                 {
-                    resultado = (int)result;
+                    resultado = result ?? 0;
                 }
                 return resultado;
                 //}
