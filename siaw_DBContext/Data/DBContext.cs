@@ -1739,8 +1739,8 @@ namespace siaw_DBContext.Data
         public virtual DbSet<vedsctos_credito1> vedsctos_credito1 { get; set; }
         public virtual DbSet<vedsctos_credito_linea> vedsctos_credito_linea { get; set; }
         public virtual DbSet<veempaque> veempaque { get; set; }
-        public virtual DbSet<veempaque_alternativo> veempaque_alternativo { get; set; }
         public virtual DbSet<veempaque1> veempaque1 { get; set; }
+        public virtual DbSet<veempaque_alternativo> veempaque_alternativo { get; set; }
         public virtual DbSet<veespeciales> veespeciales { get; set; }
         public virtual DbSet<veestadistico> veestadistico { get; set; }
         public virtual DbSet<veestadistico1> veestadistico1 { get; set; }
@@ -1800,6 +1800,7 @@ namespace siaw_DBContext.Data
         public virtual DbSet<veproforma_aa> veproforma_aa { get; set; }
         public virtual DbSet<veproforma_anticipo> veproforma_anticipo { get; set; }
         public virtual DbSet<veproforma_anticipo1> veproforma_anticipo1 { get; set; }
+        public virtual DbSet<veproforma_etiqueta> veproforma_etiqueta { get; set; }
         public virtual DbSet<veproforma_iva> veproforma_iva { get; set; }
         public virtual DbSet<veproforma_paquetes> veproforma_paquetes { get; set; }
         public virtual DbSet<veproforma_planpago> veproforma_planpago { get; set; }
@@ -60931,14 +60932,6 @@ namespace siaw_DBContext.Data
                     .HasMaxLength(10);
             });
 
-            modelBuilder.Entity<veempaque_alternativo>(entity =>
-            {
-
-                entity.HasKey(e => new { e.codempaque, e.codempaque_alternativo })
-                    .HasName("PK_veempaque_alternativo");
-
-            });
-
             modelBuilder.Entity<veempaque1>(entity =>
             {
                 entity.HasKey(e => new { e.codempaque, e.item })
@@ -60947,6 +60940,11 @@ namespace siaw_DBContext.Data
                 entity.Property(e => e.item).HasMaxLength(8);
 
                 entity.Property(e => e.cantidad).HasColumnType("decimal(18, 2)");
+            });
+
+            modelBuilder.Entity<veempaque_alternativo>(entity =>
+            {
+                entity.HasNoKey();
             });
 
             modelBuilder.Entity<veespeciales>(entity =>
@@ -62976,6 +62974,37 @@ namespace siaw_DBContext.Data
                     .IsRequired()
                     .HasMaxLength(5)
                     .IsUnicode(false);
+            });
+
+            modelBuilder.Entity<veproforma_etiqueta>(entity =>
+            {
+                entity.HasKey(e => new { e.codigo, e.id_proforma, e.nroid_proforma });
+
+                entity.Property(e => e.codigo).ValueGeneratedOnAdd();
+
+                entity.Property(e => e.id_proforma).HasMaxLength(5);
+
+                entity.Property(e => e.ciudad)
+                    .HasMaxLength(30)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.codcliente_casual).HasMaxLength(10);
+
+                entity.Property(e => e.codcliente_real).HasMaxLength(10);
+
+                entity.Property(e => e.direccion).HasMaxLength(200);
+
+                entity.Property(e => e.fecha).HasColumnType("smalldatetime");
+
+                entity.Property(e => e.fechareg).HasColumnType("smalldatetime");
+
+                entity.Property(e => e.horareg).HasMaxLength(5);
+
+                entity.Property(e => e.latitud_entrega).HasMaxLength(25);
+
+                entity.Property(e => e.longitud_entrega).HasMaxLength(25);
+
+                entity.Property(e => e.usuarioreg).HasMaxLength(10);
             });
 
             modelBuilder.Entity<veproforma_iva>(entity =>

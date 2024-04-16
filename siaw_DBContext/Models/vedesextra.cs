@@ -7,7 +7,7 @@ namespace siaw_DBContext.Models
 {
     public partial class vedesextra
     {
-        public int? codigo { get; set; }
+        public int codigo { get; set; }
         public string descorta { get; set; }
         public string descripcion { get; set; }
         public decimal porcentaje { get; set; }
@@ -16,8 +16,8 @@ namespace siaw_DBContext.Models
         public string horareg { get; set; }
         public DateTime fechareg { get; set; }
         public string usuarioreg { get; set; }
-        public decimal min_credito { get; set; }
-        public decimal min_contado { get; set; }
+        public decimal? min_credito { get; set; }
+        public decimal? min_contado { get; set; }
         public string codmoneda_min_credito { get; set; }
         public string codmoneda_min_contado { get; set; }
         public decimal? peso_minimo { get; set; }

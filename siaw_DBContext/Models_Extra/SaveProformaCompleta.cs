@@ -12,5 +12,6 @@ namespace siaw_DBContext.Models_Extra
         public List<vedesextraprof>? vedesextraprof { get; set; }
         public List<verecargoprof>? verecargoprof { get; set; }
         public List<veproforma_iva>? veproforma_iva { get; set; }
+        public veetiqueta_proforma? veetiqueta_proforma { get; set; }
     }
 }

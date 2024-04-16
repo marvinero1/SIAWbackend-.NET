@@ -6896,6 +6896,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[veempaque_alternativo]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[veempaque1]",
          "ObjectType": 0
       },
@@ -7129,6 +7133,10 @@
       },
       {
          "Name": "[dbo].[veproforma_anticipo1]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[veproforma_etiqueta]",
          "ObjectType": 0
       },
       {

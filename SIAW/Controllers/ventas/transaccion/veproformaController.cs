@@ -1519,7 +1519,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 {
                     try
                     {
-
+                        // RECALCULARPRECIOS(True, True)       // aca llamar a recarcular precio
 
 
                         string result = await Grabar_Documento(_context, idProf, codempresa, datosProforma);
@@ -1530,34 +1530,67 @@ namespace SIAW.Controllers.ventas.transaccion
                         }
 
 
-                        /*
-                         
                         //Grabar Etiqueta
-                        If dt_etiqueta.Rows.Count > 0 Then
-                            Try
-                                If IsDBNull(dt_etiqueta.Rows(0)("celular")) Then
-                                    dt_etiqueta.Rows(0)("celular") = "---"
-                                End If
-                                sia_DAL.Datos.Instancia.EjecutarComando("delete from veetiqueta_proforma where id='" & id.Text & "' and numeroid=" & numeroid.Text)
-                                sia_DAL.Datos.Instancia.EjecutarComando("insert into veetiqueta_proforma(id,numeroid,codcliente,linea1,linea2,representante,telefono,ciudad,celular,latitud_entrega,longitud_entrega) values('" & id.Text & "'," & numeroid.Text & ",'" & codcliente.Text & "','" & CStr(dt_etiqueta.Rows(0)("linea1")) & "','" & CStr(dt_etiqueta.Rows(0)("linea2")) & "','" & CStr(dt_etiqueta.Rows(0)("representante")) & "','" & CStr(dt_etiqueta.Rows(0)("telefono")) & "','" & CStr(dt_etiqueta.Rows(0)("ciudad")) & "','" & CStr(dt_etiqueta.Rows(0)("celular")) & "','" & CStr(dt_etiqueta.Rows(0)("latitud_entrega")) & "','" & CStr(dt_etiqueta.Rows(0)("longitud_entrega")) & "' )")
-                            Catch ex As Exception
+                        if (datosProforma.veetiqueta_proforma != null)
+                        {
+                            veetiqueta_proforma dt_etiqueta = datosProforma.veetiqueta_proforma;
+                            if (dt_etiqueta.celular == null)
+                            {
+                                dt_etiqueta.celular = "---";
+                            }
+                            var etiqueta = await _context.veetiqueta_proforma.Where(i => i.id == dt_etiqueta.id && i.numeroid == dt_etiqueta.numeroid).FirstOrDefaultAsync();
+                            if (etiqueta != null)
+                            {
+                                _context.veetiqueta_proforma.Remove(etiqueta);
+                                await _context.SaveChangesAsync();
+                            }
+                            _context.veetiqueta_proforma.Add(dt_etiqueta);
+                            await _context.SaveChangesAsync();
+                        }
 
-                            End Try
-                        End If
-
-                        //ACTUALIZAR PESO
-                        sia_DAL.Datos.Instancia.EjecutarComando("update veproforma set peso=" & CStr(sia_funciones.Ventas.Instancia.Peso_Proforma(CInt(codigo.Text))) & " where codigo=" & codigo.Text & "")
-                        sia_funciones.Ventas.Instancia.Actualizar_Peso_Detalle_Proforma(CInt(codigo.Text))
+                        ////ACTUALIZAR PESO
+                        ///ya se guarda el documento con el peso calculado.
 
 
-                        //enlazar sol desctos con proforma
+
+                        /*
+                         //enlazar sol desctos con proforma   FALTA 
                         If desclinea_segun_solicitud.Checked = True And idsoldesctos.Text.Trim.Length > 0 And nroidsoldesctos.Text.Trim.Length > 0 Then
                             If Not sia_funciones.Ventas.Instancia.Enlazar_Proforma_Nueva_Con_SolDesctos_Nivel(codigo.Text, idsoldesctos.Text, nroidsoldesctos.Text) Then
                                 MessageBox.Show("No se pudo realizar el enlace de esta proforma con la solicitud de descuentos de nivel, verifique el enlace en la solicitu de descuentos!!!", "ErroR de Enlace", MessageBoxButtons.OK, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button1)
                             End If
                         End If
+                         */
 
 
+
+
+
+
+
+
+
+                        // grabar la etiqueta dsd 16-05-2022        
+                        // solo si es cliente casual, y el cliente referencia o real es un no casual
+                        //If sia_funciones.Cliente.Instancia.Es_Cliente_Casual(codcliente.Text) = True And sia_funciones.Cliente.Instancia.Es_Cliente_Casual(codcliente_real) = False Then
+
+                        // Desde 10-10-2022 se definira si una venta es casual o no si el codigo de cliente y el codigo de cliente real son diferentes entonces es una venta casual
+                        if (veproforma.codcliente != veproforma.codcliente_real)
+                        {
+
+                            if (!await Grabar_Proforma_Etiqueta(_context,veproforma.id,veproforma.numeroid,desclinea_segun_solicitud,veproforma))
+                            {
+
+                            }
+
+                        }
+
+
+
+
+                        /*
+                         
+                        
                         //grabar la etiqueta dsd 16-05-2022        
                         //solo si es cliente casual, y el cliente referencia o real es un no casual
                         //If sia_funciones.Cliente.Instancia.Es_Cliente_Casual(codcliente.Text) = True And sia_funciones.Cliente.Instancia.Es_Cliente_Casual(codcliente_real) = False Then
@@ -1632,7 +1665,75 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
 
+        private async Task<bool> Grabar_Proforma_Etiqueta(DBContext _context, string idProf, int nroidpf, bool desclinea_segun_solicitud, veproforma dtpf)
+        {
+            try
+            {
+                veproforma_etiqueta datospfe = new veproforma_etiqueta();
+                // obtener datos de la etiqueta
+                var dt_etiqueta = await _context.veetiqueta_proforma.Where(i => i.id == idProf && i.numeroid == nroidpf).FirstOrDefaultAsync();
+                // obtener datos de proforma
+                /*
+                var dtpf = await _context.veproforma.Where(i => i.id == idProf && i.numeroid == nroidpf)
+                    .Select(i => new
+                    {
+                        i.codigo,
+                        i.id,
+                        i.numeroid,
+                        i.fecha,
+                        i.codcliente,
+                        i.direccion,
+                        i.latitud_entrega,
+                        i.longitud_entrega,
+                        i.codalmacen
+                    })
+                    .FirstOrDefaultAsync();
+                */
+                datospfe.id_proforma = idProf;
+                datospfe.nroid_proforma = nroidpf;
+                datospfe.codalmacen = dtpf.codalmacen;
+                datospfe.codcliente_casual = dtpf.codcliente;
+                if (desclinea_segun_solicitud == true && dtpf.idsoldesctos.Trim().Length > 0 && (dtpf.nroidsoldesctos > 0 || dtpf.nroidsoldesctos != null))
+                {
+                    datospfe.codcliente_real = await ventas.Cliente_Referencia_Solicitud_Descuentos(_context, dtpf.idsoldesctos, dtpf.nroidsoldesctos ?? 0);
+                }
+                else
+                {
+                    datospfe.codcliente_real = dtpf.codcliente_real;
+                }
+                datospfe.fecha = dtpf.fecha;
+                datospfe.direccion = dtpf.direccion;
+                if (dt_etiqueta != null)
+                {
+                    datospfe.ciudad = dt_etiqueta.ciudad;
+                }
+                else
+                {
+                    datospfe.ciudad = "";
+                }
 
+                datospfe.latitud_entrega = dtpf.latitud_entrega;
+                datospfe.longitud_entrega = dtpf.longitud_entrega;
+                datospfe.horareg = dtpf.horareg;
+                datospfe.fechareg = dtpf.fechareg;
+                datospfe.usuarioreg = dtpf.usuarioreg;
+
+                // insertar proforma_etiqueta (datospfe)
+                var profEtiqueta = await _context.veproforma_etiqueta.Where(i => i.id_proforma == datospfe.id_proforma && i.nroid_proforma == datospfe.nroid_proforma).FirstOrDefaultAsync();
+                if (profEtiqueta != null)
+                {
+                    _context.veproforma_etiqueta.Remove(profEtiqueta);
+                    await _context.SaveChangesAsync();
+                }
+                _context.veproforma_etiqueta.Add(datospfe);
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
         private async Task<string> Grabar_Documento(DBContext _context, string idProf, string codempresa, SaveProformaCompleta datosProforma)
         {
             veproforma veproforma = datosProforma.veproforma;
@@ -2590,8 +2691,8 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
         [HttpGet]
-        [Route("getDataEtiqueta/{userConn}/{codcliente_real}/{id}/{numeroid}/{codcliente}/{nomcliente}/{desclinea_segun_solicitud}/{idsoldesctos}/{nroidsoldesctos}")]
-        public async Task<object> getDataEtiqueta(string userConn, string codcliente_real, string id, int numeroid, string codcliente, string nomcliente, bool desclinea_segun_solicitud, string idsoldesctos, int nroidsoldesctos)
+        [Route("getDataEtiqueta/{userConn}")]
+        public async Task<object> getDataEtiqueta(string userConn, RequestDataEtiqueta RequestDataEtiqueta)
         {
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
@@ -2599,26 +2700,26 @@ namespace SIAW.Controllers.ventas.transaccion
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 //verificar si hay descuentos segun solicitud, pero puede que sea segun solicitud pero no con cliente referencia
-                string codcliente_ref = codcliente_real;
-                if (desclinea_segun_solicitud == true && idsoldesctos.Trim().Length > 0 && nroidsoldesctos > 0)
+                string codcliente_ref = RequestDataEtiqueta.codcliente_real;
+                if (RequestDataEtiqueta.desclinea_segun_solicitud == true && RequestDataEtiqueta.idsoldesctos.Trim().Length > 0 && RequestDataEtiqueta.nroidsoldesctos > 0)
                 {
-                    codcliente_ref = await ventas.Cliente_Referencia_Solicitud_Descuentos(_context, idsoldesctos, nroidsoldesctos);
+                    codcliente_ref = await ventas.Cliente_Referencia_Solicitud_Descuentos(_context, RequestDataEtiqueta.idsoldesctos, RequestDataEtiqueta.nroidsoldesctos);
                     if (codcliente_ref.Trim().Length == 0)
                     {
-                        codcliente_ref = codcliente;
+                        codcliente_ref = RequestDataEtiqueta.codcliente;
                     }
                 }
                 // falta esto detalle codcliente_ref
                 
-                if (await cliente.EsClienteSinNombre(_context,codcliente_real))
+                if (await cliente.EsClienteSinNombre(_context,RequestDataEtiqueta.codcliente_real))
                 {
                     return Ok(new
                     {
                         codigo = 0,
-                        id = id,
-                        numeroid = numeroid,
-                        codcliente = codcliente,
-                        linea1 = nomcliente,
+                        id = RequestDataEtiqueta.id,
+                        numeroid = RequestDataEtiqueta.numeroid,
+                        codcliente = RequestDataEtiqueta.codcliente,
+                        linea1 = RequestDataEtiqueta.nomcliente,
                         linea2 = "",
                         representante = "direccion",
                         telefono = "telefono",
@@ -2629,14 +2730,51 @@ namespace SIAW.Controllers.ventas.transaccion
                     });
                 }
 
+                var telefonosTelf1 = await _context.vetienda
+                    .Where(v => v.codcliente == RequestDataEtiqueta.codcliente_real)
+                    .Select(v => new { codcliente = v.codcliente, tipo = "Telf1", telf = v.telefono, nomtelf = v.nomb_telf1 })
+                    .ToListAsync();
+
+                var telefonosTelf2 = await _context.vetienda
+                    .Where(v => v.codcliente == RequestDataEtiqueta.codcliente_real)
+                    .Select(v => new { codcliente = v.codcliente, tipo = "Telf2", telf = v.telefono_2, nomtelf = v.nomb_telf2 })
+                    .ToListAsync();
+
+                var telefonosCel1 = await _context.vetienda
+                    .Where(v => v.codcliente == RequestDataEtiqueta.codcliente_real)
+                    .Select(v => new { codcliente = v.codcliente, tipo = "Cel1", telf = v.celular, nomtelf = v.nomb_cel1 })
+                    .ToListAsync();
+
+                var telefonosCel2 = await _context.vetienda
+                    .Where(v => v.codcliente == RequestDataEtiqueta.codcliente_real)
+                    .Select(v => new { codcliente = v.codcliente, tipo = "Cel2", telf = v.celular_2, nomtelf = v.nomb_cel2 })
+                    .ToListAsync();
+
+                var telefonosCel3 = await _context.vetienda
+                    .Where(v => v.codcliente == RequestDataEtiqueta.codcliente_real)
+                    .Select(v => new { codcliente = v.codcliente, tipo = "Cel3", telf = v.celular_3, nomtelf = v.nomb_cel3 })
+                    .ToListAsync();
+
+                var telefonosCelWhats = await _context.vetienda
+                    .Where(v => v.codcliente == RequestDataEtiqueta.codcliente_real)
+                    .Select(v => new { codcliente = v.codcliente, tipo = "CelWhats", telf = v.celular_whatsapp, nomtelf = v.nomb_whatsapp })
+                    .ToListAsync();
+
+                var clienteTelefonos = telefonosTelf1
+                    .Concat(telefonosTelf2)
+                    .Concat(telefonosCel1)
+                    .Concat(telefonosCel2)
+                    .Concat(telefonosCel3)
+                    .Concat(telefonosCelWhats);
+
 
                 var dirCliente = await cliente.direccioncliente(_context, codcliente_ref);
                 var coordenadasCliente = await cliente.latitud_longitud_cliente(_context,codcliente_ref);
                 return Ok(new
                 {
                     codigo = 0,
-                    id = id,
-                    numeroid = numeroid,
+                    id = RequestDataEtiqueta.id,
+                    numeroid = RequestDataEtiqueta.numeroid,
                     codcliente = codcliente_ref,
                     linea1 = await cliente.Razonsocial(_context,codcliente_ref),
                     linea2 = "",
@@ -2645,7 +2783,8 @@ namespace SIAW.Controllers.ventas.transaccion
                     celular = await cliente.CelularPrincipal(_context, codcliente_ref),
                     ciudad = await cliente.UbicacionCliente(_context, codcliente_ref),
                     latitud_entrega = coordenadasCliente.latitud,
-                    longitud_entrega = coordenadasCliente.longitud
+                    longitud_entrega = coordenadasCliente.longitud,
+                    telefonos = clienteTelefonos
                 });
             }
         }
@@ -3164,6 +3303,34 @@ namespace SIAW.Controllers.ventas.transaccion
             return Ok("aaaa");
         }
 
+        // GET: api/get_entrega_pedido/5
+        [HttpPost]
+        [Route("get_entrega_pedido/{userConn}/{codempresa}")]
+        public async Task<ActionResult<object>> get_entrega_pedido(string userConn,string codempresa, RequestEntregaPedido RequestEntregaPedido)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var objres = await validar_Vta.Validar_Monto_Minimo_Para_Entrega_Pedido(_context, RequestEntregaPedido.datosDocVta, RequestEntregaPedido.detalleItemsProf, codempresa);
+                    if (objres.resultado == false)
+                    {
+                        return Ok(new { mensaje = "RECOGE CLIENTE" });
+                    }
+                    // tipoentrega.Text = "ENTREGAR"
+                    if (RequestEntregaPedido.preparacion == "CAJA CERRADA RECOGE CLIENTE")
+                    {
+                        return Ok(new { mensaje = "RECOGE CLIENTE" });
+                    }
+                    return Ok(new { mensaje = "ENTREGAR" });
+                }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+            }
+        }
 
     }
 
@@ -3208,5 +3375,23 @@ namespace SIAW.Controllers.ventas.transaccion
         public string codcliente { get; set; }
         public string dircliente { get; set; }
     }
+    public class RequestEntregaPedido
+    {
+        public DatosDocVta datosDocVta { get; set; }
+        public List<itemDataMatriz> detalleItemsProf { get; set; }
+        public string preparacion { get; set; }
 
+    }
+    public class RequestDataEtiqueta
+    {
+        public string codcliente_real { get; set; }
+        public string id { get; set; }
+        public int numeroid { get; set; }
+        public string codcliente { get; set; }
+        public string nomcliente { get; set; }
+        public bool desclinea_segun_solicitud { get; set; }
+        public string idsoldesctos { get; set; }
+        public int nroidsoldesctos { get; set; }
+
+    }
 }
