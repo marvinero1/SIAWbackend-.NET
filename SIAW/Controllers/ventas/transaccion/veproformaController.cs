@@ -1439,7 +1439,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         porceniva = (float)i.iva,
                         cantidad_pedida = (float)reg.cantidad_pedida,
                         cantidad = (float)reg.cantidad,
-                        porcen_mercaderia = (float)porcen_merca,
+                        porcen_mercaderia = (float)Math.Round(porcen_merca,2),
                         codtarifa = reg.tarifa,
                         coddescuento = reg.descuento,
                         preciolista = (float)precioItem,
@@ -1577,12 +1577,12 @@ namespace SIAW.Controllers.ventas.transaccion
                         // Desde 10-10-2022 se definira si una venta es casual o no si el codigo de cliente y el codigo de cliente real son diferentes entonces es una venta casual
                         if (veproforma.codcliente != veproforma.codcliente_real)
                         {
-
+                            /*
                             if (!await Grabar_Proforma_Etiqueta(_context,veproforma.id,veproforma.numeroid,desclinea_segun_solicitud,veproforma))
                             {
 
                             }
-
+                            */
                         }
 
 
@@ -2322,7 +2322,7 @@ namespace SIAW.Controllers.ventas.transaccion
                             monto_desc_pf_complementaria = 0;
                         }
                         //sumar el monto de la proforma complementaria
-                        reg.montodoc = (decimal)await siat.Redondeo_Decimales_SIA_2_decimales_SQL((float)(monto_desc + monto_desc_pf_complementaria));
+                        reg.montodoc = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (float)(monto_desc + monto_desc_pf_complementaria));
                     }
                 }
             }
@@ -2344,14 +2344,14 @@ namespace SIAW.Controllers.ventas.transaccion
                             if (reg.codmoneda != codmoneda)
                             {
                                 double monto_cambio = (double)await tipocambio._conversion(_context, codmoneda, reg.codmoneda, fecha, reg.montodoc);
-                                reg.montodoc = (decimal)await siat.Redondeo_Decimales_SIA_2_decimales_SQL((float)monto_cambio);
+                                reg.montodoc = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (float)monto_cambio);
                                 reg.codmoneda = codmoneda;
                             }
                         }
                         else
                         {
                             //este descuento se aplica sobre el subtotal de la venta
-                            reg.montodoc = (decimal)await siat.Redondeo_Decimales_SIA_2_decimales_SQL((float)((subtotal / 100) * (double)reg.porcen));
+                            reg.montodoc = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (float)((subtotal / 100) * (double)reg.porcen));
                         }
                     }
                 }
@@ -2367,7 +2367,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 }
             }
             //desde 08 / 01 / 2023 redondear el resultado a dos decimales con el SQLServer
-            total_desctos1 = await siat.Redondeo_Decimales_SIA_2_decimales_SQL((float)total_desctos1);
+            total_desctos1 = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (float)total_desctos1);
             // retornar total_desctos1
 
             ////////////////////////////////////////////////////////////////////////////////
@@ -2389,7 +2389,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         else
                         {
                             //este descuento se aplica sobre el subtotal de la venta
-                            reg.montodoc = (decimal) await siat.Redondeo_Decimales_SIA_2_decimales_SQL((float)((total_preliminar/100)*(double)reg.porcen));
+                            reg.montodoc = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (float)((total_preliminar/100)*(double)reg.porcen));
                         }
                     }
                 }
@@ -2403,9 +2403,9 @@ namespace SIAW.Controllers.ventas.transaccion
                 }
             }
             //desde 08 / 01 / 2023 redondear el resultado a dos decimales con el SQLServer
-            total_desctos2 = await siat.Redondeo_Decimales_SIA_2_decimales_SQL((float)total_desctos2);
+            total_desctos2 = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (float)total_desctos2);
 
-            double respdescuentos = await siat.Redondeo_Decimales_SIA_2_decimales_SQL((float)(total_desctos1 + total_desctos2));
+            double respdescuentos = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (float)(total_desctos1 + total_desctos2));
 
             return respdescuentos;
 
@@ -2672,7 +2672,23 @@ namespace SIAW.Controllers.ventas.transaccion
                     var codDesextraxDepositoContado = await configuracion.emp_coddesextra_x_deposito_contado(_context, codempresa);
                     // obtener descuentos
                     var descuentosExtra = await _context.vedesextraprof
-                        .Where(i => i.codproforma == codProforma && i.coddesextra != codDesextraxDeposito && i.coddesextra != codDesextraxDepositoContado)
+                        .Join(_context.vedesextra,
+                        p => p.coddesextra,
+                        e => e.codigo,
+                        (p,e) => new {p,e})
+                        .Where(i => i.p.codproforma == codProforma && i.p.coddesextra != codDesextraxDeposito && i.p.coddesextra != codDesextraxDepositoContado)
+                        .Select(i => new
+                        {
+                            i.p.codproforma,
+                            i.p.coddesextra,
+                            descripcion = i.e.descripcion,
+                            i.p.porcen,
+                            i.p.montodoc,
+                            i.p.codcobranza,
+                            i.p.codcobranza_contado,
+                            i.p.codanticipo,
+                            i.p.id
+                        })
                         .ToListAsync();
                     return Ok(new
                     {
@@ -2690,7 +2706,7 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
 
-        [HttpGet]
+        [HttpPost]
         [Route("getDataEtiqueta/{userConn}")]
         public async Task<object> getDataEtiqueta(string userConn, RequestDataEtiqueta RequestDataEtiqueta)
         {

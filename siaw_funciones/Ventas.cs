@@ -1661,17 +1661,17 @@ namespace siaw_funciones
                         // si la moneda de la pf esta en BS y el descuento en US, entonces convertir el descuento en BS
                         if ("BS" == codmoneda_prof && "US" == reg.codmoneda)
                         {
-                            reg.montodoc = (decimal)await siat.Redondeo_Decimales_SIA_2_decimales_SQL((float)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, reg.montodoc));
-                            reg.total_dist = await siat.Redondeo_Decimales_SIA_2_decimales_SQL((float)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, (decimal)reg.total_dist));
-                            reg.total_desc = await siat.Redondeo_Decimales_SIA_2_decimales_SQL((float)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, (decimal)reg.total_desc));
+                            reg.montodoc = (decimal)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context,(float)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, reg.montodoc));
+                            reg.total_dist = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (float)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, (decimal)reg.total_dist));
+                            reg.total_desc = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (float)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, (decimal)reg.total_desc));
                             reg.codmoneda = "BS";
                         }
                         // si la moneda de la pf esta en US y el descuento en BS, entonces convertir el descuento en US
                         if ("US" == codmoneda_prof && "BS" == reg.codmoneda)
                         {
-                            reg.montodoc = (decimal)await siat.Redondeo_Decimales_SIA_2_decimales_SQL((float)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, reg.montodoc));
-                            reg.total_dist = await siat.Redondeo_Decimales_SIA_2_decimales_SQL((float)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, (decimal)reg.total_dist));
-                            reg.total_desc = await siat.Redondeo_Decimales_SIA_2_decimales_SQL((float)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, (decimal)reg.total_desc));
+                            reg.montodoc = (decimal)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (float)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, reg.montodoc));
+                            reg.total_dist = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (float)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, (decimal)reg.total_dist));
+                            reg.total_desc = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (float)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, (decimal)reg.total_desc));
                             reg.codmoneda = "US";
                         }
                     }
@@ -1853,11 +1853,11 @@ namespace siaw_funciones
                                         .Where(v => v.habilitado == true && v.diferenciado_x_item == true &&
                                                     fechaProforma >= v.valido_desde && fechaProforma <= v.valido_hasta)
                                         .Select(v => v.codigo)
-                                        .Contains(p1.coddesextra) &&
+                                        .Contains(p1.coddesextra ?? -1) &&
                                     _context.vedesextra_tarifa
                                         .Where(t => t.codtarifa == codTarifa)
                                         .Select(t => t.coddesextra)
-                                        .Contains(p1.coddesextra) &&
+                                        .Contains(p1.coddesextra ?? -1) &&
                                     _context.vecliente_desextra
                                         .Where(c => c.codcliente == codCliente)
                                         .Select(c => c.coddesextra)
@@ -1887,11 +1887,11 @@ namespace siaw_funciones
                         {
                             if (tipoVta == "CONTADO")
                             {
-                                montoMinDescto = (double)await tipocambio._conversion(_context, codMonedaDoc, item.CodmonedaMinContado, fechaProforma, item.MinContado);
+                                montoMinDescto = (double)await tipocambio._conversion(_context, codMonedaDoc, item.CodmonedaMinContado, fechaProforma, item.MinContado ?? 0);
                             }
                             else
-                            {
-                                montoMinDescto = (double)await tipocambio._conversion(_context, codMonedaDoc, item.CodmonedaMinCredito, fechaProforma, item.MinCredito);
+                             {
+                                montoMinDescto = (double)await tipocambio._conversion(_context, codMonedaDoc, item.CodmonedaMinCredito, fechaProforma, item.MinCredito ?? 0);
                             }
 
                             if (subttlDoc >= montoMinDescto)
@@ -1904,11 +1904,11 @@ namespace siaw_funciones
                     {
                         if (tipoVta == "CONTADO")
                         {
-                            montoMinDescto = (double)await tipocambio._conversion(_context, codMonedaDoc, item.CodmonedaMinContado, fechaProforma, item.MinContado);
+                            montoMinDescto = (double)await tipocambio._conversion(_context, codMonedaDoc, item.CodmonedaMinContado, fechaProforma, item.MinContado ?? 0);
                         }
                         else
                         {
-                            montoMinDescto = (double)await tipocambio._conversion(_context, codMonedaDoc, item.CodmonedaMinCredito, fechaProforma, item.MinCredito);
+                            montoMinDescto = (double)await tipocambio._conversion(_context, codMonedaDoc, item.CodmonedaMinCredito, fechaProforma, item.MinCredito ?? 0);
                         }
 
                         if (subttlDoc >= montoMinDescto)

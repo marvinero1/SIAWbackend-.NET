@@ -31,10 +31,39 @@ namespace siaw_funciones
             return resultado;
         }
         */
-        public async Task<double> Redondeo_Decimales_SIA_2_decimales_SQL(float minumero)
+        public async Task<decimal> Redondeo_Decimales_SIA_2_decimales_SQL(DBContext context,float numero)
         {
-            double resultado = Math.Round(minumero, 2);
-            return resultado;
+            try
+            {
+                decimal resultado = 0;
+
+                if (numero == 0 || numero < 0)
+                {
+                    resultado = 0;
+                }
+                else
+                {
+                    decimal preciofinal1 = 0;
+                    var redondeado = new SqlParameter("@resultado", SqlDbType.Decimal)
+                    {
+                        Direction = ParameterDirection.Output,
+                        Precision = 18,
+                        Scale = 2
+                    };
+                    await context.Database.ExecuteSqlRawAsync
+                        ("EXEC Redondeo_Decimales_SIA_2_decimales_SQL @minumero, @resultado OUTPUT",
+                            new SqlParameter("@minumero", numero),
+                            redondeado);
+                    preciofinal1 = (decimal)Convert.ToSingle(redondeado.Value);
+                    resultado = preciofinal1;
+
+                }
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return -1;
+            }
         }
 
         public async Task<decimal> Redondeo_Decimales_SIA_5_decimales_SQL(DBContext context, decimal numero)

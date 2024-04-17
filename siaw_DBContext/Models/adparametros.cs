@@ -252,5 +252,6 @@ namespace siaw_DBContext.Models
         public int? codrecargo_pedido_urgente_provincia { get; set; }
         public int? coddesextra_x_deposito_contado { get; set; }
         public bool? permitir_desc_x_depo_casual_referencial { get; set; }
+        public int? dias_proforma_vta_item_cliente { get; set; }
     }
 }
