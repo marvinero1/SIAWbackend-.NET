@@ -234,7 +234,7 @@ namespace siaw_funciones
                     {
                         Direction = ParameterDirection.Output,
                         Precision = 18,
-                        Scale = 5
+                        Scale = 10
                     };
                     await context.Database.ExecuteSqlRawAsync
                         ("EXEC preciocliente @cliente, @almacen, @tarifa, @item, @nivel_desc_segun_solicitud, @nivel_desc_solicitud, @opcion_nivel_desctos, @preciofinal OUTPUT",
@@ -278,7 +278,7 @@ namespace siaw_funciones
                     {
                         Direction = ParameterDirection.Output,
                         Precision = 18,
-                        Scale = 5
+                        Scale = 10
                     };
                     await context.Database.ExecuteSqlRawAsync
                         ("EXEC preciocondesc @cliente, @almacen, @tarifa, @item,@descuento, @nivel_desc_segun_solicitud, @nivel_desc_solicitud, @opcion_nivel_desctos, @preciofinal OUTPUT",

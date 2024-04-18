@@ -1664,6 +1664,45 @@ namespace SIAW.Controllers.ventas.transaccion
             }
         }
 
+        private async Task<(bool val, string msg)> Validar_Datos_Cabecera(DBContext _context, veproforma veproforma)
+        {
+            // POR AHORA VALIDACIONES QUE REQUIERAN CONSULTA A BASE DE DATOS.
+            string id = veproforma.id;
+            int codalmacen = veproforma.codalmacen;
+            int codvendedor = veproforma.codvendedor;
+            string codcliente = veproforma.codcliente;
+            string nomcliente = veproforma.nomcliente;
+            string nit = veproforma.nit;
+            string codmoneda = veproforma.codmoneda;
+
+            veproforma.direccion = (veproforma.direccion == "") ? "---" : veproforma.direccion;
+            veproforma.obs = (veproforma.obs == "") ? "---" : veproforma.obs;
+
+            string direccion = veproforma.direccion;
+            string obs = veproforma.obs;
+
+
+            // verificar si se puede realizar ventas a codigos SN
+            if (await cliente.EsClienteSinNombre(_context, codcliente))
+            {
+                if (nit.Trim().Length > 0)
+                {
+                    if (int.TryParse(nit, out int result))
+                    {
+                        if (result > 0)
+                        {
+                            // ya no se podra hacer ventas a codigo sin nombre dsd mayo 2022, se debe asignar codigo al cliente
+
+                        }
+                    }
+                }
+            }
+
+
+            return (true, "");
+        }
+
+
 
         private async Task<bool> Grabar_Proforma_Etiqueta(DBContext _context, string idProf, int nroidpf, bool desclinea_segun_solicitud, veproforma dtpf)
         {
@@ -2092,6 +2131,84 @@ namespace SIAW.Controllers.ventas.transaccion
                     totales = totales,
                     detalleProf = resultado
                 });
+            }
+        }
+
+        //[Authorize]
+        [HttpPost]
+        [Route("recarcularRecargos/{userConn}/{codempresa}/{descuentos}")]
+        public async Task<object> recarcularRecargos(string userConn,string codempresa, double descuentos, RequestRecarlculaRecargoDescuentos RequestRecargos)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                List<itemDataMatriz> tabla_detalle = RequestRecargos.detalleItemsProf;
+                veproforma veproforma = RequestRecargos.veproforma;
+                List<verecargoprof> tablarecargos = RequestRecargos.tablarecargos;
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var result = await versubtotal(_context, tabla_detalle);
+                    float subtotal = result.st;
+                    float peso = result.peso;
+                    var recargo = await verrecargos(_context, codempresa, veproforma.codmoneda, veproforma.fecha, subtotal, tablarecargos);
+                    var total = await vertotal(_context, subtotal, recargo, descuentos, veproforma.codcliente_real, veproforma.codmoneda, codempresa, veproforma.fecha, tabla_detalle, tablarecargos);
+                    return new
+                    {
+                        subtotal = subtotal,
+                        peso = peso,
+                        recargo = recargo,
+                        total = total.TotalGen
+                    };
+                }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+        }
+
+        //[Authorize]
+        [HttpPost]
+        [Route("recarcularDescuentos/{userConn}/{codempresa}/{recargos}/{cmbtipo_complementopf}")]
+        public async Task<object> recarcularDescuentos(string userConn, string codempresa, double recargos, int cmbtipo_complementopf, RequestRecarlculaRecargoDescuentos RequestDescuentos)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                List<itemDataMatriz> tabla_detalle = RequestDescuentos.detalleItemsProf;
+                veproforma veproforma = RequestDescuentos.veproforma;
+                List<tabladescuentos> ? tabladescuentos = RequestDescuentos.tabladescuentos;
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    if (tabladescuentos != null)
+                    {
+                        var result = await versubtotal(_context, tabla_detalle);
+                        float subtotal = result.st;
+                        float peso = result.peso;
+                        var descuento = await verdesextra(_context, codempresa, veproforma.nit, veproforma.codmoneda, cmbtipo_complementopf, veproforma.idpf_complemento, veproforma.nroidpf_complemento ?? 0, subtotal, veproforma.fecha, tabladescuentos, tabla_detalle);
+                        var total = await vertotal(_context, subtotal, recargos, descuento, veproforma.codcliente_real, veproforma.codmoneda, codempresa, veproforma.fecha, tabla_detalle, RequestDescuentos.tablarecargos);
+                        return new
+                        {
+                            subtotal = subtotal,
+                            peso = peso,
+                            descuento = descuento,
+                            total = total.TotalGen
+                        };
+                    }
+                    return BadRequest(new { resp = "No se seleccionaron descuentos extras" });
+                }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
             }
         }
 
@@ -3003,13 +3120,13 @@ namespace SIAW.Controllers.ventas.transaccion
                     var habilitado = await ventas.Descuento_Extra_Habilitado(_context, coddesextra);
                     if (!habilitado)
                     {
-                        return StatusCode(203,new { resp = "El descuento: " + coddesextra + " esta deshabilitado, por favor verifique esta situacion!!!" });
+                        return StatusCode(203,new { resp = "El descuento: " + coddesextra + " esta deshabilitado, por favor verifique esta situacion!!!", status = false });
                     }
                     // verificar si hay descuentos excluyentes
                     var verificaResp = await hay_descuentos_excluyentes(_context, coddesextra, vedesextraprof);
                     if (verificaResp.val == false)
                     {
-                        return StatusCode(203,new { resp = verificaResp.msg });
+                        return StatusCode(203,new { resp = verificaResp.msg, status = false });
                     }
                     // validar si el descuento que esta intentando añadir valida 
                     // si el cliente deberia tener linea de credito valida
@@ -3036,7 +3153,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     // implementado en fecha: 30-11-2021
                     if (await cliente.Cliente_Tiene_Descto_Extra_Asignado(_context,coddesextra,codcliente_real) == false)
                     {
-                        return StatusCode(203, new { resp = "El cliente: " + codcliente_real + " no tiene asignado el descuento: " + coddesextra + ", verificque esta situacion!!!" });
+                        return StatusCode(203, new { resp = "El cliente: " + codcliente_real + " no tiene asignado el descuento: " + coddesextra + ", verificque esta situacion!!!", status = false });
                     }
 
                     ////////////////////////////////////////////////////////////////////////////////////////
@@ -3046,7 +3163,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     {
                         if (await cliente.Cliente_Tiene_Descto_Extra_Asignado(_context, coddesextra, codcliente) == false)
                         {
-                            return StatusCode(203, new { resp = "El cliente: " + codcliente + " no tiene asignado el descuento: " + coddesextra + ", verificque esta situacion!!!" });
+                            return StatusCode(203, new { resp = "El cliente: " + codcliente + " no tiene asignado el descuento: " + coddesextra + ", verificque esta situacion!!!", status = false });
                         }
                     }
 
@@ -3058,7 +3175,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     {
                         if (coddesextra == cod_desextra)
                         {
-                            return StatusCode(203, new { resp = "El descuento por desposito: " + coddesextra + " no puede ser añadido manualmente!!!" });
+                            return StatusCode(203, new { resp = "El descuento por desposito: " + coddesextra + " no puede ser añadido manualmente!!!", status = false });
                         }
                     }
 
@@ -3082,11 +3199,11 @@ namespace SIAW.Controllers.ventas.transaccion
                             // id_nroid_deposito = sia_funciones.Depositos_Cliente.Instancia.IdNroid_Deposito_Asignado_Anticipo(dt_anticipo_pf.Rows(0)("id_anticipo"), dt_anticipo_pf.Rows(0)("nroid_anticipo"))
                             if (contra_entrega && tipopago == "CONTADO")
                             {
-                                return StatusCode(203, new { resp = "La proforma es de tipo pago CONTADO - CONTRA ENTREGA lo cual no esta permitido para este descuento!!!" });
+                                return StatusCode(203, new { resp = "La proforma es de tipo pago CONTADO - CONTRA ENTREGA lo cual no esta permitido para este descuento!!!", status = false });
                             }
                             if (tipopago == "CREDITO")
                             {
-                                return StatusCode(203, new { resp = "La proforma es de tipo pago CREDITO lo cual no esta permitido para este descuento!!!" });
+                                return StatusCode(203, new { resp = "La proforma es de tipo pago CREDITO lo cual no esta permitido para este descuento!!!" , status = false });
                             }
                             /*
                              ''//3.- que el anticipo este enlazado a un deposito de cliente
@@ -3313,7 +3430,13 @@ namespace SIAW.Controllers.ventas.transaccion
                     message = "El cliente tiene descuentos por deposito pendientes de aplicacion, desea aplicar el descuento a esta proforma?";
                 }
 
-                //var seAplicoDsctoPorDeposito = await ventas.AdicionarDescuentoPorDeposito(_context, subtotal, codmoneda, tabladescuentos, dt_credito_depositos_pendientes, tblcbza_deposito, codproforma, codcliente_real, codempresa);
+                var seAplicoDsctoPorDeposito = await ventas.AdicionarDescuentoPorDeposito(_context, subtotal, codmoneda, objetoDescDepositos.tabladescuentos, dt_credito_depositos_pendientes, objetoDescDepositos.tblcbza_deposito, codproforma, codcliente_real, codempresa);
+
+                if (seAplicoDsctoPorDeposito.Item1)
+                {
+
+                }
+            
             }
 
             return Ok("aaaa");
@@ -3382,14 +3505,22 @@ namespace SIAW.Controllers.ventas.transaccion
     public class objetoDescDepositos
     {
         public getTarifaPrincipal_Rodrigo getTarifaPrincipal { get; set; }
-        List<tabladescuentos> tabladescuentos { get; set; }
-        List <tblcbza_deposito> tblcbza_deposito { get; set; }
+        public List<tabladescuentos> tabladescuentos { get; set; }
+        public List<tblcbza_deposito> tblcbza_deposito { get; set; }
     }
 
     public class ubicacionCliente
     {
         public string codcliente { get; set; }
         public string dircliente { get; set; }
+    }
+    public class RequestRecarlculaRecargoDescuentos
+    {
+        public veproforma veproforma { get; set; }
+        public List<itemDataMatriz> detalleItemsProf { get; set; }
+        public List<verecargoprof> tablarecargos { get; set; }
+        public List<tabladescuentos> ? tabladescuentos { get; set; }
+
     }
     public class RequestEntregaPedido
     {
