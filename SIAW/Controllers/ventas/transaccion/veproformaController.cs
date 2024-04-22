@@ -27,6 +27,7 @@ using Microsoft.AspNetCore.Authorization;
 using Humanizer;
 using System.Net;
 using System.Drawing.Drawing2D;
+using System.ComponentModel.DataAnnotations;
 
 namespace SIAW.Controllers.ventas.transaccion
 {
@@ -1041,10 +1042,10 @@ namespace SIAW.Controllers.ventas.transaccion
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
                 DatosDocVta datosDocVta = new DatosDocVta();
                 List<itemDataMatriz> itemDataMatriz = new List<itemDataMatriz>();
-                List<vedesextraDatos> vedesextraDatos = new List<vedesextraDatos>();
+                List<vedesextraDatos>? vedesextraDatos = new List<vedesextraDatos>();
                 List<vedetalleEtiqueta> vedetalleEtiqueta = new List<vedetalleEtiqueta>();
-                List<vedetalleanticipoProforma> vedetalleanticipoProforma = new List<vedetalleanticipoProforma>();
-                List<verecargosDatos> verecargosDatos = new List<verecargosDatos>();
+                List<vedetalleanticipoProforma>? vedetalleanticipoProforma = new List<vedetalleanticipoProforma>();
+                List<verecargosDatos>? verecargosDatos = new List<verecargosDatos>();
 
                 datosDocVta = RequestValidacion.datosDocVta;
                 itemDataMatriz = RequestValidacion.detalleItemsProf;
@@ -1521,6 +1522,12 @@ namespace SIAW.Controllers.ventas.transaccion
                     {
                         // RECALCULARPRECIOS(True, True)       // aca llamar a recarcular precio
 
+                        // ESTA VALIDACION ES MOMENTANEA, DESPUES SE DEBE COLOCAR SU PROPIA RUTA PARA VALIDAR, YA QUE PEDIRA CLAVE.
+                        var validacion_inicial = await Validar_Datos_Cabecera(_context, codempresa, veproforma);
+                        if (!validacion_inicial.bandera)
+                        {
+                            return BadRequest(new { resp = validacion_inicial.msg });
+                        }
 
                         string result = await Grabar_Documento(_context, idProf, codempresa, datosProforma);
                         if (result != "ok")
@@ -1664,7 +1671,7 @@ namespace SIAW.Controllers.ventas.transaccion
             }
         }
 
-        private async Task<(bool val, string msg)> Validar_Datos_Cabecera(DBContext _context, veproforma veproforma)
+        private async Task<(bool bandera, string msg)> Validar_Datos_Cabecera(DBContext _context, string codempresa, veproforma veproforma)
         {
             // POR AHORA VALIDACIONES QUE REQUIERAN CONSULTA A BASE DE DATOS.
             string id = veproforma.id;
@@ -1674,6 +1681,7 @@ namespace SIAW.Controllers.ventas.transaccion
             string nomcliente = veproforma.nomcliente;
             string nit = veproforma.nit;
             string codmoneda = veproforma.codmoneda;
+            string codcliente_real = veproforma.codcliente_real;
 
             veproforma.direccion = (veproforma.direccion == "") ? "---" : veproforma.direccion;
             veproforma.obs = (veproforma.obs == "") ? "---" : veproforma.obs;
@@ -1681,6 +1689,7 @@ namespace SIAW.Controllers.ventas.transaccion
             string direccion = veproforma.direccion;
             string obs = veproforma.obs;
 
+            int tipo_doc_id = veproforma.tipo_docid ?? -2;
 
             // verificar si se puede realizar ventas a codigos SN
             if (await cliente.EsClienteSinNombre(_context, codcliente))
@@ -1692,13 +1701,44 @@ namespace SIAW.Controllers.ventas.transaccion
                         if (result > 0)
                         {
                             // ya no se podra hacer ventas a codigo sin nombre dsd mayo 2022, se debe asignar codigo al cliente
-
-                        }
+                            if (!await configuracion.emp_permitir_facturas_sin_nombre(_context,codempresa))
+                            {
+                                return (false, "No se puede realizar facturas a codigos SIN NOMBRE y con NIT diferente de Cero, si va a facturar a un NIT/CI dfte. de cero debe crear al cliente!!!.");
+                            }
+                        } 
+                        // si se puede facturar a codigo SIN NOMBRE CON NIT CERO
                     }
+                    // igual devuelve valido si el nit no es numerico, mas abajo se validara si es correcto
                 }
+                // igual devuelve valido si NO INGRESO EL nit, mas abajo se validara si es correcto
             }
 
+            if (! await cliente.clientehabilitado(_context, codcliente_real))
+            {
+                return (false, "Ese Cliente: " + codcliente_real + " no esta habilitado.");
+            }
+            // Desde 14 / 08 / 2023 validar que el cliente casual este habilitado
+            if (!await cliente.clientehabilitado(_context, codcliente))
+            {
+                return (false, "Ese Cliente: " + codcliente + " no esta habilitado.");
+            }
 
+            tipo_doc_id = tipo_doc_id + 1;
+            var respNITValido = await ventas.Validar_NIT_Correcto(_context, nit, tipo_doc_id.ToString());
+            if (!respNITValido.EsValido)
+            {
+                return (false, "Verifique que el NIT tenga el formato correcto!!! " + respNITValido.Mensaje);
+            }
+
+            //validar el NIT en el SIN
+            /*
+            If resultado Then
+                If Not Validar_NIT_En_El_SIN() Then
+                    cmbtipo_docid.Focus()
+                    resultado = False
+                End If
+            End If
+             */
             return (true, "");
         }
 
@@ -1994,7 +2034,7 @@ namespace SIAW.Controllers.ventas.transaccion
         //[Authorize]
         [HttpPost]
         [Route("totabilizarProf/{userConn}/{usuario}/{codempresa}/{desclinea_segun_solicitud}/{cmbtipo_complementopf}/{opcion_nivel}")]
-        public async Task<object> totabilizarProf(string userConn, string usuario, string codempresa, bool desclinea_segun_solicitud, int cmbtipo_complementopf, string opcion_nivel, SaveProformaCompleta datosProforma)
+        public async Task<object> totabilizarProf(string userConn, string usuario, string codempresa, bool desclinea_segun_solicitud, int cmbtipo_complementopf, string opcion_nivel, TotabilizarProformaCompleta datosProforma)
         {
             veproforma veproforma = datosProforma.veproforma;
             List<veproforma1> veproforma1 = datosProforma.veproforma1;
@@ -2123,6 +2163,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 {
                     return BadRequest(new { resp = "No se encontro informacion con los datos proporcionados." });
                 }
+          
                 var totales = await RECALCULARPRECIOS(_context, false,codempresa, cmbtipo_complementopf,resultado, verecargoprof, veproforma, vedesextraprof);
 
                 
@@ -2146,21 +2187,25 @@ namespace SIAW.Controllers.ventas.transaccion
 
                 List<itemDataMatriz> tabla_detalle = RequestRecargos.detalleItemsProf;
                 veproforma veproforma = RequestRecargos.veproforma;
-                List<verecargoprof> tablarecargos = RequestRecargos.tablarecargos;
+                List<tablarecargos> tablarecargos = RequestRecargos.tablarecargos;
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     var result = await versubtotal(_context, tabla_detalle);
                     float subtotal = result.st;
                     float peso = result.peso;
-                    var recargo = await verrecargos(_context, codempresa, veproforma.codmoneda, veproforma.fecha, subtotal, tablarecargos);
+                    var respRecargo = await verrecargos(_context, codempresa, veproforma.codmoneda, veproforma.fecha, subtotal, tablarecargos);
+                    float recargo = respRecargo.total;
+                    tablarecargos = respRecargo.tablarecargos;
+
                     var total = await vertotal(_context, subtotal, recargo, descuentos, veproforma.codcliente_real, veproforma.codmoneda, codempresa, veproforma.fecha, tabla_detalle, tablarecargos);
                     return new
                     {
                         subtotal = subtotal,
                         peso = peso,
                         recargo = recargo,
-                        total = total.TotalGen
+                        total = total.TotalGen,
+                        tablaRecargos = tablarecargos
                     };
                 }
             }
@@ -2192,14 +2237,19 @@ namespace SIAW.Controllers.ventas.transaccion
                         var result = await versubtotal(_context, tabla_detalle);
                         float subtotal = result.st;
                         float peso = result.peso;
-                        var descuento = await verdesextra(_context, codempresa, veproforma.nit, veproforma.codmoneda, cmbtipo_complementopf, veproforma.idpf_complemento, veproforma.nroidpf_complemento ?? 0, subtotal, veproforma.fecha, tabladescuentos, tabla_detalle);
+                        var respDescuento = await verdesextra(_context, codempresa, veproforma.nit, veproforma.codmoneda, cmbtipo_complementopf, veproforma.idpf_complemento, veproforma.nroidpf_complemento ?? 0, subtotal, veproforma.fecha, tabladescuentos, tabla_detalle);
+
+                        double descuento = respDescuento.respdescuentos;
+                        tabladescuentos = respDescuento.tabladescuentos;
+
                         var total = await vertotal(_context, subtotal, recargos, descuento, veproforma.codcliente_real, veproforma.codmoneda, codempresa, veproforma.fecha, tabla_detalle, RequestDescuentos.tablarecargos);
                         return new
                         {
                             subtotal = subtotal,
                             peso = peso,
                             descuento = descuento,
-                            total = total.TotalGen
+                            total = total.TotalGen,
+                            tablaDescuentos = tabladescuentos
                         };
                     }
                     return BadRequest(new { resp = "No se seleccionaron descuentos extras" });
@@ -2212,7 +2262,7 @@ namespace SIAW.Controllers.ventas.transaccion
             }
         }
 
-        private async Task<object> RECALCULARPRECIOS(DBContext _context, bool reaplicar_desc_deposito, string codempresa, int cmbtipo_complementopf, List<itemDataMatriz> tabla_detalle, List<verecargoprof> tablarecargos, veproforma veproforma, List<vedesextraprof> vedesextraprof)
+        private async Task<object> RECALCULARPRECIOS(DBContext _context, bool reaplicar_desc_deposito, string codempresa, int cmbtipo_complementopf, List<itemDataMatriz> tabla_detalle, List<tablarecargos> tablarecargos, veproforma veproforma, List<tabladescuentos> vedesextraprof)
         {
             var tabladescuentos = vedesextraprof.Select(i => new tabladescuentos
             {
@@ -2235,18 +2285,26 @@ namespace SIAW.Controllers.ventas.transaccion
                 // Revisar_Aplicar_Descto_Deposito(preguntar_si_aplicare_desc_deposito);
             }
 
-            var recargo = await verrecargos(_context,codempresa, veproforma.codmoneda, veproforma.fecha, subtotal, tablarecargos);
-            var descuento = await verdesextra(_context,codempresa,veproforma.nit,veproforma.codmoneda, cmbtipo_complementopf, veproforma.idpf_complemento, veproforma.nroidpf_complemento ?? 0, subtotal, veproforma.fecha, tabladescuentos, tabla_detalle);
+            var respRecargo = await verrecargos(_context,codempresa, veproforma.codmoneda, veproforma.fecha, subtotal, tablarecargos);
+            float recargo = respRecargo.total;
+
+            var respDescuento = await verdesextra(_context,codempresa,veproforma.nit,veproforma.codmoneda, cmbtipo_complementopf, veproforma.idpf_complemento, veproforma.nroidpf_complemento ?? 0, subtotal, veproforma.fecha, tabladescuentos, tabla_detalle);
+            double descuento = respDescuento.respdescuentos;
+
             var resultados = await vertotal(_context,subtotal, recargo, descuento,veproforma.codcliente_real,veproforma.codmoneda,codempresa,veproforma.fecha, tabla_detalle, tablarecargos);
             //QUITAR
-            return new { 
+            return new
+            {
                 subtotal = subtotal,
                 peso = peso,
                 recargo = recargo,
                 descuento = descuento,
                 iva = resultados.totalIva,
                 total = resultados.TotalGen,
-                tablaIva = resultados.tablaiva
+                tablaIva = resultados.tablaiva,
+
+                tablaRecargos = respRecargo.tablarecargos,
+                tablaDescuentos = respDescuento.tabladescuentos
             };
 
         }
@@ -2352,7 +2410,7 @@ namespace SIAW.Controllers.ventas.transaccion
             return (st, peso);
         }
 
-        private async Task<float> verrecargos(DBContext _context, string codempresa, string codmoneda,DateTime fecha, float subtotal, List<verecargoprof> tablarecargos)
+        private async Task<(float total, List<tablarecargos> tablarecargos)> verrecargos(DBContext _context, string codempresa, string codmoneda,DateTime fecha, float subtotal, List<tablarecargos> tablarecargos)
         {
             int codrecargo_pedido_urg_provincia = await configuracion.emp_codrecargo_pedido_urgente_provincia(_context, codempresa);
             //TOTALIZAR LOS RECARGOS QUE NO SON POR PEDIDO URG PROVINCIAS (los que se aplican al total final)
@@ -2373,13 +2431,13 @@ namespace SIAW.Controllers.ventas.transaccion
                         reg.montodoc = (decimal)subtotal / 100 * reg.porcen;
                     }
                     reg.montodoc = Math.Round(reg.montodoc, 2);
-                    total = total + (float) reg.montodoc;
+                    total += (float) reg.montodoc;
                 }
             }
-            return total;
+            return (total,tablarecargos);
 
         }
-        private async Task<double> verdesextra(DBContext _context, string codempresa, string nit, string codmoneda, int cmbtipo_complementopf, string idpf_complemento, int nroidpf_complemento, double subtotal, DateTime fecha, List<tabladescuentos> tabladescuentos, List<itemDataMatriz> detalleProf)
+        private async Task<(double respdescuentos, List<tabladescuentos> tabladescuentos)> verdesextra(DBContext _context, string codempresa, string nit, string codmoneda, int cmbtipo_complementopf, string idpf_complemento, int nroidpf_complemento, double subtotal, DateTime fecha, List<tabladescuentos> tabladescuentos, List<itemDataMatriz> detalleProf)
         {
             int coddesextra_depositos = await configuracion.emp_coddesextra_x_deposito(_context, codempresa);
             tabladescuentos = await ventas.Ordenar_Descuentos_Extra(_context, tabladescuentos);
@@ -2524,11 +2582,11 @@ namespace SIAW.Controllers.ventas.transaccion
 
             double respdescuentos = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (float)(total_desctos1 + total_desctos2));
 
-            return respdescuentos;
+            return (respdescuentos,tabladescuentos);
 
         }
 
-        private async Task<(double totalIva, double TotalGen, List<veproforma_iva> tablaiva)> vertotal(DBContext _context, double subtotal, double recargos, double descuentos, string codcliente_real, string codmoneda, string codempresa, DateTime fecha, List<itemDataMatriz> tabladetalle, List<verecargoprof> tablarecargos)
+        private async Task<(double totalIva, double TotalGen, List<veproforma_iva> tablaiva)> vertotal(DBContext _context, double subtotal, double recargos, double descuentos, string codcliente_real, string codmoneda, string codempresa, DateTime fecha, List<itemDataMatriz> tabladetalle, List<tablarecargos> tablarecargos)
         {
             double suma = subtotal + recargos - descuentos;
             double totalIva = 0;
@@ -2706,7 +2764,9 @@ namespace SIAW.Controllers.ventas.transaccion
                             i.c.coddescuento,
                             i.c.total,
                             i.c.porceniva,
-                            i.c.peso
+                            i.c.peso,
+                            porcen_mercaderia = 0,
+                            porcendesc = 0
                         })
                         .ToListAsync();
                     // obtener cod descuentos x deposito
@@ -2715,6 +2775,18 @@ namespace SIAW.Controllers.ventas.transaccion
                     // obtener descuentos
                     var descuentosExtra = await _context.vedesextracoti
                         .Where(i => i.codcotizacion == codCotizacion && i.coddesextra != codDesextraxDeposito && i.coddesextra != codDesextraxDepositoContado)
+                        .Join(_context.vedesextra,
+                        p => p.coddesextra,
+                        e => e.codigo,
+                        (p, e) => new { p, e })
+                        .Select(i => new
+                        {
+                            i.p.codcotizacion,
+                            i.p.coddesextra,
+                            descripcion = i.e.descripcion,
+                            i.p.porcen,
+                            i.p.montodoc
+                        })
                         .ToListAsync();
                     return Ok(new
                     {
@@ -2781,7 +2853,9 @@ namespace SIAW.Controllers.ventas.transaccion
                             i.p.cantidad_pedida,
                             i.p.peso,
                             i.p.nroitem,
-                            i.p.id
+                            i.p.id,
+                            porcen_mercaderia = 0,
+                            porcendesc = 0
                         })
                         .ToListAsync();
                     // obtener cod descuentos x deposito
@@ -3471,6 +3545,85 @@ namespace SIAW.Controllers.ventas.transaccion
             }
         }
 
+
+
+
+
+        //private async Task<List<veproforma_iva>> CalcularTablaIVA(double subtotal, double recargos, double descuentos, List<itemDataMatriz> tabladetalle)
+        [HttpPost]
+        [Route("empaquesCerradosVerifica/{userConn}/{codcliente}")]
+        public async Task<ActionResult<object>> empaquesCerradosVerifica(string userConn, string codcliente, List<itemDataMatriz> tabladetalle)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    if (tabladetalle.Count() > 0)
+                    {
+                        bool cumple = true;
+                        foreach (var reg in tabladetalle)
+                        {
+                            if (await ventas.Tarifa_EmpaqueCerrado(_context,reg.codtarifa))
+                            {
+                                if (await ventas.CumpleEmpaqueCerrado(_context,reg.coditem, reg.codtarifa, reg.coddescuento, (decimal)reg.cantidad, codcliente))
+                                {
+                                    reg.cumple = true;
+                                }
+                                else
+                                {
+                                    reg.cumple = false;
+                                    cumple = false;
+                                }
+                            }
+                        }
+                        if (cumple)
+                        {
+                            return Ok(new { reg = "Todos los items del documento cumplen con empaques cerrados.", cumple = cumple, tabladetalle = tabladetalle });
+                        }
+                        return Ok(new { reg = "Hay algunos items que no cumplen los empaques cerrados.", cumple = cumple, tabladetalle = tabladetalle });
+                    }
+                    return BadRequest(new { reg = "Debe seleccionar items para poder validar los empaques cerrados."});
+                }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+        }
+
+
+        //private async Task<List<veproforma_iva>> CalcularTablaIVA(double subtotal, double recargos, double descuentos, List<itemDataMatriz> tabladetalle)
+        [HttpPost]
+        [Route("empaquesMinimosVerifica/{userConn}/{codcliente}/{codalmacen}")]
+        public async Task<ActionResult<object>> empaquesMinimosVerifica(string userConn, string codcliente, int codalmacen, List<itemDataMatriz> tabladetalle)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    if (tabladetalle.Count() > 0)
+                    {
+                        var valida = await validar_Vta.Validar_Resaltar_Empaques_Minimos_Segun_Lista_Precios(_context, tabladetalle, codalmacen, codcliente);
+                        if (valida.cumple)
+                        {
+                            return Ok(new { reg = "Todo el documento cumple con los empaques minimos de Precio y descuento.", cumple = valida.cumple, tabladetalle = valida.tabladetalle });
+                        }
+                        return Ok(new { reg = "Hay algunos items que no cumplen el empaque minimo de Precio y descuento.", cumple = valida.cumple, tabladetalle = valida.tabladetalle });
+                    }
+                    return BadRequest(new { reg = "Debe seleccionar items para poder validar los empaques cerrados." });
+                }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+        }
+
+
     }
 
 
@@ -3518,7 +3671,7 @@ namespace SIAW.Controllers.ventas.transaccion
     {
         public veproforma veproforma { get; set; }
         public List<itemDataMatriz> detalleItemsProf { get; set; }
-        public List<verecargoprof> tablarecargos { get; set; }
+        public List<tablarecargos> tablarecargos { get; set; }
         public List<tabladescuentos> ? tabladescuentos { get; set; }
 
     }

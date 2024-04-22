@@ -14,4 +14,15 @@ namespace siaw_DBContext.Models_Extra
         public List<veproforma_iva>? veproforma_iva { get; set; }
         public veetiqueta_proforma? veetiqueta_proforma { get; set; }
     }
+
+    public class TotabilizarProformaCompleta
+    {
+        public veproforma veproforma { get; set; }
+        public List<veproforma1> veproforma1 { get; set; }
+        public List<veproforma_valida>? veproforma_valida { get; set; }
+        public List<veproforma_anticipo>? veproforma_anticipo { get; set; }
+        public List<tabladescuentos>? vedesextraprof { get; set; }
+        public List<tablarecargos>? verecargoprof { get; set; }
+        public List<veproforma_iva>? veproforma_iva { get; set; }
+    }
 }

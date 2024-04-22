@@ -1878,6 +1878,10 @@ namespace siaw_funciones
             return resultado;
         }
 
-
+        public async Task<bool> clientehabilitado(DBContext _context, string codcliente)
+        {
+            var resultado = await _context.vecliente.Where(i => i.codigo == codcliente).Select(i => i.habilitado).FirstOrDefaultAsync() ?? false;
+            return resultado;
+        }
     }
 }

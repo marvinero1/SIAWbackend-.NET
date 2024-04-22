@@ -247,7 +247,7 @@ namespace siaw_funciones
                     .FirstOrDefaultAsync();
             return result;
         }
-        public async Task<List<string>> DescuentosPromocionAplicadosAsync(DBContext _context, List<vedesextraDatos> tabladescuentos, int coddesextraDepositos)
+        public async Task<List<string>> DescuentosPromocionAplicadosAsync(DBContext _context, List<vedesextraDatos>? tabladescuentos, int coddesextraDepositos)
         {
             List<string> resultado = new List<string>();
             //genera una lista con los descuentos extra que son 
@@ -760,7 +760,7 @@ namespace siaw_funciones
             }
             return resultado;
         }
-        public async Task<(List<verecargoprof> tablarecargos,double ttl_recargos_sobre_total_final)> Recargos_Sobre_Total_Final(DBContext _context, double total, string codmoneda, DateTime fecha, string codempresa, List<verecargoprof> tablarecargos)
+        public async Task<(List<tablarecargos> tablarecargos,double ttl_recargos_sobre_total_final)> Recargos_Sobre_Total_Final(DBContext _context, double total, string codmoneda, DateTime fecha, string codempresa, List<tablarecargos> tablarecargos)
         {
             int codrecargo_pedido_urg_provincia = await configuracion.emp_codrecargo_pedido_urgente_provincia(_context, codempresa);
             double ttl_recargos_sobre_total_final = 0;

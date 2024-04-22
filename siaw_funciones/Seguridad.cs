@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using NuGet.Protocol.Core.Types;
 using siaw_DBContext.Data;
 using siaw_DBContext.Models;
 
@@ -184,6 +185,36 @@ namespace siaw_funciones
             }
 
             return returnValue.ToString();
+        }
+
+        public async Task<bool> grabar_log_permisos(DBContext _context, string permiso, string obs, string datosdoc, string usuario, DateTime fecha, string hora)
+        {
+            // fecha,hora,codpermiso,obs,usuarioactual,datosdoc
+            if (obs.Length >= 100)
+            {
+                obs = obs.Substring(0, 100);
+            }
+            if (datosdoc.Length >= 100)
+            {
+                datosdoc = datosdoc.Substring(0, 100);
+            }
+            adautorizacion_log data = new adautorizacion_log();
+            data.fecha = fecha;
+            data.hora = hora;
+            data.permiso = permiso;
+            data.responsable = obs;
+            data.usuario = usuario;
+            data.datosdoc = datosdoc;
+            _context.adautorizacion_log.Add(data);
+            try
+            {
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch (DbUpdateException)
+            {
+                return false;
+            }
         }
 
     }

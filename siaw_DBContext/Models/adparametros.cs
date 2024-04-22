@@ -253,5 +253,6 @@ namespace siaw_DBContext.Models
         public int? coddesextra_x_deposito_contado { get; set; }
         public bool? permitir_desc_x_depo_casual_referencial { get; set; }
         public int? dias_proforma_vta_item_cliente { get; set; }
+        public bool? permitir_facturas_sn { get; set; }
     }
 }

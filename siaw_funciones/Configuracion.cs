@@ -93,6 +93,15 @@ namespace siaw_funciones
 
             return result;
         }
+        public async Task<bool> emp_permitir_facturas_sin_nombre(DBContext _context, string codempresa)
+        {
+            var result = await _context.adparametros
+                    .Where(v => v.codempresa == codempresa)
+                    .Select(parametro => parametro.permitir_facturas_sn)
+                    .FirstOrDefaultAsync() ?? false;
+
+            return result;
+        }
         public async Task<DateTime> Depositos_Nuevos_Desde_Fecha(DBContext _context)
         {
             //esta fecha es la que se empezo con los descuentos por deposito

@@ -195,7 +195,7 @@ namespace siaw_funciones
         private Seguridad seguridad = new Seguridad();
         //Task<ActionResult<itemDataMatriz>>
         //Task<Controles>
-        public async Task<List<Controles>> DocumentoValido(string userConnectionString, string cadena_control, string tipodoc, string opcion_validar, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos, List<vedetalleEtiqueta> dt_etiqueta, List<vedetalleanticipoProforma> dt_anticipo_pf, List<verecargosDatos> tablarecargos, string codempresa, string usuario)
+        public async Task<List<Controles>> DocumentoValido(string userConnectionString, string cadena_control, string tipodoc, string opcion_validar, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos>? tabladescuentos, List<vedetalleEtiqueta> dt_etiqueta, List<vedetalleanticipoProforma>? dt_anticipo_pf, List<verecargosDatos>? tablarecargos, string codempresa, string usuario)
         {
             List<Controles> resultados = new List<Controles>();
             try
@@ -314,8 +314,8 @@ namespace siaw_funciones
             }
             return resultados;
         }
-        public async Task<bool> Control_Valido(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos, List<vedetalleEtiqueta> dt_etiqueta, List<vedetalleanticipoProforma> dt_anticipo_pf, List<verecargosDatos> tablarecargos, List<Dtnocumplen> dtnocumplen, List<Dtnegativos> dtnegativos, string codempresa, string usuario)
-        //public void Control_Valido(string userConnectionString, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos, List<vedetalleEtiqueta> dt_etiqueta, List<vedetalleanticipoProforma> dt_anticipo_pf, List<verecargosDatos> tablarecargos, Dtnocumplen dtnocumplenm, Dtnegativos dtnegativos, string codempresa)
+        public async Task<bool> Control_Valido(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos>? tabladescuentos, List<vedetalleEtiqueta> dt_etiqueta, List<vedetalleanticipoProforma>? dt_anticipo_pf, List<verecargosDatos>? tablarecargos, List<Dtnocumplen> dtnocumplen, List<Dtnegativos> dtnegativos, string codempresa, string usuario)
+        //public void Control_Valido(string userConnectionString, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos>? tabladescuentos, List<vedetalleEtiqueta> dt_etiqueta, List<vedetalleanticipoProforma>? dt_anticipo_pf, List<verecargosDatos> tablarecargos, Dtnocumplen dtnocumplenm, Dtnegativos dtnegativos, string codempresa)
         {
             string _codcontrol = regcontrol.CodControl;
             string _desccontrol = regcontrol.Descripcion;
@@ -806,7 +806,7 @@ namespace siaw_funciones
             }
             return true;
         }
-        private async Task<bool> Control_Valido_C00006Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos, string codempresa)
+        private async Task<bool> Control_Valido_C00006Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos>? tabladescuentos, string codempresa)
         {
             //**CLIENTE COMPETENCIA PERMITIR DESCTOS PROMOCION
             ResultadoValidacion objres = new ResultadoValidacion();
@@ -830,7 +830,7 @@ namespace siaw_funciones
             }
             return true;
         }
-        private async Task<bool> Control_Valido_C00007Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos)
+        private async Task<bool> Control_Valido_C00007Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos>? tabladescuentos)
         {
             //**CLIENTE COMPETENCIA PERMITIR DESCTOS EXTRAS
             ResultadoValidacion objres = new ResultadoValidacion();
@@ -1015,7 +1015,7 @@ namespace siaw_funciones
             }
             return resultado;
         }
-        private async Task<bool> Control_Valido_C00014Async(DBContext _context, Controles regcontrol, List<vedesextraDatos> tabladescuentos)
+        private async Task<bool> Control_Valido_C00014Async(DBContext _context, Controles regcontrol, List<vedesextraDatos>? tabladescuentos)
         {
             //VERIFICAR SI LOS DESCUENTOS EXTRAS ESTAN VIGENTES
             ResultadoValidacion objres = new ResultadoValidacion();
@@ -1039,7 +1039,7 @@ namespace siaw_funciones
             }
             return true;
         }
-        private async Task<bool> Control_Valido_C00015Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos)
+        private async Task<bool> Control_Valido_C00015Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos>? tabladescuentos)
         {
             //VERIFICAR FECHA VIGENCIA DESCTOS. EXTRAS VERSUS FECHA INICIAL PROFORMA
             ResultadoValidacion objres = new ResultadoValidacion();
@@ -1063,7 +1063,7 @@ namespace siaw_funciones
             }
             return true;
         }
-        private async Task<bool> Control_Valido_C00016Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos, List<itemDataMatriz> tabladetalle, string codempresa)
+        private async Task<bool> Control_Valido_C00016Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos>? tabladescuentos, List<itemDataMatriz> tabladetalle, string codempresa)
         {
             //VERIFICAR SI HAY PROMOCIONES PENDIENTES DE APLICAR
             ResultadoValidacion objres = new ResultadoValidacion();
@@ -1088,7 +1088,7 @@ namespace siaw_funciones
             return true;
         }
 
-        private async Task<bool> Control_Valido_C00017Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos, string codempresa)
+        private async Task<bool> Control_Valido_C00017Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos>? tabladescuentos, string codempresa)
         {
             //##VALIDAR DESCUENTO POR DEPOSITO
             ResultadoValidacion objres = new ResultadoValidacion();
@@ -1113,7 +1113,7 @@ namespace siaw_funciones
             }
             return true;
         }
-        private async Task<bool> Control_Valido_C00018Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos, string codempresa)
+        private async Task<bool> Control_Valido_C00018Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos>? tabladescuentos, string codempresa)
         {
             //##VALIDAR DESCUENTO EXTRA REQUIERE CREDITO VALIDO
             ResultadoValidacion objres = new ResultadoValidacion();
@@ -1138,7 +1138,7 @@ namespace siaw_funciones
             }
             return true;
         }
-        private async Task<bool> Control_Valido_C00019Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos, List<vedetalleanticipoProforma> tablaanticipos, string codempresa)
+        private async Task<bool> Control_Valido_C00019Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos>? tabladescuentos, List<vedetalleanticipoProforma>? tablaanticipos, string codempresa)
         {
             //VALIDAR DESCUENTO EXTRA SEGÚN TIPO DE VENTA (CONTADO CE, CONTADO CA, CREDITO)
             ResultadoValidacion objres = new ResultadoValidacion();
@@ -1344,7 +1344,7 @@ namespace siaw_funciones
             }
             return true;
         }
-        private async Task<bool> Control_Valido_C00027Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos, string codempresa)
+        private async Task<bool> Control_Valido_C00027Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos>? tabladescuentos, string codempresa)
         {
             //VERIFICAR SI EL CLIENTE TIENE NOTAS DE REMISION (reversiones pp) PENDIENTES DE PAGO
             ResultadoValidacion objres = new ResultadoValidacion();
@@ -1484,7 +1484,7 @@ namespace siaw_funciones
             }
             return true;
         }
-        private async Task<bool> Control_Valido_C00033Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos, string codempresa)
+        private async Task<bool> Control_Valido_C00033Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos>? tabladescuentos, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             objres.resultado = true;
@@ -1507,7 +1507,7 @@ namespace siaw_funciones
             }
             return true;
         }
-        private async Task<bool> Control_Valido_C00034Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos, string codempresa)
+        private async Task<bool> Control_Valido_C00034Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos>? tabladescuentos, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             objres.resultado = true;
@@ -1530,7 +1530,7 @@ namespace siaw_funciones
             }
             return true;
         }
-        private async Task<bool> Control_Valido_C00035Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos, string codempresa)
+        private async Task<bool> Control_Valido_C00035Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos>? tabladescuentos, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             objres.resultado = true;
@@ -1553,7 +1553,7 @@ namespace siaw_funciones
             }
             return true;
         }
-        private async Task<bool> Control_Valido_C00036Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos, string codempresa)
+        private async Task<bool> Control_Valido_C00036Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos>? tabladescuentos, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             objres.resultado = true;
@@ -1606,7 +1606,7 @@ namespace siaw_funciones
             }
             return true;
         }
-        private async Task<bool> Control_Valido_C00038Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedetalleanticipoProforma> tablaanticipos, string codempresa)
+        private async Task<bool> Control_Valido_C00038Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedetalleanticipoProforma>? tablaanticipos, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             objres.resultado = true;
@@ -1704,7 +1704,7 @@ namespace siaw_funciones
             }
             return true;
         }
-        private async Task<bool> Control_Valido_C00042Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos, string codempresa)
+        private async Task<bool> Control_Valido_C00042Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos>? tabladescuentos, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             objres.resultado = true;
@@ -2530,7 +2530,7 @@ namespace siaw_funciones
             }
             return objres;
         }
-        public async Task<ResultadoValidacion> Verificar_Si_Hay_Descuentos_Extras_Repetidos(DBContext _context, List<vedesextraDatos> tabladescuentos, DatosDocVta DVTA, string codempresa)
+        public async Task<ResultadoValidacion> Verificar_Si_Hay_Descuentos_Extras_Repetidos(DBContext _context, List<vedesextraDatos>? tabladescuentos, DatosDocVta DVTA, string codempresa)
         {
             List<string> listado = new List<string>();
             int coddesextra_depositos = await configuracion.emp_coddesextra_x_deposito_context(_context, codempresa);
@@ -2682,7 +2682,7 @@ namespace siaw_funciones
             }
             return objres;
         }
-        public async Task<ResultadoValidacion> Validar_Venta_Contado_NOCE_Tenga_Anticipo(DBContext _context, DatosDocVta DVTA, List<vedetalleanticipoProforma> dt_anticipo_pf, string codempresa)
+        public async Task<ResultadoValidacion> Validar_Venta_Contado_NOCE_Tenga_Anticipo(DBContext _context, DatosDocVta DVTA, List<vedetalleanticipoProforma>? dt_anticipo_pf, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             objres.resultado = true;
@@ -2814,7 +2814,7 @@ namespace siaw_funciones
             }
             return objres;
         }
-        public async Task<ResultadoValidacion> Verificar_Descuentos_Extras_Aplicados_Validos(DBContext _context, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos, string codempresa)
+        public async Task<ResultadoValidacion> Verificar_Descuentos_Extras_Aplicados_Validos(DBContext _context, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos>? tabladescuentos, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             bool resultado = true;
@@ -3333,7 +3333,7 @@ namespace siaw_funciones
 
             return objres;
         }
-        public async Task<ResultadoValidacion> Validar_Cliente_Competencia_Permite_Desctos_PromocionAsync(DBContext _context, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos, string codempresa)
+        public async Task<ResultadoValidacion> Validar_Cliente_Competencia_Permite_Desctos_PromocionAsync(DBContext _context, DatosDocVta DVTA, List<vedesextraDatos>? tabladescuentos, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
 
@@ -3365,7 +3365,7 @@ namespace siaw_funciones
             }
             return objres;
         }
-        public async Task<ResultadoValidacion> Validar_Cliente_Competencia_Permite_Desctos_ExtraAsync(DBContext _context, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos)
+        public async Task<ResultadoValidacion> Validar_Cliente_Competencia_Permite_Desctos_ExtraAsync(DBContext _context, DatosDocVta DVTA, List<vedesextraDatos>? tabladescuentos)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
 
@@ -3394,7 +3394,7 @@ namespace siaw_funciones
             }
             return objres;
         }
-        public async Task<ResultadoValidacion> Verificar_Descuentos_Extras_Habilitados(DBContext _context, List<vedesextraDatos> tabladescuentos)
+        public async Task<ResultadoValidacion> Verificar_Descuentos_Extras_Habilitados(DBContext _context, List<vedesextraDatos>? tabladescuentos)
         {
             string cadena = "";
             ResultadoValidacion objres = new ResultadoValidacion();
@@ -3582,7 +3582,7 @@ namespace siaw_funciones
             }
             return false;
         }
-        public async Task<bool> Proforma_Tiene_Descuentos_ExtrasAsync(DBContext _context, List<vedesextraDatos> tabladescuentos)
+        public async Task<bool> Proforma_Tiene_Descuentos_ExtrasAsync(DBContext _context, List<vedesextraDatos>? tabladescuentos)
         {
 
             foreach (var item in tabladescuentos)
@@ -3595,7 +3595,7 @@ namespace siaw_funciones
             }
             return false;
         }
-        public async Task<ResultadoValidacion> Validar_Vigencia_DesctosExtras_Segun_FechasAsync(DBContext _context, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos)
+        public async Task<ResultadoValidacion> Validar_Vigencia_DesctosExtras_Segun_FechasAsync(DBContext _context, DatosDocVta DVTA, List<vedesextraDatos>? tabladescuentos)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             string cadena = "";
@@ -3637,7 +3637,7 @@ namespace siaw_funciones
             }
             return objres;
         }
-        public async Task<ResultadoValidacion> Validar_Promociones_Por_Aplicar(DBContext _context, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos, List<itemDataMatriz> tabladetalle, bool notificar_sinohay, string codempresa)
+        public async Task<ResultadoValidacion> Validar_Promociones_Por_Aplicar(DBContext _context, DatosDocVta DVTA, List<vedesextraDatos>? tabladescuentos, List<itemDataMatriz> tabladetalle, bool notificar_sinohay, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             string cadena_aplicados = "";
@@ -3803,7 +3803,7 @@ namespace siaw_funciones
             }
             return objres;
         }
-        public async Task<ResultadoValidacion> Validar_Descuento_Por_Deposito(DBContext _context, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos, string codempresa)
+        public async Task<ResultadoValidacion> Validar_Descuento_Por_Deposito(DBContext _context, DatosDocVta DVTA, List<vedesextraDatos>? tabladescuentos, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             string resultado_cadena = "";
@@ -3906,7 +3906,7 @@ namespace siaw_funciones
             }
             return objres;
         }
-        public async Task<ResultadoValidacion> Validar_Descuento_Extra_Requiere_Credito_Valido(DBContext _context, string codcliente_real, List<vedesextraDatos> tabladescuentos, string codempresa)
+        public async Task<ResultadoValidacion> Validar_Descuento_Extra_Requiere_Credito_Valido(DBContext _context, string codcliente_real, List<vedesextraDatos>? tabladescuentos, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             string resultado_cadena = "";
@@ -3978,7 +3978,7 @@ namespace siaw_funciones
             }
             return objres;
         }
-        public async Task<ResultadoValidacion> Validar_Descuentos_Extra_Para_TipoVenta(DBContext _context, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos, List<vedetalleanticipoProforma> dt_anticipo_pf, string codempresa)
+        public async Task<ResultadoValidacion> Validar_Descuentos_Extra_Para_TipoVenta(DBContext _context, DatosDocVta DVTA, List<vedesextraDatos>? tabladescuentos, List<vedetalleanticipoProforma>? dt_anticipo_pf, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             string tipovta = "";
@@ -4734,7 +4734,7 @@ namespace siaw_funciones
             }
             return objres;
         }
-        public async Task<ResultadoValidacion> Validar_Cliente_Tiene_Reversiones_PP_Pendientes_de_Pago(DBContext _context, List<vedesextraDatos> tabladescuentos, DatosDocVta DVTA, string codempresa)
+        public async Task<ResultadoValidacion> Validar_Cliente_Tiene_Reversiones_PP_Pendientes_de_Pago(DBContext _context, List<vedesextraDatos>? tabladescuentos, DatosDocVta DVTA, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             objres.resultado = true;
@@ -4771,7 +4771,7 @@ namespace siaw_funciones
             }
             return objres;
         }
-        public async Task<bool> Venta_Tiene_Descuento_ProntoPago(DBContext _context, List<vedesextraDatos> tabladescuentos)
+        public async Task<bool> Venta_Tiene_Descuento_ProntoPago(DBContext _context, List<vedesextraDatos>? tabladescuentos)
         {
             bool resultado = false;
 
@@ -4980,7 +4980,7 @@ namespace siaw_funciones
             objres.datoB = "";
             objres.accion = Acciones_Validar.Ninguna;
 
-            if (!await seguridad.periodo_fechaabierta_context(_context, DVTA.fechadoc.Date, 3) == false)
+            if (!await seguridad.periodo_fechaabierta_context(_context, DVTA.fechadoc.Date, 3))
             {
                 objres.resultado = false;
                 objres.observacion = "El periodo " + periodo + " esta cerrado, no se pueden realizar ventas con esa fecha!!!";
@@ -4992,25 +4992,26 @@ namespace siaw_funciones
             return objres;
         }
 
-        //     public async Task<bool> Validar_Resaltar_Empaques_Minimos_Segun_Lista_Precios(DBContext _context, List<itemDataMatriz> tabladetalle, int codalmacen, string codcliente)
-        //     {
-        //         bool resultado = true;
+        public async Task<(bool cumple, List<itemDataMatriz> tabladetalle)> Validar_Resaltar_Empaques_Minimos_Segun_Lista_Precios(DBContext _context, List<itemDataMatriz> tabladetalle, int codalmacen, string codcliente)
+        {
+            bool resultado = true;
 
-        //         foreach (var detalle in tabladetalle)
-        //         {
-        //             if (await restricciones.cumpleempaque(_context, detalle.coditem, detalle.codtarifa, detalle.coddescuento, (decimal)detalle.cantidad, codalmacen, codcliente))
-        //             {
-        //                 detalle.cumple = true;
-        //             }
-        //             else
-        //             {
-        //                 resultado = false;
-        //                 detalle.cumple = false;
-        //             }
-        //         }
+            foreach (var detalle in tabladetalle)
+            {
+                if (await restricciones.cumpleempaque(_context, detalle.coditem, detalle.codtarifa, detalle.coddescuento, (decimal)detalle.cantidad, codalmacen, codcliente))
+                {
+                    detalle.cumple = true;
+                }
+                else
+                {
+                    resultado = false;
+                    detalle.cumple = false;
+                }
+            }
 
-        //         return resultado;
-        //     }
+            return (resultado, tabladetalle);
+        }
+
         public List<string> ListaItemsPedido(List<itemDataMatriz> tabladetalle)
         {
             List<string> resultado = new List<string>();

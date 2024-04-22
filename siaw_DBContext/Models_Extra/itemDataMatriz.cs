@@ -77,6 +77,19 @@
         public double montorest { get; set; } = 0;
     }
 
+    public class tablarecargos
+    {
+        public int codproforma { get; set; }
+        public int codrecargo { get; set; }
+        public decimal porcen { get; set; }
+        public decimal monto { get; set; }
+        public string moneda { get; set; }
+        public decimal montodoc { get; set; }
+        public int? codcobranza { get; set; }
+        public string? descripcion { get; set; }
+
+    }
+
     public class tblcbza_deposito
     {
         public int codproforma { get; set; }

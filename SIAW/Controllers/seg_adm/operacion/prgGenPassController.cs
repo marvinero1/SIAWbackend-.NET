@@ -64,29 +64,33 @@ namespace SIAW.Controllers.seg_adm.operacion
         [Authorize]
         [HttpPost]
         [Route("verifPermisoEsp/{userConn}/{servicio}/{codpersona}/{password}/{codempresa}/{dato_a}/{dato_b}")]
-        public async Task<ActionResult<bool>> verifPermisoEsp(string userConn, int servicio, int codpersona, string password, string codempresa, string dato_a, string dato_b)
+        public async Task<ActionResult<bool>> verifPermisoEsp(string userConn, requestPermisoEsp requestPermisoEsp)
         {
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-            int codalmacen = await empresa.CodAlmacen(userConnectionString, codempresa);
+            int codalmacen = await empresa.CodAlmacen(userConnectionString, requestPermisoEsp.codempresa);
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 try
                 {
                     var autoriza = await _context.adautorizacion
-                        .Where(i => i.nivel == servicio && i.codpersona == codpersona)
+                        .Where(i => i.nivel == requestPermisoEsp.servicio && i.codpersona == requestPermisoEsp.codpersona)
                         .FirstOrDefaultAsync();
                     if (autoriza != null)
                     {
-                        string passEncript = await funciones.EncriptarMD5(password);
+                        string passEncript = await funciones.EncriptarMD5(requestPermisoEsp.password);
                         if (passEncript == autoriza.password) 
                         {
+                            // antes de devolver OK se debe guardar logs de autorizacion
+                            await seguridad.grabar_log_permisos(_context, requestPermisoEsp.servicio + " - " + requestPermisoEsp.descServicio, requestPermisoEsp.obs, requestPermisoEsp.datos_documento, requestPermisoEsp.usuario, requestPermisoEsp.fechareg, requestPermisoEsp.horareg);
                             return Ok(new { resp = autoriza.obs }); ///  autorizado a cierta persona
                         }
                         return BadRequest( new { resp = "La contraseña no es correcta para su usuario" });
                     }
-                    string pass = await genSpecialAut(codalmacen, dato_a, dato_b, servicio.ToString());
-                    if (pass == password)
+                    string pass = await genSpecialAut(codalmacen, requestPermisoEsp.dato_a, requestPermisoEsp.dato_b, requestPermisoEsp.servicio.ToString());
+                    if (pass == requestPermisoEsp.password)
                     {
+                        // antes de devolver OK se debe guardar logs de autorizacion
+                        await seguridad.grabar_log_permisos(_context, requestPermisoEsp.servicio + " - " + requestPermisoEsp.descServicio, requestPermisoEsp.obs, requestPermisoEsp.datos_documento, requestPermisoEsp.usuario, requestPermisoEsp.fechareg, requestPermisoEsp.horareg);
                         return Ok(new { resp = "Autorizado" });
                     }
                     return BadRequest(new { resp = "La contraseña no es correcta" });
@@ -116,5 +120,21 @@ namespace SIAW.Controllers.seg_adm.operacion
         }
 
 
+    }
+
+    public class requestPermisoEsp
+    {
+        public int servicio { get; set; }
+        public string descServicio { get; set; }
+        public int codpersona { get; set; }
+        public string password { get; set; }
+        public string codempresa { get; set; }
+        public string dato_a { get; set; }
+        public string dato_b { get; set; }
+        public DateTime fechareg { get; set; }
+        public string horareg { get; set; }
+        public string usuario { get; set; }
+        public string obs { get; set; }
+        public string datos_documento { get; set; }
     }
 }
