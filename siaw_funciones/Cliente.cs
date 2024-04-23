@@ -1883,5 +1883,12 @@ namespace siaw_funciones
             var resultado = await _context.vecliente.Where(i => i.codigo == codcliente).Select(i => i.habilitado).FirstOrDefaultAsync() ?? false;
             return resultado;
         }
+        /*
+        public async Task<int> SemanaVentasUrgentes(DBContext _context, string codcliente, DateTime fecha)
+        {
+            var resultado = await _context.vecliente.Where(i => i.codigo == codcliente).Select(i => i.habilitado).FirstOrDefaultAsync() ?? false;
+            return resultado;
+        }
+        */
     }
 }

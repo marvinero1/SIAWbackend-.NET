@@ -124,6 +124,36 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             }
         }
 
+        [HttpGet]
+        [Route("getAlmacenUser/{userConn}/{usuario}")]
+        public async Task<ActionResult<inconcepto>> getAlmacenUser(string userConn, string usuario)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var codalmacen = await _context.adusparametros
+                        .Where(item => item.usuario == usuario)
+                        .Select(item => item.codalmacen)
+                        .FirstOrDefaultAsync();
+
+                    if (codalmacen == null)
+                    {
+                        return NotFound(new { resp = "No se encontro un registro con este código (cod almacen)" });
+                    }
+
+                    return Ok(codalmacen);
+                }
+
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+            }
+        }
 
 
         // PUT: api/adusparametros/5

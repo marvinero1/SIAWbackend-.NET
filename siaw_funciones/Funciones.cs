@@ -187,5 +187,65 @@ namespace siaw_funciones
             return resultado;
         }
 
+
+        public DateTime PrincipioDeSemana(DateTime fecha)
+        {
+            DateTime resultado = DateTime.MinValue;
+            switch (fecha.DayOfWeek)
+            {
+                case DayOfWeek.Sunday:
+                    resultado = fecha;
+                    break;
+                case DayOfWeek.Monday:
+                    resultado = fecha.AddDays(-1);
+                    break;
+                case DayOfWeek.Tuesday:
+                    resultado = fecha.AddDays(-2);
+                    break;
+                case DayOfWeek.Wednesday:
+                    resultado = fecha.AddDays(-3);
+                    break;
+                case DayOfWeek.Thursday:
+                    resultado = fecha.AddDays(-4);
+                    break;
+                case DayOfWeek.Friday:
+                    resultado = fecha.AddDays(-5);
+                    break;
+                case DayOfWeek.Saturday:
+                    resultado = fecha.AddDays(-6);
+                    break;
+            }
+            return resultado;
+        }
+        public DateTime FinDeSemana(DateTime fecha)
+        {
+            DateTime resultado = DateTime.MinValue;
+            switch (fecha.DayOfWeek)
+            {
+                case DayOfWeek.Sunday:
+                    resultado = fecha.AddDays(6);
+                    break;
+                case DayOfWeek.Monday:
+                    resultado = fecha.AddDays(5);
+                    break;
+                case DayOfWeek.Tuesday:
+                    resultado = fecha.AddDays(4);
+                    break;
+                case DayOfWeek.Wednesday:
+                    resultado = fecha.AddDays(3);
+                    break;
+                case DayOfWeek.Thursday:
+                    resultado = fecha.AddDays(2);
+                    break;
+                case DayOfWeek.Friday:
+                    resultado = fecha.AddDays(1);
+                    break;
+                case DayOfWeek.Saturday:
+                    resultado = fecha;
+                    break;
+            }
+            return resultado;
+        }
+
     }
 }

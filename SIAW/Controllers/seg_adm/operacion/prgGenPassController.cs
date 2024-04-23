@@ -63,7 +63,7 @@ namespace SIAW.Controllers.seg_adm.operacion
         // POST: api/
         [Authorize]
         [HttpPost]
-        [Route("verifPermisoEsp/{userConn}/{servicio}/{codpersona}/{password}/{codempresa}/{dato_a}/{dato_b}")]
+        [Route("verifPermisoEsp/{userConn}")]
         public async Task<ActionResult<bool>> verifPermisoEsp(string userConn, requestPermisoEsp requestPermisoEsp)
         {
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
