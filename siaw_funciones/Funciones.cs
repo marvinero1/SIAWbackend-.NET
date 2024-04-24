@@ -233,7 +233,7 @@ namespace siaw_funciones
                     break;
                 case DayOfWeek.Wednesday:
                     resultado = fecha.AddDays(3);
-                    break;
+                    break; 
                 case DayOfWeek.Thursday:
                     resultado = fecha.AddDays(2);
                     break;

@@ -60,7 +60,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     string moneda = await tipoCambio.monedatdc(_context, usuario, codempresa);
-                    double monto = (double)await tipoCambio._conversion(_context, moneda, tablaEstadoCliente.moneda, DateTime.Now, (decimal)tablaEstadoCliente.diferencia);
+                    double monto = (double)await tipoCambio._conversion(_context, moneda, tablaEstadoCliente.moneda, DateTime.Today, (decimal)tablaEstadoCliente.diferencia);
                     string montoSeleccionado = monto.ToString("#,0.00", new System.Globalization.CultureInfo("en-US")) + " " + moneda;
                     return Ok(new { montoSeleccionado = montoSeleccionado });
                 }
@@ -99,7 +99,7 @@ namespace SIAW.Controllers.ventas.transaccion
                             diferencia = (double)(x.p.monto - (x.p.montopagado ?? 0)),
                             moneda = x.p.moneda,
                             vencimiento = x.p.vencimiento,
-                            diasvenc = (DateTime.Now.Date - Convert.ToDateTime(x.p.vencimiento)).Days    // antes ponerdias()
+                            diasvenc = (DateTime.Today.Date - Convert.ToDateTime(x.p.vencimiento)).Days    // antes ponerdias()
                         }).ToListAsync();
             tablaEstadoCliente = await poneracumulado(tablaEstadoCliente);
             string lcredito = await ponerlimitecredito(_context, codcliente);
@@ -222,7 +222,7 @@ namespace SIAW.Controllers.ventas.transaccion
             var moneda = await tipoCambio.monedatdc(_context, usuario, codempresa);
             foreach (var reg in tablaEstadoCliente)
             {
-                monto = monto + (double)await tipoCambio._conversion(_context, moneda, reg.moneda, DateTime.Now, (decimal)reg.diferencia);
+                monto = monto + (double)await tipoCambio._conversion(_context, moneda, reg.moneda, DateTime.Today, (decimal)reg.diferencia);
             }
             return monto.ToString("#,0.00", new System.Globalization.CultureInfo("en-US")) + " " + moneda;
         }

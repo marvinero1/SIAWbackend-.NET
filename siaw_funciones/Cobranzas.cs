@@ -19,6 +19,7 @@ namespace siaw_funciones
         Configuracion configuracion = new Configuracion();
         Depositos_Cliente depositos_cliente = new Depositos_Cliente();
         Ventas ventas = new Ventas();
+        Funciones funciones = new Funciones();
         //private readonly siaw_funciones.IDepositosCliente depositos_cliente;
         //private readonly siaw_funciones.IVentas ventas;
         TipoCambio tipocambio = new TipoCambio();
@@ -1332,6 +1333,112 @@ namespace siaw_funciones
         {
             var resultado = await _context.coanticipo.Where(i => i.id == id_anticipo && i.numeroid == numeroid_anticipo).Select(i => i.codigo).FirstOrDefaultAsync();
             return resultado;
+        }
+
+
+        public async Task<string> mostrar_mensajes_depositos_aplicar(DBContext _context, string codempresa, List<consultCocobranza> dt_depositos_pendientes, List<tabladescuentos> tabladescuentos)
+        {
+            string cadena = "";
+            int coddesextra = await configuracion.emp_coddesextra_x_deposito(_context, codempresa);
+            double porcendesc = (double)await ventas.DescuentoExtra_Porcentaje(_context, coddesextra);
+            double monto_descto = 0;
+            double total_descto = 0;
+            double total_descto_aplicado = 0;
+            double total_descto_saldo_pendiente_aplicado = 0;
+            List<int> lista_depositos = new List<int>();
+            List<int> lista_depositos_contado = new List<int>();
+            List<int> lista_anticipos_contado = new List<int>();
+            string total_descto_aplicado_moneda = "";
+            string monto_descto_moneda = "";
+
+            // totalizar el total de descuentos que se aplicaron
+            foreach (var reg in tabladescuentos)
+            {
+                // aqui preguntamos si es el descto por deposito. si lo es obtenemos el codcobranza si es mayor a cero, si es igual a cero
+                // obtenemos el codcobranza_contado porque entonces se trata de una cbza contado, de lo contrario es una anticipo
+                if (coddesextra == reg.coddesextra)
+                {
+                    total_descto_aplicado += (double)reg.montodoc;
+                    total_descto_aplicado_moneda += reg.codmoneda;
+                    if (reg.codcobranza != 0)
+                    {
+                        lista_depositos.Add(reg.codcobranza ?? 0);
+                    }else if(reg.codcobranza_contado != 0)
+                    {
+                        lista_depositos_contado.Add(reg.codcobranza_contado ?? 0);
+                    }else if(reg.codanticipo != 0)
+                    {
+                        lista_anticipos_contado.Add(reg.codanticipo ?? 0);
+                    }
+                }
+            }
+
+            if (dt_depositos_pendientes.Count() > 0)
+            {
+                cadena = funciones.Rellenar("DESCUENTO PENDIENTE POR DEPOSITO DE CLIENTE", 79, " ", false) + "\n";
+                cadena += "-----------------------------------------------------------------------------------\n";
+                cadena += funciones.Rellenar("COD     DOC            FECHA       DOC            MONTO     MONTO     %     MONTO", 79, " ", false) + "\n";
+                cadena += funciones.Rellenar("CLIENT  CBZA           DEPOSITO    DEPOSITO       DEPOSITO  DIST      DESC  DESC ", 79, " ", false) + "\n";
+                cadena += "-----------------------------------------------------------------------------------\n\n";
+                foreach (var reg in dt_depositos_pendientes)
+                {
+                    if (lista_depositos.Contains(reg.codcobranza) || lista_depositos_contado.Contains(reg.codcobranza) || lista_anticipos_contado.Contains(reg.codcobranza))
+                    {
+                        monto_descto = 0;
+                        if (reg.tipo == 0)
+                        {
+                            // si es tipo=0 es es saldo de descuento de deposito pendiente
+                            // no se debe sacar el procentaje, directo usar el monto
+                            monto_descto = (double)reg.monto_dis;
+                            monto_descto_moneda = reg.moncbza;
+                            monto_descto = Math.Round(monto_descto, 2);
+                            // aqui se totaliza cuando son los descuentos por saldos de descuentos pendientes 
+                            total_descto_saldo_pendiente_aplicado += (double)reg.monto_dis;
+                        }
+                        else
+                        {
+                            monto_descto = porcendesc * 0.01 * (double)reg.monto_dis;
+                            monto_descto = Math.Round(monto_descto, 2);
+                            monto_descto_moneda = reg.moncbza;
+                        }
+                        total_descto += monto_descto;
+                        cadena += funciones.Rellenar(reg.cliente, 6, " ", false);
+                        cadena += "  " + funciones.Rellenar(reg.idcbza + " " + reg.nroidcbza, 15, " ", false);
+                        cadena += " " + funciones.Rellenar(reg.fecha_cbza.ToString(), 10, " ", false);
+                        cadena += "  " + funciones.Rellenar(reg.iddeposito + " " + reg.numeroiddeposito, 13, " ", false);
+                        cadena += "  " + funciones.Rellenar(reg.monto_cbza.ToString(), 8, " ", false);
+                        cadena += "  " + funciones.Rellenar(reg.monto_dis.ToString(), 8, " ", false);
+                        if (reg.tipo == 0)
+                        {
+                            cadena += "  " + funciones.Rellenar("100", 4, " ", false);
+                        }
+                        else
+                        {
+                            cadena += "  " + funciones.Rellenar(porcendesc.ToString(), 4, " ", false);
+                        }
+                        // cadena &= "  " & sia_funciones.Funciones.Instancia.rellenar(monto_descto, 5, " ", False) & Chr(13)
+                        cadena += "  " + funciones.Rellenar(monto_descto.ToString() + " " + monto_descto_moneda.ToString(), 5, " ", false) + "\n";
+                    }
+                }
+                cadena += "-----------------------------------------------------------------------------------\n";
+                total_descto = Math.Round(total_descto, 2);
+                total_descto_aplicado = Math.Round(total_descto_aplicado, 2);
+                total_descto_saldo_pendiente_aplicado = Math.Round(total_descto_saldo_pendiente_aplicado, 2);
+                cadena += "Total Descuento Por Depositos Aplicable: " + total_descto.ToString() + " " + monto_descto_moneda + "\n";
+                cadena += "Total Descuento Por Depositos Aplicado: " + total_descto_aplicado.ToString() + " " + total_descto_aplicado_moneda + "\n";
+                cadena += "-----------------------------------------------------------------------------------\n";
+                cadena += "El Descuento aplicado incluye Reintegro Depositos Pendientes Por: " + total_descto_saldo_pendiente_aplicado.ToString() + " " + monto_descto_moneda + "\n";
+
+                if (total_descto_aplicado != total_descto)
+                {
+                    if (total_descto_aplicado - total_descto > 0.03)
+                    {
+                        cadena += "Nota.-El monto restante del deposito queda pendiente para la siguiente proforma. \n";
+                    }
+                }
+            }
+
+            return cadena;
         }
     }
 }

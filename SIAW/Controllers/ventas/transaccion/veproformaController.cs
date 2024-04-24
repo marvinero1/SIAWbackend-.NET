@@ -3465,19 +3465,33 @@ namespace SIAW.Controllers.ventas.transaccion
                 string message = "";
                 if (dt_credito_depositos_pendientes.Count() > 0)
                 {
-                    message = "El cliente tiene descuentos por deposito pendientes de aplicacion, desea aplicar el descuento a esta proforma?";
+                    // message = "El cliente tiene descuentos por deposito pendientes de aplicacion, desea aplicar el descuento a esta proforma?";
+                    message = "El cliente tiene descuentos por deposito pendientes de aplicacion, se aplicaran a esta proforma?";
                 }
 
                 var seAplicoDsctoPorDeposito = await ventas.AdicionarDescuentoPorDeposito(_context, subtotal, codmoneda, objetoDescDepositos.tabladescuentos, dt_credito_depositos_pendientes, objetoDescDepositos.tblcbza_deposito, codproforma, codcliente_real, codempresa);
 
-                if (seAplicoDsctoPorDeposito.Item1)
+                if (seAplicoDsctoPorDeposito.bandera)
                 {
-
+                    // devolver mensaje, data de descuentos y mensaje grande de Descuentos por deposito llamado desde una clase
+                    var cadena_msg = await cobranzas.mostrar_mensajes_depositos_aplicar(_context,codempresa, dt_depositos_pendientes, seAplicoDsctoPorDeposito.tabladescuentos);
+                    return Ok(new
+                    {
+                        tabladescuentos = seAplicoDsctoPorDeposito.tabladescuentos,
+                        msgDesctApli = seAplicoDsctoPorDeposito.mensaje,
+                        msgVentCob = cadena_msg,
+                        megAlert = message
+                    });
                 }
-            
+                return Ok(new
+                {
+                    tabladescuentos = objetoDescDepositos.tabladescuentos,
+                    msgDesctApli = seAplicoDsctoPorDeposito.mensaje,
+                    msgVentCob = "",
+                    megAlert = ""
+                });
             }
 
-            return Ok("aaaa");
         }
 
         // GET: api/get_entrega_pedido/5

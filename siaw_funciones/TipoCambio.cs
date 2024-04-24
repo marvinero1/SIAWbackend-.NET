@@ -68,7 +68,7 @@ namespace siaw_funciones
             else
             {
                 var factor = await _context.adtipocambio
-                            .Where(v => v.monedabase == monedabase && v.moneda == moneda && v.fecha == fecha)
+                            .Where(v => v.monedabase == monedabase && v.moneda == moneda && v.fecha == fecha.Date)
                             .OrderBy(v => v.codalmacen)
                             .Select(item => item.factor)
                             .FirstOrDefaultAsync();
@@ -77,7 +77,7 @@ namespace siaw_funciones
                     resultado = 0;
                     //'si no encuentra buscar la ultima fecha en que exista
                     var factor2 = await _context.adtipocambio
-                                .Where(v => v.monedabase == monedabase && v.moneda == moneda && v.fecha <= fecha)
+                                .Where(v => v.monedabase == monedabase && v.moneda == moneda && v.fecha <= fecha.Date)
                                 .OrderByDescending(v => v.fecha)
                                 .Select(item => item.factor)
                                 .FirstOrDefaultAsync();
@@ -101,7 +101,7 @@ namespace siaw_funciones
                 {
                     //'tratar ala inversa y devolver el factor 1/factor
                     var factor3 = await _context.adtipocambio
-                        .Where(v => v.monedabase == moneda && v.moneda == monedabase && v.fecha == fecha)
+                        .Where(v => v.monedabase == moneda && v.moneda == monedabase && v.fecha == fecha.Date)
                         .OrderBy(v => v.codalmacen)
                         .Select(item => item.factor)
                         .FirstOrDefaultAsync();
@@ -110,7 +110,7 @@ namespace siaw_funciones
                         resultado = 0;
                         //si no encuentra buscar la ultima fecha que haya
                         var factor4 = await _context.adtipocambio
-                                    .Where(v => v.monedabase == moneda && v.moneda == monedabase && v.fecha <= fecha)
+                                    .Where(v => v.monedabase == moneda && v.moneda == monedabase && v.fecha <= fecha.Date)
                                     .OrderByDescending(v => v.fecha)
                                     .Select(item => item.factor)
                                     .FirstOrDefaultAsync();
@@ -121,7 +121,7 @@ namespace siaw_funciones
                         }
                         else
                         {
-                            resultado = (decimal)factor4;
+                            resultado = 1 / (decimal)factor4;
                         }
                     }
                     else

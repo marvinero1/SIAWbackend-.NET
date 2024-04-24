@@ -925,7 +925,7 @@ namespace siaw_funciones
         }
 
 
-        public async Task<(bool, string)> AdicionarDescuentoPorDeposito(DBContext _context, double subtotal_proforma, string codmoneda_prof, List<tabladescuentos> tabladescuentos, List<dtdepositos_pendientes> dt_depositos_pendientes, List<tblcbza_deposito> tblcbza_deposito, int codproforma, string codcliente, string codempresa)
+        public async Task<(bool bandera, string mensaje, List<tabladescuentos> tabladescuentos)> AdicionarDescuentoPorDeposito(DBContext _context, double subtotal_proforma, string codmoneda_prof, List<tabladescuentos> tabladescuentos, List<dtdepositos_pendientes> dt_depositos_pendientes, List<tblcbza_deposito> tblcbza_deposito, int codproforma, string codcliente, string codempresa)
         {
             // codproforma debe ser 0 si no hay proforma.
 
@@ -934,13 +934,13 @@ namespace siaw_funciones
             //verifica si el descuento por desposito esta habilitado
             if (!await configuracion.emp_hab_descto_x_deposito(_context, codempresa))
             {
-                return (false,"");
+                return (false,"", tabladescuentos);
             }
 
             int coddesextra = await configuracion.emp_coddesextra_x_deposito(_context, codempresa);
             if (coddesextra <= 0)
             {
-                return (false, "La aplicacion del descuento por deposito esta habilitado, sin embargo no se ha definido cual es el descuento por deposito.");
+                return (false, "La aplicacion del descuento por deposito esta habilitado, sin embargo no se ha definido cual es el descuento por deposito.", tabladescuentos);
             }
 
             // obtener el porcentaje limite del subtotal de la proforma(hasta el cual se puede aplicar descuento por deposito)
@@ -949,7 +949,7 @@ namespace siaw_funciones
             double porcen_limite_descto = await Porcentaje_Limite_Descuento_Deposito_Cliente(_context, codcliente);
             if (porcen_limite_descto == 0)
             {
-                return (false, "El porcentaje limite del subtotal de la proforma definido hasta el cual se puede aplicar el descuento por deposito es cero, por tanto no se puede aplicar el descuento por deposito, verifique esta situacion en el perfil de datos del cliente.");
+                return (false, "El porcentaje limite del subtotal de la proforma definido hasta el cual se puede aplicar el descuento por deposito es cero, por tanto no se puede aplicar el descuento por deposito, verifique esta situacion en el perfil de datos del cliente.", tabladescuentos);
             }
 
             // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1688,7 +1688,7 @@ namespace siaw_funciones
             }
 
 
-            return (resultado, "");
+            return (resultado, "", tabladescuentos);
         }
 
 
