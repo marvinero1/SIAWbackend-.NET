@@ -306,12 +306,15 @@ namespace siaw_funciones
                             */
                         }
                     }
-                    dt_aux.Add(reg);
+                    else
+                    {
+                        dt_aux.Add(reg);
+                    }
                 }
 
                 resultado.Clear();
+                resultado = new List<consultCocobranza>();
                 resultado = dt_aux;
-                dt_aux.Clear();
                 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
                 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -327,17 +330,17 @@ namespace siaw_funciones
                 Next
 
                 */
-
+                var pp = 1;
                 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                 //3° verificar los pagos a cuotas que vencieron domingo, segun instruido por JRA en fecha 17-07-2015 via telefono, 
                 //   si la fecha de vencimiento cae en domingo u otro dia no habil, la fecha de vencimiento se recorre un dia
                 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-                dt_aux = await Analizar_Cobranzas_Pago_Cuotas(_context, resultado, dt_aux);
+                dt_aux = await Analizar_Cobranzas_Pago_Cuotas(_context, resultado);
                 resultado.Clear();
+                resultado = new List<consultCocobranza>();
                 resultado = dt_aux;
-                dt_aux.Clear();
                 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+                dt_aux = new List<consultCocobranza>();
                 foreach (var reg in resultado)
                 {
                     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -436,129 +439,131 @@ namespace siaw_funciones
 
 
 
-        public async Task<List<consultCocobranza>> Analizar_Cobranzas_Pago_Cuotas(DBContext _context, List<consultCocobranza> resultado, List<consultCocobranza> dt_aux)
+        public async Task<List<consultCocobranza>> Analizar_Cobranzas_Pago_Cuotas(DBContext _context, List<consultCocobranza> resultado)
         {
+            List<consultCocobranza> dt_aux = new List<consultCocobranza> ();
             int dias_prorroga = 0;
             int dias = 0;
             DateTime mi_fecha = DateTime.Now;
-            foreach (var reg in resultado)
+            try
             {
-                dias_prorroga = 0;
-                if (reg.tipo != 0)
+                foreach (var reg in resultado)
                 {
-                    reg.fecha_cbza = reg.fdeposito;
-                    ///////////////////////////////*************DESDE 30-11-2017**********************************///////////////////////////////////////
-                    //por instruccion de JRA la fecha de vencimiento debe ser la fecha de vencimiento para el cliente NO para pertec
-                    //que en el caso de las notas que son con descuento pronto pago se disminuye normalmente 2 o 4 dias
+                    dias_prorroga = 0;
+                    if (reg.tipo != 0)
+                    {
+                        reg.fecha_cbza = reg.fdeposito;
+                        ///////////////////////////////*************DESDE 30-11-2017**********************************///////////////////////////////////////
+                        //por instruccion de JRA la fecha de vencimiento debe ser la fecha de vencimiento para el cliente NO para pertec
+                        //que en el caso de las notas que son con descuento pronto pago se disminuye normalmente 2 o 4 dias
 
-                    DateTime fecha_control = new DateTime(2017, 11, 30);
-                    if (reg.fecha_remi >= fecha_control)
-                    {
-                        dias = await ventas.Disminuir_Fecha_Vence(_context, reg.codremision, reg.cliente);
-                        mi_fecha = reg.vencimiento.AddDays(dias);
-                        reg.vencimiento = mi_fecha;
-                        reg.obs1 = "Fecha Vencimiento Cliente: " + dias + " dias menos, todas las ventanas a partir del 30-11-2017";
-                    }
-                    else
-                    {
-                        dias = 0;
-                        mi_fecha = reg.vencimiento.AddDays(dias);
-                        reg.vencimiento = mi_fecha;
-                        reg.obs1 = "Fecha de Vencimiento Pertec: " + dias + " dias menos!!!";
-                    }
-                    ///////////////////////////////**************************************************************///////////////////////////////////////
-
-                    if (reg.contra_entrega)
-                    {
-                        //++++++++++++++++SI   ES CONTRA ENTREGA+++++++++++++++
-                        if (reg.fecha_cbza > reg.vencimiento)
+                        DateTime fecha_control = new DateTime(2017, 11, 30);
+                        if (reg.fecha_remi >= fecha_control)
                         {
-                            int codProf = await ventas.codproforma_de_remision(_context, reg.codremision);
-                            if (await ventas.Pedido_Esta_Despachado(_context, codProf))
-                            {
-                                DateTime fdespacho = await ventas.Obtener_Fecha_Despachado_Pedido(_context, codProf);
-                                reg.vencimiento = fdespacho;
-                                reg.obs = "Contra Entrega Vence la fecha de entrega: " + fdespacho.ToShortDateString();
-
-                                if (reg.fecha_cbza <= reg.vencimiento)
-                                {
-                                    reg.valido = "Si";
-                                    dt_aux.Add(reg);
-                                }
-                                else if (reg.deposito_en_mora_habilita_descto){
-                                    reg.valido = "Si";
-                                    reg.obs = "Pago Fuera de Tiempo!!!, pero con autorizacion para descuento.";
-                                    dt_aux.Add(reg);
-                                }
-                                else
-                                {
-                                    reg.valido = "No";
-                                }
-                            }
+                            dias = await ventas.Disminuir_Fecha_Vence(_context, reg.codremision, reg.cliente);
+                            mi_fecha = reg.vencimiento.AddDays(dias);
+                            reg.vencimiento = mi_fecha;
+                            reg.obs1 = "Fecha Vencimiento Cliente: " + dias + " dias menos, todas las ventanas a partir del 30-11-2017";
                         }
                         else
                         {
-                            reg.valido = "Si";
-                            dt_aux.Add(reg);
+                            dias = 0;
+                            mi_fecha = reg.vencimiento.AddDays(dias);
+                            reg.vencimiento = mi_fecha;
+                            reg.obs1 = "Fecha de Vencimiento Pertec: " + dias + " dias menos!!!";
                         }
-                    }
-                    else
-                    {
-                        //++++++++++++++++SI NO ES CONTRA ENTREGA+++++++++++++++
-                        DateTime mifecha_vence = reg.vencimiento;
-                        //si es domingo añadir 1 dia
-                        if (reg.vencimiento.DayOfWeek == DayOfWeek.Sunday || await prontopago.DianoHabil(_context, reg.codalmacen, reg.vencimiento))
+                        ///////////////////////////////**************************************************************///////////////////////////////////////
+
+                        if (reg.contra_entrega)
                         {
-                            mifecha_vence = mifecha_vence.AddDays(1);
-                            reg.vencimiento = mifecha_vence;
-                            dias_prorroga += 1;
-                        }
-                        //añadir dias prorroga hasta que sea una fecha habil
-                        while (await prontopago.DianoHabil(_context, reg.codalmacen, mifecha_vence))
-                        {
-                            mifecha_vence = mifecha_vence.AddDays(1);
-                            reg.vencimiento = mifecha_vence;
-                            dias_prorroga += 1;
-                        }
-                        if (reg.fecha_cbza <= mifecha_vence)
-                        {
-                            if (dias_prorroga > 0)
+                            //++++++++++++++++SI   ES CONTRA ENTREGA+++++++++++++++
+                            if (reg.fecha_cbza > reg.vencimiento)
                             {
-                                reg.obs = "Se amplio: " + dias_prorroga + " (dias) a la fecha original de vencimiento(cliente) porque esta vencia en una fecha no habil!!!";
+                                int codProf = await ventas.codproforma_de_remision(_context, reg.codremision);
+                                if (await ventas.Pedido_Esta_Despachado(_context, codProf))
+                                {
+                                    DateTime fdespacho = await ventas.Obtener_Fecha_Despachado_Pedido(_context, codProf);
+                                    reg.vencimiento = fdespacho;
+                                    reg.obs = "Contra Entrega Vence la fecha de entrega: " + fdespacho.ToShortDateString();
+
+                                    if (reg.fecha_cbza <= reg.vencimiento)
+                                    {
+                                        reg.valido = "Si";
+                                        dt_aux.Add(reg);
+                                    }
+                                    else if (reg.deposito_en_mora_habilita_descto)
+                                    {
+                                        reg.valido = "Si";
+                                        reg.obs = "Pago Fuera de Tiempo!!!, pero con autorizacion para descuento.";
+                                        dt_aux.Add(reg);
+                                    }
+                                    else
+                                    {
+                                        reg.valido = "No";
+                                    }
+                                }
+                            }
+                            else
+                            {
                                 reg.valido = "Si";
                                 dt_aux.Add(reg);
                             }
                         }
-                        else if (reg.fecha_cbza > mifecha_vence && reg.deposito_en_mora_habilita_descto == true)
-                        {
-                            //si la fecha de pago(deposito) es posterior al vencimiento, es decir no se pago a tiempo
-                            //peor tiene autorizado para descuento por deposito aun cuando fue pagada con restraso, entonces
-                            //habilita el pago para descto por deposito
-                            reg.obs = "Pago Fuera de Tiempo!!!, pero con autorizacion para descuento.";
-                            reg.valido = "Si";
-                            dt_aux.Add(reg);
-                        }
                         else
                         {
-                            reg.valido = "No";
+                            //++++++++++++++++SI NO ES CONTRA ENTREGA+++++++++++++++
+                            DateTime mifecha_vence = reg.vencimiento;
+                            //si es domingo añadir 1 dia
+                            if (reg.vencimiento.DayOfWeek == DayOfWeek.Sunday || await prontopago.DianoHabil(_context, reg.codalmacen, reg.vencimiento))
+                            {
+                                mifecha_vence = mifecha_vence.AddDays(1);
+                                reg.vencimiento = mifecha_vence;
+                                dias_prorroga += 1;
+                            }
+                            //añadir dias prorroga hasta que sea una fecha habil
+                            while (await prontopago.DianoHabil(_context, reg.codalmacen, mifecha_vence))
+                            {
+                                mifecha_vence = mifecha_vence.AddDays(1);
+                                reg.vencimiento = mifecha_vence;
+                                dias_prorroga += 1;
+                            }
+                            if (reg.fecha_cbza <= mifecha_vence)
+                            {
+                                if (dias_prorroga > 0)
+                                {
+                                    reg.obs = "Se amplio: " + dias_prorroga + " (dias) a la fecha original de vencimiento(cliente) porque esta vencia en una fecha no habil!!!";
+                                    reg.valido = "Si";
+                                    dt_aux.Add(reg);
+                                }
+                            }
+                            else if (reg.fecha_cbza > mifecha_vence && reg.deposito_en_mora_habilita_descto == true)
+                            {
+                                //si la fecha de pago(deposito) es posterior al vencimiento, es decir no se pago a tiempo
+                                //peor tiene autorizado para descuento por deposito aun cuando fue pagada con restraso, entonces
+                                //habilita el pago para descto por deposito
+                                reg.obs = "Pago Fuera de Tiempo!!!, pero con autorizacion para descuento.";
+                                reg.valido = "Si";
+                                dt_aux.Add(reg);
+                            }
+                            else
+                            {
+                                reg.valido = "No";
 
+                            }
                         }
-
-
                     }
-
-
-
+                    else
+                    {
+                        dt_aux.Add(reg);
+                    }
                 }
-                else
-                {
-                    dt_aux.Add(reg);
-                }
+                return dt_aux;
             }
-            resultado.Clear();
-            resultado = dt_aux;
-            dt_aux.Clear();
-            return resultado;
+            catch (Exception e)
+            {
+                throw;
+            }
+            
         }
 
         public async Task<List<consultCocobranza>> Consulta_Deposito_Cobranzas_Credito_Sin_Aplicar (DBContext _context, string busqueda_por, string codcliente, string nit, string codcliente_real, bool buscar_por_nit, string Para_Que_Es, string codcbzas, bool incluir_aplicados, DateTime buscar_depositos_desde)
@@ -1362,7 +1367,7 @@ namespace siaw_funciones
                     total_descto_aplicado_moneda += reg.codmoneda;
                     if (reg.codcobranza != 0)
                     {
-                        lista_depositos.Add(reg.codcobranza ?? 0);
+                        lista_depositos.Add(reg.codcobranza ?? 0); 
                     }else if(reg.codcobranza_contado != 0)
                     {
                         lista_depositos_contado.Add(reg.codcobranza_contado ?? 0);
@@ -1375,11 +1380,12 @@ namespace siaw_funciones
 
             if (dt_depositos_pendientes.Count() > 0)
             {
-                cadena = funciones.Rellenar("DESCUENTO PENDIENTE POR DEPOSITO DE CLIENTE", 79, " ", false) + "\n";
-                cadena += "-----------------------------------------------------------------------------------\n";
-                cadena += funciones.Rellenar("COD     DOC            FECHA       DOC            MONTO     MONTO     %     MONTO", 79, " ", false) + "\n";
-                cadena += funciones.Rellenar("CLIENT  CBZA           DEPOSITO    DEPOSITO       DEPOSITO  DIST      DESC  DESC ", 79, " ", false) + "\n";
-                cadena += "-----------------------------------------------------------------------------------\n\n";
+                cadena = funciones.Rellenar("DESCUENTO PENDIENTE POR DEPOSITO DE CLIENTE", 79, " ", false).Replace("\r\n", Environment.NewLine) + Environment.NewLine +
+                 "-----------------------------------------------------------------------------------" + Environment.NewLine +
+                 funciones.Rellenar("COD     DOC            FECHA       DOC            MONTO     MONTO     %     MONTO", 79, " ", false).Replace("\r\n", Environment.NewLine) + Environment.NewLine +
+                 funciones.Rellenar("CLIENT  CBZA           DEPOSITO    DEPOSITO       DEPOSITO  DIST      DESC  DESC ", 79, " ", false).Replace("\r\n", Environment.NewLine) + Environment.NewLine +
+                 "-----------------------------------------------------------------------------------" + Environment.NewLine + Environment.NewLine;
+
                 foreach (var reg in dt_depositos_pendientes)
                 {
                     if (lista_depositos.Contains(reg.codcobranza) || lista_depositos_contado.Contains(reg.codcobranza) || lista_anticipos_contado.Contains(reg.codcobranza))

@@ -102,6 +102,18 @@ namespace siaw_funciones
 
             return result;
         }
+        public async Task<int> codempaque_permite_item_repetido(DBContext _context)
+        {
+            try
+            {
+                var resultado = await _context.adparametros.Select(i => i.codempaque_permite_item_repetido).FirstOrDefaultAsync() ?? 0;
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
         public async Task<DateTime> Depositos_Nuevos_Desde_Fecha(DBContext _context)
         {
             //esta fecha es la que se empezo con los descuentos por deposito

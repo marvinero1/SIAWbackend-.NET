@@ -1677,7 +1677,6 @@ namespace siaw_funciones
                     }
                 }
             }
-
             if (nro>0)
             {
                 resultado = true;
@@ -1686,8 +1685,6 @@ namespace siaw_funciones
             {
                 resultado = false;
             }
-
-
             return (resultado, "", tabladescuentos);
         }
 
