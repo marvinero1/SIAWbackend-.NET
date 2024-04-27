@@ -6552,6 +6552,11 @@ namespace siaw_DBContext.Data
 
                 entity.Property(e => e.minnoimponible).HasColumnType("decimal(18, 2)");
 
+                entity.Property(e => e.moneda_monto_min_urg_provincia)
+                    .HasMaxLength(2)
+                    .IsUnicode(false)
+                    .IsFixedLength();
+
                 entity.Property(e => e.moneda_monto_min_vta_cliente_oficina)
                     .HasMaxLength(2)
                     .IsUnicode(false)
@@ -6576,6 +6581,8 @@ namespace siaw_DBContext.Data
                 entity.Property(e => e.monto_maximo_mora).HasColumnType("decimal(18, 2)");
 
                 entity.Property(e => e.monto_maximo_mora_revertir_credito).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.monto_min_urg_provincia).HasColumnType("decimal(18, 0)");
 
                 entity.Property(e => e.monto_min_vta_cliente_oficina).HasColumnType("decimal(18, 2)");
 

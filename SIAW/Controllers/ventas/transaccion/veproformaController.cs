@@ -53,6 +53,7 @@ namespace SIAW.Controllers.ventas.transaccion
         private readonly siaw_funciones.Configuracion configuracion = new siaw_funciones.Configuracion();
         private readonly siaw_funciones.Creditos creditos = new siaw_funciones.Creditos();
         private readonly siaw_funciones.Cobranzas cobranzas = new siaw_funciones.Cobranzas();
+        private readonly siaw_funciones.Nombres nombres = new siaw_funciones.Nombres();
 
         private readonly siaw_funciones.Funciones funciones = new Funciones();
         public veproformaController(UserConnectionManager userConnectionManager)
@@ -233,7 +234,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     //saldosDetalleItem.txtReservaProf = "(-) PROFORMAS APROBADAS ITEM(" + instoactual.coditem + ") DEL CJTO(" + coditem + ")";
                     sldosItemCompleto saldosDetalleItem = new sldosItemCompleto();
                     saldosDetalleItem.descripcion = "(+) SALDO ACTUAL ITEM (" + instoactual.coditem + ") DEL CJTO(" + coditem + ")";
-                    saldosDetalleItem.valor = (float)instoactual.cantidad;
+                    saldosDetalleItem.valor = (double)instoactual.cantidad;
                     listaSaldos.Add(saldosDetalleItem);
                 }
                 else
@@ -241,10 +242,10 @@ namespace SIAW.Controllers.ventas.transaccion
                     //saldosDetalleItem.txtReservaProf = "(-) PROFORMAS APROBADAS: " + instoactual.coditem;
                     sldosItemCompleto saldosDetalleItem = new sldosItemCompleto();
                     saldosDetalleItem.descripcion = "(+)SALDO ACTUAL ITEM: " + instoactual.coditem;
-                    saldosDetalleItem.valor = (float)instoactual.cantidad;
+                    saldosDetalleItem.valor = (double)instoactual.cantidad;
                     listaSaldos.Add(saldosDetalleItem);
                 }
-                saldoItemTotal.valor = (float)instoactual.cantidad;
+                saldoItemTotal.valor = (double)instoactual.cantidad;
 
 
                 // obtiene reservas en proforma
@@ -260,18 +261,18 @@ namespace SIAW.Controllers.ventas.transaccion
                 {
                     sldosItemCompleto saldosDetalleItem = new sldosItemCompleto();
                     saldosDetalleItem.descripcion = "(-) PROFORMAS APROBADAS ITEM(" + instoactual.coditem + ") DEL CJTO(" + coditem + ")";
-                    saldosDetalleItem.valor = (float)reservaProf.TotalP * -1;
+                    saldosDetalleItem.valor = (double)reservaProf.TotalP * -1;
                     listaSaldos.Add(saldosDetalleItem);
                 }
                 else
                 {
                     sldosItemCompleto saldosDetalleItem = new sldosItemCompleto();
                     saldosDetalleItem.descripcion = "(-) PROFORMAS APROBADAS: " + instoactual.coditem;
-                    saldosDetalleItem.valor = (float)reservaProf.TotalP * -1;
+                    saldosDetalleItem.valor = (double)reservaProf.TotalP * -1;
                     listaSaldos.Add(saldosDetalleItem);
                 }
 
-                saldoItemTotal.valor -= (float)reservaProf.TotalP;  // reduce saldo total
+                saldoItemTotal.valor -= (double)reservaProf.TotalP;  // reduce saldo total
                 var8.valor = saldoItemTotal.valor;
 
 
@@ -283,7 +284,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 sldosItemCompleto var1 = new sldosItemCompleto();
 
                 // obtiene items si no son kit, sus reservas para armar conjuntos.
-                float CANTIDAD_RESERVADA = await getReservasCjtos(userConnectionString, coditem, codalmacen, codempresa, eskit, (float)instoactual.cantidad, (float)reservaProf.TotalP);
+                double CANTIDAD_RESERVADA = await getReservasCjtos(userConnectionString, coditem, codalmacen, codempresa, eskit, (double)instoactual.cantidad, (double)reservaProf.TotalP);
                 var1.descripcion = "(-) SALDO RESERVADO PARA ARMAR CJTOS";
                 var1.valor = CANTIDAD_RESERVADA * -1;
                 listaSaldos.Add(var1);
@@ -291,7 +292,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
                 // obtiene el saldo minimo que debe mantenerse en agencia
                 sldosItemCompleto var2 = new sldosItemCompleto();
-                float Saldo_Minimo_Item = await empaque_func.getSaldoMinimo(userConnectionString, coditem);
+                double Saldo_Minimo_Item = await empaque_func.getSaldoMinimo(userConnectionString, coditem);
                 var2.descripcion = "(-) SALDO MINIMO DEL ITEM";
                 var2.valor = Saldo_Minimo_Item * -1;
                 listaSaldos.Add(var2);
@@ -300,15 +301,15 @@ namespace SIAW.Controllers.ventas.transaccion
                 // obtiene reserva NM ingreso para sol-Urgente
                 bool validar_ingresos_solurgentes = await empaque_func.getValidaIngreSolurgente(userConnectionString, codempresa);
 
-                float total_reservado = 0;
-                float total_para_esta = 0;
-                float total_proforma = 0;
+                double total_reservado = 0;
+                double total_para_esta = 0;
+                double total_proforma = 0;
                 if (validar_ingresos_solurgentes)
                 {
                     //  RESTAR LAS CANTIDADES DE INGRESO POR NOTAS DE MOVIMIENTO URGENTES
                     // de facturas que aun no estan aprobadas
                     string resp_total_reservado = await getSldIngresoReservNotaUrgent(userConnectionString, coditem, codalmacen);
-                    total_reservado = float.Parse(resp_total_reservado);
+                    total_reservado = double.Parse(resp_total_reservado);
 
 
                     //AUMENTAR CANTIDAD PARA ESTA PROFORMA DE INGRESO POR NOTAS DE MOVIMIENTO URGENTES
@@ -374,13 +375,13 @@ namespace SIAW.Controllers.ventas.transaccion
                 // promedio de venta
                 sldosItemCompleto var6 = new sldosItemCompleto();
                 var6.descripcion = "Promedio de Vta.";
-                var6.valor = (float)inreserva_Area.promvta;
+                var6.valor = (double)inreserva_Area.promvta;
                 saldoItemTotalPestaña2.Add(var6);
 
                 // stock minimo
                 sldosItemCompleto var7 = new sldosItemCompleto();
                 var7.descripcion = "Stock Mínimo.";
-                var7.valor = (float)inreserva_Area.smin;
+                var7.valor = (double)inreserva_Area.smin;
                 saldoItemTotalPestaña2.Add(var7);
 
                 // saldo actual (Saldo Seg Kardex - Cant Prof Ap)
@@ -390,7 +391,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 // % Vta Permitido: 0.53% pero solo se toma: 50%
                 sldosItemCompleto var9 = new sldosItemCompleto();
                 var9.descripcion = "% Vta Permitido: 0.53% pero solo se toma: 50%";
-                var9.valor = (float)inreserva_Area.porcenvta;
+                var9.valor = (double)inreserva_Area.porcenvta;
                 saldoItemTotalPestaña2.Add(var9);
 
                 // Reserva para Vta en Cjto
@@ -417,10 +418,10 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
 
-        private async Task<float> getSldReservProf(string userConnectionString, string coditem, int codalmacen, string idProf, int nroIdProf)
+        private async Task<double> getSldReservProf(string userConnectionString, string coditem, int codalmacen, string idProf, int nroIdProf)
         {
             // verifica si es almacen o tienda
-            float respuestaValor = 0;
+            double respuestaValor = 0;
 
             bool esAlmacen = await empaque_func.esAlmacen(userConnectionString, codalmacen);
 
@@ -528,10 +529,10 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
-        private async Task<float> getSldReservNotaUrgentUnaProf(string userConnectionString, string coditem, int codalmacen, string idProf, int nroIdProf)
+        private async Task<double> getSldReservNotaUrgentUnaProf(string userConnectionString, string coditem, int codalmacen, string idProf, int nroIdProf)
         {
             // verifica si es almacen o tienda
-            float total_para_esta = 0;
+            double total_para_esta = 0;
 
             bool esAlmacen = await empaque_func.esAlmacen(userConnectionString, codalmacen);
 
@@ -584,10 +585,10 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
-        private async Task<float> getReservasCjtos(string userConnectionString, string coditem, int codalmacen, string codempresa, bool eskit, float _saldoActual, float reservaProf)
+        private async Task<double> getReservasCjtos(string userConnectionString, string coditem, int codalmacen, string codempresa, bool eskit, double _saldoActual, double reservaProf)
         {
             List<inctrlstock> itemsinReserva = null;
-            float CANTIDAD_RESERVADA = 0;
+            double CANTIDAD_RESERVADA = 0;
 
             /*if (!eskit)  // si no es kit debe verificar si el item es utilizado para armar conjuntos
             {
@@ -609,7 +610,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 foreach (var item in itemsinReserva)
                 {
                     instoactual itemRef = await empaque_func.GetSaldosActual(userConnectionString, codalmacen, item.coditemcontrol);
-                    float cubrir_item = (float)(itemRef.cantidad * (item.porcentaje / 100));
+                    double cubrir_item = (double)(itemRef.cantidad * (item.porcentaje / 100));
                     //cubrir_item = Math.Floor(cubrir_item);
                     CANTIDAD_RESERVADA += cubrir_item;
                 }
@@ -617,7 +618,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 var cantidadReservadaTasks = itemsinReserva.Select(async item =>
                 {
                     instoactual itemRef = await empaque_func.GetSaldosActual(userConnectionString, codalmacen, item.coditemcontrol);
-                    return (float)(itemRef.cantidad * (item.porcentaje / 100));
+                    return (double)(itemRef.cantidad * (item.porcentaje / 100));
                 });
 
                 var cantidadReservadaArray = await Task.WhenAll(cantidadReservadaTasks);
@@ -633,7 +634,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 List<inreserva> reserva2 = await empaque_func.ReservaItemsinKit2(userConnectionString, coditem, codalmacen);
                 if (reserva2.Count > 0)
                 {
-                    float cubrir_item = (float)reserva2[0].cantidad;
+                    double cubrir_item = (double)reserva2[0].cantidad;
                     CANTIDAD_RESERVADA += cubrir_item;
                 }
                 if (CANTIDAD_RESERVADA < 0)
@@ -641,24 +642,24 @@ namespace SIAW.Controllers.ventas.transaccion
                     CANTIDAD_RESERVADA = 0;
                 }
 
-                float resul = 0;
-                float reserva_para_cjto = 0;
-                float CANTIDAD_RESERVADA_DINAMICA = 0;
+                double resul = 0;
+                double reserva_para_cjto = 0;
+                double CANTIDAD_RESERVADA_DINAMICA = 0;
 
                 inreserva_area reserva = await empaque_func.Obtener_Cantidad_Segun_SaldoActual_PromVta_SMin_PorcenVta(userConnectionString, coditem, codalmacen);
 
 
                 if (reserva != null)
                 {
-                    if ((float)reserva.porcenvta > 0.5)
+                    if ((double)reserva.porcenvta > 0.5)
                     {
                         reserva.porcenvta = (decimal)0.5;
                     }
 
                     if (_saldoActual >= (double)reserva.smin)
                     {
-                        resul = (float)(reserva.porcenvta * reserva.promvta);
-                        resul = (float)Math.Round(resul, 2);
+                        resul = (double)(reserva.porcenvta * reserva.promvta);
+                        resul = (double)Math.Round(resul, 2);
                         reserva_para_cjto = _saldoActual - resul - reservaProf;
                     }
                     else
@@ -670,7 +671,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     CANTIDAD_RESERVADA_DINAMICA = reserva_para_cjto;
                     if (CANTIDAD_RESERVADA_DINAMICA > 0)
                     {
-                        CANTIDAD_RESERVADA = (float)CANTIDAD_RESERVADA_DINAMICA;
+                        CANTIDAD_RESERVADA = (double)CANTIDAD_RESERVADA_DINAMICA;
                     }
                 }
             }
@@ -843,9 +844,9 @@ namespace SIAW.Controllers.ventas.transaccion
             try
             {
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-                float cantMin = await empaque_func.getEmpaqueMinimo(userConnectionString, coditem, codintarifa, codvedescuento);
-                float pesoMin = await empaque_func.getPesoItem(userConnectionString, coditem);
-                float porcenMaxVnta = await empaque_func.getPorcentMaxVenta(userConnectionString, coditem, codalmacen);
+                double cantMin = await empaque_func.getEmpaqueMinimo(userConnectionString, coditem, codintarifa, codvedescuento);
+                double pesoMin = await empaque_func.getPesoItem(userConnectionString, coditem);
+                double porcenMaxVnta = await empaque_func.getPorcentMaxVenta(userConnectionString, coditem, codalmacen);
 
                 return Ok(new
                 {
@@ -1194,18 +1195,18 @@ namespace SIAW.Controllers.ventas.transaccion
                             descripcion = i.descripcion,
                             medida = i.medida,
                             udm = i.unidad,
-                            porceniva = (float)i.iva,
-                            cantidad_pedida = (float)cantidad_pedida,
-                            cantidad = (float)cantidad,
-                            porcen_mercaderia = (float)porcen_merca,
+                            porceniva = (double)i.iva,
+                            cantidad_pedida = (double)cantidad_pedida,
+                            cantidad = (double)cantidad,
+                            porcen_mercaderia = (double)porcen_merca,
                             codtarifa = tarifa,
                             coddescuento = descuento,
-                            preciolista = (float)precioItem,
+                            preciolista = (double)precioItem,
                             niveldesc = niveldesc,
-                            porcendesc = (float)porcentajedesc,
-                            preciodesc = (float)preciodesc,
-                            precioneto = (float)precioneto,
-                            total = (float)total
+                            porcendesc = (double)porcentajedesc,
+                            preciodesc = (double)preciodesc,
+                            precioneto = (double)precioneto,
+                            total = (double)total
 
                         })
                         .FirstOrDefaultAsync();
@@ -1402,18 +1403,18 @@ namespace SIAW.Controllers.ventas.transaccion
                         descripcion = i.descripcion,
                         medida = i.medida,
                         udm = i.unidad,
-                        porceniva = (float)i.iva,
-                        cantidad_pedida = (float)reg.cantidad_pedida,
-                        cantidad = (float)reg.cantidad,
-                        porcen_mercaderia = (float)Math.Round(porcen_merca, 2),
+                        porceniva = (double)i.iva,
+                        cantidad_pedida = (double)reg.cantidad_pedida,
+                        cantidad = (double)reg.cantidad,
+                        porcen_mercaderia = (double)Math.Round(porcen_merca, 2),
                         codtarifa = reg.tarifa,
                         coddescuento = reg.descuento,
-                        preciolista = (float)precioItem,
+                        preciolista = (double)precioItem,
                         niveldesc = niveldesc,
-                        porcendesc = (float)porcentajedesc,
-                        preciodesc = (float)preciodesc,
-                        precioneto = (float)precioneto,
-                        total = (float)total
+                        porcendesc = (double)porcentajedesc,
+                        preciodesc = (double)preciodesc,
+                        precioneto = (double)precioneto,
+                        total = (double)total
 
                     })
                     .FirstOrDefaultAsync();
@@ -2035,18 +2036,18 @@ namespace SIAW.Controllers.ventas.transaccion
                 descripcion = "",
                 medida = "",
                 udm = i.udm,
-                porceniva = (float)i.porceniva,
-                cantidad_pedida = (float)i.cantidad_pedida,
-                cantidad = (float)i.cantidad,
+                porceniva = (double)i.porceniva,
+                cantidad_pedida = (double)i.cantidad_pedida,
+                cantidad = (double)i.cantidad,
                 porcen_mercaderia = 0,
                 codtarifa = i.codtarifa,
                 coddescuento = i.coddescuento,
-                preciolista = (float)i.preciolista,
+                preciolista = (double)i.preciolista,
                 niveldesc = i.niveldesc,
                 porcendesc = 0,
-                preciodesc = (float)i.preciodesc,
-                precioneto = (float)i.precioneto,
-                total = (float)i.total
+                preciodesc = (double)i.preciodesc,
+                precioneto = (double)i.precioneto,
+                total = (double)i.total
             }).ToList();
             //string nivel = "X";
             // Obtener el contexto de base de datos correspondiente al usuario
@@ -2157,10 +2158,10 @@ namespace SIAW.Controllers.ventas.transaccion
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     var result = await versubtotal(_context, tabla_detalle);
-                    float subtotal = result.st;
-                    float peso = result.peso;
+                    double subtotal = result.st;
+                    double peso = result.peso;
                     var respRecargo = await verrecargos(_context, codempresa, veproforma.codmoneda, veproforma.fecha, subtotal, tablarecargos);
-                    float recargo = respRecargo.total;
+                    double recargo = respRecargo.total;
                     tablarecargos = respRecargo.tablarecargos;
 
                     var total = await vertotal(_context, subtotal, recargo, descuentos, veproforma.codcliente_real, veproforma.codmoneda, codempresa, veproforma.fecha, tabla_detalle, tablarecargos);
@@ -2200,8 +2201,8 @@ namespace SIAW.Controllers.ventas.transaccion
                     if (tabladescuentos != null)
                     {
                         var result = await versubtotal(_context, tabla_detalle);
-                        float subtotal = result.st;
-                        float peso = result.peso;
+                        double subtotal = result.st;
+                        double peso = result.peso;
                         var respDescuento = await verdesextra(_context, codempresa, veproforma.nit, veproforma.codmoneda, cmbtipo_complementopf, veproforma.idpf_complemento, veproforma.nroidpf_complemento ?? 0, subtotal, veproforma.fecha, tabladescuentos, tabla_detalle);
 
                         double descuento = respDescuento.respdescuentos;
@@ -2243,15 +2244,15 @@ namespace SIAW.Controllers.ventas.transaccion
             }).ToList();
 
             var result = await versubtotal(_context, tabla_detalle);
-            float subtotal = result.st;
-            float peso = result.peso;
+            double subtotal = result.st;
+            double peso = result.peso;
             if (reaplicar_desc_deposito)
             {
                 // Revisar_Aplicar_Descto_Deposito(preguntar_si_aplicare_desc_deposito);
             }
 
             var respRecargo = await verrecargos(_context, codempresa, veproforma.codmoneda, veproforma.fecha, subtotal, tablarecargos);
-            float recargo = respRecargo.total;
+            double recargo = respRecargo.total;
 
             var respDescuento = await verdesextra(_context, codempresa, veproforma.nit, veproforma.codmoneda, cmbtipo_complementopf, veproforma.idpf_complemento, veproforma.nroidpf_complemento ?? 0, subtotal, veproforma.fecha, tabladescuentos, tabla_detalle);
             double descuento = respDescuento.respdescuentos;
@@ -2275,7 +2276,7 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
 
-        private async Task<float> Revisar_Aplicar_Descto_Deposito(DBContext _context, bool preguntar_si_aplicar_descto_deposito, string codcliente, string txtcodcliente_real, string codempresa, List<tabladescuentos> tabladescuentos)
+        private async Task<double> Revisar_Aplicar_Descto_Deposito(DBContext _context, bool preguntar_si_aplicar_descto_deposito, string codcliente, string txtcodcliente_real, string codempresa, List<tabladescuentos> tabladescuentos)
         {
             //////////*****ojo****///////////////////
             //segun la politica de ventas vigente desde el 01-08-2022
@@ -2305,7 +2306,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
         }
 
-        private async Task<float> Aplicar_Descuento_Por_Deposito(DBContext _context, string codempresa, bool alertar, bool preguntar_aplicar, string codcliente, string txtcodcliente_real, string nit_cliente, List<tabladescuentos> tabladescuentos)
+        private async Task<double> Aplicar_Descuento_Por_Deposito(DBContext _context, string codempresa, bool alertar, bool preguntar_aplicar, string codcliente, string txtcodcliente_real, string nit_cliente, List<tabladescuentos> tabladescuentos)
         {
             //primero borrar el descuento por deposito
             tabladescuentos = await borrar_descuento_por_deposito(_context, codempresa, tabladescuentos);
@@ -2356,31 +2357,31 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
 
-        private async Task<(float st, float peso)> versubtotal(DBContext _context, List<itemDataMatriz> tabla_detalle)
+        private async Task<(double st, double peso)> versubtotal(DBContext _context, List<itemDataMatriz> tabla_detalle)
         {
             // filtro de codigos de items
             tabla_detalle = tabla_detalle.Where(item => item.coditem != null && item.coditem.Length >= 8).ToList();
             // calculo subtotal
-            float peso = 0;
-            float st = 0;
+            double peso = 0;
+            double st = 0;
 
             foreach (var reg in tabla_detalle)
             {
                 st = st + reg.total;
-                peso = (float)(peso + (await items.itempeso(_context, reg.coditem)) * reg.cantidad);
+                peso = (double)(peso + (await items.itempeso(_context, reg.coditem)) * reg.cantidad);
             }
 
             // desde 08/01/2023 redondear el resultado a dos decimales con el SQLServer
             // REVISAR SI HAY OTRO MODO NO DA CON LINQ.
-            st = (float)await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, (decimal)st);
+            st = (double)await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, (decimal)st);
             return (st, peso);
         }
 
-        private async Task<(float total, List<tablarecargos> tablarecargos)> verrecargos(DBContext _context, string codempresa, string codmoneda, DateTime fecha, float subtotal, List<tablarecargos> tablarecargos)
+        private async Task<(double total, List<tablarecargos> tablarecargos)> verrecargos(DBContext _context, string codempresa, string codmoneda, DateTime fecha, double subtotal, List<tablarecargos> tablarecargos)
         {
             int codrecargo_pedido_urg_provincia = await configuracion.emp_codrecargo_pedido_urgente_provincia(_context, codempresa);
             //TOTALIZAR LOS RECARGOS QUE NO SON POR PEDIDO URG PROVINCIAS (los que se aplican al total final)
-            float total = 0;
+            double total = 0;
             foreach (var reg in tablarecargos)
             {
                 string tipo = await ventas.Tipo_Recargo(_context, reg.codrecargo);
@@ -2397,7 +2398,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         reg.montodoc = (decimal)subtotal / 100 * reg.porcen;
                     }
                     reg.montodoc = Math.Round(reg.montodoc, 2);
-                    total += (float)reg.montodoc;
+                    total += (double)reg.montodoc;
                 }
             }
             return (total, tablarecargos);
@@ -2439,18 +2440,18 @@ namespace SIAW.Controllers.ventas.transaccion
                                     //descripcion = i.descripcion,
                                     //medida = i.medida,
                                     udm = i.udm,
-                                    porceniva = (float)i.porceniva,
-                                    cantidad_pedida = (float)i.cantidad_pedida,
-                                    cantidad = (float)i.cantidad,
+                                    porceniva = (double)i.porceniva,
+                                    cantidad_pedida = (double)i.cantidad_pedida,
+                                    cantidad = (double)i.cantidad,
                                     //porcen_mercaderia = i.porcen_mercaderia,
                                     codtarifa = i.codtarifa,
                                     coddescuento = i.coddescuento,
-                                    preciolista = (float)i.preciolista,
+                                    preciolista = (double)i.preciolista,
                                     niveldesc = i.niveldesc,
                                     //porcendesc = i.porcendesc,
                                     //preciodesc = i.preciodesc,
-                                    precioneto = (float)i.precioneto,
-                                    total = (float)i.total,
+                                    precioneto = (double)i.precioneto,
+                                    total = (double)i.total,
                                     //cumple = i.cumple,
                                     nroitem = i.nroitem ?? 0,
                                 })
@@ -2463,7 +2464,7 @@ namespace SIAW.Controllers.ventas.transaccion
                             monto_desc_pf_complementaria = 0;
                         }
                         //sumar el monto de la proforma complementaria
-                        reg.montodoc = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (float)(monto_desc + monto_desc_pf_complementaria));
+                        reg.montodoc = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (double)(monto_desc + monto_desc_pf_complementaria));
                     }
                 }
             }
@@ -2485,14 +2486,14 @@ namespace SIAW.Controllers.ventas.transaccion
                             if (reg.codmoneda != codmoneda)
                             {
                                 double monto_cambio = (double)await tipocambio._conversion(_context, codmoneda, reg.codmoneda, fecha, reg.montodoc);
-                                reg.montodoc = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (float)monto_cambio);
+                                reg.montodoc = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (double)monto_cambio);
                                 reg.codmoneda = codmoneda;
                             }
                         }
                         else
                         {
                             //este descuento se aplica sobre el subtotal de la venta
-                            reg.montodoc = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (float)((subtotal / 100) * (double)reg.porcen));
+                            reg.montodoc = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (double)((subtotal / 100) * (double)reg.porcen));
                         }
                     }
                 }
@@ -2508,7 +2509,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 }
             }
             //desde 08 / 01 / 2023 redondear el resultado a dos decimales con el SQLServer
-            total_desctos1 = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (float)total_desctos1);
+            total_desctos1 = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (double)total_desctos1);
             // retornar total_desctos1
 
             ////////////////////////////////////////////////////////////////////////////////
@@ -2530,7 +2531,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         else
                         {
                             //este descuento se aplica sobre el subtotal de la venta
-                            reg.montodoc = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (float)((total_preliminar / 100) * (double)reg.porcen));
+                            reg.montodoc = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (double)((total_preliminar / 100) * (double)reg.porcen));
                         }
                     }
                 }
@@ -2544,9 +2545,9 @@ namespace SIAW.Controllers.ventas.transaccion
                 }
             }
             //desde 08 / 01 / 2023 redondear el resultado a dos decimales con el SQLServer
-            total_desctos2 = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (float)total_desctos2);
+            total_desctos2 = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (double)total_desctos2);
 
-            double respdescuentos = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (float)(total_desctos1 + total_desctos2));
+            double respdescuentos = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (double)(total_desctos1 + total_desctos2));
 
             return (respdescuentos, tabladescuentos);
 
@@ -2797,29 +2798,29 @@ namespace SIAW.Controllers.ventas.transaccion
                         p => p.coditem,
                         i => i.codigo,
                         (p, i) => new { p, i })
-                        .Select(i => new
+                        .Select(i => new itemDataMatriz
                         {
-                            i.p.codproforma,
-                            i.p.coditem,
+                            //codproforma = i.p.codproforma,
+                            coditem = i.p.coditem,
                             descripcion = i.i.descripcion,
                             medida = i.i.medida,
-                            i.p.cantidad,
-                            i.p.udm,
-                            i.p.precioneto,
-                            i.p.preciodesc,
-                            i.p.niveldesc,
-                            i.p.preciolista,
-                            i.p.codtarifa,
-                            i.p.coddescuento,
-                            i.p.total,
-                            i.p.cantaut,
-                            i.p.totalaut,
-                            i.p.obs,
-                            i.p.porceniva,
-                            i.p.cantidad_pedida,
-                            i.p.peso,
-                            i.p.nroitem,
-                            i.p.id,
+                            cantidad = (double)i.p.cantidad,
+                            udm = i.p.udm,
+                            precioneto = (double)i.p.precioneto,
+                            preciodesc = (double)(i.p.preciodesc ?? 0),
+                            niveldesc = i.p.niveldesc,
+                            preciolista = (double)i.p.preciolista,
+                            codtarifa = i.p.codtarifa,
+                            coddescuento = i.p.coddescuento,
+                            total = (double)i.p.total,
+                            // cantaut = i.p.cantaut,
+                            // totalaut = i.p.totalaut,
+                            // obs = i.p.obs,
+                            porceniva = (double)(i.p.porceniva ?? 0),
+                            cantidad_pedida = (double)(i.p.cantidad_pedida ?? 0),
+                            // peso = i.p.peso,
+                            nroitem = i.p.nroitem ?? 0,
+                            // id = i.p.id,
                             porcen_mercaderia = 0,
                             porcendesc = 0
                         })
@@ -3563,6 +3564,8 @@ namespace SIAW.Controllers.ventas.transaccion
         {
             try
             {
+                tabladetalle.ForEach(item => item.cumpleEmp = true);
+                tabladetalle.ForEach(item => item.cumpleMin = true);
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
@@ -3575,11 +3578,11 @@ namespace SIAW.Controllers.ventas.transaccion
                             {
                                 if (await ventas.CumpleEmpaqueCerrado(_context,reg.coditem, reg.codtarifa, reg.coddescuento, (decimal)reg.cantidad, codcliente))
                                 {
-                                    reg.cumple = true;
+                                    reg.cumpleEmp = true;
                                 }
                                 else
                                 {
-                                    reg.cumple = false;
+                                    reg.cumpleEmp = false;
                                     cumple = false;
                                 }
                             }
@@ -3608,6 +3611,8 @@ namespace SIAW.Controllers.ventas.transaccion
         {
             try
             {
+                tabladetalle.ForEach(item => item.cumpleEmp = true);
+                tabladetalle.ForEach(item => item.cumpleMin = true);
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
@@ -3675,14 +3680,14 @@ namespace SIAW.Controllers.ventas.transaccion
                                 double cant_item_empaque = cant_empaques * empaque_descuento;
                                 double cant_item_sin_empaque = cantidad - cant_item_empaque;
                                 // en el detalle modificar la cantidad del item por la variable cant_item_empaque y luego añadir a un datable el item en cuestion con la cantidad = cant_item_sin_empaque
-                                reg.cantidad = (float)cant_item_empaque;
+                                reg.cantidad = (double)cant_item_empaque;
                                 itemDataMatriz dt_aux = new itemDataMatriz();
                                 // copiar datos importantes
                                 dt_aux.coditem = reg.coditem;
                                 dt_aux.codtarifa = reg.codtarifa;
                                 dt_aux.coddescuento = reg.coddescuento;
-                                dt_aux.cantidad = (float)cant_item_sin_empaque;
-                                dt_aux.cantidad_pedida = (float)cant_item_sin_empaque;
+                                dt_aux.cantidad = (double)cant_item_sin_empaque;
+                                dt_aux.cantidad_pedida = (double)cant_item_sin_empaque;
                                 dt.Add(dt_aux);
                                 
                             }
@@ -3733,10 +3738,104 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
 
+        // boton dividir por empaques 
+        [HttpPost]
+        [Route("aplicar_desc_esp_seg_precio/{userConn}")]
+        public async Task<ActionResult<List<itemDataMatriz>>> aplicar_desc_esp_seg_precio(string userConn, List<itemDataMatriz> tabladetalle)
+        {
+            // obtener los tipos de precio
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    List<int> lista_desc_especial = new List<int>();
+                    List<string> datos_precios = new List<string>();
+                    foreach (var reg in tabladetalle)
+                    {
+                        int coddescto_esp = 0;
+                        var dt = await _context.vedescuento_tarifa
+                            .Where(tarifa => tarifa.codtarifa == reg.codtarifa &&
+                                             tarifa.coddescuento != 0 &&
+                                             _context.vedescuento
+                                                    .Where(descuento => descuento.habilitado == true)
+                                                    .Select(descuento => descuento.codigo)
+                                                    .Contains(tarifa.coddescuento))
+                            .FirstOrDefaultAsync();
+                        if (dt != null)
+                        {
+                            coddescto_esp = dt.coddescuento;
+                            if (!lista_desc_especial.Contains(dt.coddescuento))
+                            {
+                                lista_desc_especial.Add(dt.coddescuento);
+                            }
+                        }
+                        else
+                        {
+                            // si no hay descto asignado al precio aw asigna 0 osea sin descto
+                            coddescto_esp = 0;
+                        }
+                        string cadena = reg.codtarifa.ToString() + "-" + coddescto_esp.ToString();
+                        if (!datos_precios.Contains(cadena))
+                        {
+                            datos_precios.Add(cadena);
+                        }
+                    }
+
+                    string[] datos_des = new string[2];
+                    foreach (var reg in tabladetalle)
+                    {
+                        reg.coddescuento = 0;
+
+                        for (int j = 0; j < datos_precios.Count; j++)
+                        {
+                            datos_des = datos_precios[j].Split(new char[] { '-' });
+                            if (datos_des[0] == reg.codtarifa.ToString())
+                            {
+                                reg.coddescuento = int.Parse(datos_des[1]);
+                            }
+                        }
+                    }
+
+                    // verificar los desctos especiales que no estan validos
+                    string cadena_desEsp_validos = "";
+                    foreach (var reg in lista_desc_especial)
+                    {
+                        if (!await ventas.Descuento_Especial_Habilitado(_context,reg))
+                        {
+                            cadena_desEsp_validos = cadena_desEsp_validos + "El descuento especial: " + reg + "-" + await nombres.nombre_descuento_especial(_context, reg) + " esta deshabilitado!!! \r\n";
+                        }
+                    }
+                    if (cadena_desEsp_validos.Trim().Length > 0)
+                    {
+                        return Ok(new
+                        {
+                            msgTitulo = "Se tiene observaciones en la aplicacion de los descuentos especiales aplicados: ",
+                            msgDetalle = cadena_desEsp_validos,
+                            tabladetalle = tabladetalle
+                        });
+                    }
+                    return Ok(new
+                    {
+                        msgTitulo = "",
+                        msgDetalle = cadena_desEsp_validos,
+                        tabladetalle = tabladetalle
+                    });
+                }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+        }
+
+
+
     }
 
 
- 
+
 
 
 

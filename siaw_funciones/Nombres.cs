@@ -169,5 +169,51 @@ namespace siaw_funciones
             return resultado;
         }
 
+        public async Task<string> nombreempaque(DBContext _context, int codigo)
+        {
+            string resultado;
+            string descripcion = "";
+            //using (_context)
+            ////using (var _context = DbContextFactory.Create(userConnectionString))
+            //{
+            var result = await _context.veempaque
+                .Where(v => v.codigo == codigo)
+                .Select(parametro => new
+                {
+                    parametro.descripcion
+                })
+                .FirstOrDefaultAsync();
+            if (result != null)
+            {
+                descripcion = result.descripcion;
+            }
+
+            //}
+            resultado = descripcion.Trim();
+            return resultado;
+        }
+        public async Task<string> nombre_descuento_especial(DBContext _context, int codigo)
+        {
+            string resultado;
+            string descripcion = "";
+            //using (_context)
+            ////using (var _context = DbContextFactory.Create(userConnectionString))
+            //{
+            var result = await _context.vedescuento
+                .Where(v => v.codigo == codigo)
+                .Select(parametro => new
+                {
+                    parametro.descripcion
+                })
+                .FirstOrDefaultAsync();
+            if (result != null)
+            {
+                descripcion = result.descripcion;
+            }
+
+            //}
+            resultado = descripcion.Trim();
+            return resultado;
+        }
     }
 }

@@ -460,13 +460,13 @@ namespace siaw_funciones
             return "";
         }
 
-        public async Task<float> preciodelistaitem(DBContext _context, int codtarifa, string coditem)
+        public async Task<double> preciodelistaitem(DBContext _context, int codtarifa, string coditem)
         {
             if (codtarifa == 0 || coditem== "")
             {
                 return 0;
             }
-            float precioFinal;
+            double precioFinal;
 
             var tarifaParam = new SqlParameter("@tarifa", SqlDbType.Int) { Value = codtarifa };
             var itemParam = new SqlParameter("@item", SqlDbType.NVarChar, 8) { Value = coditem };
@@ -483,13 +483,13 @@ namespace siaw_funciones
             return precioFinal;
         }
 
-        public async Task<float> preciocliente(DBContext _context, string codcliente, int codalmacen, int codtarifa, string coditem, string desc_linea_seg_solicitud, string desc_linea, string opcion_nivel)
+        public async Task<double> preciocliente(DBContext _context, string codcliente, int codalmacen, int codtarifa, string coditem, string desc_linea_seg_solicitud, string desc_linea, string opcion_nivel)
         {
             if (codtarifa == 0 || coditem == "" || codcliente.Trim() == "" || codalmacen == 0)
             {
                 return 0;
             }
-            float precioFinal;
+            double precioFinal;
 
             var clienteParam = new SqlParameter("@cliente", SqlDbType.NVarChar, 10) { Value = codcliente };
             var almacenParam = new SqlParameter("@almacen", SqlDbType.Int) { Value = codalmacen };
@@ -508,14 +508,14 @@ namespace siaw_funciones
 
             return precioFinal;
         }
-        public async Task<float> preciocondescitem(DBContext _context, string codcliente, int codalmacen, int codtarifa, string coditem, int coddescuento, string desc_linea_seg_solicitud, string desc_linea, string opcion_nivel)
+        public async Task<double> preciocondescitem(DBContext _context, string codcliente, int codalmacen, int codtarifa, string coditem, int coddescuento, string desc_linea_seg_solicitud, string desc_linea, string opcion_nivel)
         {
             if (codtarifa == 0 || coditem == "")
             {
                 return 0;
             }
 
-            float precioFinal;
+            double precioFinal;
 
             var clienteParam = new SqlParameter("@cliente", SqlDbType.NVarChar, 10) { Value = codcliente };
             var almacenParam = new SqlParameter("@almacen", SqlDbType.Int) { Value = codalmacen };
@@ -632,10 +632,10 @@ namespace siaw_funciones
             return (resultado, dt);
         }
 
-        public async Task<float> DescuentoExtra_Porcentaje_Item(DBContext _context, int coddesextra, string coditem)
+        public async Task<double> DescuentoExtra_Porcentaje_Item(DBContext _context, int coddesextra, string coditem)
         {
             var resultado = await _context.vedesextra_item.Where(i => i.coddesextra == coddesextra && i.coditem == coditem).Select(i => i.porcentaje).FirstOrDefaultAsync();
-            return (float)(resultado ?? 0);
+            return (double)(resultado ?? 0);
         }
 
         public async Task<bool> Descuento_Extra_Valida_Nivel(DBContext _context, int coddesextra)
@@ -1661,17 +1661,17 @@ namespace siaw_funciones
                         // si la moneda de la pf esta en BS y el descuento en US, entonces convertir el descuento en BS
                         if ("BS" == codmoneda_prof && "US" == reg.codmoneda)
                         {
-                            reg.montodoc = (decimal)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context,(float)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, reg.montodoc));
-                            reg.total_dist = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (float)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, (decimal)reg.total_dist));
-                            reg.total_desc = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (float)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, (decimal)reg.total_desc));
+                            reg.montodoc = (decimal)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context,(double)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, reg.montodoc));
+                            reg.total_dist = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (double)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, (decimal)reg.total_dist));
+                            reg.total_desc = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (double)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, (decimal)reg.total_desc));
                             reg.codmoneda = "BS";
                         }
                         // si la moneda de la pf esta en US y el descuento en BS, entonces convertir el descuento en US
                         if ("US" == codmoneda_prof && "BS" == reg.codmoneda)
                         {
-                            reg.montodoc = (decimal)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (float)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, reg.montodoc));
-                            reg.total_dist = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (float)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, (decimal)reg.total_dist));
-                            reg.total_desc = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (float)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, (decimal)reg.total_desc));
+                            reg.montodoc = (decimal)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (double)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, reg.montodoc));
+                            reg.total_dist = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (double)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, (decimal)reg.total_dist));
+                            reg.total_desc = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (double)await tipocambio._conversion(_context, codmoneda_prof, reg.codmoneda, fecha, (decimal)reg.total_desc));
                             reg.codmoneda = "US";
                         }
                     }
@@ -2612,6 +2612,160 @@ namespace siaw_funciones
             double result;
             return double.TryParse(value, out result);
         }
+
+        public async Task<double> PesoMinimoDescuentoExtra(DBContext _context, int coddesextra)
+        {
+            double minimo = 0;
+            try
+            {
+                var result = await _context.vedesextra
+                    .Where(v => v.codigo == coddesextra)
+                    .Select(v => v.peso_minimo)
+                    .FirstOrDefaultAsync();
+
+                if (result.HasValue)
+                {
+                    minimo = (double)result.Value;
+                }
+            }
+            catch (Exception ex)
+            {
+                minimo = 0;
+
+            }
+            return minimo;
+        }
+
+        public async Task<decimal> MontoMinimoContadoDescuentoExtra(DBContext _context, int coddesextra, string codmoneda, DateTime fecha)
+        {
+            decimal minimo = 0;
+            string codmoneda_minimo = "";
+            try
+            {
+                var result = await _context.vedesextra
+                .Where(v => v.codigo == coddesextra)
+                .Select(p => p.min_contado)
+                .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    minimo = result ?? 0;
+                }
+
+                var result1 = await _context.vedesextra
+                .Where(v => v.codigo == coddesextra)
+                .Select(p => p.codmoneda_min_contado)
+                .FirstOrDefaultAsync();
+                if (result1 != null)
+                {
+                    codmoneda_minimo = result1;
+                }
+            }
+            catch (Exception)
+            {
+                minimo = 0;
+                codmoneda_minimo = codmoneda;
+            }
+            if (minimo > 0)
+            {
+                minimo = await tipocambio._conversion(_context, codmoneda, codmoneda_minimo, fecha, minimo);
+            }
+            return minimo;
+        }
+
+        public async Task<decimal> MontoMinimoCreditoDescuentoExtra(DBContext _context, int coddesextra, string codmoneda, DateTime fecha)
+        {
+            decimal minimo = 0;
+            string codmoneda_minimo = "";
+            try
+            {
+                var result = await _context.vedesextra
+                .Where(v => v.codigo == coddesextra)
+                .Select(p => p.min_credito)
+                .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    minimo = result ?? 0;
+                }
+
+                var result1 = await _context.vedesextra
+                .Where(v => v.codigo == coddesextra)
+                .Select(p => p.codmoneda_min_credito)
+                .FirstOrDefaultAsync();
+                if (result1 != null)
+                {
+                    codmoneda_minimo = result1;
+                }
+            }
+            catch (Exception)
+            {
+                minimo = 0;
+                codmoneda_minimo = codmoneda;
+            }
+            if (minimo > 0)
+            {
+                minimo = await tipocambio._conversion(_context, codmoneda, codmoneda_minimo, fecha, minimo);
+            }
+            return minimo;
+        }
+
+        public async Task<double> Empaque(DBContext _context, int codempaque, string coditem)
+        {
+            double resultado = 0;
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var res = await _context.veempaque1
+                .Where(v => v.codempaque == codempaque && v.item == coditem)
+                .Select(v => v.cantidad)
+                .FirstOrDefaultAsync();
+
+                if (res != null)
+                {
+                    resultado = (double)res;
+                }
+                //}
+            }
+            catch (Exception ex)
+            {
+                //Console.WriteLine($"Error: {ex.Message}");
+                return 0;
+            }
+            return resultado;
+        }
+
+
+        public async Task<bool> Descuento_Especial_Habilitado(DBContext _context, int coddesc_especial)
+        {
+            try
+            {
+                var res = await _context.vedescuento
+                .Where(v => v.codigo == coddesc_especial)
+                .Select(v => new
+                {
+                    v.codigo,
+                    habilitado = v.habilitado ?? false,
+                    v.desde_fecha,
+                    v.hasta_fecha
+                })
+                .FirstOrDefaultAsync();
+
+                if (res != null)
+                {
+                    if (res.habilitado)
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
+        }
+
     }
 
 

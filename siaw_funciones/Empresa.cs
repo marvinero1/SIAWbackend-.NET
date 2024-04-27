@@ -155,5 +155,104 @@ namespace siaw_funciones
             }
             return resultado;
         }
+
+        public async Task<int> maxurgentes_por_dia(DBContext _context, string codempresa)
+        {
+            int resultado = 0;
+            try
+            {
+                var maxurgentes_dia = await _context.adparametros
+                .Where(v => v.codempresa == codempresa)
+                .Select(v => v.maxurgentes_dia)
+                .FirstOrDefaultAsync();
+
+                if (maxurgentes_dia != null)
+                {
+                    resultado = (int)maxurgentes_dia;
+                }
+            }
+            catch (Exception ex)
+            {
+                return 0;
+            }
+            return resultado;
+        }
+        public async Task<int> maxurgentes(DBContext _context, string codempresa)
+        {
+            int resultado = 0;
+            try
+            {
+                var maxurgentes = await _context.adparametros
+                .Where(v => v.codempresa == codempresa)
+                .Select(v => v.maxurgentes)
+                .FirstOrDefaultAsync();
+
+                if (maxurgentes != null)
+                {
+                    resultado = (int)maxurgentes;
+                }
+            }
+            catch (Exception ex)
+            {
+                return 0;
+            }
+            return resultado;
+        }
+
+        public async Task<int> maxitemurgentes(DBContext _context, string codempresa)
+        {
+            int resultado = 0;
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var maxitemurgentes = await _context.adparametros
+                .Where(v => v.codempresa == codempresa)
+                .Select(v => v.maxitemurgentes)
+                .FirstOrDefaultAsync();
+
+                if (maxitemurgentes != null)
+                {
+                    resultado = (int)maxitemurgentes;
+                }
+                //}
+            }
+            catch (Exception ex)
+            {
+                //Console.WriteLine($"Error: {ex.Message}");
+                return 0;
+            }
+            return resultado;
+        }
+
+        public async Task<int> nro_items_urgentes_empaque_cerrado(DBContext _context, string codempresa)
+        {
+            int resultado = 0;
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var nro_items_urgentes_empaque_cerrado = await _context.adparametros
+                .Where(v => v.codempresa == codempresa)
+                .Select(v => v.nro_items_urgentes_empaque_cerrado)
+                .FirstOrDefaultAsync();
+
+                if (nro_items_urgentes_empaque_cerrado != null)
+                {
+                    resultado = (int)nro_items_urgentes_empaque_cerrado;
+                }
+                //}
+            }
+            catch (Exception ex)
+            {
+                //Console.WriteLine($"Error: {ex.Message}");
+                return 0;
+            }
+            return resultado;
+        }
+
+
     }
 }

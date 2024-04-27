@@ -36,11 +36,21 @@ namespace SIAW.Controllers.ventas.mantenimiento
                         return BadRequest(new { resp = "Entidad vecliente es null." });
                     }
                     //var vecliente = await _context.vecliente.FindAsync(codigo);
+                    /*
                     var vecliente = await _context.vecliente
                         .Join(_context.vetienda, c => c.codigo, v => v.codcliente, (cliente, vivienda) => new { Cliente = cliente, Vivienda = vivienda })
                         .Where(joined => joined.Cliente.codigo == codigo && joined.Vivienda.central == true)
                         .FirstOrDefaultAsync();
-
+                    */
+                    var vecliente = await _context.vecliente
+                        .SelectMany(
+                            cliente => _context.vetienda.Where(v => v.codcliente == cliente.codigo)
+                                                          .DefaultIfEmpty(),
+                            (cliente, vivienda) => new { Cliente = cliente, Vivienda = vivienda })
+                        .Where(joined => joined.Cliente.codigo == codigo &&
+                                         (joined.Vivienda == null || joined.Vivienda.central == true))
+                        .Select(joined => new { Cliente = joined.Cliente, Vivienda = joined.Vivienda })
+                        .FirstOrDefaultAsync();
                     if (vecliente == null)
                     {
                         return NotFound( new { resp = "No se encontro un registro con este código" });

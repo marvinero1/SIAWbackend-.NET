@@ -283,5 +283,61 @@ namespace siaw_funciones
             return resultado;
         }
 
+        public async Task<double> MaximoDeVenta(DBContext _context, string coditem, string codalmacen, int codtarifa)
+        {
+            double resultado = 0;
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var res = await _context.initem_max
+                .Where(v => v.coditem == coditem && v.codalmacen == Convert.ToInt32(codalmacen) && v.codtarifa == codtarifa)
+                .Select(v => v.maximo)
+                .FirstOrDefaultAsync();
+
+                if (res != null)
+                {
+                    resultado = (double)res;
+                }
+                //}
+            }
+            catch (Exception ex)
+            {
+                //Console.WriteLine($"Error: {ex.Message}");
+                return 0;
+            }
+            return resultado;
+        }
+
+        public async Task<int> MaximoDeVenta_PeriodoDeControl(DBContext _context, string coditem, string codalmacen, int codtarifa)
+        {
+            int resultado = 0;
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var res = await _context.initem_max
+                .Where(v => v.coditem == coditem && v.codalmacen == Convert.ToInt32(codalmacen) && v.codtarifa == codtarifa)
+                .Select(v => v.dias)
+                .FirstOrDefaultAsync();
+
+                if (res != null)
+                {
+                    resultado = res;
+                }
+                //}
+            }
+            catch (Exception ex)
+            {
+                //Console.WriteLine($"Error: {ex.Message}");
+                return 0;
+            }
+            return resultado;
+        }
+
+
+
     }
 }

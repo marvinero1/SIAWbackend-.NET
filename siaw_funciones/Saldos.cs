@@ -220,7 +220,7 @@ namespace siaw_funciones
                     //saldosDetalleItem.txtReservaProf = "(-) PROFORMAS APROBADAS ITEM(" + instoactual.coditem + ") DEL CJTO(" + coditem + ")";
                     sldosItemCompleto saldosDetalleItem = new sldosItemCompleto();
                     saldosDetalleItem.descripcion = "(+) SALDO ACTUAL ITEM (" + instoactual.coditem + ") DEL CJTO(" + coditem + ")";
-                    saldosDetalleItem.valor = (float)instoactual.cantidad;
+                    saldosDetalleItem.valor = (double)instoactual.cantidad;
                     listaSaldos.Add(saldosDetalleItem);
                 }
                 else
@@ -228,10 +228,10 @@ namespace siaw_funciones
                     //saldosDetalleItem.txtReservaProf = "(-) PROFORMAS APROBADAS: " + instoactual.coditem;
                     sldosItemCompleto saldosDetalleItem = new sldosItemCompleto();
                     saldosDetalleItem.descripcion = "(+)SALDO ACTUAL ITEM: " + instoactual.coditem;
-                    saldosDetalleItem.valor = (float)instoactual.cantidad;
+                    saldosDetalleItem.valor = (double)instoactual.cantidad;
                     listaSaldos.Add(saldosDetalleItem);
                 }
-                saldoItemTotal.valor = (float)instoactual.cantidad;
+                saldoItemTotal.valor = (double)instoactual.cantidad;
 
 
                 // obtiene reservas en proforma
@@ -247,18 +247,18 @@ namespace siaw_funciones
                 {
                     sldosItemCompleto saldosDetalleItem = new sldosItemCompleto();
                     saldosDetalleItem.descripcion = "(-) PROFORMAS APROBADAS ITEM(" + instoactual.coditem + ") DEL CJTO(" + coditem + ")";
-                    saldosDetalleItem.valor = (float)reservaProf.TotalP * -1;
+                    saldosDetalleItem.valor = (double)reservaProf.TotalP * -1;
                     listaSaldos.Add(saldosDetalleItem);
                 }
                 else
                 {
                     sldosItemCompleto saldosDetalleItem = new sldosItemCompleto();
                     saldosDetalleItem.descripcion = "(-) PROFORMAS APROBADAS: " + instoactual.coditem;
-                    saldosDetalleItem.valor = (float)reservaProf.TotalP * -1;
+                    saldosDetalleItem.valor = (double)reservaProf.TotalP * -1;
                     listaSaldos.Add(saldosDetalleItem);
                 }
 
-                saldoItemTotal.valor -= (float)reservaProf.TotalP;  // reduce saldo total
+                saldoItemTotal.valor -= (double)reservaProf.TotalP;  // reduce saldo total
                 var8.valor = saldoItemTotal.valor;
 
 
@@ -268,7 +268,7 @@ namespace siaw_funciones
                 //bool ctrlSeguridad = await empresa.ControlarStockSeguridad2(userConnectionString, codempresa);
                 if (Reserva_Stock_Max_Min && ctrlSeguridad)
                 {
-                    float STOCK_MINIMO = 0;
+                    double STOCK_MINIMO = 0;
                     if (Es_Kit)
                     {
                         STOCK_MINIMO = await get_stock_Para_Tiendas_Sam(_context, codItemVta, codalmacen);
@@ -290,10 +290,10 @@ namespace siaw_funciones
                 sldosItemCompleto var1 = new sldosItemCompleto();
 
                 // obtiene items si no son kit, sus reservas para armar conjuntos.
-                float CANTIDAD_RESERVADA = 0;
+                double CANTIDAD_RESERVADA = 0;
                 if (include_saldos_a_cubrir && RESTRINGIR_VENTA_SUELTA)
                 {
-                    CANTIDAD_RESERVADA = await getReservasCjtos_Sam(_context, coditem, codalmacen, codempresa, Es_Kit, (float)instoactual.cantidad, (float)reservaProf.TotalP);
+                    CANTIDAD_RESERVADA = await getReservasCjtos_Sam(_context, coditem, codalmacen, codempresa, Es_Kit, (double)instoactual.cantidad, (double)reservaProf.TotalP);
                     var1.descripcion = "(-) SALDO RESERVADO PARA ARMAR CJTOS";
                     var1.valor = CANTIDAD_RESERVADA * -1;
                     listaSaldos.Add(var1);
@@ -310,7 +310,7 @@ namespace siaw_funciones
 
                 // obtiene el saldo minimo que debe mantenerse en agencia
                 sldosItemCompleto var2 = new sldosItemCompleto();
-                float Saldo_Minimo_Item = await empaque_func.getSaldoMinimo_Sam(_context, coditem);
+                double Saldo_Minimo_Item = await empaque_func.getSaldoMinimo_Sam(_context, coditem);
                 var2.descripcion = "(-) SALDO MINIMO DEL ITEM";
                 var2.valor = Saldo_Minimo_Item * -1;
                 listaSaldos.Add(var2);
@@ -319,15 +319,15 @@ namespace siaw_funciones
                 // obtiene reserva NM ingreso para sol-Urgente
                 bool validar_ingresos_solurgentes = await empaque_func.getValidaIngreSolurgente_Sam(_context, codempresa);
 
-                float total_reservado = 0;
-                float total_para_esta = 0;
-                float total_proforma = 0;
+                double total_reservado = 0;
+                double total_para_esta = 0;
+                double total_proforma = 0;
                 if (validar_ingresos_solurgentes)
                 {
                     //  RESTAR LAS CANTIDADES DE INGRESO POR NOTAS DE MOVIMIENTO URGENTES
                     // de facturas que aun no estan aprobadas
                     string resp_total_reservado = await getSldIngresoReservNotaUrgent_Sam(_context, coditem, codalmacen);
-                    total_reservado = float.Parse(resp_total_reservado);
+                    total_reservado = double.Parse(resp_total_reservado);
 
 
                     //AUMENTAR CANTIDAD PARA ESTA PROFORMA DE INGRESO POR NOTAS DE MOVIMIENTO URGENTES
@@ -508,10 +508,10 @@ namespace siaw_funciones
             }
             return saldosReservProformas;
         }
-        private async Task<float> getReservasCjtos(string userConnectionString, string coditem, int codalmacen, string codempresa, bool eskit, float _saldoActual, float reservaProf)
+        private async Task<double> getReservasCjtos(string userConnectionString, string coditem, int codalmacen, string codempresa, bool eskit, double _saldoActual, double reservaProf)
         {
             List<inctrlstock> itemsinReserva = null;
-            float CANTIDAD_RESERVADA = 0;
+            double CANTIDAD_RESERVADA = 0;
 
             /*if (!eskit)  // si no es kit debe verificar si el item es utilizado para armar conjuntos
             {
@@ -534,7 +534,7 @@ namespace siaw_funciones
                 var cantidadReservadaTasks = itemsinReserva.Select(async item =>
                 {
                     instoactual itemRef = await empaque_func.GetSaldosActual(userConnectionString, codalmacen, item.coditemcontrol);
-                    return (float)(itemRef.cantidad * (item.porcentaje / 100));
+                    return (double)(itemRef.cantidad * (item.porcentaje / 100));
                 });
 
                 var cantidadReservadaArray = await Task.WhenAll(cantidadReservadaTasks);
@@ -543,7 +543,7 @@ namespace siaw_funciones
                 foreach (var item in itemsinReserva)
                 {
                     instoactual itemRef = await empaque_func.GetSaldosActual(userConnectionString, codalmacen, item.coditemcontrol);
-                    float cubrir_item = (float)(itemRef.cantidad * (item.porcentaje / 100));
+                    double cubrir_item = (double)(itemRef.cantidad * (item.porcentaje / 100));
                     //cubrir_item = Math.Floor(cubrir_item);
                     CANTIDAD_RESERVADA += cubrir_item;
                 }
@@ -557,7 +557,7 @@ namespace siaw_funciones
                 List<inreserva> reserva2 = await empaque_func.ReservaItemsinKit2(userConnectionString, coditem, codalmacen);
                 if (reserva2.Count > 0)
                 {
-                    float cubrir_item = (float)reserva2[0].cantidad;
+                    double cubrir_item = (double)reserva2[0].cantidad;
                     CANTIDAD_RESERVADA += cubrir_item;
                 }
                 if (CANTIDAD_RESERVADA < 0)
@@ -565,24 +565,24 @@ namespace siaw_funciones
                     CANTIDAD_RESERVADA = 0;
                 }
 
-                float resul = 0;
-                float reserva_para_cjto = 0;
-                float CANTIDAD_RESERVADA_DINAMICA = 0;
+                double resul = 0;
+                double reserva_para_cjto = 0;
+                double CANTIDAD_RESERVADA_DINAMICA = 0;
 
                 inreserva_area reserva = await empaque_func.Obtener_Cantidad_Segun_SaldoActual_PromVta_SMin_PorcenVta(userConnectionString, coditem, codalmacen);
 
 
                 if (reserva != null)
                 {
-                    if ((float)reserva.porcenvta > 0.5)
+                    if ((double)reserva.porcenvta > 0.5)
                     {
                         reserva.porcenvta = (decimal)0.5;
                     }
 
                     if (_saldoActual >= (double)reserva.smin)
                     {
-                        resul = (float)(reserva.porcenvta * reserva.promvta);
-                        resul = (float)Math.Round(resul, 2);
+                        resul = (double)(reserva.porcenvta * reserva.promvta);
+                        resul = (double)Math.Round(resul, 2);
                         reserva_para_cjto = _saldoActual - resul - reservaProf;
                     }
                     else
@@ -594,16 +594,16 @@ namespace siaw_funciones
                     CANTIDAD_RESERVADA_DINAMICA = reserva_para_cjto;
                     if (CANTIDAD_RESERVADA_DINAMICA > 0)
                     {
-                        CANTIDAD_RESERVADA = (float)CANTIDAD_RESERVADA_DINAMICA;
+                        CANTIDAD_RESERVADA = (double)CANTIDAD_RESERVADA_DINAMICA;
                     }
                 }
             }
             return CANTIDAD_RESERVADA;
         }
-        private async Task<float> getReservasCjtos_Sam(DBContext _context, string coditem, int codalmacen, string codempresa, bool eskit, float _saldoActual, float reservaProf)
+        private async Task<double> getReservasCjtos_Sam(DBContext _context, string coditem, int codalmacen, string codempresa, bool eskit, double _saldoActual, double reservaProf)
         {
             List<inctrlstock> itemsinReserva = null;
-            float CANTIDAD_RESERVADA = 0;
+            double CANTIDAD_RESERVADA = 0;
 
             /*if (!eskit)  // si no es kit debe verificar si el item es utilizado para armar conjuntos
             {
@@ -626,7 +626,7 @@ namespace siaw_funciones
                 var cantidadReservadaTasks = itemsinReserva.Select(async item =>
                 {
                     instoactual itemRef = await empaque_func.GetSaldosActual(userConnectionString, codalmacen, item.coditemcontrol);
-                    return (float)(itemRef.cantidad * (item.porcentaje / 100));
+                    return (double)(itemRef.cantidad * (item.porcentaje / 100));
                 });
 
                 var cantidadReservadaArray = await Task.WhenAll(cantidadReservadaTasks);
@@ -635,7 +635,7 @@ namespace siaw_funciones
                 foreach (var item in itemsinReserva)
                 {
                     instoactual itemRef = await empaque_func.GetSaldosActual_Sam(_context, codalmacen, item.coditemcontrol);
-                    float cubrir_item = (float)(itemRef.cantidad * (item.porcentaje / 100));
+                    double cubrir_item = (double)(itemRef.cantidad * (item.porcentaje / 100));
                     //cubrir_item = Math.Floor(cubrir_item);
                     CANTIDAD_RESERVADA += cubrir_item;
                 }
@@ -649,7 +649,7 @@ namespace siaw_funciones
                 List<inreserva> reserva2 = await empaque_func.ReservaItemsinKit2_Sam(_context, coditem, codalmacen);
                 if (reserva2.Count > 0)
                 {
-                    float cubrir_item = (float)reserva2[0].cantidad;
+                    double cubrir_item = (double)reserva2[0].cantidad;
                     CANTIDAD_RESERVADA += cubrir_item;
                 }
                 if (CANTIDAD_RESERVADA < 0)
@@ -657,24 +657,24 @@ namespace siaw_funciones
                     CANTIDAD_RESERVADA = 0;
                 }
 
-                float resul = 0;
-                float reserva_para_cjto = 0;
-                float CANTIDAD_RESERVADA_DINAMICA = 0;
+                double resul = 0;
+                double reserva_para_cjto = 0;
+                double CANTIDAD_RESERVADA_DINAMICA = 0;
 
                 inreserva_area reserva = await empaque_func.Obtener_Cantidad_Segun_SaldoActual_PromVta_SMin_PorcenVta_Sam(_context, coditem, codalmacen);
 
 
                 if (reserva != null)
                 {
-                    if ((float)reserva.porcenvta > 0.5)
+                    if ((double)reserva.porcenvta > 0.5)
                     {
                         reserva.porcenvta = (decimal)0.5;
                     }
 
                     if (_saldoActual >= (double)reserva.smin)
                     {
-                        resul = (float)(reserva.porcenvta * reserva.promvta);
-                        resul = (float)Math.Round(resul, 2);
+                        resul = (double)(reserva.porcenvta * reserva.promvta);
+                        resul = (double)Math.Round(resul, 2);
                         reserva_para_cjto = _saldoActual - resul - reservaProf;
                     }
                     else
@@ -686,7 +686,7 @@ namespace siaw_funciones
                     CANTIDAD_RESERVADA_DINAMICA = reserva_para_cjto;
                     if (CANTIDAD_RESERVADA_DINAMICA > 0)
                     {
-                        CANTIDAD_RESERVADA = (float)CANTIDAD_RESERVADA_DINAMICA;
+                        CANTIDAD_RESERVADA = (double)CANTIDAD_RESERVADA_DINAMICA;
                     }
                 }
             }
@@ -786,10 +786,10 @@ namespace siaw_funciones
             }
             return respuestaValor;
         }
-        private async Task<float> getSldReservNotaUrgentUnaProf(string userConnectionString, string coditem, int codalmacen, string idProf, int nroIdProf)
+        private async Task<double> getSldReservNotaUrgentUnaProf(string userConnectionString, string coditem, int codalmacen, string idProf, int nroIdProf)
         {
             // verifica si es almacen o tienda
-            float total_para_esta = 0;
+            double total_para_esta = 0;
 
             bool esAlmacen = await empaque_func.esAlmacen(userConnectionString, codalmacen);
 
@@ -839,10 +839,10 @@ namespace siaw_funciones
             }
             return total_para_esta;
         }
-        private async Task<float> getSldReservNotaUrgentUnaProf_Sam(DBContext _context, string coditem, int codalmacen, string idProf, int nroIdProf)
+        private async Task<double> getSldReservNotaUrgentUnaProf_Sam(DBContext _context, string coditem, int codalmacen, string idProf, int nroIdProf)
         {
             // verifica si es almacen o tienda
-            float total_para_esta = 0;
+            double total_para_esta = 0;
 
             bool esAlmacen = await empaque_func.esAlmacen_Sam(_context, codalmacen);
 
@@ -892,10 +892,10 @@ namespace siaw_funciones
             }
             return total_para_esta;
         }
-        private async Task<float> getSldReservProf(string userConnectionString, string coditem, int codalmacen, string idProf, int nroIdProf)
+        private async Task<double> getSldReservProf(string userConnectionString, string coditem, int codalmacen, string idProf, int nroIdProf)
         {
             // verifica si es almacen o tienda
-            float respuestaValor = 0;
+            double respuestaValor = 0;
 
             bool esAlmacen = await empaque_func.esAlmacen(userConnectionString, codalmacen);
 
@@ -948,10 +948,10 @@ namespace siaw_funciones
             }
             return respuestaValor;
         }
-        private async Task<float> getSldReservProf_Sam(DBContext _context, string coditem, int codalmacen, string idProf, int nroIdProf)
+        private async Task<double> getSldReservProf_Sam(DBContext _context, string coditem, int codalmacen, string idProf, int nroIdProf)
         {
             // verifica si es almacen o tienda
-            float respuestaValor = 0;
+            double respuestaValor = 0;
 
             bool esAlmacen = await empaque_func.esAlmacen_Sam(_context, codalmacen);
 
@@ -1045,7 +1045,7 @@ namespace siaw_funciones
                     //saldosDetalleItem.txtReservaProf = "(-) PROFORMAS APROBADAS ITEM(" + instoactual.coditem + ") DEL CJTO(" + coditem + ")";
                     sldosItemCompleto saldosDetalleItem = new sldosItemCompleto();
                     saldosDetalleItem.descripcion = "(+) SALDO ACTUAL ITEM (" + instoactual.coditem + ") DEL CJTO(" + coditem + ")";
-                    saldosDetalleItem.valor = (float)instoactual.cantidad;
+                    saldosDetalleItem.valor = (double)instoactual.cantidad;
                     listaSaldos.Add(saldosDetalleItem);
                 }
                 else
@@ -1053,10 +1053,10 @@ namespace siaw_funciones
                     //saldosDetalleItem.txtReservaProf = "(-) PROFORMAS APROBADAS: " + instoactual.coditem;
                     sldosItemCompleto saldosDetalleItem = new sldosItemCompleto();
                     saldosDetalleItem.descripcion = "(+)SALDO ACTUAL ITEM: " + instoactual.coditem;
-                    saldosDetalleItem.valor = (float)instoactual.cantidad;
+                    saldosDetalleItem.valor = (double)instoactual.cantidad;
                     listaSaldos.Add(saldosDetalleItem);
                 }
-                saldoItemTotal.valor = (float)instoactual.cantidad;
+                saldoItemTotal.valor = (double)instoactual.cantidad;
 
 
                 // obtiene reservas en proforma
@@ -1072,18 +1072,18 @@ namespace siaw_funciones
                 {
                     sldosItemCompleto saldosDetalleItem = new sldosItemCompleto();
                     saldosDetalleItem.descripcion = "(-) PROFORMAS APROBADAS ITEM(" + instoactual.coditem + ") DEL CJTO(" + coditem + ")";
-                    saldosDetalleItem.valor = (float)reservaProf.TotalP * -1;
+                    saldosDetalleItem.valor = (double)reservaProf.TotalP * -1;
                     listaSaldos.Add(saldosDetalleItem);
                 }
                 else
                 {
                     sldosItemCompleto saldosDetalleItem = new sldosItemCompleto();
                     saldosDetalleItem.descripcion = "(-) PROFORMAS APROBADAS: " + instoactual.coditem;
-                    saldosDetalleItem.valor = (float)reservaProf.TotalP * -1;
+                    saldosDetalleItem.valor = (double)reservaProf.TotalP * -1;
                     listaSaldos.Add(saldosDetalleItem);
                 }
 
-                saldoItemTotal.valor -= (float)reservaProf.TotalP;  // reduce saldo total
+                saldoItemTotal.valor -= (double)reservaProf.TotalP;  // reduce saldo total
                 var8.valor = saldoItemTotal.valor;
 
 
@@ -1093,7 +1093,7 @@ namespace siaw_funciones
                 bool ctrlSeguridad = await empresa.ControlarStockSeguridad(userConnectionString, codempresa);
                 if (Reserva_Stock_Max_Min && ctrlSeguridad)
                 {
-                    float STOCK_MINIMO = 0;
+                    double STOCK_MINIMO = 0;
                     if (eskit) 
                     {
                         STOCK_MINIMO = await get_stock_Para_Tiendas(userConnectionString, codItemVta, codalmacen);
@@ -1115,7 +1115,7 @@ namespace siaw_funciones
                 sldosItemCompleto var1 = new sldosItemCompleto();
 
                 // obtiene items si no son kit, sus reservas para armar conjuntos.
-                float CANTIDAD_RESERVADA = await getReservasCjtos(userConnectionString, coditem, codalmacen, codempresa, eskit, (float)instoactual.cantidad, (float)reservaProf.TotalP);
+                double CANTIDAD_RESERVADA = await getReservasCjtos(userConnectionString, coditem, codalmacen, codempresa, eskit, (double)instoactual.cantidad, (double)reservaProf.TotalP);
                 var1.descripcion = "(-) SALDO RESERVADO PARA ARMAR CJTOS";
                 var1.valor = CANTIDAD_RESERVADA * -1;
                 listaSaldos.Add(var1);
@@ -1123,7 +1123,7 @@ namespace siaw_funciones
 
                 // obtiene el saldo minimo que debe mantenerse en agencia
                 sldosItemCompleto var2 = new sldosItemCompleto();
-                float Saldo_Minimo_Item = await empaque_func.getSaldoMinimo(userConnectionString, coditem);
+                double Saldo_Minimo_Item = await empaque_func.getSaldoMinimo(userConnectionString, coditem);
                 var2.descripcion = "(-) SALDO MINIMO DEL ITEM";
                 var2.valor = Saldo_Minimo_Item * -1;
                 listaSaldos.Add(var2);
@@ -1132,15 +1132,15 @@ namespace siaw_funciones
                 // obtiene reserva NM ingreso para sol-Urgente
                 bool validar_ingresos_solurgentes = await empaque_func.getValidaIngreSolurgente(userConnectionString, codempresa);
 
-                float total_reservado = 0;
-                float total_para_esta = 0;
-                float total_proforma = 0;
+                double total_reservado = 0;
+                double total_para_esta = 0;
+                double total_proforma = 0;
                 if (validar_ingresos_solurgentes)
                 {
                     //  RESTAR LAS CANTIDADES DE INGRESO POR NOTAS DE MOVIMIENTO URGENTES
                     // de facturas que aun no estan aprobadas
                     string resp_total_reservado = await getSldIngresoReservNotaUrgent(userConnectionString, coditem, codalmacen);
-                    total_reservado = float.Parse(resp_total_reservado);
+                    total_reservado = double.Parse(resp_total_reservado);
 
 
                     //AUMENTAR CANTIDAD PARA ESTA PROFORMA DE INGRESO POR NOTAS DE MOVIMIENTO URGENTES
@@ -1184,7 +1184,7 @@ namespace siaw_funciones
         }
 
 
-        public async Task<float> get_stock_Para_Tiendas(string userConnectionString, string coditem, int codalmacen)
+        public async Task<double> get_stock_Para_Tiendas(string userConnectionString, string coditem, int codalmacen)
         {
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
@@ -1205,7 +1205,7 @@ namespace siaw_funciones
             }
 
         }
-        public async Task<float> get_stock_Para_Tiendas_Sam(DBContext _context, string coditem, int codalmacen)
+        public async Task<double> get_stock_Para_Tiendas_Sam(DBContext _context, string coditem, int codalmacen)
         {
             //using (var _context = DbContextFactory.Create(userConnectionString))
             //{
@@ -1264,7 +1264,7 @@ namespace siaw_funciones
 
         }
 
-        public async Task<float> get_Porcentaje_Maximo_de_Venta_Respecto_Del_Saldo(DBContext _context, int codalmacen, string coditem)
+        public async Task<double> get_Porcentaje_Maximo_de_Venta_Respecto_Del_Saldo(DBContext _context, int codalmacen, string coditem)
         {
             var porcen_maximo = await _context.initem_max_vta
                     .Where(item => item.codalmacen == codalmacen && item.coditem == coditem)
@@ -1276,7 +1276,7 @@ namespace siaw_funciones
                 return 0;
             }
 
-            return (float)porcen_maximo;
+            return (double)porcen_maximo;
         }
 
          
@@ -1423,7 +1423,7 @@ namespace siaw_funciones
                 bool ctrlSeguridad = await empresa.ControlarStockSeguridad(userConnectionString, codempresa);
                 if (Reserva_Stock_Max_Min && ctrlSeguridad)
                 {
-                    float STOCK_MINIMO = 0;
+                    double STOCK_MINIMO = 0;
                     if (eskit)
                     {
                         STOCK_MINIMO = await get_stock_Para_Tiendas(userConnectionString, coditem, codalmacen);
@@ -1438,25 +1438,25 @@ namespace siaw_funciones
 
 
                 // obtiene items si no son kit, sus reservas para armar conjuntos.
-                float CANTIDAD_RESERVADA = await getReservasCjtos(userConnectionString, coditem, codalmacen, codempresa, eskit, (float)instoactual.cantidad, (float)reservaProf.TotalP);
+                double CANTIDAD_RESERVADA = await getReservasCjtos(userConnectionString, coditem, codalmacen, codempresa, eskit, (double)instoactual.cantidad, (double)reservaProf.TotalP);
                 saldoItemTotal -= (decimal)CANTIDAD_RESERVADA;  // reduce saldo total
 
                 // obtiene el saldo minimo que debe mantenerse en agencia
-                float Saldo_Minimo_Item = await empaque_func.getSaldoMinimo(userConnectionString, coditem);
+                double Saldo_Minimo_Item = await empaque_func.getSaldoMinimo(userConnectionString, coditem);
                 saldoItemTotal -= (decimal)Saldo_Minimo_Item;  // reduce saldo total
 
                 // obtiene reserva NM ingreso para sol-Urgente
                 bool validar_ingresos_solurgentes = await empaque_func.getValidaIngreSolurgente(userConnectionString, codempresa);
 
-                float total_reservado = 0;
-                float total_para_esta = 0;
-                float total_proforma = 0;
+                double total_reservado = 0;
+                double total_para_esta = 0;
+                double total_proforma = 0;
                 if (validar_ingresos_solurgentes)
                 {
                     //  RESTAR LAS CANTIDADES DE INGRESO POR NOTAS DE MOVIMIENTO URGENTES
                     // de facturas que aun no estan aprobadas
                     string resp_total_reservado = await getSldIngresoReservNotaUrgent(userConnectionString, coditem, codalmacen);
-                    total_reservado = float.Parse(resp_total_reservado);
+                    total_reservado = double.Parse(resp_total_reservado);
 
 
                     //AUMENTAR CANTIDAD PARA ESTA PROFORMA DE INGRESO POR NOTAS DE MOVIMIENTO URGENTES
@@ -1517,9 +1517,9 @@ namespace siaw_funciones
                                 coditem_cjto = "",
                                 coditem_suelto = detalle.coditem,
                                 codigo = partes.item,
-                                cantidad = (float)(detalle.cantidad * Convert.ToDouble(partes.cantidad)),
+                                cantidad = (double)(detalle.cantidad * Convert.ToDouble(partes.cantidad)),
                                 cantidad_conjunto = 0,
-                                cantidad_suelta = (float)(detalle.cantidad * Convert.ToDouble(partes.cantidad))
+                                cantidad_suelta = (double)(detalle.cantidad * Convert.ToDouble(partes.cantidad))
                             };
                             dt_desglosado.Add(nuevaFila);
                         }
@@ -1536,8 +1536,8 @@ namespace siaw_funciones
                                 coditem_cjto = detalle.coditem,
                                 coditem_suelto = "",
                                 codigo = partes.item,
-                                cantidad = (float)(detalle.cantidad * Convert.ToDouble(partes.cantidad)),
-                                cantidad_conjunto = (float)(detalle.cantidad * Convert.ToDouble(partes.cantidad)),
+                                cantidad = (double)(detalle.cantidad * Convert.ToDouble(partes.cantidad)),
+                                cantidad_conjunto = (double)(detalle.cantidad * Convert.ToDouble(partes.cantidad)),
                                 cantidad_suelta = 0
                             };
                             dt_desglosado.Add(nuevaFila);
@@ -1554,9 +1554,9 @@ namespace siaw_funciones
                         coditem_cjto = "",
                         coditem_suelto = detalle.coditem,
                         codigo = detalle.coditem,
-                        cantidad = (float)detalle.cantidad,
+                        cantidad = (double)detalle.cantidad,
                         cantidad_conjunto = 0,
-                        cantidad_suelta = (float)detalle.cantidad
+                        cantidad_suelta = (double)detalle.cantidad
                     };
                     dt_desglosado.Add(nuevaFila);
                 }

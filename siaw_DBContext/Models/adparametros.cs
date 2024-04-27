@@ -255,5 +255,7 @@ namespace siaw_DBContext.Models
         public int? dias_proforma_vta_item_cliente { get; set; }
         public bool? permitir_facturas_sn { get; set; }
         public int? codempaque_permite_item_repetido { get; set; }
+        public decimal? monto_min_urg_provincia { get; set; }
+        public string moneda_monto_min_urg_provincia { get; set; }
     }
 }

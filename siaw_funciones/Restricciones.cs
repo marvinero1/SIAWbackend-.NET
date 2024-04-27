@@ -425,7 +425,7 @@ namespace siaw_funciones
             bool resultado = true;
             if (ContraEntrega)
             {
-                float precioFinal;
+                double precioFinal;
 
                 var contra_entrega = new SqlParameter("@contra_entrega", SqlDbType.Int) { Value = 1 };
                 var descuento = new SqlParameter("@coddescuento", SqlDbType.Int) { Value = coddescuento };
@@ -451,5 +451,29 @@ namespace siaw_funciones
             }
             return resultado;
         }
+
+        public async Task<bool> Validar_Cliente_Contraentrega(DBContext _context, bool ContraEntrega, string codcliente)
+        {
+            bool resultado = true;
+            if (ContraEntrega)
+            {
+                //si el pedido es contra entreg verificar si el cliente esta habilitado contra entrega
+                if (!await cliente.EsContraEntrega(_context, codcliente))
+                {//si el cliente no esta habilitado para comprar CONTRA ENTREGA y el pedido es contra entrega entonces devuelve error
+                    resultado = false;
+                }
+                else
+                {
+                    resultado = true;
+                }
+            }
+            else
+            {
+                resultado = true;
+            }
+            return resultado;
+        }
+
+
     }
 }

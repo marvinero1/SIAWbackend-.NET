@@ -94,7 +94,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
-                    float porcen_maximo = await saldos.get_Porcentaje_Maximo_de_Venta_Respecto_Del_Saldo(_context, codalmacen, coditem);
+                    double porcen_maximo = await saldos.get_Porcentaje_Maximo_de_Venta_Respecto_Del_Saldo(_context, codalmacen, coditem);
                     string porcen_maximo_text = "";
                     if (porcen_maximo >= 100)
                     {

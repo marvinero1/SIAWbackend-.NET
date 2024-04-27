@@ -529,11 +529,11 @@ namespace siaw_funciones
             return query;
             //}
         }
-        public async Task<float> getEmpaqueMinimo(string userConnectionString, string coditem, int codintarifa, int codvedescuento)
+        public async Task<double> getEmpaqueMinimo(string userConnectionString, string coditem, int codintarifa, int codvedescuento)
         {
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
-                float canttarif = 0, cantdesc = 0;
+                double canttarif = 0, cantdesc = 0;
 
                 var resCanttarif = await _context.veempaque1
                     .Join(_context.intarifa,
@@ -548,7 +548,7 @@ namespace siaw_funciones
                     .FirstOrDefaultAsync();
                 if (resCanttarif != null)
                 {
-                    canttarif = (float)resCanttarif.cantidad;
+                    canttarif = (double)resCanttarif.cantidad;
                 }
                 var resCantdesc = await _context.veempaque1
                     .Join(_context.vedescuento,
@@ -563,7 +563,7 @@ namespace siaw_funciones
                     .FirstOrDefaultAsync();
                 if (resCantdesc != null)
                 {
-                    cantdesc = (float)resCantdesc.cantidad;
+                    cantdesc = (double)resCantdesc.cantidad;
                 }
 
 
@@ -576,11 +576,11 @@ namespace siaw_funciones
         }
 
 
-        public async Task<float> getPesoItem(string userConnectionString, string coditem)
+        public async Task<double> getPesoItem(string userConnectionString, string coditem)
         {
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
-                float peso = 0;
+                double peso = 0;
                 var result = await _context.initem
                    .Where(item => item.codigo == coditem)
                    .Select(item => new
@@ -590,18 +590,18 @@ namespace siaw_funciones
                    .FirstOrDefaultAsync();
                 if (result != null)
                 {
-                    peso = (float)result.peso;
+                    peso = (double)result.peso;
                 }
                 return peso;
             }
         }
 
 
-        public async Task<float> getPorcentMaxVenta(string userConnectionString, string coditem, int codalmacen)
+        public async Task<double> getPorcentMaxVenta(string userConnectionString, string coditem, int codalmacen)
         {
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
-                float porcentaje = 0;
+                double porcentaje = 0;
                 var result = await _context.initem_max_vta
                    .Where(x => x.coditem == coditem && x.codalmacen == codalmacen)
                    .Select(x => new
@@ -611,14 +611,14 @@ namespace siaw_funciones
                    .FirstOrDefaultAsync();
                 if (result != null)
                 {
-                    porcentaje = (float)result.porcen_maximo;
+                    porcentaje = (double)result.porcen_maximo;
                 }
                 return porcentaje;
             }
         }
 
 
-        public async Task<float> getSaldoMinimo(string userConnectionString, string coditem)
+        public async Task<double> getSaldoMinimo(string userConnectionString, string coditem)
         {
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
@@ -627,10 +627,10 @@ namespace siaw_funciones
                    .Select(item => item.saldominimo)
                    .FirstOrDefaultAsync();
 
-                return (float)result;
+                return (double)result;
             }
         }
-        public async Task<float> getSaldoMinimo_Sam(DBContext _context, string coditem)
+        public async Task<double> getSaldoMinimo_Sam(DBContext _context, string coditem)
         {
             //using (var _context = DbContextFactory.Create(userConnectionString))
             //{
@@ -639,7 +639,7 @@ namespace siaw_funciones
                .Select(item => item.saldominimo)
                .FirstOrDefaultAsync();
 
-            return (float)result;
+            return (double)result;
             //}
         }
         public async Task<bool> getValidaIngreSolurgente(string userConnectionString, string codempresa)

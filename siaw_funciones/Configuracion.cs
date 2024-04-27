@@ -278,5 +278,193 @@ namespace siaw_funciones
             }
             return resultado;
         }
+
+        public async Task<string> moneda_monto_minimo_venta_urgente_provincia(DBContext _context, string codempresa)
+        {
+            try
+            {
+                string resultado = "";
+                var result = await _context.adparametros
+                    .Where(v => v.codempresa == codempresa)
+                    .Select(parametro => parametro.moneda_monto_min_urg_provincia)
+                   .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = result;
+                }
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
+
+        public async Task<string> moneda_monto_minimo_venta_cliente_en_oficina(DBContext _context, string codempresa)
+        {
+            try
+            {
+                string resultado = "";
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var result = await _context.adparametros
+                    .Where(v => v.codempresa == codempresa)
+                    .Select(parametro => parametro.moneda_monto_min_vta_cliente_oficina)
+                   .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = result;
+                }
+                return resultado;
+                //}
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
+
+        public async Task<double> emp_monto_rnd100011(DBContext _context, string codempresa)
+        {
+            double resultado = 0;
+            try
+            {
+                var result = await _context.adparametros
+                    .Where(v => v.codempresa == codempresa)
+                    .Select(parametro => parametro.monto_rnd100011)
+                   .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = (double)result;
+                }
+            }
+            catch (Exception)
+            {
+                resultado = 0;
+            }
+            return resultado;
+        }
+
+        public async Task<int> empaque_venta_cliente_en_oficina(DBContext _context, string codempresa)
+        {
+            try
+            {
+                int resultado = 0;
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var result = await _context.adparametros
+                    .Where(v => v.codempresa == codempresa)
+                    .Select(parametro => parametro.codempaque_venta_cliente_oficina)
+                   .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = (int)result;
+                }
+                return resultado;
+                //}
+            }
+            catch (Exception)
+            {
+                return 3;
+            }
+        }
+
+        public async Task<int> Nro_Empaques_Minimo_Vta_Oficina(DBContext _context, string codempresa)
+        {
+            try
+            {
+                int resultado = 0;
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var result = await _context.adparametros
+                    .Where(v => v.codempresa == codempresa)
+                    .Select(parametro => parametro.cantidad_empaques_venta_cliente_oficina)
+                   .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = (int)result;
+                }
+                return resultado;
+                //}
+            }
+            catch (Exception)
+            {
+                return 3;
+            }
+        }
+        public async Task<int> Nro_Items_Maximo_Conteo_Vta_Oficina(DBContext _context, string codempresa)
+        {
+            try
+            {
+                int resultado = 0;
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var result = await _context.adparametros
+                    .Where(v => v.codempresa == codempresa)
+                    .Select(parametro => parametro.maximo_items_conteo_vta_cliente_oficina)
+                   .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = (int)result;
+                }
+                return resultado;
+                //}
+            }
+            catch (Exception)
+            {
+                return 3;
+            }
+        }
+
+        public async Task<double> monto_minimo_venta_cliente_en_oficina(DBContext _context, string codempresa)
+        {
+            try
+            {
+                double resultado = 0;
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var result = await _context.adparametros
+                    .Where(v => v.codempresa == codempresa)
+                    .Select(parametro => parametro.monto_min_vta_cliente_oficina)
+                   .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = (double)result;
+                }
+                return resultado;
+                //}
+            }
+            catch (Exception)
+            {
+                return 9999;
+            }
+        }
+
+        public async Task<double> monto_minimo_venta_urgente_provincia(DBContext _context, string codempresa)
+        {
+            try
+            {
+                double resultado = 0;
+                var result = await _context.adparametros
+                    .Where(v => v.codempresa == codempresa)
+                    .Select(parametro => parametro.monto_min_urg_provincia)
+                   .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = (double)result;
+                }
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return 9999;
+            }
+        }
+
     }
 }

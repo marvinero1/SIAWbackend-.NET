@@ -6,19 +6,23 @@
         public string descripcion { get; set; }
         public string medida { get; set; }
         public string udm { get; set; }
-        public float porceniva { get; set; }
-        public float cantidad_pedida { get; set; }
-        public float cantidad { get; set; }
-        public float porcen_mercaderia { get; set; }
+        public double porceniva { get; set; }
+        public double cantidad_pedida { get; set; }
+        public double cantidad { get; set; }
+        public double porcen_mercaderia { get; set; }
         public int codtarifa { get; set; }
         public int coddescuento { get; set; }
-        public float preciolista { get; set; }
+        public double preciolista { get; set; }
         public string niveldesc { get; set; }
-        public float porcendesc { get; set; }
-        public float preciodesc { get; set; }
-        public float precioneto { get; set; }
-        public float total { get; set; }
+        public double porcendesc { get; set; }
+        public double preciodesc { get; set; }
+        public double precioneto { get; set; }
+        public double total { get; set; }
         public bool cumple { get; set;} = true;
+        // PARA PINTAR
+        public bool cumpleMin { get; set; } = true;
+        public bool cumpleEmp { get; set; } = true;
+
         public int nroitem { get; set; } = 0;
 
         // no mostrar 
@@ -33,18 +37,18 @@
         public string descripcion { get; set; }
         public string medida { get; set; }
         public string udm { get; set; }
-        public float porceniva { get; set; }
+        public double porceniva { get; set; }
         public string niveldesc { get; set; }
-        public float porcendesc { get; set; }
-        public float porcen_mercaderia { get; set; }
-        public float cantidad_pedida { get; set; }
-        public float cantidad { get; set; }
+        public double porcendesc { get; set; }
+        public double porcen_mercaderia { get; set; }
+        public double cantidad_pedida { get; set; }
+        public double cantidad { get; set; }
         public int codtarifa { get; set; }
         public int coddescuento { get; set; }
-        public float precioneto { get; set; }
-        public float preciodesc { get; set; }
-        public float preciolista { get; set; }
-        public float total { get; set; }
+        public double precioneto { get; set; }
+        public double preciodesc { get; set; }
+        public double preciolista { get; set; }
+        public double total { get; set; }
         public bool cumple { get; set; } = true;
         public int nroitem { get; set; } = 0;
 

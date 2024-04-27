@@ -25,13 +25,13 @@ namespace siaw_funciones
         }
 
         /*
-        public async Task<double> Redondeo_Decimales_SIA_5_decimales_SQL(float minumero)
+        public async Task<double> Redondeo_Decimales_SIA_5_decimales_SQL(double minumero)
         {
             double resultado = Math.Round(minumero, 5);
             return resultado;
         }
         */
-        public async Task<decimal> Redondeo_Decimales_SIA_2_decimales_SQL(DBContext context,float numero)
+        public async Task<decimal> Redondeo_Decimales_SIA_2_decimales_SQL(DBContext context,double numero)
         {
             try
             {

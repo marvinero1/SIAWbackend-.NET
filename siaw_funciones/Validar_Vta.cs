@@ -15,6 +15,9 @@ using System.Reflection;
 using static siaw_funciones.Validar_Vta;
 using System.Globalization;
 using MessagePack;
+using Microsoft.AspNetCore.Razor.Language.Intermediate;
+using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.Contracts;
 //using static siaw_funciones.Validar_Vta;
 
 namespace siaw_funciones
@@ -131,9 +134,9 @@ namespace siaw_funciones
             public string coditem_cjto { get; set; }
             public string coditem_suelto { get; set; }
             public string codigo { get; set; }
-            public float cantidad { get; set; }
-            public float cantidad_conjunto { get; set; }
-            public float cantidad_suelta { get; set; }
+            public double cantidad { get; set; }
+            public double cantidad_conjunto { get; set; }
+            public double cantidad_suelta { get; set; }
         }
 
         public class Controles
@@ -195,12 +198,12 @@ namespace siaw_funciones
         private Seguridad seguridad = new Seguridad();
         //Task<ActionResult<itemDataMatriz>>
         //Task<Controles>
-        public async Task<List<Controles>> DocumentoValido(string userConnectionString, string cadena_control, string tipodoc, string opcion_validar, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos>? tabladescuentos, List<vedetalleEtiqueta> dt_etiqueta, List<vedetalleanticipoProforma>? dt_anticipo_pf, List<verecargosDatos>? tablarecargos, string codempresa, string usuario)
+        public async Task<List<Controles>> DocumentoValido(string userConnectionString, string cadena_control, string tipodoc, string opcion_validar, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos, List<vedetalleEtiqueta> dt_etiqueta, List<vedetalleanticipoProforma> dt_anticipo_pf, List<verecargosDatos> tablarecargos,string codempresa, string usuario)
         {
             List<Controles> resultados = new List<Controles>();
             try
             {
-
+                
                 List<Controles> controles_final = new List<Controles>();
                 string validando = "";
                 if (cadena_control == "vacio") { cadena_control = ""; }
@@ -306,16 +309,16 @@ namespace siaw_funciones
                     }
                     resultados = controles_final;
                 }
-
+                
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
                 Console.WriteLine(ex.Message);
             }
             return resultados;
         }
-        public async Task<bool> Control_Valido(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos>? tabladescuentos, List<vedetalleEtiqueta> dt_etiqueta, List<vedetalleanticipoProforma>? dt_anticipo_pf, List<verecargosDatos>? tablarecargos, List<Dtnocumplen> dtnocumplen, List<Dtnegativos> dtnegativos, string codempresa, string usuario)
-        //public void Control_Valido(string userConnectionString, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos>? tabladescuentos, List<vedetalleEtiqueta> dt_etiqueta, List<vedetalleanticipoProforma>? dt_anticipo_pf, List<verecargosDatos> tablarecargos, Dtnocumplen dtnocumplenm, Dtnegativos dtnegativos, string codempresa)
+        public async Task<bool> Control_Valido(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos, List<vedetalleEtiqueta> dt_etiqueta, List<vedetalleanticipoProforma> dt_anticipo_pf, List<verecargosDatos> tablarecargos, List<Dtnocumplen> dtnocumplen, List<Dtnegativos> dtnegativos,string codempresa, string usuario)
+            //public void Control_Valido(string userConnectionString, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos, List<vedetalleEtiqueta> dt_etiqueta, List<vedetalleanticipoProforma> dt_anticipo_pf, List<verecargosDatos> tablarecargos, Dtnocumplen dtnocumplenm, Dtnegativos dtnegativos, string codempresa)
         {
             string _codcontrol = regcontrol.CodControl;
             string _desccontrol = regcontrol.Descripcion;
@@ -343,7 +346,7 @@ namespace siaw_funciones
                     break;
                 case "00006":
                     //**CLIENTE COMPETENCIA PERMITIR DESCTOS PROMOCION
-                    _ = await Control_Valido_C00006Async(_context, regcontrol, DVTA, tabladescuentos, codempresa);
+                    _ = await Control_Valido_C00006Async(_context, regcontrol, DVTA, tabladescuentos,codempresa);
                     break;
                 case "00007":
                     //**CLIENTE COMPETENCIA PERMITIR DESCTOS EXTRAS
@@ -351,7 +354,7 @@ namespace siaw_funciones
                     break;
                 case "00008":
                     //VERIFICAR MONTO IGUAL A CERO DE PROFORMA
-                    _ = Control_Valido_C00008(_context, regcontrol, DVTA);
+                    _ =  Control_Valido_C00008(_context, regcontrol, DVTA);
                     break;
                 case "00009":
                     //VERIFICAR DESCUENTO DE NIVEL SEGÚN SOLICITUD
@@ -375,7 +378,7 @@ namespace siaw_funciones
                     break;
                 case "00014":
                     //VERIFICAR SI LOS DESCUENTOS EXTRAS ESTAN VIGENTES
-                    _ = await Control_Valido_C00014Async(_context, regcontrol, tabladescuentos);
+                    _ = await Control_Valido_C00014Async(_context, regcontrol,tabladescuentos);
                     break;
                 case "00015":
                     //VERIFICAR FECHA VIGENCIA DESCTOS. EXTRAS VERSUS FECHA INICIAL PROFORMA
@@ -398,7 +401,7 @@ namespace siaw_funciones
                 case "00019":
                     //VALIDAR DESCUENTO EXTRA SEGÚN TIPO DE VENTA (CONTADO CE, CONTADO CA, CREDITO)
                     //  Control_Valido_C00019(regcontrol, DVTA, tabladescuentos);
-                    _ = await Control_Valido_C00019Async(_context, regcontrol, DVTA, tabladescuentos, dt_anticipo_pf, codempresa);
+                    _ = await Control_Valido_C00019Async(_context, regcontrol, DVTA, tabladescuentos,dt_anticipo_pf, codempresa);
                     break;
                 case "00020":
                     //VALIDAR MONTO MINIMO SEGÚN LISTA DE PRECIOS
@@ -526,43 +529,69 @@ namespace siaw_funciones
                     _ = await Control_Valido_C00044Async(_context, regcontrol, DVTA, codempresa);
                     break;
                 case "00045":
+                    //VERIFICAR QUE EL DESCUENTO DE PROMOCION NO SOBRE PASE EL DISPONIBLE
                     // control_valido_c00045(regcontrol, DVTA);
+                    _ = await Control_Valido_C00045Async(_context, regcontrol, DVTA, codempresa);
                     break;
                 case "00046":
+                    //VALIDAR PRECIO DE VENTA PERMITIDO AL CLIENTE
                     // control_valido_c00046(regcontrol, DVTA, tabladetalle);
+                    _ = await Control_Valido_C00046Async(_context, regcontrol, DVTA, tabladetalle, codempresa);
                     break;
                 case "00047":
+                    //VALIDAR QUE LA CANTIDAD DE VENTA DEL ITEM AL CLIENTE NO SEA MAYOR AL PERMITIDO EN LOS DIAS LIMITE
                     // control_valido_c00047(regcontrol, DVTA, tabladetalle);
+                    _ = await Control_Valido_C00047Async(_context, regcontrol, DVTA, tabladetalle, codempresa);
                     break;
                 case "00048":
+                    //VALIDAR VENTA A CLIENTE SIN CUENTA EN OFICINA
                     // control_valido_c00048(regcontrol, DVTA, tabladetalle);
+                    _ = await Control_Valido_C00048Async(_context, regcontrol, DVTA, tabladetalle, codempresa);
                     break;
                 case "00049":
+                    //VALIDAR VENTA A CLIENTE CON CUENTA EN OFICINA
                     // control_valido_c00049(regcontrol, DVTA, tabladetalle);
+                    _ = await Control_Valido_C00049Async(_context, regcontrol, DVTA, tabladetalle, codempresa);
                     break;
                 case "00050":
+                    //VALIDAR PEDIDO URGENTE
                     // Control_Valido_C00050(regcontrol, DVTA, tabladetalle, tablarecargos);
+                    _ = await Control_Valido_C00050Async(_context, regcontrol, DVTA, tabladetalle, tablarecargos, codempresa);
                     break;
                 case "00051":
+                    //VALIDAR MONTO MINIMO REQUERIDO PARA LOS DESCUENTOS EXTRAS
                     //  Control_Valido_C00051(regcontrol, DVTA, tabladescuentos);
+                    _ = await Control_Valido_C00051Async(_context, regcontrol, DVTA, tabladescuentos, codempresa);
                     break;
                 case "00052":
+                    //VALIDAR PESO MINIMO REQUERIDO PARA APLICAR DESCUENTOS EXTRAS
                     // Control_Valido_C00052(regcontrol, DVTA, tabladetalle, tabladescuentos);
+                    _ = await Control_Valido_C00052Async(_context, regcontrol, DVTA, tabladetalle, tabladescuentos, codempresa);
                     break;
                 case "00053":
+                    //VALIDAR MONTO PARA BANCARIZACION
                     // Control_Valido_C00053(regcontrol, DVTA, tabladescuentos);
+                    _ = await Control_Valido_C00053Async(_context, regcontrol, DVTA, tabladescuentos, codempresa);
                     break;
                 case "00054":
+                    //VALIDAR VENTA A CLIENTE QUE SE VENDE SOLO CONTRA ENTREGA
                     //  Control_Valido_C00054(regcontrol, DVTA, tabladescuentos);
+                    _ = await Control_Valido_C00054Async(_context, regcontrol, DVTA, tabladescuentos, codempresa);
                     break;
                 case "00055":
+                    //VALIDAR QUE NO SE VENDA A CREDITO A CLIENTE SIN NOMBRE
                     //  Control_Valido_C00055(regcontrol, DVTA, tabladescuentos);
+                    _ = await Control_Valido_C00055Async(_context, regcontrol, DVTA, tabladescuentos, codempresa);
                     break;
                 case "00056":
+                    //VALIDAR DIRECCION DE LA EQIQUETA CORRECTA
                     //  Control_Valido_C00056(regcontrol, DVTA, dt_etiqueta);
+                    _ = await Control_Valido_C00056Async(_context, regcontrol, DVTA, dt_etiqueta, codempresa);
                     break;
                 case "00057":
+                    //VALIDAR QUE NO SE OTORGUE DESCTO PRONTO PAGO NORMAL A VENTA CONTRA ENTREGA Y VICEVERSA
                     //  Control_Valido_C00057(regcontrol, DVTA, tabladescuentos);
+                    _ = await Control_Valido_C00057Async(_context, regcontrol, DVTA, tabladescuentos, codempresa);
                     break;
                 case "00058":
                     //VALIDAR LIMITE MAXIMO DE VENTA DEFINIDO EN PORCENTAJE
@@ -570,7 +599,9 @@ namespace siaw_funciones
                     _ = await Control_Valido_C00058Async(_context, regcontrol, DVTA, tabladetalle, dtnocumplen, codempresa, usuario);
                     break;
                 case "00059":
+                    //PERMITIR DESCUENTOS DE NIVEL ANTERIORES
                     // Control_Valido_C00059(regcontrol, DVTA);
+                    _ = await Control_Valido_C00059Async(_context, regcontrol, DVTA, codempresa);
                     break;
                 case "00060":
                     //VALIDAR SALDOS NEGATIVOS
@@ -578,13 +609,19 @@ namespace siaw_funciones
                     _ = await Control_Valido_C00060Async(_context, regcontrol, DVTA, tabladetalle, dtnegativos, codempresa, usuario);
                     break;
                 case "00061":
+                    //VALIDAR NRO. DE PEDIDOS URGENTES DEL CLIENTE POR DIA
                     //  Control_Valido_C00061(true, regcontrol, DVTA, tabladetalle, tablarecargos);
+                    _ = await Control_Valido_C00061Async(_context, regcontrol,true, DVTA, tabladetalle, tablarecargos, codempresa);
                     break;
                 case "00062":
+                    //VALIDAR NRO. DE PEDIDOS URGENTES DEL CLIENTE POR SEMANA
                     //  Control_Valido_C00061(false, regcontrol, DVTA, tabladetalle, tablarecargos);
+                    _ = await Control_Valido_C00061Async(_context, regcontrol, false, DVTA, tabladetalle, tablarecargos, codempresa);
                     break;
                 case "00063":
+                    //VALIDAR MONTO MINIMO PEDIDO URGENTE A PROVINCIA
                     // Control_Valido_C00063(false, regcontrol, DVTA, tabladetalle, tablarecargos);
+                    _ = await Control_Valido_C00063Async(_context, regcontrol, false, DVTA, tabladetalle, tablarecargos, codempresa);
                     break;
                 case "00064":
                     // Control_Valido_C00064(regcontrol, DVTA, dt_anticipo_pf);
@@ -600,7 +637,7 @@ namespace siaw_funciones
                 case "00067":
                     //VALIDAR EMPAQUES CERRADOS SEGUN LISTA DE PRECIOS
                     //Control_Valido_C00067(regcontrol, DVTA, tabladetalle);
-                    _ = await Control_Valido_C00067Async(_context, regcontrol, DVTA, tabladetalle, codempresa);
+                    
                     break;
                 case "00068":
                     // Control_Valido_C00068(regcontrol, tabladetalle);
@@ -696,7 +733,7 @@ namespace siaw_funciones
             objres.datoA = "";
             objres.datoB = "";
             objres.accion = Acciones_Validar.Ninguna;
-            objres = await Validar_NIT_Es_Cliente_CompetenciaAsync(_context, DVTA);
+           objres = await Validar_NIT_Es_Cliente_CompetenciaAsync(_context, DVTA);
             if ((objres.resultado == false))
             {
                 regcontrol.Valido = "NO";
@@ -706,7 +743,7 @@ namespace siaw_funciones
                 regcontrol.DatoA = objres.datoA;
                 regcontrol.DatoB = objres.datoB;
                 regcontrol.ClaveServicio = "";
-                regcontrol.Accion = objres.accion.ToString();
+                regcontrol.Accion= objres.accion.ToString();
             }
             return true;
         }
@@ -748,7 +785,7 @@ namespace siaw_funciones
             if ((objres.resultado == false))
             {
                 regcontrol.Valido = "NO";
-                // regcontrol.DescServicio = "";
+               // regcontrol.DescServicio = "";
                 regcontrol.Observacion = objres.observacion;
                 regcontrol.ObsDetalle = objres.obsdetalle;
                 regcontrol.DatoA = objres.datoA;
@@ -796,7 +833,7 @@ namespace siaw_funciones
             if ((objres.resultado == false))
             {
                 regcontrol.Valido = "NO";
-                // regcontrol.DescServicio = "";
+               // regcontrol.DescServicio = "";
                 regcontrol.Observacion = objres.observacion;
                 regcontrol.ObsDetalle = objres.obsdetalle;
                 regcontrol.DatoA = objres.datoA;
@@ -806,7 +843,7 @@ namespace siaw_funciones
             }
             return true;
         }
-        private async Task<bool> Control_Valido_C00006Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos>? tabladescuentos, string codempresa)
+        private async Task<bool> Control_Valido_C00006Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos, string codempresa)
         {
             //**CLIENTE COMPETENCIA PERMITIR DESCTOS PROMOCION
             ResultadoValidacion objres = new ResultadoValidacion();
@@ -816,7 +853,7 @@ namespace siaw_funciones
             objres.datoA = "";
             objres.datoB = "";
             objres.accion = Acciones_Validar.Ninguna;
-            objres = await Validar_Cliente_Competencia_Permite_Desctos_PromocionAsync(_context, DVTA, tabladescuentos, codempresa);
+            objres = await Validar_Cliente_Competencia_Permite_Desctos_PromocionAsync(_context, DVTA, tabladescuentos,codempresa);
             if ((objres.resultado == false))
             {
                 regcontrol.Valido = "NO";
@@ -830,7 +867,7 @@ namespace siaw_funciones
             }
             return true;
         }
-        private async Task<bool> Control_Valido_C00007Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos>? tabladescuentos)
+        private async Task<bool> Control_Valido_C00007Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos)
         {
             //**CLIENTE COMPETENCIA PERMITIR DESCTOS EXTRAS
             ResultadoValidacion objres = new ResultadoValidacion();
@@ -905,23 +942,23 @@ namespace siaw_funciones
             {
                 if (DVTA.codcliente == DVTA.codcliente_real || await cliente.EsClienteSinNombre(_context, DVTA.codcliente_real) || await cliente.EsClienteCasual(_context, DVTA.codcliente_real))
                 {
-                    resultado = false;
+                    resultado= false;
                     regcontrol.Valido = "NO";
                     //regcontrol.DescServicio = "";
                     regcontrol.Observacion = "Toda venta al codigo de cliente SIN NOMBRE o CASUAL requiere que el codigo de cliente real-referencia sea un codigo de cliente diferente de un codigo de Cliente Sin Nombre/Casual. Ingrese el permiso especial!!!";
-                    if (DVTA.estado_doc_vta.ToUpper() == "NUEVO")
+                    if (DVTA.estado_doc_vta.ToUpper() =="NUEVO")
                     {
-                        regcontrol.DatoA = DVTA.codcliente + "-" + DVTA.nitfactura;
+                        regcontrol.DatoA = DVTA.codcliente +"-"+DVTA.nitfactura;
                     }
                     else
                     {
-                        regcontrol.DatoA = DVTA.id + "-" + DVTA.numeroid + " " + DVTA.codcliente;
+                        regcontrol.DatoA = DVTA.id + "-"+DVTA.numeroid+" "+DVTA.codcliente;
                     }
                     regcontrol.DatoB = "Total: " + DVTA.totaldoc + " (" + DVTA.codmoneda + ")";
                     regcontrol.ClaveServicio = "";
                     regcontrol.Accion = Acciones_Validar.Pedir_Servicio.ToString();
                 }
-
+                
             }
             return resultado;
         }
@@ -930,13 +967,13 @@ namespace siaw_funciones
             //99 - PROFORMA SIN NOMBRE CON DESCUENTOS DE NIVEL OTRO CLIENTE
             //si el cliente de la proforma es un CASUAL  o un SN debe pedir clave
             bool resultado = true;
-            if (await cliente.EsClienteSinNombre(_context, DVTA.codcliente) || await cliente.EsClienteCasual(_context, DVTA.codcliente) && !await cliente.EsClienteSinNombre(_context, DVTA.codcliente_real))
+            if (await cliente.EsClienteSinNombre(_context, DVTA.codcliente) || await cliente.EsClienteCasual(_context, DVTA.codcliente) && !await cliente.EsClienteSinNombre(_context, DVTA.codcliente_real) )
             {
                 resultado = false;
                 regcontrol.Valido = "NO";
                 //regcontrol.DescServicio = "";
                 regcontrol.Observacion = "Las Ventas al cliente Sin Nombre o Casual con enlace a cliente Cliente Real-Referencia, requieren permiso especial!!!";
-                regcontrol.ObsDetalle = "";
+                regcontrol.ObsDetalle= "";
                 regcontrol.DatoA = DVTA.id + "-" + DVTA.numeroid + " " + DVTA.codcliente + "-" + DVTA.codcliente_real;
                 regcontrol.DatoB = "Total: " + DVTA.totaldoc + " (" + DVTA.codmoneda + ")";
                 regcontrol.ClaveServicio = "";
@@ -960,7 +997,7 @@ namespace siaw_funciones
             {
                 if (await cliente.EsClienteFinal(_context, DVTA.codcliente_real))
                 {
-                    if (DVTA.preparacion != "FINAL" || DVTA.preparacion != "URGENTE")
+                    if(DVTA.preparacion !="FINAL" || DVTA.preparacion != "URGENTE")
                     {
                         resultado = false;
                         regcontrol.Valido = "NO";
@@ -974,7 +1011,7 @@ namespace siaw_funciones
                     }
 
                 }
-
+                
             }
             return resultado;
         }
@@ -996,7 +1033,7 @@ namespace siaw_funciones
                 {
                     resultado = false;
                     regcontrol.Valido = "NO";
-                    //regcontrol.DescServicio = "";
+                        //regcontrol.DescServicio = "";
                     regcontrol.Observacion = "El cliente real-referencia: " + DVTA.codcliente_real + " esta clasificado como competencia por lo cual para realizar este cliente compras a otro nombre debe ingresar permiso especial!!!";
                     regcontrol.ObsDetalle = "";
                     if (DVTA.estado_doc_vta.ToUpper() == "NUEVO")
@@ -1015,7 +1052,7 @@ namespace siaw_funciones
             }
             return resultado;
         }
-        private async Task<bool> Control_Valido_C00014Async(DBContext _context, Controles regcontrol, List<vedesextraDatos>? tabladescuentos)
+        private async Task<bool> Control_Valido_C00014Async(DBContext _context, Controles regcontrol, List<vedesextraDatos> tabladescuentos)
         {
             //VERIFICAR SI LOS DESCUENTOS EXTRAS ESTAN VIGENTES
             ResultadoValidacion objres = new ResultadoValidacion();
@@ -1039,7 +1076,7 @@ namespace siaw_funciones
             }
             return true;
         }
-        private async Task<bool> Control_Valido_C00015Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos>? tabladescuentos)
+        private async Task<bool> Control_Valido_C00015Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos)
         {
             //VERIFICAR FECHA VIGENCIA DESCTOS. EXTRAS VERSUS FECHA INICIAL PROFORMA
             ResultadoValidacion objres = new ResultadoValidacion();
@@ -1063,7 +1100,7 @@ namespace siaw_funciones
             }
             return true;
         }
-        private async Task<bool> Control_Valido_C00016Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos>? tabladescuentos, List<itemDataMatriz> tabladetalle, string codempresa)
+        private async Task<bool> Control_Valido_C00016Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos, List<itemDataMatriz> tabladetalle, string codempresa)
         {
             //VERIFICAR SI HAY PROMOCIONES PENDIENTES DE APLICAR
             ResultadoValidacion objres = new ResultadoValidacion();
@@ -1073,7 +1110,7 @@ namespace siaw_funciones
             objres.datoA = "";
             objres.datoB = "";
             objres.accion = Acciones_Validar.Ninguna;
-            objres = await Validar_Promociones_Por_Aplicar(_context, DVTA, tabladescuentos, tabladetalle, false, codempresa);
+            objres = await Validar_Promociones_Por_Aplicar(_context, DVTA, tabladescuentos,tabladetalle, false, codempresa);
             if (objres.resultado == false)
             {
                 regcontrol.Valido = "NO";
@@ -1088,7 +1125,7 @@ namespace siaw_funciones
             return true;
         }
 
-        private async Task<bool> Control_Valido_C00017Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos>? tabladescuentos, string codempresa)
+        private async Task<bool> Control_Valido_C00017Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos, string codempresa)
         {
             //##VALIDAR DESCUENTO POR DEPOSITO
             ResultadoValidacion objres = new ResultadoValidacion();
@@ -1113,7 +1150,7 @@ namespace siaw_funciones
             }
             return true;
         }
-        private async Task<bool> Control_Valido_C00018Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos>? tabladescuentos, string codempresa)
+        private async Task<bool> Control_Valido_C00018Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos, string codempresa)
         {
             //##VALIDAR DESCUENTO EXTRA REQUIERE CREDITO VALIDO
             ResultadoValidacion objres = new ResultadoValidacion();
@@ -1138,7 +1175,7 @@ namespace siaw_funciones
             }
             return true;
         }
-        private async Task<bool> Control_Valido_C00019Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos>? tabladescuentos, List<vedetalleanticipoProforma>? tablaanticipos, string codempresa)
+        private async Task<bool> Control_Valido_C00019Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos, List<vedetalleanticipoProforma> tablaanticipos, string codempresa)
         {
             //VALIDAR DESCUENTO EXTRA SEGÚN TIPO DE VENTA (CONTADO CE, CONTADO CA, CREDITO)
             ResultadoValidacion objres = new ResultadoValidacion();
@@ -1240,7 +1277,7 @@ namespace siaw_funciones
                 }
                 else
                 {
-                    regcontrol.DatoA = DVTA.id + "-" + DVTA.numeroid;
+                    regcontrol.DatoA = DVTA.id + "-" + DVTA.numeroid ;
                 }
                 regcontrol.DatoB = "SubTotal: " + DVTA.subtotaldoc + " (" + DVTA.codmoneda + ")";
                 regcontrol.Accion = objres.accion.ToString();
@@ -1258,7 +1295,7 @@ namespace siaw_funciones
             objres.datoA = "";
             objres.datoB = "";
             objres.accion = Acciones_Validar.Ninguna;
-            objres = await Validar_Empaque_Minimo_Segun_Lista_Precios(_context, tabladetalle, DVTA, codempresa);
+            objres = await Validar_Empaque_Minimo_Segun_Lista_Precios(_context,tabladetalle, DVTA, codempresa);
             if (objres.resultado == false)
             {
                 regcontrol.Valido = "NO";
@@ -1272,7 +1309,7 @@ namespace siaw_funciones
             }
             return true;
         }
-        private async Task<bool> Control_Valido_C00024Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, string codempresa, string usuario)
+        private async Task<bool> Control_Valido_C00024Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA,  string codempresa, string usuario)
         {
             //VALIDAR CREDITO DISPONIBLE
             ResultadoValidacion objres = new ResultadoValidacion();
@@ -1344,7 +1381,7 @@ namespace siaw_funciones
             }
             return true;
         }
-        private async Task<bool> Control_Valido_C00027Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos>? tabladescuentos, string codempresa)
+        private async Task<bool> Control_Valido_C00027Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos, string codempresa)
         {
             //VERIFICAR SI EL CLIENTE TIENE NOTAS DE REMISION (reversiones pp) PENDIENTES DE PAGO
             ResultadoValidacion objres = new ResultadoValidacion();
@@ -1354,7 +1391,7 @@ namespace siaw_funciones
             objres.datoA = "";
             objres.datoB = "";
             objres.accion = Acciones_Validar.Ninguna;
-            objres = await Validar_Cliente_Tiene_Reversiones_PP_Pendientes_de_Pago(_context, tabladescuentos, DVTA, codempresa);
+            objres = await Validar_Cliente_Tiene_Reversiones_PP_Pendientes_de_Pago(_context, tabladescuentos,DVTA, codempresa);
             if (objres.resultado == false)
             {
                 regcontrol.Valido = "NO";
@@ -1484,7 +1521,7 @@ namespace siaw_funciones
             }
             return true;
         }
-        private async Task<bool> Control_Valido_C00033Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos>? tabladescuentos, string codempresa)
+        private async Task<bool> Control_Valido_C00033Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             objres.resultado = true;
@@ -1507,7 +1544,7 @@ namespace siaw_funciones
             }
             return true;
         }
-        private async Task<bool> Control_Valido_C00034Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos>? tabladescuentos, string codempresa)
+        private async Task<bool> Control_Valido_C00034Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             objres.resultado = true;
@@ -1530,7 +1567,7 @@ namespace siaw_funciones
             }
             return true;
         }
-        private async Task<bool> Control_Valido_C00035Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos>? tabladescuentos, string codempresa)
+        private async Task<bool> Control_Valido_C00035Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             objres.resultado = true;
@@ -1553,7 +1590,7 @@ namespace siaw_funciones
             }
             return true;
         }
-        private async Task<bool> Control_Valido_C00036Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos>? tabladescuentos, string codempresa)
+        private async Task<bool> Control_Valido_C00036Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             objres.resultado = true;
@@ -1606,7 +1643,7 @@ namespace siaw_funciones
             }
             return true;
         }
-        private async Task<bool> Control_Valido_C00038Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedetalleanticipoProforma>? tablaanticipos, string codempresa)
+        private async Task<bool> Control_Valido_C00038Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedetalleanticipoProforma> tablaanticipos, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             objres.resultado = true;
@@ -1704,7 +1741,7 @@ namespace siaw_funciones
             }
             return true;
         }
-        private async Task<bool> Control_Valido_C00042Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos>? tabladescuentos, string codempresa)
+        private async Task<bool> Control_Valido_C00042Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             objres.resultado = true;
@@ -1773,13 +1810,1322 @@ namespace siaw_funciones
             }
             return true;
         }
-        public async Task<ResultadoValidacion> Validar_Cliente_Es_Atendido_Por_El_Vendedor(DBContext _context, DatosDocVta DVTA, string codempresa, string usuario)
+        private async Task<bool> Control_Valido_C00045Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, string codempresa)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = true;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+            //objres = await Validar_Cliente_Tiene_Cuentas_Por_Pagar_En_Mora(_context, DVTA, codempresa);
+            //if (objres.resultado == false)
+            //{
+            //    regcontrol.Valido = "NO";
+            //    regcontrol.DescServicio = "";
+            //    regcontrol.Observacion = objres.observacion;
+            //    regcontrol.ObsDetalle = objres.obsdetalle;
+            //    regcontrol.DatoA = objres.datoA;
+            //    regcontrol.DatoB = objres.datoB;
+            //    regcontrol.ClaveServicio = objres.accion.ToString();
+            //    regcontrol.Accion = objres.accion.ToString();
+            //}
+            return true;
+        }
+        private async Task<bool> Control_Valido_C00046Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, string codempresa)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = false;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+            objres = await Precio_de_Venta_Permitido_Cliente(_context, tabladetalle, DVTA, codempresa);
+            if (objres.resultado == false)
+            {
+                regcontrol.Valido = "NO";
+                //regcontrol.DescServicio = "";
+                regcontrol.Observacion = objres.observacion;
+                regcontrol.ObsDetalle = objres.obsdetalle;
+                regcontrol.DatoA = objres.datoA;
+                regcontrol.DatoB = objres.datoB;
+                regcontrol.Accion = objres.accion.ToString();
+                regcontrol.ClaveServicio = "";
+            }
+            return true;
+        }
+        private async Task<bool> Control_Valido_C00047Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, string codempresa)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = false;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+            objres = await Verificar_Monto_Maximo_De_Venta_Cliente(_context,DVTA.codcliente_real,DVTA.codalmacen ,DVTA.fechadoc , tabladetalle);
+            if (objres.resultado == false)
+            {
+                regcontrol.Valido = "NO";
+                //regcontrol.DescServicio = "";
+                regcontrol.Observacion = objres.observacion;
+                regcontrol.ObsDetalle = objres.obsdetalle;
+                regcontrol.DatoA = objres.datoA;
+                regcontrol.DatoB = objres.datoB;
+                regcontrol.Accion = objres.accion.ToString();
+                regcontrol.ClaveServicio = "";
+            }
+            return true;
+        }
+        private async Task<bool> Control_Valido_C00048Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, string codempresa)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = false;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+            objres = await Validar_Venta_Cliente_SinCuenta_En_Oficina(_context, DVTA , tabladetalle, codempresa);
+            if (objres.resultado == false)
+            {
+                regcontrol.Valido = "NO";
+                //regcontrol.DescServicio = "";
+                regcontrol.Observacion = objres.observacion;
+                regcontrol.ObsDetalle = objres.obsdetalle;
+                regcontrol.DatoA = objres.datoA;
+                regcontrol.DatoB = objres.datoB;
+                regcontrol.Accion = objres.accion.ToString();
+                regcontrol.ClaveServicio = "";
+            }
+            return true;
+        }
+        private async Task<bool> Control_Valido_C00049Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, string codempresa)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = false;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+            objres = await Validar_Venta_Cliente_ConCuenta_En_Oficina(_context, DVTA, tabladetalle, codempresa);
+            if (objres.resultado == false)
+            {
+                regcontrol.Valido = "NO";
+                //regcontrol.DescServicio = "";
+                regcontrol.Observacion = objres.observacion;
+                regcontrol.ObsDetalle = objres.obsdetalle;
+                regcontrol.DatoA = objres.datoA;
+                regcontrol.DatoB = objres.datoB;
+                regcontrol.Accion = objres.accion.ToString();
+                regcontrol.ClaveServicio = "";
+            }
+            return true;
+        }
+        private async Task<bool> Control_Valido_C00050Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<verecargosDatos> tablarecargos, string codempresa)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = false;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+            objres = await Validar_Pedido_Urgente_Cliente(_context, DVTA, tabladetalle, tablarecargos, codempresa);
+            if (objres.resultado == false)
+            {
+                regcontrol.Valido = "NO";
+                //regcontrol.DescServicio = "";
+                regcontrol.Observacion = objres.observacion;
+                regcontrol.ObsDetalle = objres.obsdetalle;
+                regcontrol.DatoA = objres.datoA;
+                regcontrol.DatoB = objres.datoB;
+                regcontrol.Accion = objres.accion.ToString();
+                regcontrol.ClaveServicio = "";
+            }
+            return true;
+        }
+        private async Task<bool> Control_Valido_C00051Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos, string codempresa)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = true;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+            objres = await Validar_Montos_Minimos_Para_Desctos_Extras(_context, tabladescuentos, DVTA, codempresa);
+            if (objres.resultado == false)
+            {
+                regcontrol.Valido = "NO";
+                //regcontrol.DescServicio = "";
+                regcontrol.Observacion = objres.observacion;
+                regcontrol.ObsDetalle = objres.obsdetalle;
+                regcontrol.DatoA = objres.datoA;
+                regcontrol.DatoB = objres.datoB;
+                regcontrol.Accion = objres.accion.ToString();
+                regcontrol.ClaveServicio = "";
+            }
+            return true;
+        }
+        private async Task<bool> Control_Valido_C00052Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos, string codempresa)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = true;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+            objres = await Validar_Peso_Minimo_Requerido_Para_Alicar_Descuentos_Extras(_context, tabladetalle, tabladescuentos, DVTA, codempresa);
+            if (objres.resultado == false)
+            {
+                regcontrol.Valido = "NO";
+                //regcontrol.DescServicio = "";
+                regcontrol.Observacion = objres.observacion;
+                regcontrol.ObsDetalle = objres.obsdetalle;
+                regcontrol.DatoA = objres.datoA;
+                regcontrol.DatoB = objres.datoB;
+                regcontrol.ClaveServicio = "";
+                regcontrol.Accion = objres.accion.ToString();
+            }
+            return true;
+        }
+        private async Task<bool> Control_Valido_C00053Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos, string codempresa)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = true;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+            objres = await Validar_Monto_Venta_Para_Bancarizacion(_context, DVTA, codempresa);
+            if (objres.resultado == false)
+            {
+                regcontrol.Valido = "NO";
+                //regcontrol.DescServicio = "";
+                regcontrol.Observacion = objres.observacion;
+                regcontrol.ObsDetalle = objres.obsdetalle;
+                regcontrol.DatoA = objres.datoA;
+                regcontrol.DatoB = objres.datoB;
+                regcontrol.Accion = objres.accion.ToString();
+                regcontrol.ClaveServicio = "";
+            }
+            return true;
+        }
+        private async Task<bool> Control_Valido_C00054Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos, string codempresa)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = true;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+            objres = await Validar_Venta_Cliente_Solo_Contra_Entrega(_context, DVTA, codempresa);
+            if (objres.resultado == false)
+            {
+                regcontrol.Valido = "NO";
+                //regcontrol.DescServicio = "";
+                regcontrol.Observacion = objres.observacion;
+                regcontrol.ObsDetalle = objres.obsdetalle;
+                regcontrol.DatoA = objres.datoA;
+                regcontrol.DatoB = objres.datoB;
+                regcontrol.Accion = objres.accion.ToString();
+                regcontrol.ClaveServicio = "";
+            }
+            return true;
+        }
+        private async Task<bool> Control_Valido_C00055Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos, string codempresa)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = true;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+            objres = await Verificar_No_Se_Venda_A_Credito_A_Cliente_SinNombre(_context, DVTA, codempresa);
+            if (objres.resultado == false)
+            {
+                regcontrol.Valido = "NO";
+                //regcontrol.DescServicio = "";
+                regcontrol.Observacion = objres.observacion;
+                regcontrol.ObsDetalle = objres.obsdetalle;
+                regcontrol.DatoA = objres.datoA;
+                regcontrol.DatoB = objres.datoB;
+                regcontrol.Accion = objres.accion.ToString();
+                regcontrol.ClaveServicio = "";
+            }
+            return true;
+        }
+        private async Task<bool> Control_Valido_C00056Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedetalleEtiqueta> dt_etiqueta, string codempresa)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = true;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+            objres = await Validar_Direccion_Etiqueta_Correcta(_context, DVTA,dt_etiqueta, codempresa);
+            if (objres.resultado == false)
+            {
+                regcontrol.Valido = "NO";
+                //regcontrol.DescServicio = "";
+                regcontrol.Observacion = objres.observacion;
+                regcontrol.ObsDetalle = objres.obsdetalle;
+                regcontrol.DatoA = objres.datoA;
+                regcontrol.DatoB = objres.datoB;
+                regcontrol.Accion = objres.accion.ToString();
+                regcontrol.ClaveServicio = "";
+            }
+            return true;
+        }
+        private async Task<bool> Control_Valido_C00057Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos, string codempresa)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = true;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+            objres = await Validar_Descuento_Extra_Aplicado_Segun_Tipo_Vta(_context,tabladescuentos, DVTA, codempresa);
+            if (objres.resultado == false)
+            {
+                regcontrol.Valido = "NO";
+                //regcontrol.DescServicio = "";
+                regcontrol.Observacion = objres.observacion;
+                regcontrol.ObsDetalle = objres.obsdetalle;
+                regcontrol.DatoA = objres.datoA;
+                regcontrol.DatoB = objres.datoB;
+                regcontrol.Accion = objres.accion.ToString();
+                regcontrol.ClaveServicio = "";
+            }
+            return true;
+        }
+        private async Task<bool> Control_Valido_C00058Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<Dtnocumplen> dtnocumplen, string codempresa, string usuario)
+        {
+            //VALIDAR PORCENTAJE MAXIMO DE VENTA
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = true;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+            //objres = await Validar_Saldos_Negativos_Doc(_context, tabladetalle, DVTA, dtnegativos, codempresa, usuario);
+            (objres, dtnocumplen) = await Validar_Limite_Maximo_de_Venta(_context, tabladetalle, DVTA, dtnocumplen, codempresa, usuario);
+            if (objres.resultado == false)
+            {
+                regcontrol.Valido = "NO";
+                //regcontrol.DescServicio = "";
+                regcontrol.Observacion = objres.observacion;
+                regcontrol.ObsDetalle = objres.obsdetalle;
+                regcontrol.DatoA = objres.datoA;
+                regcontrol.DatoB = objres.datoB;
+                regcontrol.Accion = objres.accion.ToString();
+                regcontrol.ClaveServicio = "";
+                regcontrol.Dtnocumplen = dtnocumplen;
+            }
+            regcontrol.Dtnocumplen = dtnocumplen;
+            return true;
+        }
+        private async Task<bool> Control_Valido_C00059Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, string codempresa)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = true;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+            objres = await Validar_Venta_Con_Desctos_Nivel_anterior(_context, DVTA, codempresa);
+            if (objres.resultado == false)
+            {
+                regcontrol.Valido = "NO";
+                //regcontrol.DescServicio = "";
+                regcontrol.Observacion = objres.observacion;
+                regcontrol.ObsDetalle = objres.obsdetalle;
+                regcontrol.DatoA = objres.datoA;
+                regcontrol.DatoB = objres.datoB;
+                regcontrol.ClaveServicio = objres.accion.ToString();
+                regcontrol.Accion = objres.accion.ToString();
+            }
+            return true;
+        }
+        private async Task<bool> Control_Valido_C00060Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<Dtnegativos> dtnegativos, string codempresa, string usuario)
+        {
+            //VALIDAR SALDOS NEGATIVOS
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = true;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+            //objres = await Validar_Saldos_Negativos_Doc(_context, tabladetalle, DVTA, dtnegativos, codempresa, usuario);
+            (objres, dtnegativos) = await Validar_Saldos_Negativos_Doc(_context, tabladetalle, DVTA, dtnegativos, codempresa, usuario);
+            if (objres.resultado == false)
+            {
+                regcontrol.Valido = "NO";
+                //regcontrol.DescServicio = "";
+                regcontrol.Observacion = objres.observacion;
+                regcontrol.ObsDetalle = objres.obsdetalle;
+                regcontrol.DatoA = objres.datoA;
+                regcontrol.DatoB = objres.datoB;
+                regcontrol.Accion = objres.accion.ToString();
+                regcontrol.ClaveServicio = "";
+                regcontrol.Dtnegativos = dtnegativos;
+            }
+            regcontrol.Dtnegativos = dtnegativos;
+            return true;
+        }
+        private async Task<bool> Control_Valido_C00061Async(DBContext _context, Controles regcontrol, bool pedido_por_dia, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<verecargosDatos> tablarecargos, string codempresa)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = false;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+            objres = await Validar_Nro_Pedido_Urgentes_Cliente(_context, pedido_por_dia, DVTA, tabladetalle, tablarecargos, codempresa);
+            if (objres.resultado == false)
+            {
+                regcontrol.Valido = "NO";
+                //regcontrol.DescServicio = "";
+                regcontrol.Observacion = objres.observacion;
+                regcontrol.ObsDetalle = objres.obsdetalle;
+                regcontrol.DatoA = objres.datoA;
+                regcontrol.DatoB = objres.datoB;
+                regcontrol.Accion = objres.accion.ToString();
+                regcontrol.ClaveServicio = "";
+            }
+            return true;
+        }
+        private async Task<bool> Control_Valido_C00063Async(DBContext _context, Controles regcontrol, bool pedido_por_dia, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<verecargosDatos> tablarecargos, string codempresa)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = false;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+            objres = await Validar_Monto_Minimo_Pedido_Urgente_Provincia(_context, DVTA, codempresa);
+            if (objres.resultado == false)
+            {
+                regcontrol.Valido = "NO";
+                //regcontrol.DescServicio = "";
+                regcontrol.Observacion = objres.observacion;
+                regcontrol.ObsDetalle = objres.obsdetalle;
+                regcontrol.DatoA = objres.datoA;
+                regcontrol.DatoB = objres.datoB;
+                regcontrol.Accion = objres.accion.ToString();
+                regcontrol.ClaveServicio = "";
+            }
+            return true;
+        }
+        public async Task<ResultadoValidacion> Validar_Monto_Minimo_Pedido_Urgente_Provincia(DBContext _context, DatosDocVta DVTA, string codempresa)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = true;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+
+            string cadena = "";
+            if (DVTA.preparacion == "URGENTE")
+            {//validar monto minimo 
+                double monto_min = await configuracion.monto_minimo_venta_urgente_provincia(_context, codempresa);
+                double monto_min_aux = await configuracion.monto_minimo_venta_urgente_provincia(_context, codempresa);
+                string moneda_monto_min = await configuracion.moneda_monto_minimo_venta_urgente_provincia(_context, codempresa);
+
+                if (DVTA.codmoneda == moneda_monto_min)
+                {
+                    if (monto_min > DVTA.subtotaldoc)
+                    {
+                        cadena += "\n El monto minimo para pedidos urgentes a provincia es de: " + monto_min + "(" + DVTA.codmoneda + ")" + " y la proforma actual no cumple con este requisito.";
+                    }
+                }
+                else
+                {
+                    monto_min_aux = (double)await tipocambio._conversion(_context, DVTA.codmoneda, moneda_monto_min, await funciones.FechaDelServidor(_context), (decimal)monto_min);
+                    if (monto_min_aux > DVTA.subtotaldoc)
+                    {
+                        cadena += "\n El monto minimo de pedidos urgentes a provincia es de: " + monto_min_aux + "(" + DVTA.codmoneda + ")" + " y la proforma actual no cumple con este requisito.";
+                        objres.resultado = false;
+                    }
+                }
+            }
+
+            if (cadena.Trim().Length > 0)
+            {
+                objres.resultado = false;
+                objres.observacion = "Se encontraron observaciones del pedido urgente: ";
+                objres.obsdetalle = cadena;
+                objres.datoA = DVTA.nitfactura;
+                objres.datoB = "Subtotal: " + DVTA.subtotaldoc.ToString() + " (" + DVTA.codmoneda + ")";
+                objres.accion = Acciones_Validar.Pedir_Servicio;
+            }
+            return objres;
+        }
+        public async Task<ResultadoValidacion> Validar_Nro_Pedido_Urgentes_Cliente(DBContext _context, bool verificar_pordia, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<verecargosDatos> tablarecargos, string codempresa)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = true;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+
+            string cadena = "";
+            if (DVTA.preparacion == "URGENTE" || DVTA.preparacion == "URGENTE PROVINCIAS")
+            {
+                int nro_urg_dia = await cliente.DiaVentasUrgentes(_context, DVTA.codcliente_real, DVTA.fechadoc.Date);
+                int nro_urg_dia_max = await empresa.maxurgentes_por_dia(_context, codempresa);
+
+                int nro_urg_semana = await cliente.SemanaVentasUrgentes(_context, DVTA.codcliente_real, DVTA.fechadoc.Date);
+                int nro_urg_semana_max = await empresa.maxurgentes(_context, codempresa);
+
+                if (verificar_pordia)
+                {//validar nro de pedidos urgentes por dia
+                    if(nro_urg_dia >= nro_urg_dia_max)
+                    {
+                        cadena = "Un cliente solo puede tener " + nro_urg_dia_max + " pedidos urgentes al dia, y el cliente: " + DVTA.codcliente_real + " tiene actualmente: " + nro_urg_dia;
+                    }
+                }
+                else
+                {
+                    if (nro_urg_semana >= nro_urg_semana_max)
+                    {
+                        cadena = "Un cliente solo puede tener " + nro_urg_semana_max + " pedidos urgentes desde inicio de semana(lunes), y el cliente: " + DVTA.codcliente_real + " actualmente tiene: " + nro_urg_semana;
+                        objres.resultado = false;
+                    }
+                }
+            }
+
+            if (cadena.Trim().Length > 0 )
+            {
+                objres.resultado = false;
+                objres.observacion = "Se encontraron observaciones del pedido urgente: ";
+                objres.obsdetalle = cadena;
+                objres.datoA = DVTA.nitfactura;
+                objres.datoB = "Subtotal: " + DVTA.subtotaldoc.ToString() + " (" + DVTA.codmoneda + ")";
+                objres.accion = Acciones_Validar.Pedir_Servicio;
+            }
+            return objres;
+        }
+        public async Task<ResultadoValidacion> Validar_Venta_Con_Desctos_Nivel_anterior(DBContext _context, DatosDocVta DVTA, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
 
             objres.resultado = true;
             objres.observacion = "";
             objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+
+            if (DVTA.niveles_descuento == "ANTERIOR" )
+            {
+                objres.resultado = false;
+                objres.observacion = "Las ventas con descuentos de nivel ANTERIOR requieren permiso especial!!!";
+                objres.obsdetalle = "";
+                if(DVTA.estado_doc_vta == "NUEVO")
+                {
+                    objres.datoA = DVTA.nitfactura;
+                    objres.datoB = "Total: " + DVTA.totaldoc + " (" + DVTA.codmoneda + ")";
+                }
+                else
+                {
+                    objres.datoA = DVTA.id;
+                    objres.datoB = DVTA.numeroid;
+                }
+                objres.accion = Acciones_Validar.Pedir_Servicio;
+            }
+            return objres;
+        }
+        public async Task<ResultadoValidacion> Validar_Descuento_Extra_Aplicado_Segun_Tipo_Vta(DBContext _context, List<vedesextraDatos> tabladescuentos, DatosDocVta DVTA, string codempresa)
+        {
+
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = true;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+
+            string cadena = "";
+            string tipo_vta_descto = "";
+
+
+            foreach (var descuentos in tabladescuentos)
+            {
+                tipo_vta_descto = await ventas.Descuento_Extra_Tipo_Venta(_context, descuentos.coddesextra);
+                if (DVTA.tipo_vta == "CREDITO")
+                {
+                    if (tipo_vta_descto == "CREDITO" || tipo_vta_descto == "SIN RESTRICCION")
+                    {
+                        //OK
+                    }
+                    else
+                    {
+                        cadena += "\n " + descuentos.coddesextra + "-" + descuentos.descrip;
+                    }
+                }
+                else
+                {
+                    if (tipo_vta_descto == "CONTADO" || tipo_vta_descto == "SIN RESTRICCION")
+                    {
+                        //OK
+                    }
+                    else
+                    {
+                        cadena += "\n " + descuentos.coddesextra + "-" + descuentos.descrip;
+                    }
+                }
+            }
+            if (cadena.Trim().Length > 0)
+            {
+                objres.resultado = false;
+                objres.observacion = "Los siguientes descuentos no pueden aplicarse en ventas al: " + DVTA.tipo_vta;
+                objres.obsdetalle = "\n" + cadena;
+                objres.datoA = "";
+                objres.datoB = "";
+                objres.accion = Acciones_Validar.Ninguna;
+            }
+            return objres;
+        }
+        public async Task<ResultadoValidacion> Validar_Direccion_Etiqueta_Correcta(DBContext _context, DatosDocVta DVTA, List<vedetalleEtiqueta> dt_etiqueta, string codempresa)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = true;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+
+            if (!await cliente.EsClienteSinNombre(_context, DVTA.codcliente))
+            {
+                if (dt_etiqueta.Count > 0)
+                {
+                    foreach (var etiqueta in dt_etiqueta)
+                    {
+                        if (await cliente.direccion_es_valida(_context, DVTA.codcliente, etiqueta.representante))
+                        {
+                            objres.resultado = true;
+                            objres.observacion = "";
+                            objres.obsdetalle = "";
+                            objres.datoA = "";
+                            objres.datoB = "";
+                            objres.accion = Acciones_Validar.Ninguna;
+                        }
+                        else
+                        {
+                            if (!await cliente.direccion_con_pto_vta_es_valida(_context, DVTA.codcliente, etiqueta.representante))
+                            {
+                                objres.resultado = false;
+                                objres.observacion = "La direccion de la etiqueta, no corresponde a una direccion valida para el cliente: " + DVTA.codcliente;
+                                objres.obsdetalle = "";
+                                objres.datoA = DVTA.id + "-" + DVTA.numeroid;
+                                objres.datoB = DVTA.codcliente_real;
+                                objres.accion = Acciones_Validar.Pedir_Servicio;
+                            }
+
+                        }
+                    }
+                }
+                else
+                {
+                    objres.resultado = false;
+                    objres.observacion = "No se encontro la etiqueta para la proforma!!!";
+                    objres.obsdetalle = "";
+                    objres.datoA = "";
+                    objres.datoB = "";
+                    objres.accion = Acciones_Validar.Ninguna;
+                }
+            }
+            else
+            {
+                if (!(DVTA.codcliente == DVTA.codcliente_real))
+                {
+                    if (await cliente.EsClienteSinNombre(_context, DVTA.codcliente) || await cliente.Es_Cliente_Casual(_context, DVTA.codcliente) && !await cliente.EsClienteSinNombre(_context, DVTA.codcliente_real))
+                    {
+                        if(dt_etiqueta.Count > 0)
+                        {
+                            foreach (var etiqueta in dt_etiqueta)
+                            {
+                                if (await cliente.direccion_es_valida(_context, DVTA.codcliente_real, etiqueta.representante))
+                                {
+                                    objres.resultado = true;
+                                    objres.observacion = "";
+                                    objres.obsdetalle = "";
+                                    objres.datoA = "";
+                                    objres.datoB = "";
+                                    objres.accion = Acciones_Validar.Ninguna;
+                                }
+                                else
+                                {
+                                    if (!await cliente.direccion_con_pto_vta_es_valida(_context, DVTA.codcliente_real, etiqueta.representante))
+                                    {
+                                        objres.resultado = false;
+                                        objres.observacion = "La direccion de la etiqueta, no corresponde a una direccion valida para el cliente: " + DVTA.codcliente_real;
+                                        objres.obsdetalle = "";
+                                        objres.datoA = DVTA.id + "-" + DVTA.numeroid;
+                                        objres.datoB = DVTA.codcliente_real;
+                                        objres.accion = Acciones_Validar.Pedir_Servicio;
+                                    }
+
+                                }
+
+                            }
+                        }
+                        else
+                        {
+                            objres.resultado = false;
+                            objres.observacion = "No se encontro la etiqueta para la proforma!!!";
+                            objres.obsdetalle = "";
+                            objres.datoA = "";
+                            objres.datoB = "";
+                            objres.accion = Acciones_Validar.Ninguna;
+                        }
+                        
+                    }
+                      
+                }
+            }
+            return objres;
+        }
+        public async Task<ResultadoValidacion> Verificar_No_Se_Venda_A_Credito_A_Cliente_SinNombre(DBContext _context, DatosDocVta DVTA, string codempresa)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = true;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+
+            if (DVTA.tipo_vta == "CREDITO")
+            {
+                if (await cliente.EsClienteSinNombre(_context, DVTA.codcliente) || await cliente.EsClienteCasual(_context, DVTA.codcliente))
+                {
+                    objres.resultado = false;
+                    objres.observacion = "No puede hacer una venta a credito a un cliente Sin Nombre y/o Casual.";
+                    objres.obsdetalle = "";
+                    objres.datoA = DVTA.codcliente + "-" + DVTA.nitfactura;
+                    objres.datoB = "Total: " + DVTA.totaldoc.ToString() + " (" + DVTA.codmoneda + ")";
+                    objres.accion = Acciones_Validar.Pedir_Servicio;
+                }
+            }
+            
+            return objres;
+        }
+        public async Task<ResultadoValidacion> Validar_Venta_Cliente_Solo_Contra_Entrega(DBContext _context, DatosDocVta DVTA, string codempresa)
+        {
+            bool venta_es_ce = true;
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = true;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+
+            venta_es_ce = DVTA.contra_entrega == "SI";
+
+            if (await restricciones.Validar_Cliente_Contraentrega(_context, venta_es_ce, DVTA.codcliente_real))
+            {
+                objres.resultado = false;
+                objres.observacion = "El cliente: " + DVTA.codcliente_real + " esta Registrado como 'Solo Venta Contra Entrega'. Por favor marque este documento como una venta contra-entrega antes de proseguir.";
+                objres.obsdetalle = "";
+                objres.datoA = DVTA.nitfactura;
+                objres.datoB = "Total: " + DVTA.totaldoc.ToString() + " (" + DVTA.codmoneda + ")";
+                objres.accion = Acciones_Validar.Pedir_Servicio;
+            }
+            return objres;
+        }
+        public async Task<ResultadoValidacion> Validar_Monto_Venta_Para_Bancarizacion(DBContext _context, DatosDocVta DVTA, string codempresa)
+        {
+            double MAX_RND = 0;
+            double monto_convertido = 0;
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = true;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+
+            MAX_RND = await configuracion.emp_monto_rnd100011(_context, codempresa);
+            monto_convertido = (double)await tipocambio._conversion(_context,await empresa.monedabase(_context, codempresa),DVTA.codmoneda, DVTA.fechadoc, (decimal)DVTA.totaldoc);
+
+            if (monto_convertido >= MAX_RND)
+            {
+                objres.resultado = false;
+                objres.observacion = "Como esta venta es mayor a " + MAX_RND + " (MN) tendra que ser pagada por medio de una entidad bancaria obligatoriamente, Necesita autorizacion especial.";
+                objres.obsdetalle = "";
+                objres.datoA = DVTA.nitfactura;
+                objres.datoB = "Total: " + DVTA.totaldoc.ToString() + " (" + DVTA.codmoneda + ")";
+                objres.accion = Acciones_Validar.Pedir_Servicio;
+            }
+            return objres;
+        }
+        public async Task<ResultadoValidacion> Validar_Peso_Minimo_Requerido_Para_Alicar_Descuentos_Extras(DBContext _context, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos, DatosDocVta DVTA, string codempresa)
+        {
+            string cadena = "";
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = true;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+
+            if (await cliente.Controla_Monto_Minimo(_context, DVTA.codcliente_real))
+            {   //calcular Peso
+                double peso_doc = 0;
+                foreach (var detalle in tabladetalle)
+                {
+                    peso_doc += detalle.cantidad * await items.itempeso(_context, detalle.coditem);
+                }
+                foreach (var descuentos in tabladescuentos)
+                {
+                    if (peso_doc < await ventas.PesoMinimoDescuentoExtra(_context, descuentos.coddesextra))
+                    {
+                        if (cadena.Trim().Length == 0)
+                        {
+                           cadena = "El descuento " + descuentos.descrip + " no cumple el peso minimo para su aplicacion.";
+                        }
+                        else
+                        {
+                            cadena += "\n El descuento " + descuentos.descrip + " no cumple el peso minimo para su aplicacion.";
+                        }
+                    }
+                }
+            }
+            if (cadena.Trim().Length > 0)
+            {
+                objres.resultado = false;
+                objres.observacion = "Los descuentos extras aplicados no cumplen la cantidad minima en KG para su aplicacion!!!";
+                objres.obsdetalle = cadena;
+                objres.datoA = DVTA.nitfactura;
+                objres.datoB = "Total: " + DVTA.totaldoc.ToString() + " (" + DVTA.codmoneda + ")";
+                objres.accion = Acciones_Validar.Pedir_Servicio;
+            }
+            return objres;
+        }
+        public async Task<ResultadoValidacion> Validar_Montos_Minimos_Para_Desctos_Extras(DBContext _context, List<vedesextraDatos> tabladescuentos, DatosDocVta DVTA, string codempresa)
+        {
+            string cadena = "";
+            double _total = 0;
+            double _montoMIN = 0;
+            double _dif = 0;
+            //verificar el monto si cumple con el requerido
+            //antes se obitene datos del complemento mayorista-Dimediado si tiene
+            int _codproforma = 0;
+            double _subtotal_pfcomplemento = 0;
+            string _moneda_total_pfcomplemento = "";
+            bool hay_enlace = false;
+
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = true;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+
+            if (await cliente.Controla_Monto_Minimo(_context, DVTA.codcliente_real))
+            {
+                try
+                {
+                    if (DVTA.idpf_complemento.Trim().Length > 0 && DVTA.nroidpf_complemento.Trim().Length > 0 && DVTA.tipo_complemento == "complemento_para_descto_monto_min_desextra")
+                    {
+                        _codproforma = await ventas.codproforma(_context, DVTA.nroidpf_complemento,Convert.ToInt32(DVTA.nroidpf_complemento));
+                        if (Convert.ToInt32(DVTA.nroidpf_complemento) > 0)
+                        {
+                            _moneda_total_pfcomplemento = await ventas.MonedaPF(_context, _codproforma);
+                            _subtotal_pfcomplemento = (double)await ventas.SubTotal_Proforma(_context, _codproforma);
+                            _subtotal_pfcomplemento = (double)await tipocambio._conversion(_context, DVTA.codmoneda, _moneda_total_pfcomplemento, DVTA.fechadoc.Date, (decimal)_subtotal_pfcomplemento);
+                            hay_enlace = true;
+                        }
+                    }
+                }
+                catch
+                {
+                    _moneda_total_pfcomplemento = "";
+                    _subtotal_pfcomplemento = 0;
+                }
+                if (DVTA.tipo_vta == "CONTADO")
+                {
+                    //contado
+                    foreach (var descuentos in tabladescuentos)
+                    {
+                        _total = DVTA.subtotaldoc;
+                        //implementado en fecha: 07-07-2021
+                        //se añade el subtotal del complemento
+                        _total += _subtotal_pfcomplemento;
+                        //obtener el montomin requerido por el descto extra
+                        _montoMIN = (double)await ventas.MontoMinimoContadoDescuentoExtra(_context, descuentos.coddesextra, DVTA.codmoneda, DVTA.fechadoc.Date);
+                        _dif = _montoMIN - _total;
+                        if (_montoMIN == 0)
+                        {
+                            objres.resultado = true;
+                        }
+                        else
+                        {
+                            if (_total < _montoMIN)
+                            {
+                                if (_subtotal_pfcomplemento > 0)
+                                {
+                                    cadena +=  "\n Esta proforma tiene complemento";
+                                }
+                                cadena +=  "\n El descuento: " + descuentos.coddesextra + "-" + descuentos.descrip + " no cumple el monto minimo para su aplicacion, el monto mínimo es: " + _montoMIN.ToString() + "(" + DVTA.codmoneda + ") y el subtotal de esta proforma: " + DVTA.subtotaldoc.ToString() + " mas su complemento de: " + _subtotal_pfcomplemento.ToString() + " es de:" + _total + "(" + DVTA.codmoneda + ")";
+                            }
+                        }
+                    }
+
+                }
+                else
+                {
+                    //credito
+                    foreach (var descuentos in tabladescuentos)
+                    {
+                        _total = DVTA.subtotaldoc;
+                        //implementado en fecha: 07-07-2021
+                        //se añade el subtotal del complemento
+                        _total += _subtotal_pfcomplemento;
+                        //obtener el montomin requerido por el descto extra
+                        _montoMIN = (double)await ventas.MontoMinimoCreditoDescuentoExtra(_context, descuentos.coddesextra, DVTA.codmoneda, DVTA.fechadoc.Date);
+                        _dif = _montoMIN - _total;
+                        if (_montoMIN == 0)
+                        {
+                            objres.resultado = true;
+                        }
+                        else
+                        {
+                            if (_total < _montoMIN)
+                            {
+                                if (_subtotal_pfcomplemento > 0)
+                                {
+                                    cadena += "\n Esta proforma tiene complemento para cumplir monto minimo de descto extra";
+                                }
+                                cadena += "\n El descuento: " + descuentos.coddesextra + "-" + descuentos.descrip + " no cumple el monto minimo para su aplicacion, el monto mínimo es: " + _montoMIN.ToString() + "(" + DVTA.codmoneda + ") y el subtotal de esta proforma: " + DVTA.subtotaldoc.ToString() + " mas su complemento de: " + _subtotal_pfcomplemento.ToString() + " es de:" + _total + "(" + DVTA.codmoneda + ")";
+                            }
+                        }
+                    }
+                }
+            }
+            if (cadena.Trim().Length > 0)
+            {
+                objres.resultado = false;
+                objres.observacion = "Los siguientes descuentos extras aplicados no cumplen el monto minimo requerido:";
+                objres.obsdetalle = cadena;
+                if(DVTA.estado_doc_vta == "NUEVO")
+                {
+                    objres.datoA = DVTA.nitfactura;
+                }
+                else
+                {
+                    objres.datoA = DVTA.id + "-" + DVTA.numeroid;
+                }
+                objres.datoB = "Subtotal: " + DVTA.subtotaldoc + " (" + DVTA.codmoneda + ")";
+                objres.accion = Acciones_Validar.Pedir_Servicio;
+            }
+            return objres;
+        }
+
+        public async Task<ResultadoValidacion> Validar_Pedido_Urgente_Cliente(DBContext _context, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<verecargosDatos> tablarecargos, string codempresa)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = true;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+
+            string cadena = "";
+            string cadena_msg_empaques = "";
+            string cadena_no_cumple_empaque = "";
+            int nro_items;
+            int nro_items_no_cumple_empaque = 0;
+            int nro_items_max;
+
+            if (DVTA.preparacion == "URGENTE" || DVTA.preparacion == "URGENTE PROVINCIAS")
+            {
+                nro_items = tabladetalle.Count;
+                nro_items_max =await empresa.maxitemurgentes(_context, codempresa);
+                //verificar el nro de items del pedido
+                if (nro_items > nro_items_max)
+                {
+                    cadena = $"\nPara un pedido URGENTE el numero maximo de items es {nro_items_max}, y el pedido actual tiene: {nro_items} items.";
+                    objres.resultado = false;
+                }
+            }
+
+            if (DVTA.preparacion == "URGENTE PROVINCIAS")
+            {//validar el recargo para pedidos urgentes provincias
+                int codrecargo_pedido_urg_provincia = await configuracion.emp_codrecargo_pedido_urgente_provincia(_context,codempresa);
+                List<int> lst_rec_prov = tablarecargos.AsEnumerable().Where(r => r.codrecargo == codrecargo_pedido_urg_provincia).Select(r => r.codrecargo).ToList();
+
+                if (lst_rec_prov.Count == 0)
+                {
+                    cadena += $"\nTodo pedido urgente con envio a provincias, debe incluir el recargo de envio: {codrecargo_pedido_urg_provincia} por favor añada el recargo.";
+                }
+            }
+            //verificar si cumple los empaque
+            //aclaracion de marlen en fecha: 30-09-2021 (en pedidos urgentes todo debe controlar, por mas que sea final)
+            //Validar empaques Cerrados
+            if (DVTA.preparacion == "URGENTE" || DVTA.preparacion == "URGENTE PROVINCIAS")
+            {
+                int nro_items_urgentes_debe_cumplir_empaque_cerrado = await empresa.nro_items_urgentes_empaque_cerrado(_context, codempresa);
+
+                foreach (var row in tabladetalle)
+                {
+                    if (await ventas.Tarifa_EmpaqueCerrado(_context, row.codtarifa))
+                    {
+                        if (!await ventas.CumpleEmpaqueCerrado(_context, row.coditem, row.codtarifa, row.coddescuento, (decimal)row.cantidad, DVTA.codcliente_real))
+                        {
+                            cadena_no_cumple_empaque += $"\n{row.coditem} {funciones.Rellenar(row.descripcion, 20, " ", false)} {funciones.Rellenar(row.medida, 14, " ", false)}  {funciones.Rellenar(row.cantidad.ToString(), 12, " ")}";
+                            nro_items_no_cumple_empaque++;
+                        }
+                    }
+                }
+
+                if (!(nro_items_no_cumple_empaque < nro_items_urgentes_debe_cumplir_empaque_cerrado))
+                {
+                    cadena_msg_empaques = $"En pedidos urgentes, {nro_items_urgentes_debe_cumplir_empaque_cerrado} deben cumplir empaque cerrado, y en este pedido existen: {nro_items_no_cumple_empaque} items que no cumplen con empaque cerrado:";
+                }
+                else
+                {
+                    cadena_msg_empaques = "";
+                }
+            }
+
+            if (cadena.Trim().Length > 0 || cadena_msg_empaques.Trim().Length > 0)
+            {
+                objres.resultado = false;
+                objres.observacion = "Se encontraron observaciones al pedido urgente: ";
+                objres.obsdetalle = cadena + "\n" + cadena_msg_empaques + "\n" + cadena_no_cumple_empaque;
+                objres.datoA = "";
+                objres.datoB = "";
+                objres.accion = Acciones_Validar.Ninguna;
+            }
+            return objres;
+        }
+
+        public async Task<ResultadoValidacion> Validar_Venta_Cliente_ConCuenta_En_Oficina(DBContext _context, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, string codempresa)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = true;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+            string cadena = "";
+
+            if (DVTA.vta_cliente_en_oficina == false)
+            {
+                return objres;
+            }
+            ///////////////////////////////////////////////
+            //SI ES VENTA A CLIENTE CON CODIGO
+            //'///////////////////////////////////////////////
+
+            if (!await cliente.EsClienteSinNombre(_context, DVTA.codcliente) )
+            {//validar venta con codigo
+                int codempaque_vta_oficina = await configuracion.empaque_venta_cliente_en_oficina(_context, codempresa);
+                int nro_empaques_minimo = await configuracion.Nro_Empaques_Minimo_Vta_Oficina(_context, codempresa);
+                int maximo_items_conteo = await configuracion.Nro_Items_Maximo_Conteo_Vta_Oficina(_context, codempresa);
+                int nro_empaques_cerrados = 0;
+                int nro_items_conteo = 0;
+                List<dynamic> tbl_control = new List<dynamic>();
+
+                foreach (var reg in tabladetalle)
+                {
+                    string coditem = reg.coditem.ToString();
+                    double cantidad_pedido = Convert.ToDouble(reg.cantidad);
+                    double cantidad_empaque_correcto = await ventas.Empaque(_context,codempaque_vta_oficina, coditem);
+                    nro_empaques_cerrados = 0;
+                    if (cantidad_empaque_correcto != 0)
+                    {
+                        // Realizar la división solo si el valor del empaque correcto es diferente de cero
+                        nro_empaques_cerrados = (int)(cantidad_pedido / cantidad_empaque_correcto);
+                    }   
+                    double sobrante_de_empaque = cantidad_pedido % cantidad_empaque_correcto;
+                    int es_conteo = sobrante_de_empaque > 0 ? 1 : 0;
+                    nro_items_conteo += es_conteo;
+
+                    tbl_control.Add(new { coditem, cantidad_pedido, cantidad_empaque_correcto, nro_empaques_cerrados, sobrante_de_empaque, es_conteo });
+                }
+
+                nro_empaques_cerrados = tbl_control.Sum(reg => reg.nro_empaques_cerrados);
+
+                if (nro_empaques_cerrados < nro_empaques_minimo)
+                {
+                    cadena += $"\nLa venta en oficina a clientes(con codigo de cliente) debe contener al menos: {nro_empaques_minimo} empaques {await nombres.nombreempaque(_context, codempaque_vta_oficina)} y el pedido solo tiene solo: {nro_empaques_cerrados} items con empaque cerrado.";
+                }
+
+                if (nro_items_conteo > maximo_items_conteo)
+                {
+                    cadena += $"\nEl numero maximo de items de conteo para venta en oficina a cliente(con codigo de cliente) es: {maximo_items_conteo} y la proforma actualmente tiene: {nro_items_conteo} items de conteo, verifique esta situacion!!!";
+                }
+
+                if (cadena.Trim().Length > 0)
+                {
+                    objres.resultado = false;
+                    objres.observacion = "Se tienen las siguientes observaciones a la venta en oficina a cliente con cuenta:";
+                    objres.obsdetalle = cadena;
+                    objres.datoA = "";
+                    objres.datoB = "";
+                    objres.accion = Acciones_Validar.Ninguna;
+                }
+
+            }
+
+            return objres;
+        }
+        public async Task<ResultadoValidacion> Validar_Venta_Cliente_SinCuenta_En_Oficina(DBContext _context, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, string codempresa)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = true;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+
+            if (DVTA.vta_cliente_en_oficina == false)
+            {
+                return objres;
+            }
+            ///////////////////////////////////////////////
+            //SI ES VENTA A CON CODIGO SIN NOMBRE
+            //'///////////////////////////////////////////////
+            
+            if (await cliente.EsClienteSinNombre(_context, DVTA.codcliente) || await cliente.EsClienteCasual(_context, DVTA.codcliente))
+            {//validar venta minima cliente sin nombre
+                double monto_min_sinnombre = await configuracion.monto_minimo_venta_cliente_en_oficina(_context, codempresa);
+                string codmoneda_monto_mins_sn = await configuracion.moneda_monto_minimo_venta_cliente_en_oficina(_context, codempresa);
+                double monto_min_requerido = monto_min_sinnombre;
+                
+                if(DVTA.codmoneda != codmoneda_monto_mins_sn)
+                {
+                    monto_min_requerido = (double)await tipocambio._conversion(_context, DVTA.codmoneda, codmoneda_monto_mins_sn, await funciones.FechaDelServidor(_context), (decimal)monto_min_sinnombre);
+                    monto_min_requerido = Math.Round(monto_min_requerido, 2);
+                }
+                if (monto_min_requerido > DVTA.subtotaldoc)
+                {
+                    objres.resultado = false;
+                    objres.observacion = "El monto minimo para venta a cliente(Sin Nombre o Casual) en oficina es de: " + monto_min_requerido.ToString() + " (" + DVTA.codmoneda + ") y el subtotal de la proforma actual es: " + DVTA.subtotaldoc + " (" + DVTA.codmoneda + ") y es menor a este minimo, verifique esta situacion!!!";
+                    objres.obsdetalle = "";
+                    objres.datoA = DVTA.nitfactura;                    
+                    objres.datoB = "SubTotal: " + DVTA.subtotaldoc + " (" + DVTA.codmoneda + ")";
+                    objres.accion = Acciones_Validar.Pedir_Servicio;
+                }
+                else
+                {
+                    objres.resultado = true;
+                    objres.observacion = "";
+                    objres.obsdetalle = "";
+                    objres.datoA = "";
+                    objres.datoB = "";
+                    objres.accion = Acciones_Validar.Ninguna;
+                }
+            }
+
+            return objres;
+        }
+        public async Task<ResultadoValidacion> Verificar_Monto_Maximo_De_Venta_Cliente(DBContext _context, string codcliente_real, string codalmacen,DateTime fecha, List<itemDataMatriz> tabladetalle)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = true;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+            string cadena_items = "";
+            string cadena_solo_items = "";
+            double max = 0;
+            int diascontrol = 0;
+            double cantidad_ttl_vedida = 0;
+
+            //esta funcion verifica si el cliente - item - alacen tiene configurado un maximo de ventas en $ cada cierto numero de dias
+            if (await cliente.ClienteControlaMaximo(_context, codcliente_real))
+            {
+                foreach (var detalle in tabladetalle)
+                {
+                    max =await items.MaximoDeVenta(_context, detalle.coditem, codalmacen, detalle.codtarifa);
+                    if (max > 0) //si controlar
+                    {
+                        diascontrol = await items.MaximoDeVenta_PeriodoDeControl(_context, detalle.coditem, codalmacen, detalle.codtarifa);
+                        if(diascontrol > 0)
+                        {
+                            //obtiene la cantidad vendida en los ultimos X dias mas lo que se quiere vender a ahora
+                            cantidad_ttl_vedida = 0;
+                            cantidad_ttl_vedida = await cliente.CantidadVendida(_context, detalle.coditem,codcliente_real, fecha.Date.AddDays(-diascontrol), fecha) + detalle.cantidad;
+                            if(cantidad_ttl_vedida <= max)
+                            {
+                                detalle.cumple = true;
+                            }
+                            else
+                            {
+                                detalle.cumple = false;
+                                if(cadena_items.Trim().Length > 0)
+                                {
+                                    cadena_solo_items = detalle.coditem;
+                                    cadena_items = "Item:" + detalle.coditem + "cantidad Vendida: " + cantidad_ttl_vedida.ToString() + " MaxVta Permitida: " + max.ToString();
+                                }
+                                else
+                                {
+                                    cadena_items += "\nItem:" + detalle.coditem + " cantidad Vendida: " + cantidad_ttl_vedida.ToString() + " MaxVta Permitida: " + max.ToString();
+                                    cadena_solo_items += ", " + detalle.coditem;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            detalle.cumple = true;
+                        }
+                        
+                    }
+                    else
+                    {
+                        detalle.cumple = true;
+                    }
+
+                }
+
+                if (cadena_items.Length > 0)
+                {
+                    objres.resultado = false;
+                    objres.observacion = "Los siguientes items, ya fueron comprados por el cliente: " + codcliente_real + " en los ultimos "+ diascontrol + " dias.";
+                    objres.obsdetalle = cadena_items;
+                    objres.datoA = codcliente_real;
+                    objres.datoB = cadena_solo_items;
+                    objres.accion = Acciones_Validar.Pedir_Servicio;
+                }
+                else
+                {
+                    objres.resultado = true;
+                    objres.observacion = "";
+                    objres.obsdetalle = "";
+                    objres.datoA = "";
+                    objres.datoB = "";
+                    objres.accion = Acciones_Validar.Ninguna;
+                }
+            }
+
+            return objres;
+        }
+        public async Task<ResultadoValidacion> Precio_de_Venta_Permitido_Cliente(DBContext _context, List<itemDataMatriz> tabladetalle, DatosDocVta DVTA, string codempresa)
+        {
+            List<string> precios_doc = new List<string>();
+            List<string> precios_cliente = new List<string>();
+            string cadena_precios_cliente = "";
+
+            ResultadoValidacion objres = new ResultadoValidacion();
+
+            objres.resultado = true;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+
+            // Llenar precios del documento de venta
+            precios_doc.Clear();
+            foreach (var detalle in tabladetalle)
+            {
+                if (!precios_doc.Contains(detalle.codtarifa.ToString()))
+                {
+                    precios_doc.Add(Convert.ToString(detalle.codtarifa));
+                }
+            }
+
+            // Obtener lista de precios permitidos al cliente
+            var preciosClienteQuery = await _context.veclienteprecio
+                                   .Where(precio => precio.codcliente == DVTA.codcliente_real)
+                                   .OrderBy(precio => precio.codtarifa)
+                                   .Select(precio => precio.codtarifa)
+                                   .ToListAsync();
+
+            foreach (var codtarifa in preciosClienteQuery)
+            {
+                precios_cliente.Add(Convert.ToString(codtarifa));
+                if (cadena_precios_cliente.Trim().Length == 0)
+                {
+                    cadena_precios_cliente += Convert.ToString(codtarifa);
+                }
+                else
+                {
+                    cadena_precios_cliente += ", " + Convert.ToString(codtarifa);
+                }
+            }
+
+            // Verificar precios no permitidos al cliente
+            string cadena_precios_no_permitidos = "";
+            int nro_no_permitidos = 0;
+            for (int j = 0; j < precios_doc.Count; j++)
+            {
+                if (!precios_cliente.Contains(precios_doc[j]))
+                {
+                    if (cadena_precios_no_permitidos.Trim().Length == 0)
+                    {
+                        cadena_precios_no_permitidos = precios_doc[j].ToString();
+                        nro_no_permitidos += 1;
+                    }
+                    else
+                    {
+                        cadena_precios_no_permitidos += ", " + precios_doc[j].ToString();
+                        nro_no_permitidos += 1;
+                    }
+                }
+            }
+
+            // Si hay uno o más precios no permitidos
+            if (nro_no_permitidos > 0)
+            {
+                objres.resultado = false;
+                objres.observacion = "El cliente no tiene habilitado el/los precio(s): " + cadena_precios_no_permitidos + " los precios habilitados para el cliente son: " + cadena_precios_cliente;
+                objres.obsdetalle = "";
+                objres.datoA = DVTA.codcliente_real;
+                if (DVTA.estado_doc_vta == "NUEVO")
+                {
+                    objres.datoA = DVTA.nitfactura;
+                }
+                else
+                {
+                    objres.datoA = DVTA.id + "-" + DVTA.numeroid + "-" + DVTA.codcliente;
+                }
+                objres.datoB = "Total: " + DVTA.totaldoc + " (" + DVTA.codmoneda + ")";
+                objres.accion = Acciones_Validar.Pedir_Servicio;
+            }
+            return objres;
+        }
+        public async Task<ResultadoValidacion> Validar_Cliente_Es_Atendido_Por_El_Vendedor(DBContext _context, DatosDocVta DVTA, string codempresa, string usuario)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+
+            objres.resultado = true;
+            objres.observacion = "";
+            objres.obsdetalle = ""; 
             objres.datoA = "";
             objres.datoB = "";
             objres.accion = Acciones_Validar.Ninguna;
@@ -1811,33 +3157,7 @@ namespace siaw_funciones
             }
             return objres;
         }
-        private async Task<bool> Control_Valido_C00058Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<Dtnocumplen> dtnocumplen, string codempresa, string usuario)
-        {
-            //VALIDAR PORCENTAJE MAXIMO DE VENTA
-            ResultadoValidacion objres = new ResultadoValidacion();
-            objres.resultado = true;
-            objres.observacion = "";
-            objres.obsdetalle = "";
-            objres.datoA = "";
-            objres.datoB = "";
-            objres.accion = Acciones_Validar.Ninguna;
-            //objres = await Validar_Saldos_Negativos_Doc(_context, tabladetalle, DVTA, dtnegativos, codempresa, usuario);
-            (objres, dtnocumplen) = await Validar_Limite_Maximo_de_Venta(_context, tabladetalle, DVTA, dtnocumplen, codempresa, usuario);
-            if (objres.resultado == false)
-            {
-                regcontrol.Valido = "NO";
-                //regcontrol.DescServicio = "";
-                regcontrol.Observacion = objres.observacion;
-                regcontrol.ObsDetalle = objres.obsdetalle;
-                regcontrol.DatoA = objres.datoA;
-                regcontrol.DatoB = objres.datoB;
-                regcontrol.Accion = objres.accion.ToString();
-                regcontrol.ClaveServicio = "";
-                regcontrol.Dtnocumplen = dtnocumplen;
-            }
-            regcontrol.Dtnocumplen = dtnocumplen;
-            return true;
-        }
+        
         public async Task<(ResultadoValidacion resultadoValidacion, List<Dtnocumplen> dtnocumplen)> Validar_Limite_Maximo_de_Venta(DBContext _context, List<itemDataMatriz> tabladetalle, DatosDocVta DVTA, List<Dtnocumplen> dtnocumplen, string codempresa, string usuario)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
@@ -2060,12 +3380,12 @@ namespace siaw_funciones
                     if (detalle.coditem.ToString() == nocumplen.codigo.ToString())
                     {
                         // SI NO CUMPLE ES DECIR PORCENTAJE DE VENTA MAYOR AL PERMITIDO
-                        detalle.porcen_mercaderia = (float)_porcen;
+                        detalle.porcen_mercaderia = (double)_porcen;
                         break;
                     }
                 }
 
-            sgte:;
+                sgte:;
             }
 
             if (cadena_items.Trim().Length > 0)
@@ -2086,33 +3406,7 @@ namespace siaw_funciones
             }
             return (objres, dtnocumplen);
         }
-        private async Task<bool> Control_Valido_C00060Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<Dtnegativos> dtnegativos, string codempresa, string usuario)
-        {
-            //VALIDAR SALDOS NEGATIVOS
-            ResultadoValidacion objres = new ResultadoValidacion();
-            objres.resultado = true;
-            objres.observacion = "";
-            objres.obsdetalle = "";
-            objres.datoA = "";
-            objres.datoB = "";
-            objres.accion = Acciones_Validar.Ninguna;
-            //objres = await Validar_Saldos_Negativos_Doc(_context, tabladetalle, DVTA, dtnegativos, codempresa, usuario);
-            (objres, dtnegativos) = await Validar_Saldos_Negativos_Doc(_context, tabladetalle, DVTA, dtnegativos, codempresa, usuario);
-            if (objres.resultado == false)
-            {
-                regcontrol.Valido = "NO";
-                //regcontrol.DescServicio = "";
-                regcontrol.Observacion = objres.observacion;
-                regcontrol.ObsDetalle = objres.obsdetalle;
-                regcontrol.DatoA = objres.datoA;
-                regcontrol.DatoB = objres.datoB;
-                regcontrol.Accion = objres.accion.ToString();
-                regcontrol.ClaveServicio = "";
-                regcontrol.Dtnegativos = dtnegativos;
-            }
-            regcontrol.Dtnegativos = dtnegativos;
-            return true;
-        }
+        
         public async Task<(ResultadoValidacion resultadoValidacion, List<Dtnegativos> dtnegativos)> Validar_Saldos_Negativos_Doc(DBContext _context, List<itemDataMatriz> tabladetalle, DatosDocVta DVTA, List<Dtnegativos> dtnegativos, string codempresa, string usuario)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
@@ -2530,7 +3824,7 @@ namespace siaw_funciones
             }
             return objres;
         }
-        public async Task<ResultadoValidacion> Verificar_Si_Hay_Descuentos_Extras_Repetidos(DBContext _context, List<vedesextraDatos>? tabladescuentos, DatosDocVta DVTA, string codempresa)
+        public async Task<ResultadoValidacion> Verificar_Si_Hay_Descuentos_Extras_Repetidos(DBContext _context, List<vedesextraDatos> tabladescuentos, DatosDocVta DVTA, string codempresa)
         {
             List<string> listado = new List<string>();
             int coddesextra_depositos = await configuracion.emp_coddesextra_x_deposito_context(_context, codempresa);
@@ -2682,7 +3976,7 @@ namespace siaw_funciones
             }
             return objres;
         }
-        public async Task<ResultadoValidacion> Validar_Venta_Contado_NOCE_Tenga_Anticipo(DBContext _context, DatosDocVta DVTA, List<vedetalleanticipoProforma>? dt_anticipo_pf, string codempresa)
+        public async Task<ResultadoValidacion> Validar_Venta_Contado_NOCE_Tenga_Anticipo(DBContext _context, DatosDocVta DVTA, List<vedetalleanticipoProforma> dt_anticipo_pf, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             objres.resultado = true;
@@ -2814,7 +4108,7 @@ namespace siaw_funciones
             }
             return objres;
         }
-        public async Task<ResultadoValidacion> Verificar_Descuentos_Extras_Aplicados_Validos(DBContext _context, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos>? tabladescuentos, string codempresa)
+        public async Task<ResultadoValidacion> Verificar_Descuentos_Extras_Aplicados_Validos(DBContext _context, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             bool resultado = true;
@@ -3333,7 +4627,7 @@ namespace siaw_funciones
 
             return objres;
         }
-        public async Task<ResultadoValidacion> Validar_Cliente_Competencia_Permite_Desctos_PromocionAsync(DBContext _context, DatosDocVta DVTA, List<vedesextraDatos>? tabladescuentos, string codempresa)
+        public async Task<ResultadoValidacion> Validar_Cliente_Competencia_Permite_Desctos_PromocionAsync(DBContext _context, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
 
@@ -3365,7 +4659,7 @@ namespace siaw_funciones
             }
             return objres;
         }
-        public async Task<ResultadoValidacion> Validar_Cliente_Competencia_Permite_Desctos_ExtraAsync(DBContext _context, DatosDocVta DVTA, List<vedesextraDatos>? tabladescuentos)
+        public async Task<ResultadoValidacion> Validar_Cliente_Competencia_Permite_Desctos_ExtraAsync(DBContext _context, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
 
@@ -3394,7 +4688,7 @@ namespace siaw_funciones
             }
             return objres;
         }
-        public async Task<ResultadoValidacion> Verificar_Descuentos_Extras_Habilitados(DBContext _context, List<vedesextraDatos>? tabladescuentos)
+        public async Task<ResultadoValidacion> Verificar_Descuentos_Extras_Habilitados(DBContext _context, List<vedesextraDatos> tabladescuentos)
         {
             string cadena = "";
             ResultadoValidacion objres = new ResultadoValidacion();
@@ -3582,7 +4876,7 @@ namespace siaw_funciones
             }
             return false;
         }
-        public async Task<bool> Proforma_Tiene_Descuentos_ExtrasAsync(DBContext _context, List<vedesextraDatos>? tabladescuentos)
+        public async Task<bool> Proforma_Tiene_Descuentos_ExtrasAsync(DBContext _context, List<vedesextraDatos> tabladescuentos)
         {
 
             foreach (var item in tabladescuentos)
@@ -3595,7 +4889,7 @@ namespace siaw_funciones
             }
             return false;
         }
-        public async Task<ResultadoValidacion> Validar_Vigencia_DesctosExtras_Segun_FechasAsync(DBContext _context, DatosDocVta DVTA, List<vedesextraDatos>? tabladescuentos)
+        public async Task<ResultadoValidacion> Validar_Vigencia_DesctosExtras_Segun_FechasAsync(DBContext _context, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             string cadena = "";
@@ -3637,7 +4931,7 @@ namespace siaw_funciones
             }
             return objres;
         }
-        public async Task<ResultadoValidacion> Validar_Promociones_Por_Aplicar(DBContext _context, DatosDocVta DVTA, List<vedesextraDatos>? tabladescuentos, List<itemDataMatriz> tabladetalle, bool notificar_sinohay, string codempresa)
+        public async Task<ResultadoValidacion> Validar_Promociones_Por_Aplicar(DBContext _context, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos, List<itemDataMatriz> tabladetalle, bool notificar_sinohay, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             string cadena_aplicados = "";
@@ -3803,7 +5097,7 @@ namespace siaw_funciones
             }
             return objres;
         }
-        public async Task<ResultadoValidacion> Validar_Descuento_Por_Deposito(DBContext _context, DatosDocVta DVTA, List<vedesextraDatos>? tabladescuentos, string codempresa)
+        public async Task<ResultadoValidacion> Validar_Descuento_Por_Deposito(DBContext _context, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             string resultado_cadena = "";
@@ -3906,7 +5200,7 @@ namespace siaw_funciones
             }
             return objres;
         }
-        public async Task<ResultadoValidacion> Validar_Descuento_Extra_Requiere_Credito_Valido(DBContext _context, string codcliente_real, List<vedesextraDatos>? tabladescuentos, string codempresa)
+        public async Task<ResultadoValidacion> Validar_Descuento_Extra_Requiere_Credito_Valido(DBContext _context, string codcliente_real, List<vedesextraDatos> tabladescuentos, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             string resultado_cadena = "";
@@ -3978,7 +5272,7 @@ namespace siaw_funciones
             }
             return objres;
         }
-        public async Task<ResultadoValidacion> Validar_Descuentos_Extra_Para_TipoVenta(DBContext _context, DatosDocVta DVTA, List<vedesextraDatos>? tabladescuentos, List<vedetalleanticipoProforma>? dt_anticipo_pf, string codempresa)
+        public async Task<ResultadoValidacion> Validar_Descuentos_Extra_Para_TipoVenta(DBContext _context, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos, List<vedetalleanticipoProforma> dt_anticipo_pf, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             string tipovta = "";
@@ -4734,7 +6028,7 @@ namespace siaw_funciones
             }
             return objres;
         }
-        public async Task<ResultadoValidacion> Validar_Cliente_Tiene_Reversiones_PP_Pendientes_de_Pago(DBContext _context, List<vedesextraDatos>? tabladescuentos, DatosDocVta DVTA, string codempresa)
+        public async Task<ResultadoValidacion> Validar_Cliente_Tiene_Reversiones_PP_Pendientes_de_Pago(DBContext _context, List<vedesextraDatos> tabladescuentos, DatosDocVta DVTA, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             objres.resultado = true;
@@ -4771,7 +6065,7 @@ namespace siaw_funciones
             }
             return objres;
         }
-        public async Task<bool> Venta_Tiene_Descuento_ProntoPago(DBContext _context, List<vedesextraDatos>? tabladescuentos)
+        public async Task<bool> Venta_Tiene_Descuento_ProntoPago(DBContext _context, List<vedesextraDatos> tabladescuentos)
         {
             bool resultado = false;
 
@@ -4992,6 +6286,25 @@ namespace siaw_funciones
             return objres;
         }
 
+        //public async Task<bool> Validar_Resaltar_Empaques_Minimos_Segun_Lista_Precios(DBContext _context, List<itemDataMatriz> tabladetalle, int codalmacen, string codcliente)
+        //{
+        //    bool resultado = true;
+
+        //    foreach (var detalle in tabladetalle)
+        //    {
+        //        if (await restricciones.cumpleempaque(_context, detalle.coditem, detalle.codtarifa, detalle.coddescuento, (decimal)detalle.cantidad, codalmacen, codcliente))
+        //        {
+        //            detalle.cumple = true;
+        //        }
+        //        else
+        //        {
+        //            resultado = false;
+        //            detalle.cumple = false;
+        //        }
+        //    }
+
+        //    return resultado;
+        //}
         public async Task<(bool cumple, List<itemDataMatriz> tabladetalle)> Validar_Resaltar_Empaques_Minimos_Segun_Lista_Precios(DBContext _context, List<itemDataMatriz> tabladetalle, int codalmacen, string codcliente)
         {
             bool resultado = true;
@@ -5000,18 +6313,17 @@ namespace siaw_funciones
             {
                 if (await restricciones.cumpleempaque(_context, detalle.coditem, detalle.codtarifa, detalle.coddescuento, (decimal)detalle.cantidad, codalmacen, codcliente))
                 {
-                    detalle.cumple = true;
+                    detalle.cumpleMin = true;
                 }
                 else
                 {
                     resultado = false;
-                    detalle.cumple = false;
+                    detalle.cumpleMin = false;
                 }
             }
 
             return (resultado, tabladetalle);
         }
-
         public List<string> ListaItemsPedido(List<itemDataMatriz> tabladetalle)
         {
             List<string> resultado = new List<string>();

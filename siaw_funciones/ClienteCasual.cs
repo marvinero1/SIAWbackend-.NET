@@ -222,7 +222,7 @@ namespace siaw_funciones
             int v = int.Parse(await Ultimo_Codigo_Numerico(_context)) + 1;
             string cod_cliente = v.ToString();
 
-            float limite_descto_deposito = await Porcentaje_Limite_Descuento_Deposito(_context, 0);
+            double limite_descto_deposito = await Porcentaje_Limite_Descuento_Deposito(_context, 0);
 
             // obtener datos de cliente
             vecliente vecliente = await getDataClienteCasual(_context, cliCasual.codSN, cod_cliente, cliCasual.nomcliente_casual, cliCasual.nit_cliente_casual, cliCasual.email_cliente_casual, cliCasual.usuarioreg, cliCasual.celular_cliente_casual, limite_descto_deposito);
@@ -534,9 +534,9 @@ namespace siaw_funciones
             return false;
         }
 
-        public async Task<float> Porcentaje_Limite_Descuento_Deposito(DBContext _context, decimal subtotal_prof)
+        public async Task<double> Porcentaje_Limite_Descuento_Deposito(DBContext _context, decimal subtotal_prof)
         {
-            float resultado = 0;
+            double resultado = 0;
             var query = await _context.verango_descuento_deposito
                         .Where(descuento => subtotal_prof >= descuento.desde && subtotal_prof <= descuento.hasta)
                         .FirstOrDefaultAsync();
@@ -546,7 +546,7 @@ namespace siaw_funciones
             }
             if (query.porcentaje_limite != null)
             {
-                resultado = (float)query.porcentaje_limite;
+                resultado = (double)query.porcentaje_limite;
             }
             return resultado;
         }
@@ -699,7 +699,7 @@ namespace siaw_funciones
             return (int)result;
         }
         public async Task<vecliente> getDataClienteCasual(DBContext _context, string codSN, string cod_cliente, string nomcliente_casual, string nit_cliente_casual, string email_cliente_casual, string usuarioreg,
-            string celular_cliente_casual, float limite_descto_deposito)
+            string celular_cliente_casual, double limite_descto_deposito)
         {
             string fechaDef = "1900-01-01";
             string fechaAc = getFechaActual();

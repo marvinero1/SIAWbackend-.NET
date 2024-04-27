@@ -17,6 +17,8 @@ namespace siaw_funciones
         //Clase necesaria para el uso del DBContext del proyecto siaw_Context
         TipoCambio tipocambio = new TipoCambio();
         Seguridad seguridad = new Seguridad();
+        Funciones funciones = new Funciones();
+        Items items = new Items();
         public static class DbContextFactory
         {
             public static DBContext Create(string connectionString)
@@ -328,7 +330,7 @@ namespace siaw_funciones
                         ("EXEC Redondeo_Decimales_SIA_5_decimales_SQL @minumero, @resultado OUTPUT",
                             new SqlParameter("@minumero", numero),
                             redondeado);
-                    preciofinal1 = (decimal)Convert.ToSingle(redondeado.Value);
+                    preciofinal1 = (decimal)(redondeado.Value);
                     resultado = preciofinal1;
 
                 }
@@ -1890,5 +1892,309 @@ namespace siaw_funciones
             return resultado;
         }
         */
+        public async Task<int> DiaVentasUrgentes(DBContext _context, string codcliente, DateTime fecha)
+        {//esta funcion devuelve el numero de pedidos proformas urgentes que un cliente realizo en una fecha determinada
+            int resultado = 0;
+            try
+            {
+                resultado = await _context.veproforma
+                    .Where(pf => pf.anulada == false && pf.codcliente == codcliente && pf.preparacion == "URGENTE" && pf.fecha == fecha.Date && pf.aprobada == true)
+                    .CountAsync();
+            }
+            catch (Exception ex)
+            {
+                resultado = 0;
+            }
+            return resultado;
+        }
+
+        public async Task<int> SemanaVentasUrgentes(DBContext _context, string codcliente, DateTime fecha)
+        {//esta funcion devuelve el numero de pedidos proformas urgentes que un cliente realizo en una fecha determinada
+            int resultado = 0;
+            DateTime desde = funciones.PrincipioDeSemana(fecha);
+            DateTime hasta = funciones.FinDeSemana(fecha);
+            try
+            {
+                resultado = await _context.veproforma
+                    .Where(pf => pf.anulada == false && pf.codcliente == codcliente && pf.preparacion == "URGENTE" && pf.fecha >= desde.Date && pf.fecha <= hasta.Date && pf.aprobada == true)
+                    .CountAsync();
+            }
+            catch (Exception ex)
+            {
+                resultado = 0;
+            }
+            return resultado;
+        }
+
+        public async Task<bool> direccion_es_valida(DBContext _context, string codcliente, string direccion)
+        {
+            bool resultado = true;
+
+            try
+            {
+                var query = await _context.vetienda
+                    .Join(_context.veptoventa, t => t.codptoventa, p => p.codigo, (t, p) => new { t, p })
+                    .Join(_context.adprovincia, tp => tp.p.codprovincia, v => v.codigo, (tp, v) => new { tp.t, tp.p, v })
+                    .Join(_context.addepto, tpv => tpv.v.coddepto, d => d.codigo, (tpv, d) => new { tpv.t, tpv.p, tpv.v, d })
+                    .Where(tpvd => tpvd.t.codcliente == codcliente)
+                    .Select(tpvdd => tpvdd.t.direccion + " (" + tpvdd.p.descripcion + " - " + tpvdd.v.codigo + ")")
+                    .Where(d => d.Contains(direccion.Trim()))
+                    .ToListAsync(); // Ejecutamos la consulta y cargamos los resultados en memoria
+
+                resultado = query.Count > 0; // Contamos los resultados en memoria y devolvemos true si hay al menos uno
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+            return resultado;
+        }
+
+        public async Task<bool> direccion_con_pto_vta_es_valida(DBContext _context, string codcliente, string direccion)
+        {
+            bool resultado = false;
+
+            try
+            {
+                var query = _context.vetienda
+                    .Where(p1 => p1.codcliente == codcliente)
+                    .Join(_context.veptoventa, p1 => p1.codptoventa, p2 => p2.codigo, (p1, p2) => new
+                    {
+                        Direccion = p1.direccion,
+                        Descripcion = p2.descripcion,
+                        CodProvincia = p2.codprovincia
+                    })
+                .Select(p => $"{p.Direccion} ({p.Descripcion} - {p.CodProvincia})");
+
+                var resultados = await query.ToListAsync();
+
+                resultado = resultados.Any(r => r == direccion);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+            return resultado;
+        }
+
+        public async Task<bool> ClienteControlaMaximo(DBContext _context, string codcliente)
+        {
+            bool resultado = true;
+
+            try
+            {
+                var cliente = await _context.vecliente
+                                .Where(v => v.codigo == codcliente)
+                                .Select(v => new { v.codigo, v.controla_maximo })
+                                .FirstOrDefaultAsync();
+
+                if (cliente != null)
+                {
+                    if (cliente.controla_maximo.HasValue)
+                    {
+                        resultado = cliente.controla_maximo.Value;
+                    }
+                    else
+                    {
+                        resultado = true;
+                    }
+                }
+                else
+                {
+                    resultado = true;
+                }
+            }
+            catch (Exception)
+            {
+                return true;
+            }
+            return resultado;
+        }
+
+        public async Task<double> CantidadVendida(DBContext _context, string coditem, string codcliente, DateTime desde, DateTime hasta)
+        {
+            double resultado = 0;
+            double cant_item = 0;
+            double cant_partes = 0;
+            double cant_conj = 0;
+
+            try
+            {
+                //Cantidad vendida con código de ese item
+                var total = await _context.vefactura
+                .Where(c => !c.anulada && c.codcliente == codcliente && c.fecha >= desde && c.fecha <= hasta)
+                .Join(_context.vefactura1,
+                      c => c.codigo,
+                      d => d.codfactura,
+                      (c, d) => new { c, d })
+                .Where(x => x.d.coditem == coditem)
+                .Select(x => x.d.cantidad)
+                .SumAsync();
+
+                cant_item = (double)total;
+
+                //Cantidad mínima vendida de sus partes
+                if (await items.itemesconjunto(_context, coditem))
+                {
+                    var dt_partes = await _context.inkit
+                        .Where(i => i.codigo == coditem)
+                        .Select(i => new { i.item, i.cantidad })
+                        .ToListAsync();
+
+                    if (dt_partes.Count > 0)
+                    {
+                        double min = double.MaxValue;
+                        foreach (var partes in dt_partes)
+                        {
+                            double venta = await CantidadVendida_Item_Partes(_context, partes.item, codcliente, desde, hasta) / (double)partes.cantidad;
+                            if (venta < min)
+                            {
+                                min = venta;
+                            }
+                        }
+                        cant_partes = min;
+                    }
+                    else
+                    {
+                        cant_partes = 0;
+                    }
+                }
+                else
+                {
+                    cant_partes = 0;
+                }
+
+                //Cantidad vendida como parte de un conjunto
+                var dt_conjuntos = await _context.inkit
+                         .Where(i => i.item == coditem)
+                         .Select(i => new { i.codigo, i.cantidad })
+                         .ToListAsync();
+                if (dt_conjuntos.Count > 0)
+                {
+                    double venta_total = 0;
+                    foreach (var cjto in dt_conjuntos)
+                    {
+                        double venta = await CantidadVendida_Item(_context, cjto.codigo, codcliente, desde, hasta) * (double)cjto.cantidad;
+                        venta_total += venta;
+                    }
+                    cant_conj = venta_total;
+                }
+                else
+                {
+                    cant_conj = 0;
+                }
+
+                resultado = cant_item + cant_partes + cant_conj;
+            }
+            catch (Exception ex)
+            {
+                resultado = 0;
+            }
+            return resultado;
+        }
+
+        public async Task<double> CantidadVendida_Item_Partes(DBContext _context, string coditem, string codcliente, DateTime desde, DateTime hasta)
+        {
+            double resultado = 0;
+            double cant_item = 0;
+            double cant_partes = 0;
+            try
+            {
+                //Cantidad vendida con código de ese item
+                var total = await _context.vefactura
+                .Where(c => !c.anulada && c.codcliente == codcliente && c.fecha >= desde.Date && c.fecha <= hasta)
+                .Join(_context.vefactura1,
+                      c => c.codigo,
+                      d => d.codfactura,
+                      (c, d) => new { c, d })
+                .Where(x => x.d.coditem == coditem)
+                .Select(x => x.d.cantidad)
+                .SumAsync();
+
+                cant_item = (double)total;
+
+                //Cantidad mínima vendida de sus partes
+                if (await items.itemesconjunto(_context, coditem))
+                {
+                    var dt_partes = await _context.inkit
+                        .Where(i => i.codigo == coditem)
+                        .Select(i => new { i.item, i.cantidad })
+                        .ToListAsync();
+
+                    if (dt_partes.Count > 0)
+                    {
+                        double min = double.MaxValue;
+                        foreach (var partes in dt_partes)
+                        {
+                            double venta = await CantidadVendida_Item_Partes(_context, partes.item, codcliente, desde, hasta) / (double)partes.cantidad;
+                            if (venta < min)
+                            {
+                                min = venta;
+                            }
+                        }
+                        cant_partes = min;
+                    }
+                    else
+                    {
+                        cant_partes = 0;
+                    }
+                }
+                else
+                {
+                    cant_partes = 0;
+                }
+                resultado = cant_item + cant_partes;
+            }
+            catch (Exception ex)
+            {
+                resultado = 0;
+            }
+            return resultado;
+        }
+
+        public async Task<double> CantidadVendida_Item(DBContext _context, string coditem, string codcliente, DateTime desde, DateTime hasta)
+        {
+            double resultado = 0;
+            double cant_item = 0;
+            try
+            {
+                //Cantidad vendida con código de ese item
+                var total = await _context.vefactura
+                .Where(c => !c.anulada && c.codcliente == codcliente && c.fecha >= desde.Date && c.fecha <= hasta)
+                .Join(_context.vefactura1,
+                      c => c.codigo,
+                      d => d.codfactura,
+                      (c, d) => new { c, d })
+                .Where(x => x.d.coditem == coditem)
+                .Select(x => x.d.cantidad)
+                .SumAsync();
+
+                cant_item = (double)total;
+                resultado = cant_item;
+            }
+            catch (Exception ex)
+            {
+                resultado = 0;
+            }
+            return resultado;
+        }
+
+        public async Task<bool> EsContraEntrega(DBContext _context, string codcliente)
+        {
+            try
+            {
+                var cliente = await _context.vecliente
+                    .Where(v => v.codigo == codcliente)
+                    .Select(v => v.contra_entrega)
+                    .FirstOrDefaultAsync();
+
+                return cliente.HasValue ? cliente.Value : false;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
     }
 }
