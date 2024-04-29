@@ -6900,6 +6900,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[veempaque_alternativo_descuento]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[veempaque1]",
          "ObjectType": 0
       },

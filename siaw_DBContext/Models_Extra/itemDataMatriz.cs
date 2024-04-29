@@ -104,4 +104,19 @@
         public double montodescto { get; set; }
         public double montorest { get; set; }
     }
+
+    public class itemDataSugerencia
+    {
+        public string coditem { get; set; }
+        public string descripcion { get; set; }
+        public string medida { get; set; }
+        public double cantidad { get; set; }
+        public string cantidad_sugerida { get; set; }
+        public double cantidad_sugerida_aplicable { get; set; }
+        public double empaque_caja_cerrada { get; set; }
+        public double porcentaje { get; set; }
+        public double cantidad_porcentaje { get; set; }
+        public double diferencia { get; set; }
+        public string obs { get; set; }
+    }
 }

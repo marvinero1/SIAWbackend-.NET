@@ -2766,6 +2766,215 @@ namespace siaw_funciones
             }
         }
 
+        public async Task<bool> Cumple_Empaque_De_DesctoEspecial(DBContext _context, string coditem, int codtarifa, int coddescuento, decimal cantidad, string codcliente)
+        {
+            bool resultado = false;
+            try
+            {
+
+                if (cantidad > 0)
+                {
+                    bool es_cliente_final = await cliente.EsClienteFinal(_context, codcliente);
+                    bool cliente_final_controla_empaque_cerrado = await cliente.Controla_empaque_cerrado(_context, codcliente);
+                    bool cliente_final_permite_desc_caja_cerrado = await cliente.Permite_Descuento_caja_cerrada(_context, codcliente);
+                    decimal empaque_precio_alternativo, empaque_descuento, empaque_mayor, mod_final;
+
+                    //si es cliente final y no controla empaque segun el archivo de clientes finales entonces no tiene empaque de precio
+                    //asi se deifinio con JRA en fecha 08-12-2022
+                    if (es_cliente_final == true && cliente_final_controla_empaque_cerrado == false && cliente_final_permite_desc_caja_cerrado == true)
+                    {
+                        empaque_descuento = 0;
+                        resultado = true;
+                        return resultado;
+                    }
+                    //Desde 11-09-2023
+                    //si es cliente NO es final pero si esta habilitado para el descuento de caja cerrada permitirlo
+                    //asi se deifinio con JRA en fecha 11-09-2023
+                    if (cliente_final_permite_desc_caja_cerrado == true)
+                    {
+                        empaque_descuento = 0;
+                        resultado = true;
+                        return resultado;
+                    }
+                    //Aqui preguntar a gerencia si un cliente  q no sea final y este habilitado para descuento caja cerrada puede ser o no
+                    var cant_emp = _context.veempaque1
+                        .Join(_context.vedescuento,
+                          e => e.codempaque,
+                          d => d.codempaque,
+                          (e, d) => new { e, d })
+                    .Where(x => x.e.item == coditem && x.d.codigo == coddescuento)
+                    .Select(x => x.e.cantidad)
+                    .FirstOrDefault();
+
+                    if (cant_emp == null)
+                    {
+                        empaque_descuento = 0;
+                    }
+                    else { empaque_descuento = (decimal)cant_emp; }
+                    empaque_mayor = empaque_descuento;
+                    //verificar empaque cerrado del empaque mayor
+                    resultado = CantidadCumpleEmpaque(_context, cantidad, empaque_descuento, empaque_descuento, await Tarifa_PermiteEmpaquesMixtos(_context, codtarifa));
+                    // Dsd 06-12-2022
+                    //  si el resultado es false que valide con el empaque dimediado como alternativo pero solo si el empaque alternativo NO ES el de DESCUENTO CAJA CERRADA(38)
+                    // Es to por instruccion de CVA, Sra Marlen ya que al asignar el descuento de linea 302 a precio 2, hay item como ser el 03EAGE08 tiene los siguets empaques:
+                    // 31=500 32=300 36=500 37=4000 38=4000
+                    // el vendedor quiere venderle 500 pz para cumplir un empaque dimediado y en estos casos cuando son Dimediados se debe asignar el descuento de linea 302 ya que cumple empque dimediado
+                    // para solucionar esto se verifica que si no cumple el empaque minimo de precio, valide con el empaque alternativo que del 32 es el 36, 42 es el 46 y 82 es el 86
+                    // Si no resulto ver si el empaque de descuento tienen empaques alternativos en veempaque_alternativo_descuento creado 07-12-2022
+                    if (!resultado)
+                    {//los empaques alternativos deben ser cabales
+                        DataTable tabla = new DataTable();
+                        DataRow[] registro;
+                        //DEL DESCUENTO
+                        var codigosEmpaqueAlternativos = _context.veempaque_alternativo_descuento
+                        .Where(va => _context.vedescuento
+                        .Any(d => d.codempaque == va.codempaque_alternativo && d.codigo == coddescuento))
+                        .Select(va => va.codempaque_alternativo)
+                        .ToList();
+
+                        var dt = new DataTable();
+                        dt.Columns.Add("cantidad", typeof(int));
+
+                        _context.veempaque1
+                            .Where(e => e.item == coditem && codigosEmpaqueAlternativos.Contains(e.codempaque))
+                            .Select(e => e.cantidad)
+                            .ToList()
+                            .ForEach(c => dt.Rows.Add(c));
+
+                        foreach (DataRow row in dt.Rows)
+                        {
+                            if (cantidad % Convert.ToDecimal(row["cantidad"]) == 0)
+                            {
+                                resultado = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    resultado = true;
+                }
+
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+
+        }
+
+        public async Task<int> Codigo_Empaque_Descuento_Especial(DBContext _context, int codigo)
+        {
+            int resultado = 0;
+            try
+            {
+                var result = await _context.vedescuento
+                .Where(v => v.codigo == codigo)
+                .Select(p => p.codempaque)
+                .FirstOrDefaultAsync();
+                resultado = result;
+            }
+            catch (Exception)
+            {
+                resultado = 0;
+            }
+            return resultado;
+        }
+
+        public async Task<string> Sugerir_Empaque_De_DesctoEspecial(DBContext _contex, string coditem, int codtarifa, int coddescuento, double cantidad, string codcliente, string codempresa)
+        {
+            double minimo = 0;
+
+            string resultado = "0";
+            int cantidad_final_mas = 0;
+            int cantidad_final_menos = 0;
+            if (cantidad > 0)
+            {
+                double porcentaje_empaque = 0;
+                double empaque_descuento = 0;
+                double cantidad_porcentaje_empaque = 0;
+                double cuantos_empaques_mas = 0;
+                double cuantos_empaques_menos = 0;
+                int empaque_descuento_aux_mas = 0;
+                int empaque_descuento_aux_menos = 0;
+                int cantidad_aux_mas = 0;
+                int cantidad_aux_menos = 0;
+
+                empaque_descuento = await EmpaqueDescuento(_contex, coditem, coddescuento);
+                //'verificar empaque cerrado del empaque mayor
+                //'aqui calcular segun al 20 configurado en la tabla adparametros columna porcentaje_sugerencia_empaque 20%
+                //'si la cantidad del detalle esta inferior al empaque cerrado en un 20% sugerir aumentar la cantidad
+                //'si la cantidad del detalle esta superior al empaque cerrado en un 20% sugerir reducir la cantidad
+
+                porcentaje_empaque = await configuracion.porcentaje_sugerencia_empaque(_contex, codempresa);
+                cantidad_porcentaje_empaque = (empaque_descuento * porcentaje_empaque) / 100;
+
+                empaque_descuento_aux_mas = Convert.ToInt32(cantidad + empaque_descuento);
+                empaque_descuento_aux_menos = Convert.ToInt32(cantidad);
+                if (empaque_descuento == 0)
+                {
+                    cantidad_final_mas = 0;
+                    cantidad_final_menos = 0;
+                }
+                else
+                {
+                    cuantos_empaques_mas = empaque_descuento_aux_mas / empaque_descuento;
+                    cuantos_empaques_mas = Math.Floor(cuantos_empaques_mas);
+                    cantidad_aux_mas = Convert.ToInt32(cuantos_empaques_mas * empaque_descuento);
+                    cantidad_final_mas = cantidad_aux_mas - Convert.ToInt32(cantidad);
+
+                    cuantos_empaques_menos = empaque_descuento_aux_menos / empaque_descuento;
+                    cuantos_empaques_menos = Math.Floor(cuantos_empaques_menos);
+                    cantidad_aux_menos = Convert.ToInt32(cuantos_empaques_menos * empaque_descuento);
+                    cantidad_final_menos = cantidad_aux_menos - Convert.ToInt32(cantidad);
+                    cantidad_final_menos *= -1;
+
+                    if ((cantidad_final_mas <= cantidad_porcentaje_empaque) || cantidad < empaque_descuento)
+                    {// si la cantidad final es menor o igual a la cantidad del porcentaje de empaque debe aumentar la cantidad solicitada
+                        if (cantidad_final_mas <= cantidad_porcentaje_empaque || cantidad_final_mas < empaque_descuento)
+                        {
+                            cantidad_final_mas = cantidad_final_mas;
+                        }
+                        else
+                        {//si la cantidad final es mayor o igual a la cantidad del porcentaje de empaque debe reducir la cantidad solicitada
+                            cantidad_final_mas = 0;
+                        }
+                    }
+                    else
+                    {
+                        cantidad_final_mas = 0;
+                    }
+                    //menos
+                    if ((cantidad_final_menos <= cantidad_porcentaje_empaque) && cantidad_final_mas == 0)
+                    {//si la cantidad final es menor o igual a la cantidad del porcentaje de empaque debe aumentar la cantidad solicitada
+                        if (cantidad_final_menos <= cantidad_porcentaje_empaque || cantidad_final_menos < empaque_descuento)
+                        {
+                            cantidad_final_menos *= -1;
+                        }
+                        else
+                        {//si la cantidad final es mayor o igual a la cantidad del porcentaje de empaque debe reducir la cantidad solicitada
+                            cantidad_final_menos = 0;
+                        }
+                    }
+                    else
+                    {
+                        cantidad_final_menos = 0;
+                    }
+                }
+            }
+            else
+            {
+                cantidad_final_mas = 0;
+                cantidad_final_menos = 0;
+            }
+
+            resultado = cantidad_final_mas.ToString() + "/" + cantidad_final_menos.ToString();
+
+            return resultado;
+        }
+
     }
 
 

@@ -466,5 +466,27 @@ namespace siaw_funciones
             }
         }
 
+        public async Task<double> porcentaje_sugerencia_empaque(DBContext _context, string codempresa)
+        {
+            double resultado = 9999;
+            try
+            {
+
+                var result = await _context.adparametros
+                    .Where(v => v.codempresa == codempresa)
+                    .Select(parametro => parametro.porcentaje_sugerencia_empaque)
+                   .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = (double)result;
+                }
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return 9999;
+            }
+        }
+
     }
 }

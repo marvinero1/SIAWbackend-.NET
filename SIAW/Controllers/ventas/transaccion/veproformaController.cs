@@ -3722,6 +3722,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         return BadRequest(new { resp = "No se encontro informacion con los datos proporcionados." });
                     }
                     tabladetalle = tabladetalle.Concat(tablaDetalleExtra).OrderBy(i=>i.coditem).ToList();
+
                     return Ok(new
                     {
                         alertMsg = msgAlert,
@@ -3830,6 +3831,94 @@ namespace SIAW.Controllers.ventas.transaccion
             }
         }
 
+        // boton dividir por empaques 
+        [HttpPost]
+        [Route("valEmpDescEsp/{userConn}")]
+        public async Task<ActionResult<List<object>>> valEmpDescEsp(string userConn, requestRecargaDetalle requestRecargaDetalle)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    string codempresa = requestRecargaDetalle.codempresa;
+                    string usuario = requestRecargaDetalle.usuario;
+                    int codalmacen = requestRecargaDetalle.codalmacen;
+                    string codcliente_real = requestRecargaDetalle.codcliente_real;
+                    string codcliente = requestRecargaDetalle.codcliente;
+                    string opcion_nivel = requestRecargaDetalle.opcion_nivel;
+                    string desc_linea_seg_solicitud = requestRecargaDetalle.desc_linea_seg_solicitud;
+                    string codmoneda = requestRecargaDetalle.codmoneda;
+                    DateTime fecha = requestRecargaDetalle.fecha;
+                    List<itemDataMatriz> tabladetalle = requestRecargaDetalle.tabladetalle;
+
+                    var result = await validar_empaques_caja_cerrada(_context, userConnectionString, codempresa, usuario, codalmacen, codcliente_real, codcliente, opcion_nivel, desc_linea_seg_solicitud, codmoneda, fecha, tabladetalle);
+                    if (result.val)
+                    {
+                        return Ok(new
+                        {
+                            cumple = result.val,
+                            msg = "Todo el documento cumple con los empaques minimos o multimplos del descuento aplicado.",
+                            tabladetalle = result.tabladetalle
+                        });
+                    }
+                    return Ok(new
+                    {
+                        cumple = result.val,
+                        msg = "Hay algunos items que no cumplen el empaque minimo o multiplos del descuento que se aplico, por lo cual se  quito el descuento de estos items.",
+                        tabladetalle = result.tabladetalle
+                    });
+                }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+        }
+
+        private async Task<(bool val, List<itemDataMatriz> tabladetalle)> validar_empaques_caja_cerrada(DBContext _context, string userConnectionString, string codempresa, string usuario, int codalmacen, string codcliente_real, string codcliente, string opcion_nivel, string desc_linea_seg_solicitud, string codmoneda, DateTime fecha, List<itemDataMatriz> tabladetalle)
+        {
+            if (tabladetalle.Count() > 0)
+            {
+                bool quitar_descuento = true;
+                var resultados = await validar_Vta.Validar_Resaltar_Empaques_Caja_Cerrada_DesctoEspecial(_context, tabladetalle, codalmacen, quitar_descuento, codcliente_real);
+                var data = resultados.tabladetalle
+                        .Select(i => new cargadofromMatriz
+                        {
+                            coditem = i.coditem,
+                            tarifa = i.codtarifa,
+                            descuento = i.coddescuento,
+                            cantidad_pedida = (decimal)i.cantidad_pedida,
+                            cantidad = (decimal)i.cantidad,
+                            codcliente = codcliente,
+                            opcion_nivel = opcion_nivel,
+                            codalmacen = codalmacen,
+                            desc_linea_seg_solicitud = desc_linea_seg_solicitud,
+                            codmoneda = codmoneda,
+                            fecha = fecha
+                        }).ToList();
+
+                var tablaDetalleNew = await calculoPreciosMatriz(_context, codempresa, usuario, userConnectionString, data);
+                return (resultados.result, tablaDetalleNew);
+            }
+            return (false, tabladetalle);
+        }
+
+
+        private async Task<(string val, List<itemDataMatriz>? tabladetalle)> validar_sugerir_cantidades_empaques_caja_cerrada(DBContext _context, int coddescuentodefect, List<itemDataMatriz> tabladetalle)
+        {
+            if (coddescuentodefect==0)
+            {
+                return ("Debe seleccionar el codigo de descuento valido.", null);
+            }
+            if (tabladetalle.Count() > 0)
+            {
+
+            }
+        }
+
+
 
 
     }
@@ -3839,7 +3928,19 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
-
+    public class requestRecargaDetalle
+    {
+        public string codempresa { get; set; }
+        public string usuario { get; set; }
+        public int codalmacen { get; set; }
+        public string codcliente_real { get; set; }
+        public string codcliente { get; set; }
+        public string opcion_nivel { get; set; }
+        public string desc_linea_seg_solicitud { get; set; }
+        public string codmoneda { get; set; }
+        public DateTime fecha { get; set; }
+        public List<itemDataMatriz> tabladetalle { get; set; }
+    }
 
 
     public class cargadofromMatriz

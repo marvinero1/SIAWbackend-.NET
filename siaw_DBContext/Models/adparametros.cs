@@ -257,5 +257,6 @@ namespace siaw_DBContext.Models
         public int? codempaque_permite_item_repetido { get; set; }
         public decimal? monto_min_urg_provincia { get; set; }
         public string moneda_monto_min_urg_provincia { get; set; }
+        public int? porcentaje_sugerencia_empaque { get; set; }
     }
 }

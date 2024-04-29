@@ -6335,5 +6335,234 @@ namespace siaw_funciones
             }
             return resultado;
         }
+
+        public async Task<(string cadena, List<itemDataMatriz> tabladetalle)> Validar_Resaltar_Empaques_Caja_Cerrada_DesctoEspecial_detalle(DBContext _context, List<itemDataMatriz> tabladetalle, int codalmacen, bool quitar_descuento, string codcliente)
+        {
+            bool resultado = true;
+            string cadena = "";
+
+            foreach (var detalle in tabladetalle)
+            {//validar el empaque del precio
+                if (await ventas.Cumple_Empaque_De_DesctoEspecial(_context, detalle.coditem, detalle.codtarifa, detalle.coddescuento, (decimal)detalle.cantidad, codcliente))
+                {
+                    detalle.cumple = true;
+                }
+                else
+                {
+                    if (quitar_descuento)
+                    {
+                        resultado = false;
+                        detalle.cumple = false;
+                        detalle.coddescuento = 0;
+                    }
+                    else
+                    {
+                        resultado = false;
+                    }
+                    if (cadena.Length == 0)
+                    {
+                        cadena = "";
+                        cadena = " ITEM     DESCRIPCION          MEDIDA      CANTIDAD" + "\r\n";
+                        cadena += "------------------------------------------------" + "\r\n";
+                        cadena += " " + detalle.coditem + " " + funciones.Rellenar(detalle.descripcion, 20, " ", false) + " " + funciones.Rellenar(detalle.medida, 11, " ", false) + "  " + funciones.Rellenar(detalle.cantidad.ToString(), 3, " ") + "\r\n";
+                    }
+                    else
+                    {
+                        cadena += " " + detalle.coditem + " " + funciones.Rellenar(detalle.descripcion, 20, " ", false) + " " + funciones.Rellenar(detalle.medida, 11, " ", false) + "  " + funciones.Rellenar(detalle.cantidad.ToString(), 3, " ") + "\r\n";
+                    }
+
+                }
+            }
+
+            return (cadena, tabladetalle);
+        }
+
+        public async Task<(bool result, List<itemDataMatriz> tabladetalle)> Validar_Resaltar_Empaques_Caja_Cerrada_DesctoEspecial(DBContext _context, List<itemDataMatriz> tabladetalle, int codalmacen, bool quitar_descuento, string codcliente)
+        {
+            bool resultado = true;
+
+            foreach (var detalle in tabladetalle)
+            {//validar el empaque del precio
+                if (await ventas.Cumple_Empaque_De_DesctoEspecial(_context, detalle.coditem, detalle.codtarifa, detalle.coddescuento, (decimal)detalle.cantidad, codcliente))
+                {
+                    detalle.cumple = true;
+                }
+                else
+                {
+                    if (quitar_descuento)
+                    {
+                        resultado = false;
+                        detalle.cumple = false;
+                        detalle.coddescuento = 0;
+                    }
+                    else
+                    {
+                        resultado = false;
+                    }
+                }
+            }
+
+            return (resultado, tabladetalle);
+        }
+
+
+        public async Task<(List<itemDataSugerencia> tabla_sugerencia, List<itemDataMatriz> tabladetalle)> Sugerir_Cantidades_Empaques_Caja_Cerrada_DesctoEspecial(DBContext _context, List<itemDataMatriz> tabladetalle, int codalmacen, int coddescuento, string codempresa)
+        {
+            bool resultado = true;
+            List<itemDataSugerencia> dt = new List<itemDataSugerencia>();
+            int cantidad = 0;
+            int cantidad_mas = 0;
+            int cantidad_menos = 0;
+            string sugerencia = "0";
+            string obs = "Sin Obs.";
+            int i;
+            double porcentaje_empaque = 0;
+            double cantidad_porcentaje = 0;
+            double empaque_caja_cerrada = 0;
+            int cant_empaques = 0;
+            double diferencia = 0;
+            double empaque_aux = 0;
+
+            porcentaje_empaque = await configuracion.porcentaje_sugerencia_empaque(_context, codempresa);
+            foreach (var detalle in tabladetalle)
+            {//validar el empaque del precio
+                cantidad = 0;
+                empaque_caja_cerrada = await ventas.Empaque(_context, await ventas.Codigo_Empaque_Descuento_Especial(_context, coddescuento), detalle.coditem);
+                //validar el empaque del descto especial
+                if (await ventas.Cumple_Empaque_De_DesctoEspecial(_context, detalle.coditem, detalle.codtarifa, detalle.coddescuento, (decimal)detalle.cantidad, ""))
+                {
+                    detalle.cumple = true;
+                    itemDataSugerencia nuevoItem = new itemDataSugerencia();
+                    nuevoItem.coditem = detalle.coditem;
+                    nuevoItem.descripcion = detalle.descripcion;
+                    nuevoItem.medida = detalle.medida;
+                    nuevoItem.cantidad = detalle.cantidad;
+                    if (detalle.cantidad == 0 || empaque_caja_cerrada == 0)
+                    {
+                        nuevoItem.cantidad_sugerida = "0";
+                        detalle.cumple = false;
+                        detalle.coddescuento = 0;
+                    }
+                    else
+                    {
+                        nuevoItem.cantidad_sugerida = "Cumple empaque.";
+                    }
+                    nuevoItem.cantidad_sugerida_aplicable = cantidad;
+                    nuevoItem.empaque_caja_cerrada = empaque_caja_cerrada;
+                    nuevoItem.porcentaje = porcentaje_empaque;
+                    cantidad_porcentaje = (empaque_caja_cerrada * porcentaje_empaque) / 100;
+                    nuevoItem.cantidad_porcentaje = cantidad_porcentaje;
+                    nuevoItem.diferencia = 0;
+                    if (detalle.cantidad == 0 || empaque_caja_cerrada == 0)
+                    {
+                        nuevoItem.obs = "Cantidad 0 / Empaque Cerrado 0";
+                    }
+                    else
+                    {
+                        nuevoItem.obs = "Cumple Empaque Cerrado.";
+                    }
+                    dt.Add(nuevoItem);
+                }
+                else
+                {
+                    sugerencia = await ventas.Sugerir_Empaque_De_DesctoEspecial(_context, detalle.coditem, detalle.codtarifa, detalle.coddescuento, detalle.cantidad, "", codempresa);
+                    string[] resultado_list = sugerencia.Split('/');
+                    cantidad_mas = Convert.ToInt32(resultado_list[0]);
+                    cantidad_menos = Convert.ToInt32(resultado_list[1]);
+
+                    if (cantidad_mas > 0)
+                    {//si la cantidad se va aumentar ingresa aca
+                        detalle.cumple = false;
+                        detalle.coddescuento = 0;
+                    }
+                    itemDataSugerencia otroItem = new itemDataSugerencia();
+                    otroItem.coditem = detalle.coditem;
+                    otroItem.descripcion = detalle.descripcion;
+                    otroItem.medida = detalle.medida;
+                    otroItem.cantidad = detalle.cantidad;
+                    otroItem.cantidad_sugerida = sugerencia;
+                    cant_empaques = (int)(detalle.cantidad / empaque_caja_cerrada);
+                    empaque_aux = cant_empaques * empaque_caja_cerrada;
+                    cantidad_porcentaje = (empaque_caja_cerrada * porcentaje_empaque) / 100;
+                    if (Math.Abs(cantidad_mas) <= Math.Abs(cantidad_porcentaje))
+                    {
+                        cantidad = cantidad_mas;
+                    }
+                    if (Math.Abs(cantidad_menos) <= Math.Abs(cantidad_porcentaje))
+                    {
+                        if (empaque_caja_cerrada - (cantidad_mas + detalle.cantidad) == 0)
+                        {
+                            cantidad = cantidad_mas;
+                        }
+                        else
+                        {
+                            cantidad = cantidad_menos * -1;
+                        }
+                    }
+                    if (cantidad == 0)
+                    {
+                        obs = "No Cumple.";
+                        if (cantidad_mas > cantidad_menos)
+                        {
+                            if (detalle.cantidad > empaque_caja_cerrada)
+                            {
+                                cantidad = cantidad_menos;
+                            }
+                            else
+                            {
+                                cantidad = cantidad_mas;
+                            }
+
+                        }
+                        else
+                        {
+                            cantidad = cantidad_mas;
+                        }
+                        diferencia = Math.Abs(cantidad_porcentaje) - Math.Abs(cantidad);
+                    }
+                    else
+                    {
+                        if (cantidad > 0)
+                        {
+                            if (cantidad <= cantidad_porcentaje)
+                            {
+                                obs = "Cumple porcentaje para aumentar cantidades.";
+                            }
+                            else
+                            {
+                                obs = "No Cumple.";
+                            }
+
+                        }
+                        else
+                        {
+                            if (detalle.cantidad < empaque_caja_cerrada)
+                            {
+                                obs = "No Cumple.";
+                            }
+                            else
+                            {
+                                obs = "Cumple porcentaje para reducir cantidades.";
+                            }
+                        }
+                        diferencia = Math.Abs(cantidad) - Math.Abs(cantidad_porcentaje);
+                    }
+                    otroItem.cantidad_sugerida_aplicable = cantidad;
+                    otroItem.empaque_caja_cerrada = empaque_caja_cerrada;
+                    otroItem.porcentaje = porcentaje_empaque;
+                    otroItem.cantidad_porcentaje = cantidad_porcentaje;
+                    otroItem.diferencia = Math.Abs(diferencia);
+                    otroItem.obs = obs;
+                    dt.Add(otroItem);
+
+                }
+            }
+
+            return (dt, tabladetalle);
+        }
+
+
+
+
     }
 }

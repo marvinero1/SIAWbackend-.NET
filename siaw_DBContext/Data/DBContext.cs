@@ -1741,6 +1741,7 @@ namespace siaw_DBContext.Data
         public virtual DbSet<veempaque> veempaque { get; set; }
         public virtual DbSet<veempaque1> veempaque1 { get; set; }
         public virtual DbSet<veempaque_alternativo> veempaque_alternativo { get; set; }
+        public virtual DbSet<veempaque_alternativo_descuento> veempaque_alternativo_descuento { get; set; }
         public virtual DbSet<veespeciales> veespeciales { get; set; }
         public virtual DbSet<veestadistico> veestadistico { get; set; }
         public virtual DbSet<veestadistico1> veestadistico1 { get; set; }
@@ -60950,6 +60951,11 @@ namespace siaw_DBContext.Data
             });
 
             modelBuilder.Entity<veempaque_alternativo>(entity =>
+            {
+                entity.HasNoKey();
+            });
+
+            modelBuilder.Entity<veempaque_alternativo_descuento>(entity =>
             {
                 entity.HasNoKey();
             });
