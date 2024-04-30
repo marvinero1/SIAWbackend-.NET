@@ -283,6 +283,10 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 {
                     return BadRequest(new { resp = "Entidad vecliente es null." });
                 }
+                int v = int.Parse(await cliente.Ultimo_Codigo_Numerico(_context)) + 1;
+                string cod_cliente = v.ToString();
+                vecliente.codigo = cod_cliente;
+
                 _context.vecliente.Add(vecliente);
                 try
                 {

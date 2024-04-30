@@ -19,6 +19,7 @@ namespace siaw_funciones
         Seguridad seguridad = new Seguridad();
         Funciones funciones = new Funciones();
         Items items = new Items();
+        Configuracion configuracion = new Configuracion();
         public static class DbContextFactory
         {
             public static DBContext Create(string connectionString)
@@ -2196,5 +2197,33 @@ namespace siaw_funciones
             }
         }
 
+        //devuelve nuevo codigo para cliente
+        public async Task<string> Ultimo_Codigo_Numerico(DBContext _context)
+        {
+            int inicial = await configuracion.getemp_numeracion_clientes_desde(_context);
+            int final = await configuracion.getemp_numeracion_clientes_hasta(_context);
+
+
+            var data = await _context.vecliente
+                    .ToListAsync();
+
+            var result = data
+                .Where(c => IsNumeric(c.codigo) && !c.codigo.Contains("E"))
+                .Where(c => int.Parse(c.codigo) >= inicial && int.Parse(c.codigo) <= final)
+                .OrderByDescending(c => c.codigo)
+                .Select(c => c.codigo)
+                .FirstOrDefault();
+            if (result == null)
+            {
+                result = "0";
+            }
+            return result;
+        }
+
+
+        private static bool IsNumeric(string input)
+        {
+            return int.TryParse(input, out _);
+        }
     }
 }

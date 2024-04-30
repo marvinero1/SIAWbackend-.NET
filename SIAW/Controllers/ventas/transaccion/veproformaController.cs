@@ -2373,7 +2373,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
             // desde 08/01/2023 redondear el resultado a dos decimales con el SQLServer
             // REVISAR SI HAY OTRO MODO NO DA CON LINQ.
-            st = (double)await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, (decimal)st);
+            st = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, st);
             return (st, peso);
         }
 
@@ -3906,16 +3906,60 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
 
-        private async Task<(string val, List<itemDataMatriz>? tabladetalle)> validar_sugerir_cantidades_empaques_caja_cerrada(DBContext _context, int coddescuentodefect, List<itemDataMatriz> tabladetalle)
+        [HttpPost]
+        [Route("aplicar_desc_esp_seg_precio/{userConn}/{coddescuentodefect}/{codalmacen}/{codempresa}")]
+        public async Task<ActionResult<object>> aplicar_desc_esp_seg_precio(string userConn, int coddescuentodefect, int codalmacen, string codempresa, List<itemDataMatriz> tabladetalle)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var result = await validar_sugerir_cantidades_empaques_caja_cerrada(_context, coddescuentodefect, codalmacen, codempresa, tabladetalle);
+                    if (result.tabla_sugerencia == null)
+                    {
+                        return BadRequest(new
+                        {
+                            resp = result.val,
+                        });
+                    }
+                    return Ok(new
+                    {
+                        resp = result.val,
+                        tabla_sugerencia = result.tabla_sugerencia,
+                        tabladetalle = result.tabladetalle
+                    });
+                }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+        }
+
+
+        private async Task<(string val, List<itemDataSugerencia>? tabla_sugerencia, List<itemDataMatriz> tabladetalle)> validar_sugerir_cantidades_empaques_caja_cerrada(DBContext _context, int coddescuentodefect, int codalmacen, string codempresa, List<itemDataMatriz> tabladetalle)
         {
             if (coddescuentodefect==0)
             {
-                return ("Debe seleccionar el codigo de descuento valido.", null);
+                return ("Debe seleccionar el codigo de descuento valido.", null, tabladetalle);
             }
             if (tabladetalle.Count() > 0)
             {
+                var resultados = await validar_Vta.Sugerir_Cantidades_Empaques_Caja_Cerrada_DesctoEspecial(_context, tabladetalle, codalmacen, coddescuentodefect, codempresa);
+                var dt_items_sugerencia = resultados.tabla_sugerencia;
+                tabladetalle = resultados.tabladetalle;
+
+
+                if (dt_items_sugerencia.Count() > 0)
+                {
+                    return ("Hay algunos items que no cumplen el empaque minimo o multiplos del descuento que se aplico, por lo cual se  quito el descuento de estos items.", dt_items_sugerencia, tabladetalle);
+                }
+                return ("Todo el documento cumple con los empaques minimos o multimplos del descuento aplicado.", dt_items_sugerencia, tabladetalle);
 
             }
+            return ("No se tiene items en la tabla detalle, verifique esta stuación.", null,tabladetalle);
         }
 
 

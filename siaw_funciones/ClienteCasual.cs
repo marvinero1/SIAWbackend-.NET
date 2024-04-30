@@ -12,6 +12,7 @@ namespace siaw_funciones
 {
     public class ClienteCasual
     {
+        Cliente cliente = new Cliente();
         //Clase necesaria para el uso del DBContext del proyecto siaw_Context
         public static class DbContextFactory
         {
@@ -219,7 +220,7 @@ namespace siaw_funciones
 
 
 
-            int v = int.Parse(await Ultimo_Codigo_Numerico(_context)) + 1;
+            int v = int.Parse(await cliente.Ultimo_Codigo_Numerico(_context)) + 1;
             string cod_cliente = v.ToString();
 
             double limite_descto_deposito = await Porcentaje_Limite_Descuento_Deposito(_context, 0);
@@ -658,46 +659,7 @@ namespace siaw_funciones
             return codpto_vta;
         }
 
-
-        //devuelve nuevo codigo para cliente
-        public async Task<string> Ultimo_Codigo_Numerico(DBContext _context)
-        {
-            int inicial = await getemp_numeracion_clientes_desde(_context);
-            int final = await getemp_numeracion_clientes_hasta(_context);
-
-
-            var data = await _context.vecliente
-                    .ToListAsync();
-
-            var result = data
-                .Where(c => IsNumeric(c.codigo) && !c.codigo.Contains("E"))
-                .Where(c => int.Parse(c.codigo) >= inicial && int.Parse(c.codigo) <= final)
-                .OrderByDescending(c => c.codigo)
-                .Select(c => c.codigo)
-                .FirstOrDefault();
-            if (result == null)
-            {
-                result = "0";
-            }
-            return result;
-        }
-
-        public async Task<int> getemp_numeracion_clientes_desde(DBContext _context)
-        {
-            var result = await _context.adparametros
-                    .Select(parametro => parametro.numeracion_clientes_desde)
-                    .FirstOrDefaultAsync();
-
-            return (int)result;
-        }
-        public async Task<int> getemp_numeracion_clientes_hasta(DBContext _context)
-        {
-            var result = await _context.adparametros
-                    .Select(parametro => parametro.numeracion_clientes_hasta)
-                    .FirstOrDefaultAsync();
-
-            return (int)result;
-        }
+        
         public async Task<vecliente> getDataClienteCasual(DBContext _context, string codSN, string cod_cliente, string nomcliente_casual, string nit_cliente_casual, string email_cliente_casual, string usuarioreg,
             string celular_cliente_casual, double limite_descto_deposito)
         {

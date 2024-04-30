@@ -54,7 +54,7 @@ namespace siaw_funciones
                         ("EXEC Redondeo_Decimales_SIA_2_decimales_SQL @minumero, @resultado OUTPUT",
                             new SqlParameter("@minumero", numero),
                             redondeado);
-                    preciofinal1 = (decimal)Convert.ToSingle(redondeado.Value);
+                    preciofinal1 = (decimal)(redondeado.Value);
                     resultado = preciofinal1;
 
                 }
@@ -89,7 +89,7 @@ namespace siaw_funciones
                         ("EXEC Redondeo_Decimales_SIA_5_decimales_SQL @minumero, @resultado OUTPUT",
                             new SqlParameter("@minumero", numero),
                             redondeado);
-                    preciofinal1 = (decimal)Convert.ToSingle(redondeado.Value);
+                    preciofinal1 = (decimal)(redondeado.Value);
                     resultado = preciofinal1;
 
                 }

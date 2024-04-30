@@ -488,5 +488,21 @@ namespace siaw_funciones
             }
         }
 
+        public async Task<int> getemp_numeracion_clientes_desde(DBContext _context)
+        {
+            var result = await _context.adparametros
+                    .Select(parametro => parametro.numeracion_clientes_desde)
+                    .FirstOrDefaultAsync();
+
+            return (int)result;
+        }
+        public async Task<int> getemp_numeracion_clientes_hasta(DBContext _context)
+        {
+            var result = await _context.adparametros
+                    .Select(parametro => parametro.numeracion_clientes_hasta)
+                    .FirstOrDefaultAsync();
+
+            return (int)result;
+        }
     }
 }
