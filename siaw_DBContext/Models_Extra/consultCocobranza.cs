@@ -49,6 +49,13 @@ namespace siaw_DBContext.Models_Extra
         public string obs1 { get; set; }
         public string tipo_pago { get; set; }
         public string monpago { get; set; }
+
+        // para consulta desctos_por_deposito_pendientes_por_aplicar
+        public string docremision { get; set; }
+        public string doccbza { get; set; }
+        public string docdeposito { get; set; }
+        public double monto_doc { get; set; }
+        public double porcen_descto { get; set; }
     }
 
 
