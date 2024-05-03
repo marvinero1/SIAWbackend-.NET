@@ -24,6 +24,7 @@ namespace siaw_funciones
         //private readonly siaw_funciones.IVentas ventas;
         TipoCambio tipocambio = new TipoCambio();
         ProntoPago prontopago = new ProntoPago();
+        datosProforma datosProforma = new datosProforma();
         //Clase necesaria para el uso del DBContext del proyecto siaw_Context
 
 
@@ -1339,6 +1340,100 @@ namespace siaw_funciones
             var resultado = await _context.coanticipo.Where(i => i.id == id_anticipo && i.numeroid == numeroid_anticipo).Select(i => i.codigo).FirstOrDefaultAsync();
             return resultado;
         }
+        public async Task<double> Cobranza_ContadoMontoAnticipo(DBContext _context, int codcobranza)
+        {
+            try
+            {
+                var resultado = await _context.cocobranza_contado_anticipo.Where(i => i.codcobranza == codcobranza).SumAsync(i => i.monto) ?? 0;
+                return (double)resultado;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
+
+        public async Task<string[]> Id_Nroid_Anticipo_Revertido_A_Cobranza(DBContext _context, int codcbza)
+        {
+            string[] datos = new string[2];
+            try
+            {
+                var tbl = await _context.cocobranza_anticipo
+                .Join(_context.coanticipo,
+                    p1 => p1.codanticipo,
+                    p2 => p2.codigo,
+                    (p1, p2) => new
+                    {
+                        p1,
+                        p2
+                    })
+                .Where(joined => joined.p1.codcobranza == codcbza)
+                .Select(joined => new
+                {
+                    joined.p1,
+                    id = joined.p2.id,
+                    numeroid = joined.p2.numeroid,
+                    joined.p2.anulado
+                }).FirstOrDefaultAsync();
+                if (tbl != null)
+                {
+                    datos[0] = tbl.id;
+                    datos[1] = tbl.numeroid.ToString();
+                }
+                else
+                {
+                    datos[0] = "NSE";
+                    datos[1] = "0";
+                }
+            }
+            catch (Exception)
+            {
+                datos[0] = "NSE";
+                datos[1] = "0";
+            }
+            return datos;
+        }
+
+        public async Task<string[]> Id_Nroid_Anticipo_Revertido_A_Cobranza_Contado(DBContext _context, int codcbza)
+        {
+            string[] datos = new string[2];
+            try
+            {
+                var tbl = await _context.cocobranza_contado_anticipo
+                .Join(_context.coanticipo,
+                    p1 => p1.codanticipo,
+                    p2 => p2.codigo,
+                    (p1, p2) => new
+                    {
+                        p1,
+                        p2
+                    })
+                .Where(joined => joined.p1.codcobranza == codcbza)
+                .Select(joined => new
+                {
+                    joined.p1,
+                    id = joined.p2.id,
+                    numeroid = joined.p2.numeroid,
+                    joined.p2.anulado
+                }).FirstOrDefaultAsync();
+                if (tbl != null)
+                {
+                    datos[0] = tbl.id;
+                    datos[1] = tbl.numeroid.ToString();
+                }
+                else
+                {
+                    datos[0] = "NSE";
+                    datos[1] = "0";
+                }
+            }
+            catch (Exception)
+            {
+                datos[0] = "NSE";
+                datos[1] = "0";
+            }
+            return datos;
+        }
 
 
         public async Task<string> mostrar_mensajes_depositos_aplicar(DBContext _context, string codempresa, List<consultCocobranza> dt_depositos_pendientes, List<tabladescuentos> tabladescuentos)
@@ -1446,5 +1541,289 @@ namespace siaw_funciones
 
             return cadena;
         }
+
+        public async Task<List<dtdesc_apli_prof_no_aprob>> Descuentos_Por_Deposito_Aplicados_A_Proformas_No_Aprobadas(DBContext _context, string busqueda_por, string filtro_codCliente, int filtro_codvendedor, int filtro_codalmacen, int filtro_codproforma, DateTime hasta_fecha)
+        {
+            int dias = await configuracion.Dias_Revision_Desctos_Deposito_No_Facturados(_context);
+            DateTime desdef = hasta_fecha.Date.AddDays(dias * -1);
+
+            var dt = await _context.veproforma
+                .Join(_context.vedesextraprof,
+                      p1 => p1.codigo,
+                      p2 => p2.codproforma,
+                      (p1, p2) => new { p1, p2 })
+                .Join(_context.vecliente,
+                      joined => joined.p1.codcliente_real,
+                      p3 => p3.codigo,
+                      (joined, p3) => new { joined, p3 })
+                .Where(joined => joined.joined.p1.fecha >= desdef &&
+                                 joined.joined.p1.fecha <= hasta_fecha.Date.AddDays(-3) &&
+                                 joined.joined.p1.aprobada == false &&
+                                 joined.joined.p1.transferida == false &&
+                                 joined.joined.p2.coddesextra == 23)
+                .Select(result => new dtdesc_apli_prof_no_aprob
+                {
+                    borrar = false,
+                    codvendedor_clie = result.p3.codvendedor,
+                    codproforma = result.joined.p1.codigo,
+                    anulada = result.joined.p1.anulada,
+                    descanulada = result.joined.p1.anulada ? "SI":"NO",
+
+                    idpf = result.joined.p1.id,
+                    nroidpf = result.joined.p1.numeroid,
+                    fechapf = result.joined.p1.fecha,
+                    codcliente = result.joined.p1.codcliente,
+                    codcliente_real = result.joined.p1.codcliente_real,
+
+                    total = result.joined.p1.total,
+                    codmoneda = result.joined.p1.codmoneda,
+                    aprobada = result.joined.p1.aprobada,
+                    descaprobada = result.joined.p1.aprobada ? "SI":"NO",
+                    transferida = result.joined.p1.transferida,
+
+                    desctransferida = result.joined.p1.transferida ? "SI":"NO",
+                    // p2 = result.joined.p2,
+                    idcbza = "",
+                    nroidcbza = 0,
+                    iddeposito = "",
+                    numeroiddeposito = 0,
+
+                    idanticipo = "",
+                    nroidanticipo = 0,
+                    idcbza_contado = "",
+                    nroidcbza_contado = 0,
+                    codalmacen = result.joined.p1.codalmacen,
+
+                    codanticipo = result.joined.p2.codanticipo ?? 0,
+                    codcobranza = result.joined.p2.codcobranza ?? 0,
+                    codcobranza_contado = result.joined.p2.codcobranza_contado ?? 0,
+                    montodoc = (double)result.joined.p2.montodoc
+                }).ToListAsync();
+            if (busqueda_por == "TODOS")
+            {
+                // no filtra nada
+            }
+            else if(busqueda_por == "cliente")
+            {
+                // busqueda por cliente
+                dt = dt.Where(i => i.codcliente_real == filtro_codCliente).ToList();
+            }
+            else if (busqueda_por == "vendedor")
+            {
+                // busqueda por vendedor
+                dt = dt.Where(i => i.codvendedor_clie == filtro_codvendedor).ToList();
+            }
+            else if (busqueda_por == "almacen")
+            {
+                // busqueda por almacen
+                dt = dt.Where(i => i.codalmacen == filtro_codalmacen).ToList();
+            }
+            else
+            {
+                //busqueda por proforma
+                dt = dt.Where(i => i.codproforma == filtro_codproforma).ToList();
+            }
+            dt = dt.OrderBy(i => i.codproforma).ToList();
+
+
+            foreach (var reg in dt)
+            {
+                // obtener el id-numeroi del doc de anticipo
+                if (reg.codanticipo > 0)
+                {
+                    var docanticipo = await Id_Nroid_Anticipo(_context,reg.codanticipo);
+                    reg.idanticipo = docanticipo[0];
+                    reg.nroidanticipo = int.Parse(docanticipo[1]);
+                    // buscar el id-nroid del deposito
+                    var docdeposito = await depositos_cliente.IdNroid_Deposito_Asignado_Anticipo(_context, reg.idanticipo, reg.nroidanticipo);
+                    reg.iddeposito = docdeposito[0];
+                    reg.numeroiddeposito = int.Parse(docdeposito[1]);
+                }
+
+                // obtener el id-numeroi del doc de cbza
+                if (reg.codcobranza > 0)
+                {
+                    // verificar si la cbza es reversion de un anticipo
+                    if (await CobranzaMontoAnticipo(_context,reg.codcobranza) != 0)
+                    {
+                        var docanticipo = await Id_Nroid_Anticipo_Revertido_A_Cobranza(_context,reg.codcobranza);
+                        var docdeposito = await depositos_cliente.IdNroid_Deposito_Asignado_Anticipo(_context, docanticipo[0], int.Parse(docanticipo[1]));
+                        reg.iddeposito = docdeposito[0];
+                        reg.numeroiddeposito = int.Parse(docdeposito[1]);
+
+                        var doccbza = await Id_Nroid_Cobranza(_context,reg.codcobranza);
+                        reg.idcbza = doccbza[0];
+                        reg.nroidcbza = int.Parse(doccbza[1]);
+                    }
+                    else
+                    {
+                        var doccbza = await Id_Nroid_Cobranza(_context, reg.codcobranza);
+                        reg.idcbza = doccbza[0];
+                        reg.nroidcbza = int.Parse(doccbza[1]);
+                        // buscar el id-nroid del deposito
+                        var docdeposito = await depositos_cliente.IdNroid_Deposito_Asignado_Cobranza(_context, reg.idcbza, reg.nroidcbza);
+                        reg.iddeposito = docdeposito[0];
+                        reg.numeroiddeposito = int.Parse(docdeposito[1]);
+                    }
+                }
+                // obtener el id-numeroi del doc de cbza contado
+                if (reg.codcobranza_contado > 0)
+                {
+                    if (await Cobranza_ContadoMontoAnticipo(_context, reg.codcobranza) != 0)
+                    {
+                        // si es reversion de anticipo
+                        var docanticipo = await Id_Nroid_Anticipo_Revertido_A_Cobranza_Contado(_context, reg.codcobranza);
+                        var docdeposito = await depositos_cliente.IdNroid_Deposito_Asignado_Anticipo(_context, docanticipo[0], int.Parse(docanticipo[1]));
+                        reg.iddeposito = docdeposito[0];
+                        reg.numeroiddeposito = int.Parse(docdeposito[1]);
+
+                        var doccbza_contado = await Id_Nroid_Cobranza_Contado(_context, reg.codcobranza_contado);
+                        reg.idcbza_contado = doccbza_contado[0];
+                        reg.nroidcbza_contado = int.Parse(doccbza_contado[1]);
+                    }
+                    else
+                    {
+                        var doccbza_contado = await Id_Nroid_Cobranza_Contado(_context, reg.codcobranza_contado);
+                        reg.idcbza_contado = doccbza_contado[0];
+                        reg.nroidcbza_contado = int.Parse(doccbza_contado[1]);
+
+                        // buscar el id-nroid del deposito
+                        var docdeposito = await depositos_cliente.IdNroid_Deposito_Asignado_Cobranza_Contado(_context, reg.idcbza_contado, reg.nroidcbza_contado);
+                        reg.iddeposito = docdeposito[0];
+                        reg.numeroiddeposito = int.Parse(docdeposito[1]);
+                    }
+                }
+
+            }
+            return dt;
+        }
+
+
+        public async Task<bool> Borrar_Desctos_Por_Deposito_Aplicados_No_Facturados(DBContext _context, List<dtdesc_apli_prof_no_aprob> dt_desctos_aplicados_no_facturados, string nomb_ventana, string usuarioreg)
+        {
+            string fecha_s = datosProforma.getFechaActual();
+            string hora_s = datosProforma.getHoraActual();
+            string doc_cbza_depo = "";
+            try
+            {
+                foreach (var reg in dt_desctos_aplicados_no_facturados)
+                {
+                    if (reg.borrar)
+                    {
+                        // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                        // verificar si hay otras proformas (aparte de la prof de la cual se quiere borrar su desc por deposito) que tienen descuento por deposito con la misma cobza-deposito
+                        // si hay otras proformas no se puede borrar ya que que si se borra
+                        // las otras proformas que estan con descto por deposito con la misma cbza
+                        // se quedaran sin padre, solo se borrar cuando la proforma de la cual se quiere borrar el des por deposito sea la unica que tiene
+                        // descto por deposito con la cbza en cuestion
+                        // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                        // inicializar como no borrar
+                        bool borrar_cabecera = false;
+                        var dt_proformas_con_desc_deposito = await _context.vedesextraprof
+                            .Where(i => i.codproforma != reg.codproforma && i.codcobranza == reg.codcobranza).ToListAsync();
+                        if (dt_proformas_con_desc_deposito.Count() > 0)
+                        {
+                            // si hay 1 o mas entonces no se borrar la cabecera de: cocobranza_deposito
+                            borrar_cabecera = false;
+                        }
+                        else
+                        {
+                            borrar_cabecera = true;
+                        }
+                        // verificar si es cobranza, cobranza_contado o anticipo
+                        int affectedRows = 0;
+                        if (reg.codcobranza > 0)
+                        {
+                            doc_cbza_depo = "(" + reg.idcbza + "-" + reg.nroidcbza + ") (" + reg.iddeposito + "-" + reg.numeroiddeposito + ")";
+                            var itemDelete = await _context.vedesextraprof
+                                .Where(i => i.coddesextra == 23 && i.codproforma == reg.codproforma && i.codcobranza == reg.codcobranza).ToListAsync();
+                            _context.vedesextraprof.RemoveRange(itemDelete);
+                            affectedRows = await _context.SaveChangesAsync();
+                        }
+                        if (reg.codanticipo > 0)
+                        {
+                            doc_cbza_depo = "(" + reg.idanticipo + "-" + reg.nroidanticipo + ") (" + reg.iddeposito + "-" + reg.numeroiddeposito + ")";
+                            var itemDelete = await _context.vedesextraprof
+                                .Where(i => i.coddesextra == 23 && i.codproforma == reg.codproforma && i.codanticipo == reg.codanticipo).ToListAsync();
+                            _context.vedesextraprof.RemoveRange(itemDelete);
+                            affectedRows = await _context.SaveChangesAsync();
+                        }
+                        if (reg.codcobranza_contado > 0)
+                        {
+                            doc_cbza_depo = "(" + reg.idcbza_contado + "-" + reg.nroidcbza_contado + ") (" + reg.iddeposito + "-" + reg.numeroiddeposito + ")";
+                            var itemDelete = await _context.vedesextraprof
+                                .Where(i => i.coddesextra == 23 && i.codproforma == reg.codproforma && i.codcobranza_contado == reg.codcobranza_contado).ToListAsync();
+                            _context.vedesextraprof.RemoveRange(itemDelete);
+                            affectedRows = await _context.SaveChangesAsync();
+                        }
+
+                        // eliminar la asignacion del descto por deposito de la proforma en: vedesextraprof
+                        if (affectedRows > 0)
+                        {
+                            // detalle del log
+                            string detalle = "Se elimino de vedesextraprof el Desc por Deposito de: " + doc_cbza_depo + " Monto:" + reg.montodoc + " (" + reg.codmoneda + ") de Prof: " + reg.idpf + "-" + reg.nroidpf;
+                            string cliente = reg.codcliente_real;
+
+                            // registrar el log de eliminacion
+
+
+                            if (reg.codcobranza > 0)
+                            {
+
+                            }
+
+                        }
+                    }
+                }
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+        }
+
     }
+
+
+    public class dtdesc_apli_prof_no_aprob
+    {
+        public bool borrar { get; set; }
+        public int codvendedor_clie { get; set; }
+        public int codproforma { get; set; }
+        public bool anulada { get; set; }
+        public string descanulada { get; set; }
+
+        public string idpf { get; set; }
+        public int nroidpf { get; set; }
+        public DateTime fechapf { get; set; }
+        public string codcliente { get; set; }
+        public string codcliente_real { get; set; }
+
+        public decimal total { get; set; }
+        public string codmoneda { get; set; }
+        public bool aprobada { get; set; }
+        public string descaprobada { get; set; }
+        public bool transferida { get; set; }
+
+        public string desctransferida { get; set; }
+        public string idcbza { get; set; }
+        public int nroidcbza { get; set; }
+        public string iddeposito { get; set; }
+        public int numeroiddeposito { get; set; }
+
+        public string idanticipo { get; set; }
+        public int nroidanticipo { get; set; }
+        public string idcbza_contado { get; set; }
+        public int nroidcbza_contado { get; set; }
+        public int codalmacen { get; set; }
+        
+        public int codanticipo { get; set; }
+        public int codcobranza { get; set; }
+        public int codcobranza_contado { get; set; }
+        public double montodoc { get; set; }
+
+    }
+
+
 }

@@ -258,5 +258,6 @@ namespace siaw_DBContext.Models
         public decimal? monto_min_urg_provincia { get; set; }
         public string moneda_monto_min_urg_provincia { get; set; }
         public int? porcentaje_sugerencia_empaque { get; set; }
+        public int? dias_revision_depositos_no_facturados { get; set; }
     }
 }

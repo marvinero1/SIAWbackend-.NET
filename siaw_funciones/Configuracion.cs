@@ -123,6 +123,17 @@ namespace siaw_funciones
 
             return result;
         }
+
+        public async Task<int> Dias_Revision_Desctos_Deposito_No_Facturados(DBContext _context)
+        {
+            //esta fecha es la que se empezo con los descuentos por deposito
+            int result = await _context.adparametros
+                    .Select(parametro => parametro.dias_revision_depositos_no_facturados)
+                    .FirstOrDefaultAsync() ?? 0;
+
+            return result;
+        }
+
         public async Task<bool> emp_clientevendedor(DBContext _context, string codempresa)
         {
             try

@@ -249,6 +249,79 @@ namespace siaw_funciones
             }
             return resultado;
         }
+
+        public async Task<string[]> IdNroid_Deposito_Asignado_Cobranza(DBContext _context, string idcbza, int nroidcbza)
+        {
+            //List<string> resultado = new List<string>();
+            string[] resultado = new string[2];
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var result = await _context.cocobranza
+                .Where(v => v.id == idcbza && v.numeroid == nroidcbza
+                && v.deposito_cliente == true && v.reciboanulado == false)
+                .Select(v => new { iddeposito = v.iddeposito, numeroiddeposito = v.numeroiddeposito ?? 0 })
+                .FirstOrDefaultAsync();
+
+                if (result != null)
+                {
+                    resultado[0] = result.iddeposito.ToString();
+                    resultado[1] = result.numeroiddeposito.ToString();
+                }
+                else
+                {
+                    resultado[0] = "NSE";
+                    resultado[1] = "0";
+                }
+                //}
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                resultado[0] = "NSE";
+                resultado[1] = "0";
+            }
+            return resultado;
+        }
+
+        public async Task<string[]> IdNroid_Deposito_Asignado_Cobranza_Contado(DBContext _context, string idcbza, int nroidcbza)
+        {
+            //List<string> resultado = new List<string>();
+            string[] resultado = new string[2];
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var result = await _context.cocobranza_contado
+                .Where(v => v.id == idcbza && v.numeroid == nroidcbza
+                && v.deposito_cliente == true && v.reciboanulado == false)
+                .Select(v => new { iddeposito = v.iddeposito, numeroiddeposito = v.numeroiddeposito ?? 0 })
+                .FirstOrDefaultAsync();
+
+                if (result != null)
+                {
+                    resultado[0] = result.iddeposito.ToString();
+                    resultado[1] = result.numeroiddeposito.ToString();
+                }
+                else
+                {
+                    resultado[0] = "NSE";
+                    resultado[1] = "0";
+                }
+                //}
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                resultado[0] = "NSE";
+                resultado[1] = "0";
+            }
+            return resultado;
+        }
+
         public async Task<string> Anticipo_Asignado_A_Deposito_a_Proforma(DBContext _context, string iddeposito, string nroiddeposito, bool para_pf)
         {
             string resultado = "";
