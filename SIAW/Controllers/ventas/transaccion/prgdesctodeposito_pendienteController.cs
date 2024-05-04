@@ -27,8 +27,48 @@ namespace SIAW.Controllers.ventas.transaccion
             _userConnectionManager = userConnectionManager;
         }
 
+        // boton btnborrar_desctos_Click
+        [HttpPost]
+        [Route("deleteDescProf/{userConn}/{nomb_ventana}/{usuarioreg}")]
+        public async Task<ActionResult<List<object>>> deleteDescProf(string userConn, string nomb_ventana, string usuarioreg, List<dtdesc_apli_prof_no_aprob> dt_desctos_aplicados_no_facturados)
+        {
+            bool valida = validar_borrar_desctos_aplicados(dt_desctos_aplicados_no_facturados);
+            if (!valida)
+            {
+                return BadRequest(new { resp = "No ha elegido ninguna proforma para que se le quiten los descuentos por depositos aplicados!!!" });
+            }
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    // If Not validar_borrar_desctos_aplicados() Then Exit Sub
+                    bool resp = await cobranzas.Borrar_Desctos_Por_Deposito_Aplicados_No_Facturados(_context, dt_desctos_aplicados_no_facturados, nomb_ventana, usuarioreg);
+                    if (resp)
+                    {
+                        return Ok(new { resp = "Se elimino exitosamente el/los descuento(s) por deposito!!!" });
+                    }
+                    return BadRequest(new { resp = "Ocurrio un error y no se elimino el/los descuento(s) por deposito!!!" });
+                }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+        }
+        private bool validar_borrar_desctos_aplicados(List<dtdesc_apli_prof_no_aprob> dt_desctos_aplicados_no_facturados)
+        {
+            int nro_elegidos = dt_desctos_aplicados_no_facturados.Count(i => i.borrar == true);
+            if (nro_elegidos == 0 )
+            {
+                return false;
+            }
+            return true;
+        }
 
-        // boton dividir por empaques 
+
+        // boton btnrefrescar_depositos_pendientes_Click
         [HttpGet]
         [Route("depPendientesRefresh/{userConn}/{codcliente}/{codcliente_real}/{nit}/{codempresa}")]
         public async Task<ActionResult<List<object>>> depPendientesRefresh(string userConn, string codcliente, string codcliente_real, string nit, string codempresa)

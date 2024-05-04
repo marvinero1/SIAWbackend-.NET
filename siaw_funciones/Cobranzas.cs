@@ -25,6 +25,7 @@ namespace siaw_funciones
         TipoCambio tipocambio = new TipoCambio();
         ProntoPago prontopago = new ProntoPago();
         datosProforma datosProforma = new datosProforma();
+        Log log = new Log();
         //Clase necesaria para el uso del DBContext del proyecto siaw_Context
 
 
@@ -1704,82 +1705,121 @@ namespace siaw_funciones
             string fecha_s = datosProforma.getFechaActual();
             string hora_s = datosProforma.getHoraActual();
             string doc_cbza_depo = "";
-            try
+            using (var dbContexTransaction = _context.Database.BeginTransaction())
             {
-                foreach (var reg in dt_desctos_aplicados_no_facturados)
+                try
                 {
-                    if (reg.borrar)
+                    foreach (var reg in dt_desctos_aplicados_no_facturados)
                     {
-                        // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                        // verificar si hay otras proformas (aparte de la prof de la cual se quiere borrar su desc por deposito) que tienen descuento por deposito con la misma cobza-deposito
-                        // si hay otras proformas no se puede borrar ya que que si se borra
-                        // las otras proformas que estan con descto por deposito con la misma cbza
-                        // se quedaran sin padre, solo se borrar cuando la proforma de la cual se quiere borrar el des por deposito sea la unica que tiene
-                        // descto por deposito con la cbza en cuestion
-                        // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                        // inicializar como no borrar
-                        bool borrar_cabecera = false;
-                        var dt_proformas_con_desc_deposito = await _context.vedesextraprof
-                            .Where(i => i.codproforma != reg.codproforma && i.codcobranza == reg.codcobranza).ToListAsync();
-                        if (dt_proformas_con_desc_deposito.Count() > 0)
+                        if (reg.borrar)
                         {
-                            // si hay 1 o mas entonces no se borrar la cabecera de: cocobranza_deposito
-                            borrar_cabecera = false;
-                        }
-                        else
-                        {
-                            borrar_cabecera = true;
-                        }
-                        // verificar si es cobranza, cobranza_contado o anticipo
-                        int affectedRows = 0;
-                        if (reg.codcobranza > 0)
-                        {
-                            doc_cbza_depo = "(" + reg.idcbza + "-" + reg.nroidcbza + ") (" + reg.iddeposito + "-" + reg.numeroiddeposito + ")";
-                            var itemDelete = await _context.vedesextraprof
-                                .Where(i => i.coddesextra == 23 && i.codproforma == reg.codproforma && i.codcobranza == reg.codcobranza).ToListAsync();
-                            _context.vedesextraprof.RemoveRange(itemDelete);
-                            affectedRows = await _context.SaveChangesAsync();
-                        }
-                        if (reg.codanticipo > 0)
-                        {
-                            doc_cbza_depo = "(" + reg.idanticipo + "-" + reg.nroidanticipo + ") (" + reg.iddeposito + "-" + reg.numeroiddeposito + ")";
-                            var itemDelete = await _context.vedesextraprof
-                                .Where(i => i.coddesextra == 23 && i.codproforma == reg.codproforma && i.codanticipo == reg.codanticipo).ToListAsync();
-                            _context.vedesextraprof.RemoveRange(itemDelete);
-                            affectedRows = await _context.SaveChangesAsync();
-                        }
-                        if (reg.codcobranza_contado > 0)
-                        {
-                            doc_cbza_depo = "(" + reg.idcbza_contado + "-" + reg.nroidcbza_contado + ") (" + reg.iddeposito + "-" + reg.numeroiddeposito + ")";
-                            var itemDelete = await _context.vedesextraprof
-                                .Where(i => i.coddesextra == 23 && i.codproforma == reg.codproforma && i.codcobranza_contado == reg.codcobranza_contado).ToListAsync();
-                            _context.vedesextraprof.RemoveRange(itemDelete);
-                            affectedRows = await _context.SaveChangesAsync();
-                        }
-
-                        // eliminar la asignacion del descto por deposito de la proforma en: vedesextraprof
-                        if (affectedRows > 0)
-                        {
-                            // detalle del log
-                            string detalle = "Se elimino de vedesextraprof el Desc por Deposito de: " + doc_cbza_depo + " Monto:" + reg.montodoc + " (" + reg.codmoneda + ") de Prof: " + reg.idpf + "-" + reg.nroidpf;
-                            string cliente = reg.codcliente_real;
-
-                            // registrar el log de eliminacion
-
-
+                            // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                            // verificar si hay otras proformas (aparte de la prof de la cual se quiere borrar su desc por deposito) que tienen descuento por deposito con la misma cobza-deposito
+                            // si hay otras proformas no se puede borrar ya que que si se borra
+                            // las otras proformas que estan con descto por deposito con la misma cbza
+                            // se quedaran sin padre, solo se borrar cuando la proforma de la cual se quiere borrar el des por deposito sea la unica que tiene
+                            // descto por deposito con la cbza en cuestion
+                            // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                            // inicializar como no borrar
+                            bool borrar_cabecera = false;
+                            var dt_proformas_con_desc_deposito = await _context.vedesextraprof
+                                .Where(i => i.codproforma != reg.codproforma && i.codcobranza == reg.codcobranza).ToListAsync();
+                            if (dt_proformas_con_desc_deposito.Count() > 0)
+                            {
+                                // si hay 1 o mas entonces no se borrar la cabecera de: cocobranza_deposito
+                                borrar_cabecera = false;
+                            }
+                            else
+                            {
+                                borrar_cabecera = true;
+                            }
+                            // verificar si es cobranza, cobranza_contado o anticipo
+                            int affectedRows = 0;
                             if (reg.codcobranza > 0)
                             {
-
+                                doc_cbza_depo = "(" + reg.idcbza + "-" + reg.nroidcbza + ") (" + reg.iddeposito + "-" + reg.numeroiddeposito + ")";
+                                var itemDelete = await _context.vedesextraprof
+                                    .Where(i => i.coddesextra == 23 && i.codproforma == reg.codproforma && i.codcobranza == reg.codcobranza).ToListAsync();
+                                _context.vedesextraprof.RemoveRange(itemDelete);
+                                affectedRows = await _context.SaveChangesAsync();
+                            }
+                            if (reg.codanticipo > 0)
+                            {
+                                doc_cbza_depo = "(" + reg.idanticipo + "-" + reg.nroidanticipo + ") (" + reg.iddeposito + "-" + reg.numeroiddeposito + ")";
+                                var itemDelete = await _context.vedesextraprof
+                                    .Where(i => i.coddesextra == 23 && i.codproforma == reg.codproforma && i.codanticipo == reg.codanticipo).ToListAsync();
+                                _context.vedesextraprof.RemoveRange(itemDelete);
+                                affectedRows = await _context.SaveChangesAsync();
+                            }
+                            if (reg.codcobranza_contado > 0)
+                            {
+                                doc_cbza_depo = "(" + reg.idcbza_contado + "-" + reg.nroidcbza_contado + ") (" + reg.iddeposito + "-" + reg.numeroiddeposito + ")";
+                                var itemDelete = await _context.vedesextraprof
+                                    .Where(i => i.coddesextra == 23 && i.codproforma == reg.codproforma && i.codcobranza_contado == reg.codcobranza_contado).ToListAsync();
+                                _context.vedesextraprof.RemoveRange(itemDelete);
+                                affectedRows = await _context.SaveChangesAsync();
                             }
 
+                            // eliminar la asignacion del descto por deposito de la proforma en: vedesextraprof
+                            if (affectedRows > 0)
+                            {
+                                // detalle del log
+                                string detalle = "Se elimino de vedesextraprof el Desc por Deposito de: " + doc_cbza_depo + " Monto:" + reg.montodoc + " (" + reg.codmoneda + ") de Prof: " + reg.idpf + "-" + reg.nroidpf;
+                                string cliente = reg.codcliente_real;
+
+                                // registrar el log de eliminacion
+                                await log.RegistrarEvento(_context, usuarioreg, Log.Entidades.Proforma, cliente, reg.idpf, reg.nroidpf.ToString(), nomb_ventana, detalle, Log.TipoLog.Eliminacion);
+                                // eliminar de cocobranza_deposito
+                                // si y solo siiii se puede borrar la cabecera
+                                if (borrar_cabecera)
+                                {
+                                    int affectedRows2 = 0;
+                                    if (reg.codcobranza > 0)
+                                    {
+                                        var itemDelete = await _context.cocobranza_deposito
+                                            .Where(i => i.montodescto == (decimal)reg.montodoc && i.codproforma == reg.codproforma && i.codcobranza == reg.codcobranza)
+                                            .ToListAsync();
+                                        _context.cocobranza_deposito.RemoveRange(itemDelete);
+                                        affectedRows2 = await _context.SaveChangesAsync();
+                                    }
+                                    if (reg.codanticipo > 0)
+                                    {
+                                        var itemDelete = await _context.cocobranza_deposito
+                                            .Where(i => i.montodescto == (decimal)reg.montodoc && i.codproforma == reg.codproforma && i.codanticipo == reg.codanticipo)
+                                            .ToListAsync();
+                                        _context.cocobranza_deposito.RemoveRange(itemDelete);
+                                        affectedRows2 = await _context.SaveChangesAsync();
+                                    }
+                                    if (reg.codcobranza_contado > 0)
+                                    {
+                                        var itemDelete = await _context.cocobranza_deposito
+                                            .Where(i => i.montodescto == (decimal)reg.montodoc && i.codproforma == reg.codproforma && i.codcobranza_contado == reg.codcobranza_contado)
+                                            .ToListAsync();
+                                        _context.cocobranza_deposito.RemoveRange(itemDelete);
+                                        affectedRows2 = await _context.SaveChangesAsync();
+                                    }
+                                    if (affectedRows2 > 0)
+                                    {
+                                        detalle = "Se elimino de cocobranza_deposito el Desc por Deposito de: " + doc_cbza_depo + " Monto:" + reg.montodoc + " (" + reg.codmoneda + ") de Prof: " + reg.idpf + "-" + reg.nroidpf;
+                                        await log.RegistrarEvento(_context, usuarioreg, Log.Entidades.Proforma, cliente, reg.idpf, reg.nroidpf.ToString(), nomb_ventana, detalle, Log.TipoLog.Eliminacion);
+                                    }
+                                }
+                                else
+                                {
+                                    detalle = "Atencion!!! No Se elimino(hay otras proformas) de cocobranza_deposito el Desc por Deposito de: " + doc_cbza_depo + " Monto:" + reg.montodoc + " (" + reg.codmoneda + ") de Prof: " + reg.idpf + "-" + reg.nroidpf;
+                                    await log.RegistrarEvento(_context, usuarioreg, Log.Entidades.Proforma, cliente, reg.idpf, reg.nroidpf.ToString(), nomb_ventana, detalle, Log.TipoLog.Eliminacion);
+                                }
+                            }
                         }
                     }
+                    dbContexTransaction.Commit();
+                    return true;
                 }
-            }
-            catch (Exception)
-            {
-
-                throw;
+                catch (Exception)
+                {
+                    dbContexTransaction.Rollback();
+                    return false;
+                }
             }
         }
 
