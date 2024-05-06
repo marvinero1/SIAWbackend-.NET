@@ -6385,14 +6385,14 @@ namespace siaw_funciones
             {//validar el empaque del precio
                 if (await ventas.Cumple_Empaque_De_DesctoEspecial(_context, detalle.coditem, detalle.codtarifa, detalle.coddescuento, (decimal)detalle.cantidad, codcliente))
                 {
-                    detalle.cumple = true;
+                    detalle.cumpleMin = true;
                 }
                 else
                 {
                     if (quitar_descuento)
                     {
                         resultado = false;
-                        detalle.cumple = false;
+                        detalle.cumpleMin = false;
                         detalle.coddescuento = 0;
                     }
                     else

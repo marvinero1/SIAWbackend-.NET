@@ -515,5 +515,14 @@ namespace siaw_funciones
 
             return (int)result;
         }
+        public async Task<bool> emp_proforma_reserva(DBContext _context, string empresa)
+        {
+            var result = await _context.adparametros
+                .Where(i => i.codempresa == empresa)
+                .Select(parametro => parametro.proforma_reserva)
+                .FirstOrDefaultAsync() ?? false;
+
+            return result;
+        }
     }
 }

@@ -2975,6 +2975,14 @@ namespace siaw_funciones
             return resultado;
         }
 
+        public async Task<bool> aplicarstocksproforma(DBContext _context, int codigo, string codempresa)
+        {
+
+
+            return true;
+        }
+
+
     }
 
 

@@ -1414,8 +1414,8 @@ namespace SIAW.Controllers.ventas.transaccion
                         porcendesc = (double)porcentajedesc,
                         preciodesc = (double)preciodesc,
                         precioneto = (double)precioneto,
-                        total = (double)total
-
+                        total = (double)total,
+                        cumpleMin = reg.cumpleMin
                     })
                     .FirstOrDefaultAsync();
 
@@ -3896,7 +3896,8 @@ namespace SIAW.Controllers.ventas.transaccion
                             codalmacen = codalmacen,
                             desc_linea_seg_solicitud = desc_linea_seg_solicitud,
                             codmoneda = codmoneda,
-                            fecha = fecha
+                            fecha = fecha,
+                            cumpleMin = i.cumpleMin
                         }).ToList();
 
                 var tablaDetalleNew = await calculoPreciosMatriz(_context, codempresa, usuario, userConnectionString, data);
@@ -4000,6 +4001,7 @@ namespace SIAW.Controllers.ventas.transaccion
         public string desc_linea_seg_solicitud { get; set; }
         public string codmoneda { get; set; }
         public DateTime fecha { get; set; }
+        public bool cumpleMin { get; set; } = true;
     }
     public class getTarifaPrincipal_Rodrigo
     {
