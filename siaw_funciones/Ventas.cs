@@ -40,6 +40,7 @@ namespace siaw_funciones
         private readonly Nombres nombres = new Nombres();
         private readonly Empresa empresa = new Empresa();
         private readonly SIAT siat = new SIAT();
+        private readonly Items items = new Items();
         //private readonly IDepositosCliente depositos_cliente;
 
         private const int CODDESEXTRA_PROMOCION = 10;
@@ -2977,7 +2978,70 @@ namespace siaw_funciones
 
         public async Task<bool> aplicarstocksproforma(DBContext _context, int codigo, string codempresa)
         {
-
+            bool resultado = true;
+            if (await configuracion.emp_proforma_reserva(_context,codempresa))
+            {
+                int codalmacen = 0;
+                var codAlmProf = await _context.veproforma.Where(i => i.codigo == codigo).FirstOrDefaultAsync();
+                if (codAlmProf != null)
+                {
+                    codalmacen = codAlmProf.codalmacen;
+                }
+                else
+                {
+                    resultado = false;
+                }
+                List<veproforma1> tabla = new List<veproforma1>();
+                if (resultado)
+                {
+                    tabla = await _context.veproforma1.Where(i=>i.codproforma==codigo).ToListAsync();
+                    if (tabla.Count() == 0)
+                    {
+                        resultado = false;
+                    }
+                }
+                if (resultado)
+                {
+                    //////////////
+                    var proNull = await _context.instoactual.Where(i => i.proformas == null).ToListAsync();
+                    if (proNull.Count > 0)
+                    {
+                        foreach (var reg in proNull)
+                        {
+                            reg.proformas = 0;
+                            _context.Entry(proNull).State = EntityState.Modified;
+                            await _context.SaveChangesAsync();
+                        }
+                    }
+                    foreach (var reg in tabla)
+                    {
+                        if (await items.itemesconjunto(_context,reg.coditem))
+                        {
+                            var tablakit = await _context.inkit.Where(i=>i.codigo== reg.coditem)
+                                .Select(i => new
+                                {
+                                    item = i.item,
+                                    cantidad = i.cantidad
+                                })
+                                .ToListAsync();
+                            foreach (var j in tablakit)
+                            {
+                                var instoactualUpdate = await _context.instoactual.Where(i => i.codalmacen == codalmacen && i.coditem == j.item).FirstOrDefaultAsync();
+                                instoactualUpdate.proformas = instoactualUpdate.proformas + (reg.cantaut * j.cantidad);
+                                _context.Entry(instoactualUpdate).State = EntityState.Modified;
+                                await _context.SaveChangesAsync();
+                            }
+                        }
+                        else
+                        {
+                            var instoactualUpdate = await _context.instoactual.Where(i => i.codalmacen == codalmacen && i.coditem == reg.coditem).FirstOrDefaultAsync();
+                            instoactualUpdate.proformas = instoactualUpdate.proformas + reg.cantaut;
+                            _context.Entry(instoactualUpdate).State = EntityState.Modified;
+                            await _context.SaveChangesAsync();
+                        }
+                    }
+                }
+            }
 
             return true;
         }

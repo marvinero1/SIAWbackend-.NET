@@ -2220,7 +2220,15 @@ namespace siaw_funciones
             return result;
         }
 
-
+        public async Task<int> Vendedor_de_cliente(DBContext _context, string codcliente)
+        {
+            var resultado = await _context.vecliente.Where(i => i.codigo == codcliente).FirstOrDefaultAsync();
+            if (resultado != null)
+            {
+                return resultado.codvendedor;
+            }
+            return 0;
+        }
         private static bool IsNumeric(string input)
         {
             return int.TryParse(input, out _);

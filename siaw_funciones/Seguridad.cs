@@ -217,5 +217,29 @@ namespace siaw_funciones
             }
         }
 
+        public async Task<bool> autorizado_vendedores(DBContext _context, string usuario, int codvendedor_desde, int codvendedor_hasta)
+        {
+            bool resultado = false;
+            int codpersona = await _context.adusuario.Where(u => u.login == usuario).Select(u => u.persona).FirstOrDefaultAsync();
+            var tabla = await _context.vevendedor
+            .Where(v => v.comisionista == true && v.codpersona == codpersona)
+            .ToListAsync();
+            if (tabla.Count > 0)
+            {
+                foreach (var reg in tabla)
+                {
+                    var vendedor = reg.codigo;
+                    if (vendedor == codvendedor_desde && vendedor == codvendedor_hasta)
+                    {
+                        resultado = true; break;
+                    }
+                }
+            }
+            else
+            {
+                resultado = true;
+            }
+            return resultado;
+        }
     }
 }

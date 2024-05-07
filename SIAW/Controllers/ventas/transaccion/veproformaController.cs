@@ -54,6 +54,7 @@ namespace SIAW.Controllers.ventas.transaccion
         private readonly siaw_funciones.Creditos creditos = new siaw_funciones.Creditos();
         private readonly siaw_funciones.Cobranzas cobranzas = new siaw_funciones.Cobranzas();
         private readonly siaw_funciones.Nombres nombres = new siaw_funciones.Nombres();
+        private readonly siaw_funciones.Seguridad seguridad = new siaw_funciones.Seguridad();
 
         private readonly siaw_funciones.Funciones funciones = new Funciones();
         public veproformaController(UserConnectionManager userConnectionManager)
@@ -3963,7 +3964,207 @@ namespace SIAW.Controllers.ventas.transaccion
             return ("No se tiene items en la tabla detalle, verifique esta stuación.", null,tabladetalle);
         }
 
+        // boton de ultimas proformas
+        [HttpGet]
+        [Route("ultimasProformas/{userConn}/{codcliente_real}/{codcliente}/{usuario}")]
+        public async Task<ActionResult<List<object>>> ultimasProformas(string userConn, string codcliente_real, string codcliente, string usuario)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    if (codcliente_real.Trim() == "")
+                    {
+                        return BadRequest(new { resp = "No se ingreso codigo de cliente Real." });
+                    }
+                    if (await seguridad.autorizado_vendedores(_context, usuario, await cliente.Vendedor_de_cliente(_context,codcliente), await cliente.Vendedor_de_cliente(_context, codcliente)))
+                    {
+                        ////////////////////////////////////////////////////////////////////
+                        // PROFORMAS NO APAPROBADAS NO ANULADAS
+                        ////////////////////////////////////////////////////////////////////
+                        //solo tomar  las ultimas 10 proformas
 
+                        var dt_last_pf = await _context.veproforma
+                            .Where(p => p.anulada == false && p.codcliente_real == codcliente_real)
+                            .OrderByDescending(p => p.fecha)
+                            .Select(p => new {
+                                p.codigo,
+                                p.id,
+                                p.numeroid,
+                                p.codcliente,
+                                p.codcliente_real,
+                                p.nomcliente,
+                                p.nit,
+                                p.fecha,
+                                p.total,
+                                p.codmoneda,
+                                p.aprobada,
+                                p.transferida,
+                                p.usuarioreg,
+                                p.fechareg,
+                                p.horareg
+                            })
+                            .Take(10)
+                            .ToListAsync();
+                        return Ok(dt_last_pf);
+                    }
+                    return BadRequest(new { resp = "No autorizado para ver esta información." });
+                }
+
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+            
+        }
+
+        [HttpGet]
+        [Route("cargarPFVtaDias/{userConn}/{coditem}/{codempresa}/{codcliente_real}/{diascontrol}")]
+        public async Task<ActionResult<List<object>>> Cargar_PF_Vta_Dias(string userConn, string coditem, string codempresa, string codcliente_real, int diascontrol)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    DateTime fecha_serv = DateTime.Today;
+                    string valida_nr_pf = await configuracion.Valida_Maxvta_NR_PF(_context, codempresa);
+                    if (coditem.Trim() == "")
+                    {
+                        return BadRequest(new { resp = "Debe seleccionar un item." });
+                    }
+                    /*
+                    if (valida_nr_pf == "PF")
+                    {
+                        var dt_items_vta_dias = await _context.veproforma
+                            .Join(_context.veproforma1,
+                                c => c.codigo,
+                                d => d.codproforma,
+                                (c, d) => new { c, d })
+                            .Where(joined => joined.c.anulada == false && joined.c.codcliente_real == codcliente_real &&
+                                joined.c.aprobada == true && joined.c.fecha >= fecha_serv.AddDays(-diascontrol) && joined.c.fecha <= fecha_serv &&
+                                joined.d.coditem == coditem)
+                            .Select(joined => new
+                            {
+                                joined.c.codigo,
+                                joined.c.id,
+                                joined.c.numeroid,
+                                joined.c.codcliente,
+                                joined.c.codcliente_real,
+                                joined.c.nomcliente,
+
+                                joined.c.nit,
+                                joined.c.fecha,
+                                joined.c.total,
+                                joined.d.coditem,
+                                joined.d.cantidad,
+                                joined.c.codmoneda,
+
+                                joined.c.aprobada,
+                                joined.c.transferida
+                            })
+                            .OrderBy(result => result.fecha)
+                            .ToListAsync();
+                    }
+                    else */
+                    if(valida_nr_pf == "NR")
+                    {
+                        var dt_items_vta_dias = await _context.veremision
+                            .Join(_context.veremision1,
+                                c => c.codigo,
+                                d => d.codremision,
+                                (c, d) => new { c, d })
+                            .Where(joined => joined.c.anulada == false && joined.c.codcliente_real == codcliente_real &&
+                                joined.c.transferida == true && joined.c.fecha >= fecha_serv.AddDays(-diascontrol) && joined.c.fecha <= fecha_serv &&
+                                joined.d.coditem == coditem)
+                            .Select(joined => new
+                            {
+                                joined.c.codigo,
+                                joined.c.id,
+                                joined.c.numeroid,
+                                joined.c.codcliente,
+                                joined.c.codcliente_real,
+                                joined.c.nomcliente,
+
+                                joined.c.nit,
+                                joined.c.fecha,
+                                joined.c.total,
+                                joined.d.coditem,
+                                joined.d.cantidad,
+                                joined.c.codmoneda,
+
+                                aprobada = joined.c.transferida,
+                                joined.c.transferida
+                            })
+                            .OrderBy(result => result.fecha)
+                            .ToListAsync();
+                        return Ok(dt_items_vta_dias);
+                    }
+                    else
+                    {
+                        var dt_items_vta_dias = await _context.veproforma
+                            .Join(_context.veproforma1,
+                                c => c.codigo,
+                                d => d.codproforma,
+                                (c, d) => new { c, d })
+                            .Where(joined => joined.c.anulada == false && joined.c.codcliente_real == codcliente_real &&
+                                joined.c.aprobada == true && joined.c.fecha >= fecha_serv.AddDays(-diascontrol) && joined.c.fecha <= fecha_serv &&
+                                joined.d.coditem == coditem)
+                            .Select(joined => new
+                            {
+                                joined.c.codigo,
+                                joined.c.id,
+                                joined.c.numeroid,
+                                joined.c.codcliente,
+                                joined.c.codcliente_real,
+                                joined.c.nomcliente,
+
+                                joined.c.nit,
+                                joined.c.fecha,
+                                joined.c.total,
+                                joined.d.coditem,
+                                joined.d.cantidad,
+                                joined.c.codmoneda,
+
+                                joined.c.aprobada,
+                                joined.c.transferida
+                            })
+                            .OrderBy(result => result.fecha)
+                            .ToListAsync();
+                        return Ok(dt_items_vta_dias);
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+        }
+
+        [HttpGet]
+        [Route("getDiasControl/{userConn}/{codempresa}")]
+        public async Task<ActionResult<List<object>>> getDiasControl(string userConn, string codempresa)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var diascontrol = await configuracion.Dias_Proforma_Vta_Item_Cliente(_context, codempresa);
+                    return Ok(new { diascontrol  = diascontrol });
+                }
+
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+        }
 
 
     }
