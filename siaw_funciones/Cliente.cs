@@ -169,7 +169,7 @@ namespace siaw_funciones
             try
             {
                 // Cantidad vendida con el código de ese item
-                decimal cant_item = (decimal)(_context.veproforma1
+                decimal cant_item = (decimal)(await _context.veproforma1
                 .Join(_context.veproforma,
                     detalle => detalle.codproforma,
                     proforma => proforma.codigo,
@@ -178,9 +178,9 @@ namespace siaw_funciones
                     !joinResult.Proforma.anulada == false &&
                     joinResult.Proforma.codcliente_real == codcliente &&
                     joinResult.Proforma.aprobada == true &&
-                    joinResult.Proforma.fecha >= desde && joinResult.Proforma.fecha <= hasta &&
+                    joinResult.Proforma.fecha >= desde.Date && joinResult.Proforma.fecha <= hasta.Date &&
                     joinResult.Detalle.coditem == coditem)
-                .Sum(joinResult => (double?)joinResult.Detalle.cantidad) ?? 0);
+                .SumAsync(joinResult => (double?)joinResult.Detalle.cantidad) ?? 0);
                 resultado = cant_item; // + cant_partes + cant_conj;
                 return resultado;
             }
@@ -197,7 +197,7 @@ namespace siaw_funciones
             try
             {
                 // Cantidad vendida con el código de ese item
-                decimal cant_item = (decimal)(_context.veremision1
+                decimal cant_item = (decimal)(await _context.veremision1
                 .Join(_context.veremision,
                     detalle => detalle.codremision,
                     remision => remision.codigo,
@@ -207,9 +207,9 @@ namespace siaw_funciones
                     joinResult.Remision.codcliente_real == codcliente &&
                     joinResult.Remision.anulada == false &&
                     joinResult.Remision.transferida == true &&
-                    joinResult.Remision.fecha >= desde && joinResult.Remision.fecha <= hasta &&
+                    joinResult.Remision.fecha >= desde.Date && joinResult.Remision.fecha <= hasta.Date &&
                     joinResult.Detalle.coditem == coditem)
-                .Sum(joinResult => (double?)joinResult.Detalle.cantidad) ?? 0);
+                .SumAsync(joinResult => (double?)joinResult.Detalle.cantidad) ?? 0);
                 resultado = cant_item; // + cant_partes + cant_conj;
                 return resultado;
             }
@@ -2023,7 +2023,7 @@ namespace siaw_funciones
             {
                 //Cantidad vendida con código de ese item
                 var total = await _context.vefactura
-                .Where(c => !c.anulada && c.codcliente == codcliente && c.fecha >= desde && c.fecha <= hasta)
+                .Where(c => !c.anulada && c.codcliente == codcliente && c.fecha >= desde.Date && c.fecha <= hasta.Date)
                 .Join(_context.vefactura1,
                       c => c.codigo,
                       d => d.codfactura,
@@ -2103,7 +2103,7 @@ namespace siaw_funciones
             {
                 //Cantidad vendida con código de ese item
                 var total = await _context.vefactura
-                .Where(c => !c.anulada && c.codcliente == codcliente && c.fecha >= desde.Date && c.fecha <= hasta)
+                .Where(c => !c.anulada && c.codcliente == codcliente && c.fecha >= desde.Date && c.fecha <= hasta.Date)
                 .Join(_context.vefactura1,
                       c => c.codigo,
                       d => d.codfactura,
@@ -2161,7 +2161,7 @@ namespace siaw_funciones
             {
                 //Cantidad vendida con código de ese item
                 var total = await _context.vefactura
-                .Where(c => !c.anulada && c.codcliente == codcliente && c.fecha >= desde.Date && c.fecha <= hasta)
+                .Where(c => !c.anulada && c.codcliente == codcliente && c.fecha >= desde.Date && c.fecha <= hasta.Date)
                 .Join(_context.vefactura1,
                       c => c.codigo,
                       d => d.codfactura,
@@ -2219,6 +2219,79 @@ namespace siaw_funciones
             }
             return result;
         }
+
+        public async Task<(bool,string)> Actualizar_Credito_Sucursales_Nacional(DBContext _context, string cliente_principal_local, string codmoneda, double Credito_Actual, double Saldo_Local, double Saldo_Demas_Agencias)
+        {
+            string _codigo_Principal = await CodigoPrincipal(_context, cliente_principal_local);
+            if (await Cliente_Tiene_Sucursal_Nacional(_context, cliente_principal_local))
+            {
+                // si el cliente es parte de una agrupacion cial a nivel nacional entre agencias de Pertec a nivel nacional
+                string casa_matriz_Nacional = await CodigoPrincipal_Nacional(_context, cliente_principal_local);
+                var dt_sucursales = await _context.veclientesiguales_nacion
+                    .Where(i => i.codcliente_a == casa_matriz_Nacional && i.codcliente_a != i.codcliente_b)
+                    .Select(i => new
+                    {
+                        i.codcliente_a,
+                        i.codcliente_b,
+                        i.codalmacen_a,
+                        i.codalmacen_b,
+                        saldo = 0.0
+                    }).ToListAsync();
+                foreach (var reg in dt_sucursales)
+                {
+                    if (await almacen_de_cliente(_context, cliente_principal_local) == reg.codalmacen_b)
+                    {
+                        // si es el el almacen local no es necesario actualizar
+                    }
+                    else
+                    {
+                        // buscar los datos de conexion de la sucursal
+                        var dt_conexion = await _context.ad_conexion_vpn
+                            .Where(c => c.agencia.StartsWith("credito") && c.codalmacen == reg.codalmacen_b)
+                            .FirstOrDefaultAsync();
+                        if (dt_conexion == null)
+                        {
+                            return (false, "No se encontro la configuracion de conexion para la sucursal!!!");
+                        }
+                        // alistar la cadena de conexion para conectar a la ag
+                        string cadConection = seguridad.Getad_conexion_vpnFromDatabase(dt_conexion.contrasena_sql, dt_conexion.servidor_sql, dt_conexion.usuario_sql, dt_conexion.bd_sql);
+                        using (var _contextVPN = DbContextFactory.Create(cadConection))
+                        {
+                            _codigo_Principal = await CodigoPrincipal(_contextVPN, reg.codcliente_b);
+                            // Solo considerarlo el principal si Tiene el mismo NIT, caso contrario usar solo el codigo individual de cliente
+                            string cliente_principal = "";
+                            string _CodigosIguales = "";
+                            if (await NIT(_contextVPN,_codigo_Principal) == await NIT(_contextVPN,reg.codcliente_b))
+                            {
+                                cliente_principal = _codigo_Principal;
+                                _CodigosIguales = await CodigosIgualesMismoNIT(_contextVPN,reg.codcliente_b); // <------solo los de mismo NIT
+                            }
+                            else
+                            {
+                                cliente_principal = reg.codcliente_b;
+                                _CodigosIguales = "'" + reg.codcliente_b + "'";
+                            }
+
+                            // obtener el saldo pendiente de pago de todo el grupo cial
+                            double credito_dispo_ags = (Credito_Actual - (Saldo_Local + Saldo_Demas_Agencias));
+                            try
+                            {
+
+                            }
+                            catch (Exception)
+                            {
+                                return (false, "Ocurrio un error al actualizar el saldo de sucursales en otras agencias!!!");
+                            }
+
+                        }
+
+
+                    }
+                }
+            }
+        }
+
+
 
         public async Task<int> Vendedor_de_cliente(DBContext _context, string codcliente)
         {

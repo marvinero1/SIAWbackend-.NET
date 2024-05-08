@@ -4165,6 +4165,32 @@ namespace SIAW.Controllers.ventas.transaccion
                 throw;
             }
         }
+        
+
+        [HttpPost]
+        [Route("recuperarPfComplemento/{userConn}/{idpf_complemento}")]
+        public async Task<ActionResult<List<object>>> recuperar_pfcomplemento(string userConn, string idpf_complemento, int nroidpf_complemento, int cmbtipo_complementopf)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    ResultadoValidacion objres = new ResultadoValidacion();
+                    // if cmbtipo_complementopf.SelectedIndex = 0
+                    if (cmbtipo_complementopf == 0)
+                    {
+                        // validar complementar DIMEDIDADO CON MAYORISTA
+                        objres = await validar_Vta.Validar_Enlace_Proforma_Mayorista_Dimediado();
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+        }
 
 
     }

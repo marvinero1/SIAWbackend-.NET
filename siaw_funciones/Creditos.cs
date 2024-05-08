@@ -103,7 +103,7 @@ namespace siaw_funciones
                 CodigosIguales = "'" + codcliente + "'";
             }
             //actualizar el credito (falta implementar)
-            //await Actualizar_Credito_2023(codcliente, usuario, codempresa, false);
+            await Actualizar_Credito_2023(_context,codcliente, usuario, codempresa, false);
 
             //sacar su credito disponible
             decimal cred_actual = await _context.vecliente.Where(i=> i.codigo == codcliente).Select(i=> i.credito).FirstOrDefaultAsync()??0;
@@ -414,13 +414,197 @@ namespace siaw_funciones
 
 
 
-        public async Task<bool> Actualizar_Credito_2023(string codcliente, string usuario, string codempresa, bool arreglar)
+        public async Task<(bool,string)> Actualizar_Credito_2023(DBContext _context, string codcliente, string usuario, string codempresa, bool arreglar)
         {
             if (arreglar)
             {
                 //arreglar datos posiblemente arroneos
+                var query = await _context.coplancuotas
+                    .Where(cuota => cuota.montopagado < cuota.monto &&
+                    cuota.codtipodoc == 4 &&
+                    !_context.veremision.Any(v => v.codigo == cuota.coddocumento)).ToListAsync();
+
+                _context.coplancuotas.RemoveRange(query);
+                await _context.SaveChangesAsync();
+
+                var cuotasToUpdate = _context.coplancuotas
+                    .Where(cuota => cuota.montopagado > cuota.monto);
+
+                foreach (var cuota in cuotasToUpdate)
+                {
+                    cuota.montopagado = cuota.monto;
+                }
+
+                await _context.SaveChangesAsync();
+            }
+
+            string codigoPrincipal_local = await cliente.CodigoPrincipal(_context, codcliente);
+            string cliente_principal_local = "";
+            string CodigosIguales_local = "";
+
+            // Solo considerarlo el principal si Tiene el mismo NIT, caso contrario usar solo el codigo individual de cliente
+            if (await cliente.NIT(_context, codigoPrincipal_local) == await cliente.NIT(_context, codcliente))
+            {
+                cliente_principal_local = codigoPrincipal_local;
+                CodigosIguales_local = await cliente.CodigosIgualesMismoNIT(_context, codcliente);  // <------solo los de mismo NIT
+            }
+            else
+            {
+                cliente_principal_local = codcliente;
+                CodigosIguales_local = "'" + codcliente + "'";
+            }
+
+            // obtener el credito de el codigo principal
+            bool actualizar_sucursales_nal = false;
+            double credito_principal = 0;
+
+            // solo si tiene sucursar nacional obtener el credito de la casa matriz
+            if (await cliente.Cliente_Tiene_Sucursal_Nacional(_context, cliente_principal_local))
+            {
+                string casa_matriz_Nacional = await cliente.CodigoPrincipal_Nacional(_context, cliente_principal_local);
+                int ag_matriz_nacional = await cliente.Almacen_Casa_Matriz_Nacional(_context, casa_matriz_Nacional);
+                if (ag_matriz_nacional == await cliente.almacen_de_cliente(_context,cliente_principal_local))
+                {
+                    // busca en el credito en la conexion local
+                    credito_principal = await credito(_context,cliente_principal_local);
+                    // credito_principal = sia_funciones.Creditos.Instancia.Credito_Fijo_Asignado_Vigente(cliente_principal_local)
+                }
+                else
+                {
+                    // buscara el credito en la agencia donde esta la casa martriz
+                    credito_principal = await Obtener_Credito_Casa_Matriz(_context, codigoPrincipal_local, "US");
+                    // credito_principal = sia_funciones.Creditos.Instancia.Obtener_Credito_Casa_Matriz_2023(codigoPrincipal_local, "US")
+                }
+                actualizar_sucursales_nal = true;
+            }
+            else
+            {
+                // busca en el credito en la conexion local
+                credito_principal = await credito(_context, cliente_principal_local);
+                // credito_principal = sia_funciones.Creditos.Instancia.Credito_Fijo_Asignado_Vigente(cliente_principal_local)
+                actualizar_sucursales_nal = false;
+            }
+
+            // poner el credito del principal a todos
+            try
+            {
+                var clientesToUpdate = await _context.vecliente
+                .Where(cliente => CodigosIguales_local.Contains(cliente.codigo)).ToListAsync();
+
+                foreach (var cliente in clientesToUpdate)
+                {
+                    cliente.credito = (decimal?)credito_principal;
+                    cliente.creditodisp = (decimal?)0.0;
+                }
+
+                _context.SaveChanges();
 
             }
+            catch (Exception)
+            {
+                return (false, "Ocurrio un error al actualizar el credito disponible de los clientes: " + CodigosIguales_local + "Alerta!!!");
+            }
+
+            // Ir descontando deudas
+            string monedacliente = await cliente.monedacliente(_context, cliente_principal_local, usuario, codempresa);
+            string monedaext = await empresa.monedaext(_context, codempresa);
+            string monedabase = await empresa.monedabase(_context, codempresa);
+            string moneda_credito = await Credito_Fijo_Asignado_Vigente_Moneda(_context, cliente_principal_local);
+
+            // actualizar el credito disponible localmente
+
+            ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////7
+            // BUSCA EL SALDO LOCAL en la moneda del clientes
+            // obtener el saldo pendiente de pago de todo el grupo cial
+            var saldo_local_bs = await _context.coplancuotas
+                                        .Join(_context.veremision,
+                                            p1 => p1.coddocumento,
+                                            p2 => p2.codigo,
+                                            (p1, p2) => new { p1, p2 })
+                                        .Where(joined => CodigosIguales_local.Contains(joined.p1.cliente)
+                                                        && joined.p1.moneda == monedabase
+                                                        && joined.p2.anulada == false)
+                                        .Select(joined => joined.p1.monto - joined.p1.montopagado)
+                                        .DefaultIfEmpty(0)
+                                        .SumAsync() ?? 0;
+
+            ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////7
+            // BUSCA EL SALDO LOCAL en SUS
+            // obtener el saldo pendiente de pago de todo el grupo cial
+            var saldo_local_us = await _context.coplancuotas
+                                        .Join(_context.veremision,
+                                            p1 => p1.coddocumento,
+                                            p2 => p2.codigo,
+                                            (p1, p2) => new { p1, p2 })
+                                        .Where(joined => CodigosIguales_local.Contains(joined.p1.cliente)
+                                                        && joined.p1.moneda == monedaext
+                                                        && joined.p2.anulada == false)
+                                        .Select(joined => joined.p1.monto - joined.p1.montopagado)
+                                        .DefaultIfEmpty(0)
+                                        .SumAsync() ?? 0;
+
+            // busca el SALDO NACIONAL si tiene sucursales en otras agencia
+            // implementado el 09-05-2020
+            var _result_saldo_x_pagar_nal_bs = await cliente.Cliente_Saldo_Pendiente_Nacional(_context, cliente_principal_local, monedabase);
+            double saldo_x_pagar_nal_bs = _result_saldo_x_pagar_nal_bs.resp;
+
+            var _result_saldo_x_pagar_nal_us = await cliente.Cliente_Saldo_Pendiente_Nacional(_context, cliente_principal_local, monedaext);
+            double saldo_x_pagar_nal_us = _result_saldo_x_pagar_nal_us.resp;
+
+            try
+            {
+                if (moneda_credito == "US")
+                {
+                    // si el credito es en US se debe convertir los saldos de BS a US y sumar el saldo de US
+                    double saldo_local_de_bs_a_us = (double)await tipocambio._conversion(_context, monedaext, monedabase, DateTime.Now.Date, saldo_local_bs);
+                    // 1ro.- actualizar el saldo descontando las deudas locales y de las otras agencias
+                    var clientes = await _context.vecliente
+                        .Where(c => CodigosIguales_local.Contains(c.codigo))
+                        .ToListAsync();
+
+                    foreach (var cliente in clientes)
+                    {
+                        cliente.creditodisp = (decimal?)((double?)cliente.credito - ((double)saldo_local_us + saldo_x_pagar_nal_us + saldo_local_de_bs_a_us));
+                    }
+
+                    _context.SaveChanges();
+
+                }
+                else
+                {
+                    // si el credito es en BS se debe convertir los saldos de US a BS y sumar el saldo de BS
+                    double saldo_local_de_us_a_bs = (double)await tipocambio._conversion(_context, monedabase, monedaext, DateTime.Now.Date, saldo_local_us);
+                    var clientes = await _context.vecliente
+                        .Where(c => CodigosIguales_local.Contains(c.codigo))
+                        .ToListAsync();
+
+                    foreach (var cliente in clientes)
+                    {
+                        cliente.creditodisp = (decimal?)((double?)cliente.credito - ((double)saldo_local_bs + saldo_x_pagar_nal_bs + saldo_local_de_us_a_bs));
+                    }
+
+                    _context.SaveChanges();
+                }
+            }
+            catch (Exception)
+            {
+                return (false, "Ocurrio un error al actualizar el credito disponible de los clientes: " + CodigosIguales_local + "Alerta!!!");
+            }
+
+            // 2do.- Actualizar el saldo en las sucursales
+            if (actualizar_sucursales_nal)
+            {
+                if (moneda_credito == "US")
+                {
+                    await cliente.Actualizar_Credito_Sucursales_Nacional
+                }
+                else
+                {
+
+                }
+            }
+
+
             return true;
         }
 

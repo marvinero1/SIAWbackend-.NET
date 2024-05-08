@@ -3157,7 +3157,7 @@ namespace siaw_funciones
             }
             return objres;
         }
-        
+
         public async Task<(ResultadoValidacion resultadoValidacion, List<Dtnocumplen> dtnocumplen)> Validar_Limite_Maximo_de_Venta(DBContext _context, List<itemDataMatriz> tabladetalle, DatosDocVta DVTA, List<Dtnocumplen> dtnocumplen, string codempresa, string usuario)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
@@ -3228,19 +3228,20 @@ namespace siaw_funciones
                 decimal cantidad_ttl_vendida_pf_actual = 0;
                 decimal cantidad_ttl_vendida_pf_total = 0;
                 cantidad_ttl_vendida_pf_actual = (decimal)detalle.cantidad;
+                DateTime fecha_serv = await funciones.FechaDelServidor(_context);
                 if (diascontrol > 0 && detalle.cantidad > 0)
                 {
                     if (valida_nr_pf == "PF")
                     {
-                        cantidad_ttl_vendida_pf = await cliente.CantidadVendida_PF(_context, Convert.ToString(detalle.coditem), DVTA.codcliente_real, DVTA.fechadoc.Date.AddDays(-diascontrol), DVTA.fechadoc.Date);
+                        cantidad_ttl_vendida_pf = await cliente.CantidadVendida_PF(_context, Convert.ToString(detalle.coditem), DVTA.codcliente_real, fecha_serv.Date.AddDays(-diascontrol), fecha_serv.Date);
                     }
                     else if (valida_nr_pf == "NR")
                     {
-                        cantidad_ttl_vendida_pf = await cliente.CantidadVendida_NR(_context, Convert.ToString(detalle.coditem), DVTA.codcliente_real, DVTA.fechadoc.Date.AddDays(-diascontrol), DVTA.fechadoc.Date);
+                        cantidad_ttl_vendida_pf = await cliente.CantidadVendida_NR(_context, Convert.ToString(detalle.coditem), DVTA.codcliente_real, fecha_serv.Date.AddDays(-diascontrol), fecha_serv.Date);
                     }
                     else
                     {
-                        cantidad_ttl_vendida_pf = await cliente.CantidadVendida_PF(_context, Convert.ToString(detalle.coditem), DVTA.codcliente_real, DVTA.fechadoc.Date.AddDays(-diascontrol), DVTA.fechadoc.Date);
+                        cantidad_ttl_vendida_pf = await cliente.CantidadVendida_PF(_context, Convert.ToString(detalle.coditem), DVTA.codcliente_real, fecha_serv.Date.AddDays(-diascontrol), fecha_serv.Date);
                     }
 
                     cantidad_ttl_vendida_pf_total = cantidad_ttl_vendida_pf + cantidad_ttl_vendida_pf_actual;
@@ -3385,7 +3386,7 @@ namespace siaw_funciones
                     }
                 }
 
-                sgte:;
+            sgte:;
             }
 
             if (cadena_items.Trim().Length > 0)
@@ -3406,7 +3407,8 @@ namespace siaw_funciones
             }
             return (objres, dtnocumplen);
         }
-        
+
+
         public async Task<(ResultadoValidacion resultadoValidacion, List<Dtnegativos> dtnegativos)> Validar_Saldos_Negativos_Doc(DBContext _context, List<itemDataMatriz> tabladetalle, DatosDocVta DVTA, List<Dtnegativos> dtnegativos, string codempresa, string usuario)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
@@ -6561,6 +6563,10 @@ namespace siaw_funciones
             return (dt, tabladetalle);
         }
 
+        public async Task<ResultadoValidacion> Validar_Enlace_Proforma_Mayorista_Dimediado(DBContext _context, List<itemDataMatriz> tabladetalle, int codalmacen, int coddescuento, string codempresa)
+        {
+
+        }
 
 
 
