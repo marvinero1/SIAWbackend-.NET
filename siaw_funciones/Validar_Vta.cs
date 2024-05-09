@@ -6431,7 +6431,7 @@ namespace siaw_funciones
                 cantidad = 0;
                 empaque_caja_cerrada = await ventas.Empaque(_context, await ventas.Codigo_Empaque_Descuento_Especial(_context, coddescuento), detalle.coditem);
                 //validar el empaque del descto especial
-                if (await ventas.Cumple_Empaque_De_DesctoEspecial(_context, detalle.coditem, detalle.codtarifa, detalle.coddescuento, (decimal)detalle.cantidad, ""))
+                if (await ventas.Cumple_Empaque_De_DesctoEspecial(_context, detalle.coditem, detalle.codtarifa, coddescuento, (decimal)detalle.cantidad, ""))
                 {
                     detalle.cumple = true;
                     itemDataSugerencia nuevoItem = new itemDataSugerencia();
@@ -6467,7 +6467,7 @@ namespace siaw_funciones
                 }
                 else
                 {
-                    sugerencia = await ventas.Sugerir_Empaque_De_DesctoEspecial(_context, detalle.coditem, detalle.codtarifa, detalle.coddescuento, detalle.cantidad, "", codempresa);
+                    sugerencia = await ventas.Sugerir_Empaque_De_DesctoEspecial(_context, detalle.coditem, detalle.codtarifa, coddescuento, detalle.cantidad, "", codempresa);
                     string[] resultado_list = sugerencia.Split('/');
                     cantidad_mas = Convert.ToInt32(resultado_list[0]);
                     cantidad_menos = Convert.ToInt32(resultado_list[1]);
@@ -6563,11 +6563,245 @@ namespace siaw_funciones
             return (dt, tabladetalle);
         }
 
-        public async Task<ResultadoValidacion> Validar_Enlace_Proforma_Mayorista_Dimediado(DBContext _context, List<itemDataMatriz> tabladetalle, int codalmacen, int coddescuento, string codempresa)
+
+
+        public async Task<ResultadoValidacion> Validar_Enlace_Proforma_Mayorista_Dimediado(DBContext _context, List<itemDataMatriz> tabladetalle, DatosDocVta DVTA, string codempresa)
         {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            string cadena = "";
+            string resultado_cadena = "";
+            int codproforma = 0;
+            bool hay_enlace = false;
+            bool resultado = true;
 
+            objres.resultado = true;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+
+            //verificar su hay enlacen con proforma
+            try
+            {
+                if (DVTA.idpf_complemento.Trim().Length > 0 && DVTA.nroidpf_complemento.Trim().Length > 0)
+                {
+                    if (Convert.ToInt32(DVTA.nroidpf_complemento) > 0)
+                    {
+                        if (await ventas.Existe_Proforma(_context, DVTA.idpf_complemento, Convert.ToInt32(DVTA.nroidpf_complemento)) == false)
+                        {
+                            objres.resultado = false;
+                            objres.observacion = "";
+                            objres.obsdetalle = "No existe la proforma: " + DVTA.idpf_complemento + "-" + DVTA.nroidpf_complemento;
+                            objres.datoA = "";
+                            objres.datoB = "";
+                            objres.accion = Acciones_Validar.Ninguna;
+                            return objres;
+                        }
+                        else
+                        {
+                            codproforma = await ventas.codproforma(_context, DVTA.idpf_complemento, Convert.ToInt32(DVTA.nroidpf_complemento));
+                            hay_enlace = true;
+                        }
+                    }
+                    else
+                    {
+                        codproforma = 0;
+                        hay_enlace = false;
+                    }
+                }
+                else
+                {
+                    codproforma = 0;
+                    hay_enlace = false;
+                }
+            }
+            catch
+            {
+                hay_enlace = false;
+                codproforma = 0;
+            }
+            //si el codproforma es 0 quiere decir que no hay enlace entonces este control es valido
+            if (codproforma == 0)
+            {
+                objres.resultado = true;
+                objres.observacion = "";
+                objres.obsdetalle = "";
+                objres.datoA = "";
+                objres.datoB = "";
+                objres.accion = Acciones_Validar.Ninguna;
+                return objres;
+            }
+            //verificar si la proforma esta aprobada
+            if (await ventas.proforma_aprobada(_context, codproforma) == false)
+            {
+                cadena += Environment.NewLine + "La proforma: " + DVTA.idpf_complemento + "-" + DVTA.nroidpf_complemento + " no esta aprobada, se requiere una proforma aprobada para complementar Precio Mayorista Con Dimediado";
+                resultado = false;
+            }
+            //verificar si la proforma con la cual quiere enlazar es del mismo cliente
+            if (await ventas.Cliente_De_Proforma(_context, codproforma) != DVTA.codcliente.Trim())
+            {
+                cadena += Environment.NewLine + "La proforma: " + DVTA.idpf_complemento + "-" + DVTA.nroidpf_complemento + " no es del mismo cliente respecto de la proforma actual!!!";
+                resultado = false;
+            }
+
+            //verifica las fechas de las dos proformas
+            DateTime fechaPf1 = await ventas.Fecha_Autoriza_de_Proforma(_context, DVTA.idpf_complemento, Convert.ToInt32(DVTA.nroidpf_complemento));
+            int dias_dif = 0;
+            TimeSpan diferencia = DVTA.fechadoc - fechaPf1;
+            dias_dif = diferencia.Days;
+
+            if (dias_dif > 3)
+            {
+                cadena += Environment.NewLine + "La diferencia entre la proforma: " + DVTA.idpf_complemento + "-" + DVTA.nroidpf_complemento + " y la proforma actual es mayor 3 dias, no se puede complementar!!!";
+                resultado = false;
+            }
+            //verificar si la proforma con la cual se quiere enlazar esta aprecio mayorista
+            string tipo = "";
+            List<int> lstprecios = new List<int>();
+            lstprecios = await ventas.Proforma_Lista_Tipo_Precio(_context, codproforma);
+            //verificar si la proforma con la cual quiere enlazar es mayorista, solo se enlazan a prodformas mayoristas
+            foreach (int precio in lstprecios)
+            {
+                tipo = await ventas.Tarifa_tipo(_context, precio);
+                if (tipo != "MAYORISTA")
+                {
+                    cadena += Environment.NewLine + "La proforma elegida " + DVTA.idpf_complemento + "-" + DVTA.nroidpf_complemento + " no está aprobada con precio Mayorista, por lo tanto no se puede realizar el complemento!!!";
+                    resultado = false;
+                }
+            }
+            //obtener los precios del detalle de la proforma
+            string cadena_items = "";
+            //verificar si los items del pedido 2 son de los que tienen empaque dimediado
+            DataTable dtitem = new DataTable();
+            // string qry = "";
+            string cadena_no_dim = "";
+
+            foreach (var detalle in tabladetalle)
+            {
+                if (cadena_items.Trim().Length == 0)
+                {
+                    cadena_items = "'" + detalle.coditem + "'";
+                }
+                else
+                {
+                    cadena_items += ",'" + detalle.coditem + "'";
+                }
+            }
+            dtitem.Clear();
+
+            var codigos = tabladetalle.Select(item => item.coditem).Distinct().ToList();
+
+            var qry = from p1 in _context.initem
+                      where codigos.Contains(p1.codigo)
+                            && !_context.veempaque1.Any(v => v.item == p1.codigo && new[] { 36, 46, 86 }.Contains(v.codempaque))
+                      select new
+                      {
+                          p1.codigo,
+                          p1.descripabr,
+                          p1.medida
+                      };
+
+            var result = qry.Distinct().ToList();
+            dtitem = funciones.ToDataTable(result);
+
+            foreach (var row in qry)
+            {
+                if (cadena_no_dim.Trim().Length == 0)
+                {
+                    cadena_no_dim = "Los sgtes. Items no tienen empaque dimediado:" + Environment.NewLine
+                                    + "(" + row.codigo + ") " + row.descripabr + "  " + row.medida;
+                }
+                else
+                {
+                    cadena_no_dim += Environment.NewLine
+                                    + "(" + row.codigo + ") " + row.descripabr + "  " + row.medida;
+                }
+                resultado = false;
+            }
+            cadena += Environment.NewLine + cadena_no_dim;
+            //verificar si el precio es dimediado
+            lstprecios.Clear();
+            foreach (var detalle in tabladetalle)
+            {
+                if (!lstprecios.Contains((int)detalle.codtarifa))
+                {
+                    lstprecios.Add((int)detalle.codtarifa);
+                }
+            }
+
+            foreach (var lista in lstprecios)
+            {
+                var qry1 = await _context.intarifa_dimediado
+                                    .Where(v => v.codtarifa == lista)
+                                    .CountAsync();
+
+                if (qry1 == 0)
+                {
+                    cadena += Environment.NewLine + "La proforma actual esta a precio: " + lista + " el cual no es precio Dimediado, por lo tanto no se puede realizar el complemento!!!";
+                    resultado = false;
+                }
+            }
+            //verificar si la proforma con la cual quiere complementar ya esta siendo complementadaa en otra
+            DataTable dt = new DataTable();
+            string idpf_comp = "";
+            int nroidpf_comp = 0;
+            var proforma = (from p in _context.veproforma
+                            where p.idpf_complemento == DVTA.idpf_complemento && p.nroidpf_complemento == Convert.ToInt32(DVTA.nroidpf_complemento)
+                            select new
+                            {
+                                p.id,
+                                p.numeroid
+                            }).FirstOrDefault();
+
+            if (proforma != null)
+            {
+                idpf_comp = proforma.id.Trim();
+                nroidpf_comp = proforma.numeroid;
+
+                if (!string.IsNullOrEmpty(idpf_comp) && !string.IsNullOrEmpty(Convert.ToString(nroidpf_comp)))
+                {
+                    if (DVTA.estado_doc_vta == "EDITAR")
+                    {
+                        if (idpf_comp == DVTA.id && nroidpf_comp == Convert.ToInt32(DVTA.numeroid))
+                        {
+                            // No hace nada porque es la misma a la que se está complementando
+                        }
+                        else
+                        {
+                            cadena += Environment.NewLine + "La proforma: " + DVTA.idpf_complemento + "-" + DVTA.nroidpf_complemento + " ya está enlazada con otro proforma: " + idpf_comp + "-" + nroidpf_comp + ", por tanto no se puede enlazar!!!";
+                            resultado = false;
+                        }
+                    }
+                    else
+                    {
+                        cadena += Environment.NewLine + "La proforma: " + DVTA.idpf_complemento + "-" + DVTA.nroidpf_complemento + " ya está enlazada con otro proforma: " + idpf_comp + "-" + nroidpf_comp + ", por tanto no se puede enlazar!!!";
+                        resultado = false;
+                    }
+                }
+            }
+
+
+            if (resultado == false)
+            {
+                objres.resultado = false;
+                objres.observacion = "Se encontro observaciones en el enlace de esta proforma con Precio Dimediados con la Proforma Mayorista!!!";
+                objres.obsdetalle = cadena;
+                objres.datoA = "";
+                objres.datoB = "";
+                objres.accion = Acciones_Validar.Ninguna;
+            }
+            else
+            {
+                objres.resultado = true;
+                objres.observacion = "";
+                objres.obsdetalle = "";
+                objres.datoA = "";
+                objres.datoB = "";
+                objres.accion = Acciones_Validar.Ninguna;
+            }
+            return objres;
         }
-
 
 
     }

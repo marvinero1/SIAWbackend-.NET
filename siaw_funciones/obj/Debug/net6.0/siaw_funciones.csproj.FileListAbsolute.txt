@@ -14,6 +14,8 @@ D:\Fuente SIAW2023\siawbackend-.net\siaw_funciones\obj\Debug\net6.0\siaw_funcion
 D:\Fuente SIAW2023\siawbackend-.net\siaw_funciones\obj\Debug\net6.0\ref\siaw_funciones.dll
 D:\Fuente SIAW2023\siawbackend-.net\siaw_funciones\obj\Debug\net6.0\siaw_funciones.Properties.Resources.resources
 D:\Fuente SIAW2023\siawbackend-.net\siaw_funciones\obj\Debug\net6.0\siaw_funciones.csproj.GenerateResource.cache
+D:\Fuente SIAW2023\siawbackend-.net\siaw_funciones\obj\Debug\net6.0\siaw_funciones.sourcelink.json
+D:\Fuente SIAW2023\siawbackend-.net\siaw_funciones\obj\Debug\net6.0\siaw_fun.7DB6FAD6.Up2Date
 C:\laragon\www\siawbackend-.net\siaw_funciones\bin\Debug\net6.0\siaw_funciones.deps.json
 C:\laragon\www\siawbackend-.net\siaw_funciones\bin\Debug\net6.0\siaw_funciones.runtimeconfig.json
 C:\laragon\www\siawbackend-.net\siaw_funciones\bin\Debug\net6.0\siaw_funciones.dll
@@ -31,5 +33,3 @@ C:\laragon\www\siawbackend-.net\siaw_funciones\obj\Debug\net6.0\siaw_funciones.d
 C:\laragon\www\siawbackend-.net\siaw_funciones\obj\Debug\net6.0\refint\siaw_funciones.dll
 C:\laragon\www\siawbackend-.net\siaw_funciones\obj\Debug\net6.0\siaw_funciones.genruntimeconfig.cache
 C:\laragon\www\siawbackend-.net\siaw_funciones\obj\Debug\net6.0\ref\siaw_funciones.dll
-D:\Fuente SIAW2023\siawbackend-.net\siaw_funciones\obj\Debug\net6.0\siaw_funciones.sourcelink.json
-D:\Fuente SIAW2023\siawbackend-.net\siaw_funciones\obj\Debug\net6.0\siaw_fun.7DB6FAD6.Up2Date

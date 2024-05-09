@@ -550,13 +550,15 @@ namespace siaw_funciones
 
             var _result_saldo_x_pagar_nal_us = await cliente.Cliente_Saldo_Pendiente_Nacional(_context, cliente_principal_local, monedaext);
             double saldo_x_pagar_nal_us = _result_saldo_x_pagar_nal_us.resp;
+            double saldo_local_de_bs_a_us = 0;
+            double saldo_local_de_us_a_bs = 0;
 
             try
             {
                 if (moneda_credito == "US")
                 {
                     // si el credito es en US se debe convertir los saldos de BS a US y sumar el saldo de US
-                    double saldo_local_de_bs_a_us = (double)await tipocambio._conversion(_context, monedaext, monedabase, DateTime.Now.Date, saldo_local_bs);
+                    saldo_local_de_bs_a_us = (double)await tipocambio._conversion(_context, monedaext, monedabase, DateTime.Now.Date, saldo_local_bs);
                     // 1ro.- actualizar el saldo descontando las deudas locales y de las otras agencias
                     var clientes = await _context.vecliente
                         .Where(c => CodigosIguales_local.Contains(c.codigo))
@@ -573,7 +575,7 @@ namespace siaw_funciones
                 else
                 {
                     // si el credito es en BS se debe convertir los saldos de US a BS y sumar el saldo de BS
-                    double saldo_local_de_us_a_bs = (double)await tipocambio._conversion(_context, monedabase, monedaext, DateTime.Now.Date, saldo_local_us);
+                    saldo_local_de_us_a_bs = (double)await tipocambio._conversion(_context, monedabase, monedaext, DateTime.Now.Date, saldo_local_us);
                     var clientes = await _context.vecliente
                         .Where(c => CodigosIguales_local.Contains(c.codigo))
                         .ToListAsync();
@@ -596,16 +598,24 @@ namespace siaw_funciones
             {
                 if (moneda_credito == "US")
                 {
-                    await cliente.Actualizar_Credito_Sucursales_Nacional
+                    var resultAct = await cliente.Actualizar_Credito_Sucursales_Nacional(_context, cliente_principal_local, monedacliente, credito_principal, (double)saldo_local_us, saldo_x_pagar_nal_us + saldo_local_de_bs_a_us);
+                    if (resultAct.value == false)
+                    {
+                        return (false, resultAct.msg);
+                    }
                 }
                 else
                 {
-
+                    var resultAct = await cliente.Actualizar_Credito_Sucursales_Nacional(_context, cliente_principal_local, monedacliente, credito_principal, (double)saldo_local_bs, saldo_x_pagar_nal_bs + saldo_local_de_us_a_bs);
+                    if (resultAct.value == false)
+                    {
+                        return (false, resultAct.msg);
+                    }
                 }
             }
 
 
-            return true;
+            return (true,"");
         }
 
         public async Task<string> Credito_Fijo_Asignado_Vigente_Moneda(DBContext _context, string codcliente)

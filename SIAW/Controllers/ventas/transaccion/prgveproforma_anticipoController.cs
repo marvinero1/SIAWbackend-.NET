@@ -78,6 +78,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     double ttl = await totalizar_asignacion(_context, txtcodmoneda_proforma, tabla_veproformaAnticipo);
+                    string msgAlerta = "";
                     if (txtcodmoneda_proforma == txtcodmoneda_anticipo)
                     {
                         // No convertir el monto a asignar
@@ -87,6 +88,10 @@ namespace SIAW.Controllers.ventas.transaccion
                     else
                     {
                         // si la moneda del anticipo y proforma no son iguales entonces convertir el monto asignar a la moneda de la proforma
+                        if (txtcodmoneda_proforma != txtcodmoneda_anticipo)
+                        {
+                            msgAlerta = "La moneda del anticipo es diferente a la moneda de la proforma, el monto a asignar se convertirá a la moneda de la proforma.";
+                        }
                         double monto_asignar = (double)await tipoCambio._conversion(_context, txtcodmoneda_proforma, txtcodmoneda_anticipo, DateTime.Now, (decimal)txtmonto_asignar);
                         ttl += monto_asignar;
                         ttl = Math.Round(ttl, 2);
@@ -96,7 +101,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     {
                         return BadRequest(new { resp = "El monto que desea asignar mas el monto ya asignado supera el total de la proforma" });
                     }
-                    return Ok(true);
+                    return Ok(new {value = true, msg = msgAlerta });
                 }
             }
             catch (Exception)

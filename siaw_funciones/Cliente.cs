@@ -2220,7 +2220,7 @@ namespace siaw_funciones
             return result;
         }
 
-        public async Task<(bool,string)> Actualizar_Credito_Sucursales_Nacional(DBContext _context, string cliente_principal_local, string codmoneda, double Credito_Actual, double Saldo_Local, double Saldo_Demas_Agencias)
+        public async Task<(bool value,string msg)> Actualizar_Credito_Sucursales_Nacional(DBContext _context, string cliente_principal_local, string codmoneda, double Credito_Actual, double Saldo_Local, double Saldo_Demas_Agencias)
         {
             string _codigo_Principal = await CodigoPrincipal(_context, cliente_principal_local);
             if (await Cliente_Tiene_Sucursal_Nacional(_context, cliente_principal_local))
@@ -2276,7 +2276,17 @@ namespace siaw_funciones
                             double credito_dispo_ags = (Credito_Actual - (Saldo_Local + Saldo_Demas_Agencias));
                             try
                             {
+                                var clientes = _context.vecliente
+                                    .Where(c => _CodigosIguales.Contains(c.codigo))
+                                    .ToList();
 
+                                foreach (var cliente in clientes)
+                                {
+                                    cliente.credito = (decimal?)Credito_Actual;
+                                    cliente.creditodisp = (decimal?)credito_dispo_ags;
+                                }
+
+                                _context.SaveChanges();
                             }
                             catch (Exception)
                             {
@@ -2289,6 +2299,7 @@ namespace siaw_funciones
                     }
                 }
             }
+            return (true, "");
         }
 
 

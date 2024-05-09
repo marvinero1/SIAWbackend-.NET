@@ -164,6 +164,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     var query = _context.vedescuento
+                    .Where(i => i.habilitado==true)
                     .OrderBy(i => i.codigo)
                     .Select(i => new
                     {

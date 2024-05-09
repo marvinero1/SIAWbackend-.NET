@@ -337,7 +337,19 @@ namespace siaw_funciones
             return resultado;
         }
 
-
-
+        ///////////////////////////////////////////////////////////////////////////////
+        // esta funcion devuelve el grupo al que pertence un item
+        ///////////////////////////////////////////////////////////////////////////////
+        public async Task<int> itemgrupo(DBContext _context, string codigo)
+        {
+            int resultado = await _context.initem
+                .Join(_context.inlinea,
+                    i => i.codlinea,
+                    l => l.codigo,
+                    (i, l) => new { Item = i, Linea = l })
+                .Where(joined => joined.Item.codigo == codigo)
+                .Select(joined => joined.Linea.codgrupo).FirstOrDefaultAsync() ?? 0;
+            return resultado;
+        }
     }
 }

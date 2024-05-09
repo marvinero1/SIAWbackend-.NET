@@ -6,6 +6,7 @@ using siaw_DBContext.Models;
 using System.Net;
 using Microsoft.AspNetCore.Authorization;
 using siaw_funciones;
+using siaw_DBContext.Models_Extra;
 
 namespace SIAW.Controllers.inventarios.mantenimiento
 {
@@ -14,6 +15,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
     public class inmatrizController : ControllerBase
     {
         private readonly Saldos saldos = new Saldos();
+        private readonly Ventas ventas = new Ventas();
         private readonly Restricciones restricciones = new Restricciones();
         private readonly Items items = new Items();
         private readonly UserConnectionManager _userConnectionManager;
@@ -84,8 +86,8 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
         // GET: api/inmatriz/5
         [HttpGet]
-        [Route("infoItemRes/{userConn}/{codalmacen}/{coditem}")]
-        public async Task<ActionResult<object>> infoItemRes(string userConn, int codalmacen, string coditem)
+        [Route("infoItemRes/{userConn}/{codalmacen}/{coditem}/{codtarifa}/{coddescuento}/{codcliente_real}")]
+        public async Task<ActionResult<object>> infoItemRes(string userConn, int codalmacen, string coditem, int codtarifa, int coddescuento, string codcliente_real)
         {
             try
             {
@@ -104,6 +106,11 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     {
                         porcen_maximo_text = "VTA HASTA:" + porcen_maximo + "% DEL SALDO";
                     }
+
+                    var empaqueminimo = await restricciones.empaqueminimo(_context, coditem, codtarifa, coddescuento);
+                    var pesominimo = empaqueminimo * await items.itempeso(_context, coditem);
+                    var penalizadoText = await ponerpenalizado(_context, coditem, codcliente_real);
+
                     var initem = await _context.initem
                         .Where(i => i.codigo == coditem)
                         .Select(i => new
@@ -111,7 +118,10 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                             codigo = i.codigo,
                             descripcion = i.descripcion,
                             medida = i.medida,
-                            porcen_maximo = porcen_maximo_text
+                            porcen_maximo = porcen_maximo_text,
+                            empaqueminimo = empaqueminimo,
+                            pesominimo = pesominimo,
+                            penalizadoText = penalizadoText
                         })
                         .FirstOrDefaultAsync();
 
@@ -130,6 +140,15 @@ namespace SIAW.Controllers.inventarios.mantenimiento
         }
 
 
+        private async Task<string> ponerpenalizado(DBContext _context, string codigo, string codcliente_real)
+        {
+            int penal = await ventas.penalizado(_context,codcliente_real, await items.itemgrupo(_context, codigo));
+            if (penal <= 0)
+            {
+                return "";
+            }
+            return "Item penalizado (" + penal + ")";
+        }
 
         // GET: api/inmatriz/5
         [HttpGet]

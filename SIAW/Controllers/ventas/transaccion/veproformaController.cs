@@ -2716,8 +2716,9 @@ namespace SIAW.Controllers.ventas.transaccion
                         c => c.coditem,
                         i => i.codigo,
                         (c, i) => new { c, i })
-                        .Select(i => new
+                        .Select(i => new itemDataMatriz
                         {
+                            /*
                             i.c.codcotizacion,
                             i.c.coditem,
                             descripcion = i.i.descripcion,
@@ -2733,6 +2734,28 @@ namespace SIAW.Controllers.ventas.transaccion
                             i.c.total,
                             i.c.porceniva,
                             i.c.peso,
+                            */
+                            //codproforma = i.p.codproforma,
+                            coditem = i.c.coditem,
+                            descripcion = i.i.descripcion,
+                            medida = i.i.medida,
+                            cantidad = (double)i.c.cantidad,
+                            udm = i.c.udm,
+                            precioneto = (double)i.c.precioneto,
+                            preciodesc = (double)(i.c.preciodesc ?? 0),
+                            niveldesc = i.c.niveldesc,
+                            preciolista = (double)i.c.preciolista,
+                            codtarifa = i.c.codtarifa,
+                            coddescuento = i.c.coddescuento,
+                            total = (double)i.c.total,
+                            // cantaut = i.p.cantaut,
+                            // totalaut = i.p.totalaut,
+                            // obs = i.p.obs,
+                            porceniva = (double)(i.c.porceniva ?? 0),
+                            cantidad_pedida = (double)i.c.cantidad,
+                            // peso = i.p.peso,
+                            nroitem = 0,
+                            // id = i.p.id,
                             porcen_mercaderia = 0,
                             porcendesc = 0
                         })
@@ -3909,8 +3932,8 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
         [HttpPost]
-        [Route("aplicar_desc_esp_seg_precio/{userConn}/{coddescuentodefect}/{codalmacen}/{codempresa}")]
-        public async Task<ActionResult<object>> aplicar_desc_esp_seg_precio(string userConn, int coddescuentodefect, int codalmacen, string codempresa, List<itemDataMatriz> tabladetalle)
+        [Route("sugerirCantDescEsp/{userConn}/{coddescuentodefect}/{codalmacen}/{codempresa}")]
+        public async Task<ActionResult<object>> sugerirCantDescEsp(string userConn, int coddescuentodefect, int codalmacen, string codempresa, List<itemDataMatriz> tabladetalle)
         {
             try
             {
@@ -3922,12 +3945,12 @@ namespace SIAW.Controllers.ventas.transaccion
                     {
                         return BadRequest(new
                         {
-                            resp = result.val,
+                            msgDetalle = result.val,
                         });
                     }
                     return Ok(new
                     {
-                        resp = result.val,
+                        msgDetalle = result.val,
                         tabla_sugerencia = result.tabla_sugerencia,
                         tabladetalle = result.tabladetalle
                     });
@@ -4169,7 +4192,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
         [HttpPost]
         [Route("recuperarPfComplemento/{userConn}/{idpf_complemento}")]
-        public async Task<ActionResult<List<object>>> recuperar_pfcomplemento(string userConn, string idpf_complemento, int nroidpf_complemento, int cmbtipo_complementopf)
+        public async Task<ActionResult<List<object>>> recuperar_pfcomplemento(string userConn, string idpf_complemento, int nroidpf_complemento, int cmbtipo_complementopf, string codempresa, RequestEntregaPedido data)
         {
             try
             {
@@ -4181,7 +4204,68 @@ namespace SIAW.Controllers.ventas.transaccion
                     if (cmbtipo_complementopf == 0)
                     {
                         // validar complementar DIMEDIDADO CON MAYORISTA
-                        objres = await validar_Vta.Validar_Enlace_Proforma_Mayorista_Dimediado();
+                        objres = await validar_Vta.Validar_Enlace_Proforma_Mayorista_Dimediado(_context, data.detalleItemsProf, data.datosDocVta, codempresa);
+                        if (objres.resultado == false)
+                        {
+                            return BadRequest(new { resp = "No se puede realizar el enlace!!!", value = false });
+                            /*
+                             resultado = False
+                             chkcomplementarpf.Checked = False
+                             */
+                        }
+                        else
+                        {
+                            int codproforma = await ventas.codproforma(_context, idpf_complemento, nroidpf_complemento);
+                            var subtotal_pfcomplemento = await ventas.SubTotal_Proforma(_context, codproforma);
+                            var total_pfcomplemento = await ventas.Total_Proforma(_context, codproforma);
+                            var moneda_total_pfcomplemento = await ventas.MonedaPF(_context,codproforma);
+                            var fechaaut_pfcomplemento = await ventas.Fecha_Autoriza_de_Proforma(_context, idpf_complemento, nroidpf_complemento);
+                            return Ok(new
+                            {
+                                subtotal_pfcomplemento = subtotal_pfcomplemento,
+                                total_pfcomplemento = total_pfcomplemento,
+                                moneda_total_pfcomplemento = moneda_total_pfcomplemento,
+                                fechaaut_pfcomplemento = fechaaut_pfcomplemento
+                            });
+
+                        }
+                    }else if(cmbtipo_complementopf == 1)
+                    {
+                        // VALIDAR CUMPLIR MONTO MIN PARA DESCTO POR IMPORTE
+                        objres = await validar_Vta.Validar_Complementar_Proforma_Para_Descto_Extra();
+                        if (objres.resultado == false)
+                        {
+                            return BadRequest(new { resp = "No se puede realizar el enlace!!!", value = false });
+                            /*
+                             resultado = False
+                             chkcomplementarpf.Checked = False
+                             */
+                        }
+                        else
+                        {
+                            int codproforma = await ventas.codproforma(_context, idpf_complemento, nroidpf_complemento);
+                            var subtotal_pfcomplemento = await ventas.SubTotal_Proforma(_context, codproforma);
+                            var total_pfcomplemento = await ventas.Total_Proforma(_context, codproforma);
+                            var moneda_total_pfcomplemento = await ventas.MonedaPF(_context, codproforma);
+                            var fechaaut_pfcomplemento = await ventas.Fecha_Autoriza_de_Proforma(_context, idpf_complemento, nroidpf_complemento);
+                            return Ok(new
+                            {
+                                subtotal_pfcomplemento = subtotal_pfcomplemento,
+                                total_pfcomplemento = total_pfcomplemento,
+                                moneda_total_pfcomplemento = moneda_total_pfcomplemento,
+                                fechaaut_pfcomplemento = fechaaut_pfcomplemento
+                            });
+                        }
+                    }
+                    else
+                    {
+                        return Ok(new
+                        {
+                            subtotal_pfcomplemento = "",
+                            total_pfcomplemento = "",
+                            moneda_total_pfcomplemento = "",
+                            fechaaut_pfcomplemento = ""
+                        });
                     }
                 }
             }

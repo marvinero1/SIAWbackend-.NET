@@ -132,6 +132,29 @@ namespace siaw_funciones
             // }
             return resultado;
         }
+        public async Task<decimal> Total_Proforma(DBContext _context, int codproforma)
+        {
+            decimal resultado = 0;
+            try
+            {
+                var result = await _context.veproforma
+                .Where(v => v.codigo == codproforma)
+                .Select(parametro => new
+                {
+                    parametro.total
+                })
+                .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = result.total;
+                }
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+            return resultado;
+        }
         public async Task<decimal> SubTotal_Proforma(DBContext _context, int codproforma)
         {
             decimal resultado = 0;
@@ -2383,9 +2406,12 @@ namespace siaw_funciones
                         }
                     }
                 }
-                else if ((empaque2 > 0))
+                else
                 {
-                    mod_final = (cantidad % empaque2);
+                    if ((empaque2 > 0))
+                    {
+                        mod_final = (cantidad % empaque2);
+                    }
                 }
             }
             else
@@ -2405,9 +2431,12 @@ namespace siaw_funciones
                         }
                     }
                 }
-                else if ((empaque1 > 0))
+                else
                 {
-                    mod_final = (cantidad % empaque1);
+                    if ((empaque1 > 0))
+                    {
+                        mod_final = (cantidad % empaque1);
+                    }
                 }
             }
             if ((mod_final == 0))
@@ -2940,12 +2969,12 @@ namespace siaw_funciones
                         }
                         else
                         {//si la cantidad final es mayor o igual a la cantidad del porcentaje de empaque debe reducir la cantidad solicitada
-                            cantidad_final_mas = 0;
+                            cantidad_final_mas = cantidad_final_mas;
                         }
                     }
                     else
                     {
-                        cantidad_final_mas = 0;
+                        cantidad_final_mas = cantidad_final_mas;
                     }
                     //menos
                     if ((cantidad_final_menos <= cantidad_porcentaje_empaque) && cantidad_final_mas == 0)
@@ -2956,12 +2985,12 @@ namespace siaw_funciones
                         }
                         else
                         {//si la cantidad final es mayor o igual a la cantidad del porcentaje de empaque debe reducir la cantidad solicitada
-                            cantidad_final_menos = 0;
+                            cantidad_final_menos = cantidad_final_menos;
                         }
                     }
                     else
                     {
-                        cantidad_final_menos = 0;
+                        cantidad_final_menos = cantidad_final_menos;
                     }
                 }
             }
@@ -3047,6 +3076,104 @@ namespace siaw_funciones
         }
 
 
+        public async Task<bool> Existe_Proforma(DBContext _context, string id, int numeroid)
+        {
+            var resultado = await _context.veproforma.Where(i => i.id == id && i.numeroid == numeroid).CountAsync();
+            if (resultado > 0)
+            {
+                return true;
+            }
+            return false;
+        }
+
+        public async Task<bool> proforma_aprobada(DBContext _context, int codproforma)
+        {
+            var resultado = await _context.veproforma.Where(i => i.codigo == codproforma).Select(i => i.aprobada).FirstOrDefaultAsync();
+            return resultado;
+        }
+
+        public async Task<string> Cliente_De_Proforma(DBContext _context, int codproforma)
+        {
+            string resultado = "";
+            try
+            {
+                var resul = await _context.veproforma.Where(i => i.codigo == codproforma).Select(i => i.codcliente).FirstOrDefaultAsync();
+                resultado = resultado ?? "";
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return "";
+            }
+            return resultado;
+        }
+
+        public async Task<DateTime> Fecha_Autoriza_de_Proforma(DBContext _context, string id, int numeroid)
+        {
+            DateTime resultado = DateTime.Now;
+            try
+            {
+                var resul = await _context.veproforma.Where(i => i.id == id && i.numeroid == numeroid).Select(i => i.fechaaut).FirstOrDefaultAsync();
+                if (resul != null)
+                {
+                    resultado = (DateTime)resul;
+                }
+            }
+            catch
+            {
+                resultado = DateTime.MinValue;
+            }
+            return resultado;
+        }
+
+        public async Task<List<int>> Proforma_Lista_Tipo_Precio(DBContext _context, int codproforma)
+        {
+            List<int> resultado = new List<int>();
+
+            var codtarifas = await _context.veproforma1
+                .Where(v => v.codproforma == codproforma)
+                .Select(v => v.codtarifa)
+                .Distinct().ToListAsync();
+
+            foreach (var codtarifa in codtarifas)
+            {
+                if (!resultado.Contains(codtarifa))
+                {
+                    resultado.Add(codtarifa);
+                }
+            }
+            return resultado;
+        }
+
+        public async Task<string> Tarifa_tipo(DBContext _context, int codtarifa)
+        {
+            string resultado = "";
+            try
+            {
+                var resul = await _context.intarifa.Where(i => i.codigo == codtarifa).Select(i => i.tipo).FirstOrDefaultAsync();
+                if (resul != null)
+                {
+                    resultado = resul;
+                }
+            }
+            catch
+            {
+                resultado = "";
+            }
+            return resultado;
+        }
+
+
+
+        ///////////////////////////////// RESTRICCIONES
+
+        public async Task<int> penalizado(DBContext _context, string codcliente, int codgrupo)
+        {
+            int resultado = await _context.vepenal.Where(i => i.codcliente == codcliente && i.codgrupo == codgrupo)
+                .Select(i=>i.tiempo).FirstOrDefaultAsync() ?? 0;
+            return resultado;
+        }
     }
 
 
