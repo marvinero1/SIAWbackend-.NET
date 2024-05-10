@@ -5,6 +5,7 @@ using siaw_DBContext.Models;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Drawing.Drawing2D;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -87,7 +88,7 @@ namespace siaw_funciones
 
         }
 
-        public async Task<(bool resultado_func, object data)> ValidarCreditoDisponible_en_Bs(DBContext _context, bool mostrar_detalle, string codcliente, bool incluir_proformas, double totaldoc, string codempresa, string usuario, string monedae, string moneda_pf)
+        public async Task<(bool resultado_func, object? data, string msgAlertActualiza)> ValidarCreditoDisponible_en_Bs(DBContext _context, bool mostrar_detalle, string codcliente, bool incluir_proformas, double totaldoc, string codempresa, string usuario, string monedae, string moneda_pf)
         {
             string codigoPrincipal = await cliente.CodigoPrincipal(_context, codcliente);
             // Solo considerarlo el principal si Tiene el mismo NIT, caso contrario usar solo el codigo individual de cliente
@@ -103,7 +104,14 @@ namespace siaw_funciones
                 CodigosIguales = "'" + codcliente + "'";
             }
             //actualizar el credito (falta implementar)
-            await Actualizar_Credito_2023(_context,codcliente, usuario, codempresa, false);
+            string msgAlertActualiza = "";
+            
+            var resultAct = await Actualizar_Credito_2023(_context,codcliente, usuario, codempresa, false);
+            if (resultAct.value == false)
+            {
+                msgAlertActualiza = resultAct.msg;
+            }
+            
 
             //sacar su credito disponible
             decimal cred_actual = await _context.vecliente.Where(i=> i.codigo == codcliente).Select(i=> i.credito).FirstOrDefaultAsync()??0;
@@ -190,7 +198,7 @@ namespace siaw_funciones
             var resul1 = await cliente.Cliente_Saldo_Pendiente_Nacional(_context, codcliente, monedae);
             if (resul1.message != "")
             {
-                return (false, new {resp = resul1.message});  // devolver error de mensaje REVISAR
+                return (false, new {resp = resul1.message}, msgAlertActualiza);  // devolver error de mensaje REVISAR
             }
             saldo_x_pagar_demas_ags_us = resul1.resp;
 
@@ -198,7 +206,7 @@ namespace siaw_funciones
             var resul2 = await cliente.Cliente_Saldo_Pendiente_Nacional(_context, codcliente, moneda_base);
             if (resul2.message != "")
             {
-                return (false, new { resp = resul1.message });   // devolver error de mensaje REVISAR
+                return (false, new { resp = resul1.message }, msgAlertActualiza);   // devolver error de mensaje REVISAR
             }
             saldo_x_pagar_demas_ags_bs = resul2.resp;
 
@@ -209,7 +217,7 @@ namespace siaw_funciones
             var resul3 = await cliente.Cliente_Proformas_Aprobadas_Nacional(_context, codcliente, monedae);
             if (resul3.message != "")
             {
-                return (false, new { resp = resul3.message });  // devolver error de mensaje REVISAR
+                return (false, new { resp = resul3.message }, msgAlertActualiza);  // devolver error de mensaje REVISAR
             }
             ttl_proformas_aprobadas_demas_ags_us = resul3.resp;
 
@@ -217,7 +225,7 @@ namespace siaw_funciones
             var resul4 = await cliente.Cliente_Proformas_Aprobadas_Nacional(_context, codcliente, moneda_base);
             if (resul4.message != "")
             {
-                return (false, new { resp = resul4.message });  // devolver error de mensaje REVISAR
+                return (false, new { resp = resul4.message }, msgAlertActualiza);  // devolver error de mensaje REVISAR
             }
             ttl_proformas_aprobadas_demas_ags_bs = resul4.resp;
 
@@ -368,9 +376,11 @@ namespace siaw_funciones
 
             if (mostrar_detalle)
             {
+                string monRespuesta = moneda_pf == "BS" ? "BS" : "US";
+
                 var detalle = new
                 {
-                    titulo = "El Credito del Cliente o Agrupacion Cial. En " + moneda_pf == "BS" ? "BS" : "US",
+                    titulo = "El Credito del Cliente o Agrupacion Cial. En " + monRespuesta,
                     subtitulo = resultado_func == true ? "SI, alcanzara " : "NO, alcanzara ",
                     limite = new {
                         text = "(+)  Limite de Credito: ",
@@ -405,16 +415,16 @@ namespace siaw_funciones
                         sld = (resultado - totaldoc)
                     }
                 };
-                return (resultado_func, detalle);
+                return (resultado_func, detalle, msgAlertActualiza);
             }
 
-            return (resultado_func, null);
+            return (resultado_func, null, msgAlertActualiza);
 
         }
 
 
 
-        public async Task<(bool,string)> Actualizar_Credito_2023(DBContext _context, string codcliente, string usuario, string codempresa, bool arreglar)
+        public async Task<(bool value,string msg)> Actualizar_Credito_2023(DBContext _context, string codcliente, string usuario, string codempresa, bool arreglar)
         {
             if (arreglar)
             {
@@ -516,22 +526,37 @@ namespace siaw_funciones
             ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////7
             // BUSCA EL SALDO LOCAL en la moneda del clientes
             // obtener el saldo pendiente de pago de todo el grupo cial
-            var saldo_local_bs = await _context.coplancuotas
-                                        .Join(_context.veremision,
-                                            p1 => p1.coddocumento,
-                                            p2 => p2.codigo,
-                                            (p1, p2) => new { p1, p2 })
-                                        .Where(joined => CodigosIguales_local.Contains(joined.p1.cliente)
-                                                        && joined.p1.moneda == monedabase
-                                                        && joined.p2.anulada == false)
-                                        .Select(joined => joined.p1.monto - joined.p1.montopagado)
-                                        .DefaultIfEmpty(0)
-                                        .SumAsync() ?? 0;
+            decimal saldo_local_bs = 0;
+            try
+            {
+                //var codigosLocales = CodigosIguales_local.Split(',').ToList();
+                var result = await _context.coplancuotas
+                    .Join(_context.veremision,
+                        p1 => p1.coddocumento,
+                        p2 => p2.codigo,
+                        (p1, p2) => new { p1, p2 })
+                    .Where(joined => CodigosIguales_local.Contains(joined.p1.cliente)
+                                    && joined.p1.moneda == monedabase
+                                    && joined.p2.anulada == false)
+                    .Select(joined => new { joined.p1.monto, joined.p1.montopagado })
+                    .ToListAsync();
+                // Realizar la operación de resta después de traer los datos de la base de datos
+                saldo_local_bs = result.Sum(item => item.monto - item.montopagado) ?? 0;
+            }
+            catch (Exception)
+            {
+                saldo_local_bs = 0;
+                //throw;
+            }
 
             ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////7
             // BUSCA EL SALDO LOCAL en SUS
             // obtener el saldo pendiente de pago de todo el grupo cial
-            var saldo_local_us = await _context.coplancuotas
+            decimal saldo_local_us = 0;
+            
+            try
+            {
+                var result = await _context.coplancuotas
                                         .Join(_context.veremision,
                                             p1 => p1.coddocumento,
                                             p2 => p2.codigo,
@@ -539,9 +564,16 @@ namespace siaw_funciones
                                         .Where(joined => CodigosIguales_local.Contains(joined.p1.cliente)
                                                         && joined.p1.moneda == monedaext
                                                         && joined.p2.anulada == false)
-                                        .Select(joined => joined.p1.monto - joined.p1.montopagado)
-                                        .DefaultIfEmpty(0)
-                                        .SumAsync() ?? 0;
+                                        .Select(joined => new { joined.p1.monto, joined.p1.montopagado })
+                                        .ToListAsync();
+                // Realizar la operación de resta después de traer los datos de la base de datos
+                saldo_local_us = result.Sum(item => item.monto - item.montopagado) ?? 0;
+            }
+            catch (Exception)
+            {
+                saldo_local_us = 0;
+                //throw;
+            }
 
             // busca el SALDO NACIONAL si tiene sucursales en otras agencia
             // implementado el 09-05-2020
@@ -953,6 +985,68 @@ namespace siaw_funciones
         }
 
 
+
+        public async Task<bool> Añadir_Credito_Temporal_Automatico_Nal(DBContext _context, double VAR_MONTO_CREDITO_DISPONIBLE, string moneda_cliente, string codcliente, string usuarioreg, string codempresa, string docproforma, double monto_proforma, string moneda_proforma)
+        {
+            bool resultado = new bool();
+            string CodigosIguales = "";
+            string codigoPrincipal = await cliente.CodigoPrincipal(_context, codcliente);
+            if (await cliente.NIT(_context, codigoPrincipal) == await cliente.NIT(_context,codcliente))
+            {
+                codcliente = codigoPrincipal;
+                CodigosIguales = await cliente.CodigosIgualesMismoNIT(_context, codcliente);   // <------solo los de mismo NIT
+            }
+            else
+            {
+                CodigosIguales = "'" + codcliente + "'";
+            }
+            if (await configuracion.Permitir_Añadir_Creditos_Temporales_Automatico(_context, codempresa))
+            {
+                if (await cliente.Cliente_Tiene_Sucursal_Nacional(_context,codcliente))
+                {
+                    // Desde 08 - 02 - 2024 Si el cliente tiene su cliente matriz en otra agencia ingresa aqui
+                    // verificar si el cliente tiene algun credito temporal vigente a la fecha
+                    // si no tiene el sistema añade un credito temporal segun los parametros definidos
+                    // ###################################
+                    // Obtener de donde es el codigo principal de la matriz del cliente
+                    // si el cliente es parte de una agrupacion cial a nivel nacional entre agencias de Pertec a nivel nacional
+                    string casa_matriz_Nacional = await cliente.CodigoPrincipal_Nacional(_context,codcliente);
+                    int ag_matriz_nacional = await cliente.Almacen_Casa_Matriz_Nacional(_context, codcliente);
+                    if (ag_matriz_nacional == await cliente.almacen_de_cliente(_context,codcliente))
+                    {
+                        //realizar la verificacion del credito temporal en la conexion local
+                       // goto es_clientelocal;
+                    }
+
+
+                }
+                else
+                {
+                //verificar si el cliente tiene algun credito temporal vigente a la fecha
+                //si no tiene el sistema añade un credito temporal segun los parametros definidos
+                es_clientelocal:
+
+                    return true;
+                }
+            }
+            return true;
+
+        }
+
+
+        async Task RealizarVerificacionCreditoTemporal(DBContext _context, double VAR_MONTO_CREDITO_DISPONIBLE, string moneda_cliente, string codcliente, string usuarioreg, string codempresa, string docproforma, double monto_proforma, string moneda_proforma)
+        {
+            if (! await Cliente_Tiene_Credito_Temporal_Automatico_Vigente(_context,codcliente))
+            {
+
+            }
+        }
+
+
+        public async Task<bool> Cliente_Tiene_Credito_Temporal_Automatico_Vigente(DBContext _context, string codcliente)
+        {
+            return true;
+        }
 
     }
 }

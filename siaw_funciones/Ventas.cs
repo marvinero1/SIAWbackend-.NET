@@ -3164,6 +3164,60 @@ namespace siaw_funciones
             return resultado;
         }
 
+        public async Task<bool> proforma_transferida(DBContext _context, int codproforma)
+        {
+            var resultado = await _context.veproforma.Where(i => i.codigo == codproforma).Select(i => i.transferida).FirstOrDefaultAsync();
+            return resultado;
+        }
+
+        public async Task<string> Cliente_Referencia_Proforma_Etiqueta_Segun_CodProforma(DBContext _context, int codproforma)
+        {
+
+            //////////////////
+            var resultado = await (from pf_etiqueta in _context.veproforma_etiqueta
+                                   join proforma in _context.veproforma
+                                   on new { IdProforma = pf_etiqueta.id_proforma, NroIdProforma = pf_etiqueta.nroid_proforma.ToString() }
+                                   equals new { IdProforma = proforma.id, NroIdProforma = proforma.numeroid.ToString() }
+                                   where proforma.codigo == codproforma
+                                   select new
+                                   {
+                                       pf_etiqueta.codcliente_casual,
+                                       pf_etiqueta.codcliente_real
+                                   }).FirstOrDefaultAsync();
+
+            if (resultado != null)
+            {
+                return resultado.codcliente_real ?? resultado.codcliente_casual ?? "";
+            }
+
+            return "";
+        }
+
+        public async Task<DateTime> Descuento_Linea_Fecha_Desde(DBContext _context, string nivel)
+        {
+            DateTime resultado = new DateTime(1900, 1, 1);
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var result = await _context.vedesitem_parametros
+                    .Where(v => v.nivel == nivel)
+                    .Select(v => v.desde_fecha)
+                    .FirstOrDefaultAsync();
+
+                if (result.HasValue)
+                {
+                    resultado = result.Value;
+                }
+                // }
+            }
+            catch (Exception ex)
+            {
+
+            }
+            return resultado;
+        }
 
 
         ///////////////////////////////// RESTRICCIONES

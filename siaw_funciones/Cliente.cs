@@ -2303,6 +2303,52 @@ namespace siaw_funciones
         }
 
 
+        public async Task<List<string>> CodigosIgualesMismoNIT_List(DBContext _context, string codcliente)
+        {
+            List<string> resultado = new List<string>();
+            try
+            {
+                string nit = await NIT(_context, codcliente);
+
+
+                var regex = new Regex(@"^\d+$"); // Expresión regular para verificar si la cadena contiene solo dígitos
+                string codcliente_principal = await CodigoPrincipal(_context, codcliente);
+                var clientesIguales = _context.veclientesiguales
+                .Where(cliente => cliente.codcliente_b.All(char.IsDigit)
+                                  && cliente.codcliente_a == codcliente_principal)
+                .Select(cliente => new
+                {
+                    cliente.codcliente_a,
+                    cliente.codcliente_b
+                });
+
+                if (clientesIguales.Count() <= 0)
+                {
+                    resultado.Add(codcliente);
+                }
+                else
+                {
+                    foreach (var item in clientesIguales)
+                    {
+                        if (NIT(_context, item.codcliente_b).ToString() == nit)
+                        {
+                            resultado.Add(item.codcliente_b);
+                        }
+                    }
+                }
+
+            }
+            catch (Exception)
+            {
+                resultado.Add(codcliente);
+            }
+            if (resultado.Count() <= 0)
+            {
+                resultado.Add(codcliente);
+            }
+            return resultado;
+        }
+
 
         public async Task<int> Vendedor_de_cliente(DBContext _context, string codcliente)
         {

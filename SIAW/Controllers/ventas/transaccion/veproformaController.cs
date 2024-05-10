@@ -2655,14 +2655,19 @@ namespace SIAW.Controllers.ventas.transaccion
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 var resultados = await Validar_Credito_Disponible(_context, codcliente_real, usuario, codempresa, codmoneda, totalProf, fecha);
-                return Ok(resultados.data);
+                return Ok(new
+                {
+                    msgAlertActualiza = resultados.msgAlertActualiza,
+                    resultado_func = resultados.resultado_func,
+                    data = resultados.data
+                });
             }
         }
 
 
 
 
-        private async Task<(bool resultado_func, object data)> Validar_Credito_Disponible(DBContext _context, string codcliente_real, string usuario, string codempresa, string codmoneda, double totalProf, DateTime fecha)
+        private async Task<(bool resultado_func, object? data, string msgAlertActualiza)> Validar_Credito_Disponible(DBContext _context, string codcliente_real, string usuario, string codempresa, string codmoneda, double totalProf, DateTime fecha)
         {
             string moneda_cliente = await cliente.monedacliente(_context, codcliente_real, usuario, codempresa);
 
@@ -2675,14 +2680,14 @@ namespace SIAW.Controllers.ventas.transaccion
             if (codmoneda == monedae)
             {
                 var res = await creditos.ValidarCreditoDisponible_en_Bs(_context, true, codcliente_real, true, totalProf, codempresa, usuario, monedae, codmoneda);
-                return (res.resultado_func, res.data);
+                return (res.resultado_func, res.data, res.msgAlertActualiza);
             }
             else
             {
                 //Desde 17-04-2023
                 //convierte el monto de la proforma a la moneda del cliente y con el monto convertido valida
                 var res = await creditos.ValidarCreditoDisponible_en_Bs(_context, true, codcliente_real, true, (double)await tipocambio._conversion(_context, monedabase, codmoneda, fecha, (decimal)totalProf), codempresa, usuario, monedae, codmoneda);
-                return (res.resultado_func, res.data);
+                return (res.resultado_func, res.data, res.msgAlertActualiza);
             }
         }
 
@@ -3943,10 +3948,12 @@ namespace SIAW.Controllers.ventas.transaccion
                     var result = await validar_sugerir_cantidades_empaques_caja_cerrada(_context, coddescuentodefect, codalmacen, codempresa, tabladetalle);
                     if (result.tabla_sugerencia == null)
                     {
+                        return StatusCode(203, new { resp = result.val, status = false });
+                        /*
                         return BadRequest(new
                         {
                             msgDetalle = result.val,
-                        });
+                        });*/
                     }
                     return Ok(new
                     {
@@ -4191,7 +4198,7 @@ namespace SIAW.Controllers.ventas.transaccion
         
 
         [HttpPost]
-        [Route("recuperarPfComplemento/{userConn}/{idpf_complemento}")]
+        [Route("recuperarPfComplemento/{userConn}/{idpf_complemento}/{nroidpf_complemento}/{cmbtipo_complementopf}/{codempresa}")]
         public async Task<ActionResult<List<object>>> recuperar_pfcomplemento(string userConn, string idpf_complemento, int nroidpf_complemento, int cmbtipo_complementopf, string codempresa, RequestEntregaPedido data)
         {
             try
@@ -4207,7 +4214,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         objres = await validar_Vta.Validar_Enlace_Proforma_Mayorista_Dimediado(_context, data.detalleItemsProf, data.datosDocVta, codempresa);
                         if (objres.resultado == false)
                         {
-                            return BadRequest(new { resp = "No se puede realizar el enlace!!!", value = false });
+                            return StatusCode(203, new { resp = "No se puede realizar el enlace!!!", value = false, detalle = objres.obsdetalle });
                             /*
                              resultado = False
                              chkcomplementarpf.Checked = False
@@ -4232,10 +4239,12 @@ namespace SIAW.Controllers.ventas.transaccion
                     }else if(cmbtipo_complementopf == 1)
                     {
                         // VALIDAR CUMPLIR MONTO MIN PARA DESCTO POR IMPORTE
-                        objres = await validar_Vta.Validar_Complementar_Proforma_Para_Descto_Extra();
+                        objres = await validar_Vta.Validar_Complementar_Proforma_Para_Descto_Extra(_context,data.detalleItemsProf, data.datosDocVta, codempresa);
                         if (objres.resultado == false)
                         {
-                            return BadRequest(new { resp = "No se puede realizar el enlace!!!", value = false });
+                            return StatusCode(203, new { resp = "No se puede realizar el enlace!!!", value = false, detalle = objres.obsdetalle });
+
+                            //return BadRequest(new { resp = "No se puede realizar el enlace!!!", value = false, detalle = objres.obsdetalle });
                             /*
                              resultado = False
                              chkcomplementarpf.Checked = False

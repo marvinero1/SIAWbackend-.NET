@@ -6804,5 +6804,212 @@ namespace siaw_funciones
         }
 
 
+
+        public async Task<ResultadoValidacion> Validar_Complementar_Proforma_Para_Descto_Extra(DBContext _context, List<itemDataMatriz> tabladetalle, DatosDocVta DVTA, string codempresa)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            string cadena = "";
+            string resultado_cadena = "";
+            int codproforma_complemento = 0;
+            bool hay_enlace = false;
+            bool resultado = true;
+
+            //verificar su hay enlacen con proforma
+            try
+            {
+                if (DVTA.idpf_complemento.Trim().Length > 0 && DVTA.nroidpf_complemento.Trim().Length > 0 && DVTA.tipo_complemento == "complemento_para_descto_monto_min_desextra")
+                {
+                    if (Convert.ToInt32(DVTA.nroidpf_complemento) > 0)
+                    {
+                        if (await ventas.Existe_Proforma(_context, DVTA.idpf_complemento, Convert.ToInt32(DVTA.nroidpf_complemento)) == false)
+                        {
+                            objres.resultado = false;
+                            objres.observacion = "";
+                            objres.obsdetalle = "No existe la proforma: " + DVTA.idpf_complemento + "-" + DVTA.nroidpf_complemento;
+                            objres.datoA = "";
+                            objres.datoB = "";
+                            objres.accion = Acciones_Validar.Ninguna;
+                            return objres;
+                        }
+                        else
+                        {
+                            codproforma_complemento = await ventas.codproforma(_context, DVTA.idpf_complemento, Convert.ToInt32(DVTA.nroidpf_complemento));
+                            hay_enlace = true;
+                        }
+                    }
+                    else
+                    {
+                        codproforma_complemento = 0;
+                        hay_enlace = false;
+                    }
+                }
+                else
+                {
+                    codproforma_complemento = 0;
+                    hay_enlace = false;
+                }
+            }
+            catch
+            {
+                hay_enlace = false;
+                codproforma_complemento = 0;
+            }
+            //si el codproforma es 0 quiere decir que no hay enlace entonces este control es valido
+            if (codproforma_complemento == 0)
+            {
+                objres.resultado = true;
+                objres.observacion = "";
+                objres.obsdetalle = "";
+                objres.datoA = "";
+                objres.datoB = "";
+                objres.accion = Acciones_Validar.Ninguna;
+                return objres;
+            }
+            //verificar si la proforma esta aprobada
+            if (await ventas.proforma_aprobada(_context, codproforma_complemento) == false)
+            {
+                cadena += Environment.NewLine + "La proforma: " + DVTA.idpf_complemento + "-" + DVTA.nroidpf_complemento + " con la que intenta complementar no esta aprobada, se requiere una proforma aprobada para complementar proforma.";
+                resultado = false;
+            }
+
+            //verificar si la proforma esta transferida, deberia estar transferida
+            if (await ventas.proforma_transferida(_context, codproforma_complemento))
+            {
+                cadena += Environment.NewLine + "La proforma: " + DVTA.idpf_complemento + "-" + DVTA.nroidpf_complemento + " con la que intenta complementar no esta Transferida-Facturada, se requiere una proforma facturada.";
+                resultado = false;
+            }
+
+            //verificar si la proforma con la cual quiere enlazar es del mismo cliente
+            if (await ventas.Cliente_De_Proforma(_context, codproforma_complemento) != DVTA.codcliente.Trim())
+            {
+                //cadena += Environment.NewLine + "La proforma: " + DVTA.idpf_complemento + "-" + DVTA.nroidpf_complemento + " no es del mismo cliente respecto de la proforma actual!!!";
+                // si las proformas no son del mismo cliente verificar si son sucursales entre si, entre los clientes de ambas proformas asy mismo entre clientes referencia
+                //obtener el grupo de clientes del codcliente al cual se realiza la proforma
+                List<string> lista_clientes_mismo_nit = new List<string>();
+                string codcliente_proforma_complemento = await ventas.Cliente_De_Proforma(_context, codproforma_complemento);
+                lista_clientes_mismo_nit = await cliente.CodigosIgualesMismoNIT_List(_context, DVTA.codcliente);
+                //verificar los codclientes de ambas proformas
+                if (!lista_clientes_mismo_nit.Contains(codcliente_proforma_complemento))
+                {
+                    cadena += Environment.NewLine + "La proforma con la cual quiere complementar: " + DVTA.idpf_complemento + "-" + DVTA.nroidpf_complemento + " no es del mismo cliente o sucursal(mismo NIT) respecto del cliente de la proforma actual!!!";
+                    resultado = false;
+                }
+                //obtener el grupo de clientes del codcliente referencia-real o referencia
+                List<string> lista_clientes_mismo_nit_cliente_referencia = new List<string>();
+                string codclienteReferencia_proforma_complemento = await ventas.Cliente_Referencia_Proforma_Etiqueta_Segun_CodProforma(_context, codproforma_complemento);
+                string codclienteReferencia_proforma_actual = "";
+                lista_clientes_mismo_nit_cliente_referencia = await cliente.CodigosIgualesMismoNIT_List(_context, DVTA.codcliente_real);
+
+            }
+
+            //verifica las fechas de las dos proformas
+            DateTime fechaPf1 = await ventas.Fecha_Autoriza_de_Proforma(_context, DVTA.idpf_complemento, Convert.ToInt32(DVTA.nroidpf_complemento));
+            int dias_dif = 0;
+            TimeSpan diferencia = DVTA.fechadoc - fechaPf1;
+            dias_dif = diferencia.Days;
+
+            if (fechaPf1.Year == DVTA.fechadoc.Year && fechaPf1.Month == DVTA.fechadoc.Month)
+            {
+                //si la proforma actual y la complemento son del mismo mes y ano esta bien, sino no se puede complementar
+            }
+            else
+            {
+                cadena += Environment.NewLine + "La proforma complemento: " + DVTA.idpf_complemento + "-" + DVTA.nroidpf_complemento + " y la proforma actual no son del mismo Año-Mes, por lo tanto no puede complementar!!";
+                resultado = false;
+            }
+            //verifica si la fecha de la proforma a complementar si su fecha de autorizacion es a partir del inicio de la promocion >= vedesitem_parametros.desde_fecha
+            if (fechaPf1 >= await ventas.Descuento_Linea_Fecha_Desde(_context, "A"))
+            {
+                //si fecha de autorizacion del complemento es mayor a la fecha de inicio de la promocion, entonces esta valida
+            }
+            else
+            {
+                cadena += Environment.NewLine + "La proforma complemento: " + DVTA.idpf_complemento + "-" + DVTA.nroidpf_complemento + " no esta habilitada para complementar, debido a que su fecha de aprobacion fue anterior a la fecha de inicio de la promocion!!!";
+                resultado = false;
+            }
+            DateTime mifecha_actual = await funciones.FechaDelServidor(_context);
+            DateTime mifecha1 = new DateTime(mifecha_actual.Year, mifecha_actual.Month, 1);
+            int dias_mes = DateTime.DaysInMonth(mifecha_actual.Year, mifecha_actual.Month);
+            DateTime mifecha2 = new DateTime(mifecha_actual.Year, mifecha_actual.Month, dias_mes);
+
+            var Sql = await _context.veproforma
+                        .Where(p =>
+                            p.fecha >= mifecha1.Date &&
+                            p.fecha <= mifecha2.Date &&
+                            p.codcliente == DVTA.codcliente.Trim() &&
+                            p.anulada == false &&
+                            p.aprobada &&
+                            !string.IsNullOrEmpty(p.idpf_complemento))
+                        .Select(p => new
+                        {
+                            p.codigo,
+                            p.id,
+                            p.numeroid,
+                            p.fecha,
+                            p.codcliente,
+                            p.nomcliente,
+                            p.total,
+                            p.anulada,
+                            p.aprobada,
+                            p.transferida,
+                            p.idpf_complemento,
+                            p.nroidpf_complemento
+                        }).ToListAsync();
+
+            if (Sql.Count() > 0)
+            {
+                cadena += Environment.NewLine + "El cliente: " + DVTA.codcliente + " ya realizo el/los sgte(s) complemento(s) en el mes actual, y no puede realizar mas complementos: ";
+                foreach (var lista in Sql)
+                {
+                    cadena += Environment.NewLine + "Proforma: " + lista.id + "-" + lista.numeroid + " de Fecha: " + lista.fecha + " Complementada con: " + lista.idpf_complemento + "-" + lista.nroidpf_complemento;
+                    resultado = false;
+
+                }
+            }
+            //VERIFICAR QUE LA PROFORMA ACTUAL Y LA COMPLEMENTO SEAN AL MISMO TIPO DE PRECIO
+            //se puede complementar con proformas de distinto precio segun indicado por JRA en fecha 30-08-2022
+            //Obtener los precios de la proforma actual
+            List<int> lstprecios_pf_actual = new List<int>();
+            foreach (var detalle in tabladetalle)
+            {
+                if (!lstprecios_pf_actual.Contains((int)detalle.codtarifa))
+                {
+                    lstprecios_pf_actual.Add((int)detalle.codtarifa);
+                }
+            }
+            int CODTARIFA_PROF_ACTUAL = await Tarifa_Monto_Min_Mayor(_context, DVTA, lstprecios_pf_actual);
+            //Obtener los precios de la proforma complemento
+            List<int> lstprecios_pf_complemento = new List<int>();
+            lstprecios_pf_complemento = await ventas.Proforma_Lista_Tipo_Precio(_context, codproforma_complemento);
+            int CODTARIFA_PROF_COMPLEMENTO = await Tarifa_Monto_Min_Mayor(_context, DVTA, lstprecios_pf_complemento);
+
+            if (CODTARIFA_PROF_COMPLEMENTO != CODTARIFA_PROF_ACTUAL)
+            {
+                cadena += Environment.NewLine + "Proforma Actual: " + DVTA.id + "-" + DVTA.numeroid + " es a precio: " + CODTARIFA_PROF_ACTUAL + " La Proforma complemento es a precio: " + CODTARIFA_PROF_COMPLEMENTO.ToString();
+                resultado = true;
+            }
+            /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            ///
+
+            if (resultado == false)
+            {
+                objres.resultado = false;
+                objres.observacion = "Se encontro observaciones en el enlace de esta proforma con Precio Dimediados con la Proforma Mayorista!!!";
+                objres.obsdetalle = cadena;
+                objres.datoA = "";
+                objres.datoB = "";
+                objres.accion = Acciones_Validar.Ninguna;
+            }
+            else
+            {
+                objres.resultado = true;
+                objres.observacion = "";
+                objres.obsdetalle = "";
+                objres.datoA = "";
+                objres.datoB = "";
+                objres.accion = Acciones_Validar.Ninguna;
+            }
+            return objres;
+        }
     }
 }

@@ -524,6 +524,15 @@ namespace siaw_funciones
 
             return result;
         }
+        public async Task<bool> Permitir_Añadir_Creditos_Temporales_Automatico(DBContext _context, string codempresa)
+        {
+            var result = await _context.adparametros
+                .Where(i => i.codempresa == codempresa)
+                .Select(parametro => parametro.añadir_creditos_temporales_automaticos)
+                .FirstOrDefaultAsync() ?? false;
+
+            return result;
+        }
     }
 }
  
