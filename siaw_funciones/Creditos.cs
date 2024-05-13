@@ -1034,19 +1034,321 @@ namespace siaw_funciones
         }
 
 
-        async Task RealizarVerificacionCreditoTemporal(DBContext _context, double VAR_MONTO_CREDITO_DISPONIBLE, string moneda_cliente, string codcliente, string usuarioreg, string codempresa, string docproforma, double monto_proforma, string moneda_proforma)
+        public async Task<(bool resp, string msg)> RealizarVerificacionCreditoTemporal(DBContext _context, double VAR_MONTO_CREDITO_DISPONIBLE, string moneda_cliente, string codcliente, string usuarioreg, string codempresa, string docproforma, double monto_proforma, string moneda_proforma)
         {
             if (! await Cliente_Tiene_Credito_Temporal_Automatico_Vigente(_context,codcliente))
             {
+                // los creditos temporales automaticos solo se añaden o se asigana para clientes que tienen linea de credito fija valida
+                if (! await Cliente_Tiene_Linea_De_Credito_Valida(_context,codcliente))
+                {
+                    return (false, "Se intento asignar un credito temporal de manera automatica, pero se verifico no cuenta con linea de credito fija!!!");
+                }
+
+                double monto_credito_fijo = await Credito_Fijo_Asignado_Vigente(_context, codcliente);
+                string moneda_credito = await Credito_Fijo_Asignado_Vigente_Moneda(_context, codcliente);
+
+                double monto_max_temporal = await Monto_Credito_Temp_Automatico(_context, monto_credito_fijo, moneda_credito, codempresa);
+                string doc_pf = docproforma;
+
+                double maximo_incremento_posible = monto_max_temporal - monto_credito_fijo;
+
+                double credito_faltante = Math.Abs(VAR_MONTO_CREDITO_DISPONIBLE - monto_proforma);
+                credito_faltante = Math.Round(credito_faltante, 2);
+
+                if (moneda_credito != moneda_proforma)
+                {
+                    // convertir a la moneda de la PF
+                    maximo_incremento_posible = (double)await tipocambio._conversion(_context, moneda_proforma, moneda_credito, DateTime.Today.Date, (decimal)maximo_incremento_posible);
+                }
+
+                // verificar si con el maximo incremento le alcanza
+                // si le alcanza se insertara un credito temporal
+                if (maximo_incremento_posible > credito_faltante)
+                {
+                    string msgAlert = "Al cliente le falta credito por un monto de: " + credito_faltante + "(" + moneda_proforma + ") sin embargo se añadira un credito temporal automatico maximo de: " + monto_max_temporal + " (" + moneda_credito + ") con lo cual el cliente tendra credito suficiente para esta proforma.";
+
+                    // obtener los datos el ultimo credito vigente
+                    var dtcredito_acual = await _context.vecliente.Where(i => i.codigo == codcliente).FirstOrDefaultAsync();
+
+                    Datos_Credito OBJCREDITO = new Datos_Credito();
+                    OBJCREDITO.codcliente = codcliente;
+                    OBJCREDITO.codtipocredito = "TEMP";
+                    OBJCREDITO.monto_nuevo_credito = monto_max_temporal;
+                    // se añade el credito en la moneda que maneja el cliente
+                    // OBJCREDITO.moneda_nuevo_credito = sia_funciones.Cliente.Instancia.monedacliente(codcliente, usuarioreg, codempresa, False)
+                    OBJCREDITO.moneda_nuevo_credito = moneda_credito;
+
+                    if (dtcredito_acual != null)
+                    {
+                        OBJCREDITO.monto_credito_ant = (double)(dtcredito_acual.credito ?? 0);
+                        // OBJCREDITO.moneda_credito_ant = CStr(dtcredito_acual.Rows(0)("moneda"))
+                        OBJCREDITO.moneda_credito_ant = moneda_credito;
+                    }
+                    else
+                    {
+                        OBJCREDITO.monto_credito_ant = 0;
+                        OBJCREDITO.moneda_credito_ant = await cliente.monedacliente(_context, codcliente, usuarioreg, codempresa);
+                    }
+                    OBJCREDITO.es_fijo = false;
+                    OBJCREDITO.codtipogarantia = "0";
+                    OBJCREDITO.obs_garantia = "";
+                    OBJCREDITO.fecha_asigna_credito = await funciones.FechaDelServidor(_context);
+                    OBJCREDITO.fecha_vence_credito = await funciones.FechaDelServidor(_context);
+                    OBJCREDITO.fecha_vence_credito = OBJCREDITO.fecha_vence_credito.AddDays(await duracioncredito(_context, "TEMP"));
+
+                    OBJCREDITO.hay_fecha_vence_garantia = false;
+                    OBJCREDITO.fecha_emision_lc = await funciones.FechaDelServidor(_context);
+                    OBJCREDITO.fecha_vence_lc = await funciones.FechaDelServidor(_context);
+                    OBJCREDITO.fecha_vence_lc = OBJCREDITO.fecha_vence_lc.AddDays(await duracioncredito(_context, "TEMP"));
+
+                    OBJCREDITO.usuarioreg = usuarioreg;
+                    OBJCREDITO.autorizado_por = "AUTOMATICO / " + doc_pf;
+
+                    if ( await Insertar_Credito_Cliente())
+                    {
+
+                    }
+                }
+
+
 
             }
+            //return (false, "Se intento asignar un credito temporal de manera automatica, pero se verifico que el cliente ya tiene uno vigente, por tanto no se puede añadir mas creditos automaticos temporales.");
         }
 
 
         public async Task<bool> Cliente_Tiene_Credito_Temporal_Automatico_Vigente(DBContext _context, string codcliente)
         {
-            return true;
+            DateTime fecha_actual = DateTime.Today.Date;
+
+            var tiposCreditoFijo = await _context.vetipocredito.Where(tc => tc.es_fijo == false).Select(tc => tc.codigo).ToListAsync();
+
+            var dt = await _context.vehcredito
+                .Where(vc => codcliente.Contains(vc.codcliente) &&
+                             tiposCreditoFijo.Contains(vc.codtipocredito) &&
+                             vc.autoriza.Contains("AUTOMATICO") &&
+                             vc.revertido == false)
+                .OrderByDescending(vc => vc.fecha)
+                .ThenByDescending(vc => vc.horareg)
+                .FirstOrDefaultAsync();
+
+            if (dt == null)
+            {
+                return false;
+            }
+            DateTime fecha_vence_asigna_credito_temp = dt.fecha;
+            DateTime fecha_vence_credito_temp = dt.fechavenc;
+            if (fecha_actual.Date < fecha_vence_credito_temp.Date)
+            {
+                return true;
+            }
+
+            // esto se ejecuta para asegurar que el credito este marcado como revertido
+            var credito = await _context.vehcredito.FirstOrDefaultAsync(vc => vc.codigo == dt.codigo);
+            if (credito != null)
+            {
+                credito.revertido = true;
+                await _context.SaveChangesAsync();
+            }
+            return false;
         }
 
+
+
+        public async Task<double> Monto_Credito_Temp_Automatico(DBContext _context, double monto_credito_fijo, string moneda_credito, string codempresa)
+        {
+            string monedabase = await empresa.monedabase(_context, codempresa);
+            double resultado = 0;
+            if (moneda_credito == monedabase)
+            {
+                // realizar el calculo en BS
+                if (monto_credito_fijo <= 10440)
+                {
+                    resultado = monto_credito_fijo * 0.3;
+                    resultado = resultado + monto_credito_fijo;
+                }else if(monto_credito_fijo >= 10446.96 && monto_credito_fijo <= 20880)
+                {
+                    resultado = monto_credito_fijo * 0.15;
+                    resultado = resultado + monto_credito_fijo;
+                }
+                else
+                {
+                    resultado = monto_credito_fijo * 0.1;
+                    resultado = resultado + monto_credito_fijo;
+                }
+            }
+            else
+            {
+                // realizar el calculo en US
+                if (monto_credito_fijo <= 1500)
+                {
+                    resultado = monto_credito_fijo * 0.3;
+                    resultado = resultado + monto_credito_fijo;
+                }else if(monto_credito_fijo >= 1501 && monto_credito_fijo <= 3000)
+                {
+                    resultado = monto_credito_fijo * 0.15;
+                    resultado = resultado + monto_credito_fijo;
+                }
+                else
+                {
+                    resultado = monto_credito_fijo * 0.1;
+                resultado = resultado + monto_credito_fijo;
+                }
+            }
+            return resultado;
+        }
+
+
+        ///////////////////////////////////////////////////////////////////////////////
+        // Esta funcion devuelve elcredito disponible del cliente expresado en la moneda indicada tdc del dia
+        ///////////////////////////////////////////////////////////////////////////////
+        public async Task<double> Credito_Fijo_Asignado_Vigente(DBContext _context, string codcliente)
+        {
+            var codigosTipoCreditoFijo = await _context.vetipocredito
+                .Where(tp => tp.es_fijo == true)
+                .Select(tp => tp.codigo).ToListAsync();
+
+            var creditos = await _context.vehcredito
+                .Where(vc => codigosTipoCreditoFijo.Contains(vc.codtipocredito) && vc.revertido == false && codcliente.Contains(vc.codcliente))
+                .FirstOrDefaultAsync();
+
+            if (creditos != null)
+            {
+                return (double)creditos.credito;
+            }
+            return 0;
+        }
+
+
+        ///////////////////////////////////////////////////////////////////////////////
+        // Esta funcion devuelve la duracion de un tipo de credito
+        ///////////////////////////////////////////////////////////////////////////////
+        public async Task<int> duracioncredito(DBContext _context, string codtipocredito)
+        {
+            var resultado = await _context.vetipocredito.Where(i => i.codigo == codtipocredito).Select(i => i.duracion).FirstOrDefaultAsync();
+            return resultado;
+        }
+
+
+
+        public async Task<bool> Insertar_Credito_Cliente(DBContext _context, Datos_Credito CRE)
+        {
+            // si es credito temporal no graba codigo de tipo de garantia y tampoco obs de garantia
+            if (CRE.es_fijo == false)
+            {
+                CRE.codtipogarantia = "0";
+                CRE.obs_garantia = "";
+            }
+
+            // si el cliente esta en clientesiguales
+            if (!await cliente.EstaEnCodigosIguales(_context,CRE.codcliente))
+            {
+                //todo codigo de cliente tiene que estar en codigos iguales
+                //aunque no sea parte de un grupo
+                //por rso aqui se inserta en codigos iguales se es que no esta
+                await cliente.ClientesIguales_Insertar(_context, CRE.codcliente, CRE.codcliente, await cliente.almacen_de_cliente_Integer(_context, CRE.codcliente));
+            }
+
+            if (await cliente.EstaEnCodigosIguales(_context, CRE.codcliente))
+            {
+                // obtener la lista de clientes del grupo si lo hubiera
+                string codigos = "";
+                List<string> codigos_lista = new List<string>();
+                string codigoPrincipal = await cliente.CodigoPrincipal(_context, CRE.codcliente);
+
+                // Solo considerarlo el principal si Tiene el mismo NIT, caso contrario usar solo el codigo individual de cliente
+                if (await cliente.NIT(_context, codigoPrincipal) == await cliente.NIT(_context,CRE.codcliente))
+                {
+                    codigos = await cliente.CodigosIgualesMismoNIT(_context, codigoPrincipal);   // <------solo los de mismo NIT
+                    codigos_lista = await cliente.CodigosIgualesMismoNIT_List(_context, CRE.codcliente);
+                }
+                else
+                {
+                    codigoPrincipal = CRE.codcliente;
+                    // codigos = "'" + codigoPrincipal + "'";
+                    codigos_lista = await cliente.CodigosIgualesMismoNIT_List(_context, CRE.codcliente);
+                    codigos = "";
+                    foreach (var item in codigos_lista)
+                    {
+                        if (codigos.Trim().Length == 0)
+                        {
+                            codigos = "'" + item + "'";
+                        }
+                        else
+                        {
+                            codigos = codigos + ",'" + item + "'";
+                        }
+                    }
+                }
+
+                // a cada uno ponerle el credito solicitado
+                var dataClientes = await _context.vecliente
+                    .Where(c => codigos.Contains(c.codigo))
+                    .ToListAsync();
+
+                foreach (var cliente in dataClientes)
+                {
+                    cliente.credito = (decimal?)CRE.monto_nuevo_credito;
+                    cliente.creditodisp = 0;
+                }
+
+                await _context.SaveChangesAsync();
+
+                // camviar condiciones de venta del cliente
+                // Desde la nueva politica de ventas 2022-2023 todos los clientes pueden realizar compras contado - contra entrega y credito
+                // por lo tanto no es necesario ya que el parametro contra entrega se deshabilite una vez que se asigna un credito
+                // sia_DAL.Datos.Instancia.EjecutarComando("update vecliente set contra_entrega=0 WHERE codigo in (" & codigos & ") ")
+                var clientesSinCreditoDisponible = await _context.vecliente
+                    .Where(c => c.creditodisp == null)
+                    .ToListAsync();
+                foreach (var cliente in clientesSinCreditoDisponible)
+                {
+                    cliente.creditodisp = cliente.credito;
+                }
+                await _context.SaveChangesAsync();
+
+
+                var clientesConExcesoCredito = await _context.vecliente
+                    .Where(c => c.creditodisp > c.credito)
+                    .ToListAsync();
+                foreach (var cliente in clientesConExcesoCredito)
+                {
+                    cliente.creditodisp = cliente.credito;
+                }
+                await _context.SaveChangesAsync();
+
+                // grabar en vehcredito
+
+
+
+
+            }
+
+
+
+        }
+    }
+
+    public class Datos_Credito
+    {
+        public string codcliente { get; set; }
+        public string codtipocredito { get; set; }
+        public double monto_nuevo_credito { get; set; }
+        public string moneda_nuevo_credito { get; set; }
+
+        public double monto_credito_ant { get; set; }
+        public string moneda_credito_ant { get; set; }
+        public bool es_fijo { get; set; }
+        public string codtipogarantia { get; set; }
+
+        public string obs_garantia { get; set; }
+        public DateTime fecha_asigna_credito { get; set; }
+        public DateTime fecha_vence_credito { get; set; }
+        public bool hay_fecha_vence_garantia { get; set; }
+
+        public DateTime fecha_emision_lc { get; set; }
+        public DateTime fecha_vence_lc { get; set; }
+        public string usuarioreg { get; set; }
+        public string autorizado_por { get; set; }
     }
 }

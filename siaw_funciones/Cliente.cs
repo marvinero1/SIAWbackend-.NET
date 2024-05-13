@@ -2359,9 +2359,50 @@ namespace siaw_funciones
             }
             return 0;
         }
+        public async Task<int> almacen_de_cliente_Integer(DBContext _context, string codcliente)
+        {
+            var resultado = await _context.vevendedor
+                .Join(_context.vecliente,
+                    v => v.codigo,
+                    c => c.codvendedor,
+                    (v, c) => new { Vendedor = v, Cliente = c })
+                .Where(vc => vc.Cliente.codigo == codcliente)
+                .Select(vc => vc.Vendedor.almacen)
+                .FirstOrDefaultAsync();
+            return resultado;
+        }
         private static bool IsNumeric(string input)
         {
             return int.TryParse(input, out _);
         }
+
+        public async Task<bool> EstaEnCodigosIguales(DBContext _context, string codcliente)
+        {
+            try
+            {
+                var c = await _context.veclientesiguales.Where(i => i.codcliente_a == codcliente || i.codcliente_b == codcliente).CountAsync();
+                if (c <= 0)
+                {
+                    return false;
+                }
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+                // throw;
+            }
+        }
+        public async Task<bool> ClientesIguales_Insertar(DBContext _context, string codcliente_a, string codcliente_b, int codalmacen)
+        {
+            veclientesiguales data = new veclientesiguales();
+            data.codcliente_a = codcliente_a;
+            data.codcliente_b = codcliente_b;
+            data.codalmacen = codalmacen;
+            _context.veclientesiguales.Add(data);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
     }
 }
