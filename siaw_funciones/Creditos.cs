@@ -1,5 +1,6 @@
 ﻿using Microsoft.CodeAnalysis.RulesetToEditorconfig;
 using Microsoft.EntityFrameworkCore;
+using NuGet.Packaging.Signing;
 using siaw_DBContext.Data;
 using siaw_DBContext.Models;
 using System;
@@ -31,6 +32,8 @@ namespace siaw_funciones
         private TipoCambio tipocambio = new TipoCambio();
         private Seguridad seguridad = new Seguridad();
         private Configuracion configuracion = new Configuracion();
+        private datosProforma datosProf = new datosProforma();
+        private Log log = new Log();
         public async Task<bool> Cliente_Tiene_Linea_De_Credito_Valida(DBContext _context, string codcliente)
         {
             try
@@ -986,7 +989,7 @@ namespace siaw_funciones
 
 
 
-        public async Task<bool> Añadir_Credito_Temporal_Automatico_Nal(DBContext _context, double VAR_MONTO_CREDITO_DISPONIBLE, string moneda_cliente, string codcliente, string usuarioreg, string codempresa, string docproforma, double monto_proforma, string moneda_proforma)
+        public async Task<(bool resp, string msgAlertOpcional, string msgInfo)> Añadir_Credito_Temporal_Automatico_Nal(DBContext _context, double VAR_MONTO_CREDITO_DISPONIBLE, string moneda_cliente, string codcliente, string usuarioreg, string codempresa, string docproforma, double monto_proforma, string moneda_proforma)
         {
             bool resultado = new bool();
             string CodigosIguales = "";
@@ -1015,10 +1018,26 @@ namespace siaw_funciones
                     if (ag_matriz_nacional == await cliente.almacen_de_cliente(_context,codcliente))
                     {
                         //realizar la verificacion del credito temporal en la conexion local
-                       // goto es_clientelocal;
+                        // goto es_clientelocal;
+                        var result = await RealizarVerificacionCreditoTemporal_es_clientelocal(_context, VAR_MONTO_CREDITO_DISPONIBLE, moneda_cliente, codcliente, usuarioreg, codempresa, docproforma, monto_proforma, moneda_proforma);
+                        return (result.resp, result.msgAlertOpcional, result.msgInfo);
                     }
+                    // ###################################
+                    var respCredTempNalVig = await Cliente_Tiene_Credito_Temporal_Automatico_Vigente_MatrizNal(_context, codcliente, casa_matriz_Nacional, ag_matriz_nacional);
+                    if (!respCredTempNalVig.resp)
+                    {
+                        // los creditos temporales automaticos solo se añaden o se asigana para clientes que tienen linea de credito fija valida
+                        var respCliTienCredValNal = await Cliente_Tiene_Linea_De_Credito_Valida_MatrizNal(_context, codcliente, casa_matriz_Nacional, ag_matriz_nacional);
+                        if (!respCliTienCredValNal.resp)
+                        {
+                            return (respCliTienCredValNal.resp, respCliTienCredValNal.msgInfo, "Se intento asignar un credito temporal de manera automatica, pero se verifico no cuenta con linea de credito fija!!!");
+                        }
+                        else
+                        {
+                            double monto_credito_fijo = await Credito_Fijo_Asignado_Vigente_MatrizNal()
+                        }
 
-
+                    }
                 }
                 else
                 {
@@ -1034,14 +1053,14 @@ namespace siaw_funciones
         }
 
 
-        public async Task<(bool resp, string msg)> RealizarVerificacionCreditoTemporal(DBContext _context, double VAR_MONTO_CREDITO_DISPONIBLE, string moneda_cliente, string codcliente, string usuarioreg, string codempresa, string docproforma, double monto_proforma, string moneda_proforma)
+        public async Task<(bool resp, string msgAlertOpcional, string msgInfo)> RealizarVerificacionCreditoTemporal_es_clientelocal(DBContext _context, double VAR_MONTO_CREDITO_DISPONIBLE, string moneda_cliente, string codcliente, string usuarioreg, string codempresa, string docproforma, double monto_proforma, string moneda_proforma)
         {
             if (! await Cliente_Tiene_Credito_Temporal_Automatico_Vigente(_context,codcliente))
             {
                 // los creditos temporales automaticos solo se añaden o se asigana para clientes que tienen linea de credito fija valida
                 if (! await Cliente_Tiene_Linea_De_Credito_Valida(_context,codcliente))
                 {
-                    return (false, "Se intento asignar un credito temporal de manera automatica, pero se verifico no cuenta con linea de credito fija!!!");
+                    return (false, "","Se intento asignar un credito temporal de manera automatica, pero se verifico no cuenta con linea de credito fija!!!");
                 }
 
                 double monto_credito_fijo = await Credito_Fijo_Asignado_Vigente(_context, codcliente);
@@ -1090,7 +1109,7 @@ namespace siaw_funciones
                         OBJCREDITO.moneda_credito_ant = await cliente.monedacliente(_context, codcliente, usuarioreg, codempresa);
                     }
                     OBJCREDITO.es_fijo = false;
-                    OBJCREDITO.codtipogarantia = "0";
+                    OBJCREDITO.codtipogarantia = 0;
                     OBJCREDITO.obs_garantia = "";
                     OBJCREDITO.fecha_asigna_credito = await funciones.FechaDelServidor(_context);
                     OBJCREDITO.fecha_vence_credito = await funciones.FechaDelServidor(_context);
@@ -1104,16 +1123,212 @@ namespace siaw_funciones
                     OBJCREDITO.usuarioreg = usuarioreg;
                     OBJCREDITO.autorizado_por = "AUTOMATICO / " + doc_pf;
 
-                    if ( await Insertar_Credito_Cliente())
+                    if ( await Insertar_Credito_Cliente(_context, OBJCREDITO))
                     {
-
+                        await log.RegistrarEvento(_context, usuarioreg, Log.Entidades.Ventana, codcliente, codcliente, "", "PROFORMAS", "Adicion de credito temporal automatico cliente: " + codcliente, Log.TipoLog.Creacion);
+                        return (true, msgAlert, "Se ha registrado un credito temporal automatico.");
+                    }
+                    else
+                    {
+                        return (false, msgAlert, "No se pudo registrar el credito temporal automatico.");
                     }
                 }
-
-
-
+                else
+                {
+                    return (false, "", "Al cliente le falta credito por un monto de:" + credito_faltante + " (" + moneda_proforma + ") y añadiendo un credito temporal maximo de:" + monto_max_temporal + " (" + moneda_credito + ") tampoco sera suficiente,verifique su limite de credito maximo.");
+                }
             }
-            //return (false, "Se intento asignar un credito temporal de manera automatica, pero se verifico que el cliente ya tiene uno vigente, por tanto no se puede añadir mas creditos automaticos temporales.");
+            return (false, "", "Se intento asignar un credito temporal de manera automatica, pero se verifico que el cliente ya tiene uno vigente, por tanto no se puede añadir mas creditos automaticos temporales.");
+        }
+
+
+
+        public async Task<(bool resp, string msgInfo)> Cliente_Tiene_Linea_De_Credito_Valida_MatrizNal(DBContext _context, string codcliente, string casa_matriz_Nacional, int almacen_casa_matriz_nal)
+        {
+            DateTime fecha_hoy = DateTime.Today.Date;
+            DateTime fecha_aux = DateTime.Today.Date;
+
+            string _codigo_Principal = await cliente.CodigoPrincipal(_context, codcliente);
+            bool resultado = false;
+            string msgInfo = "";
+
+            var dt_sucursales = await _context.veclientesiguales_nacion
+                    .Where(i => i.codcliente_a == casa_matriz_Nacional).ToListAsync();
+
+            /////////////////////////////////////
+            foreach (var reg in dt_sucursales)
+            {
+                if (casa_matriz_Nacional == reg.codcliente_b)
+                {
+                    // buscar los datos de conexion de la sucursal
+                    var dt_conexion = await _context.ad_conexion_vpn
+                        .Where(c => c.agencia.StartsWith("credito") && c.codalmacen == reg.codalmacen_b)
+                        .FirstOrDefaultAsync();
+                    if (dt_conexion == null)
+                    {
+                        // no hay datos
+                        resultado = false;
+                        msgInfo = "No se encontro la configuracion de conexion para la sucursal!!!";
+                        return (resultado, msgInfo);
+                    }
+                    else
+                    {
+                        //OBTENER CADENA DE CONEXION
+                        var newCadConexVPN = seguridad.Getad_conexion_vpnFromDatabase(dt_conexion.contrasena_sql, dt_conexion.servidor_sql, dt_conexion.usuario_sql, dt_conexion.bd_sql);
+                        //alistar la cadena de conexion para conectar a la ag
+                        using (var _contextVPN = DbContextFactory.Create(newCadConexVPN))
+                        {
+                            _codigo_Principal = await cliente.CodigoPrincipal(_contextVPN, reg.codcliente_b);
+                            // Solo considerarlo el principal si Tiene el mismo NIT, caso contrario usar solo el codigo individual de cliente
+
+                            string cliente_principal = "";
+                            string _CodigosIguales = "";
+
+                            // Solo considerarlo el principal si Tiene el mismo NIT, caso contrario usar solo el codigo individual de cliente
+                            if (await cliente.NIT(_contextVPN, _codigo_Principal) == await cliente.NIT(_contextVPN, reg.codcliente_b))
+                            {
+                                cliente_principal = _codigo_Principal;
+                                _CodigosIguales = await cliente.CodigosIgualesMismoNIT(_contextVPN, reg.codcliente_b);  //<------solo los de mismo NIT
+                            }
+                            else
+                            {
+                                cliente_principal = reg.codcliente_b;
+                                _CodigosIguales = "'" + reg.codcliente_b + "'";
+                            }
+
+                            // busca si el cliente tiene linea de credito registrada
+                            var dt = await _contextVPN.vehcredito
+                                .Join(_contextVPN.vecliente,
+                                    p1 => p1.codcliente,
+                                    p2 => p2.codigo,
+                                    (p1, p2) => new { p1 = p1, p2 = p2 })
+                                .Where(joined => _CodigosIguales.Contains(joined.p1.codcliente) &&
+                                                  joined.p1.codtipocredito == "FIJO" &&
+                                                  joined.p1.credito > 0 &&
+                                                  joined.p1.revertido == false)
+                                .OrderByDescending(joined => joined.p1.fecha)
+                                .Select(joined => new { Cliente = joined.p2.razonsocial, Credito = joined.p1 })
+                                .ToListAsync();
+                            if (dt.Count() > 0)
+                            {
+                                foreach (var reg2 in dt)
+                                {
+                                    // verificar si la linea de credito no se vencio o si la letra de cambio no se vencio
+                                    if (fecha_aux > reg2.Credito.fechavenc || fecha_aux > reg2.Credito.fecha_vence_garantia)
+                                    {
+                                        resultado = false;
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        resultado = true; break;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                resultado = false;
+                            }
+                        }
+                    }
+                }
+            }
+            /////////////////////////////////
+            return (resultado, msgInfo);
+        }
+
+
+
+        public async Task<(bool resp, string msgInfo)> Cliente_Tiene_Credito_Temporal_Automatico_Vigente_MatrizNal(DBContext _context, string codcliente, string casa_matriz_Nacional, int almacen_casa_matriz_nal)
+        {
+            DateTime fecha_actual = DateTime.Today.Date;
+            string _codigo_Principal = await cliente.CodigoPrincipal(_context, codcliente);
+            bool resultado = false;
+            string msgInfo = "";
+
+            var dt_sucursales = await _context.veclientesiguales_nacion
+                    .Where(i => i.codcliente_a == casa_matriz_Nacional).ToListAsync();
+
+            /////////////////////////////////////
+            foreach (var reg in dt_sucursales)
+            {
+                if (casa_matriz_Nacional == reg.codcliente_b)
+                {
+                    // buscar los datos de conexion de la sucursal
+                    var dt_conexion = await _context.ad_conexion_vpn
+                        .Where(c => c.agencia.StartsWith("credito") && c.codalmacen == reg.codalmacen_b)
+                        .FirstOrDefaultAsync();
+                    if (dt_conexion == null)
+                    {
+                        // no hay datos
+                        resultado = false;
+                        msgInfo = "No se encontro la configuracion de conexion para la sucursal!!!";
+                        return (resultado, msgInfo);
+                    }
+                    else
+                    {
+                        //OBTENER CADENA DE CONEXION
+                        var newCadConexVPN = seguridad.Getad_conexion_vpnFromDatabase(dt_conexion.contrasena_sql, dt_conexion.servidor_sql, dt_conexion.usuario_sql, dt_conexion.bd_sql);
+                        //alistar la cadena de conexion para conectar a la ag
+                        using (var _contextVPN = DbContextFactory.Create(newCadConexVPN))
+                        {
+                            _codigo_Principal = await cliente.CodigoPrincipal(_contextVPN, reg.codcliente_b);
+                            // Solo considerarlo el principal si Tiene el mismo NIT, caso contrario usar solo el codigo individual de cliente
+
+                            string cliente_principal = "";
+                            string _CodigosIguales = "";
+
+                            // Solo considerarlo el principal si Tiene el mismo NIT, caso contrario usar solo el codigo individual de cliente
+                            if (await cliente.NIT(_contextVPN, _codigo_Principal) == await cliente.NIT(_contextVPN, reg.codcliente_b))
+                            {
+                                cliente_principal = _codigo_Principal;
+                                _CodigosIguales = await cliente.CodigosIgualesMismoNIT(_contextVPN, reg.codcliente_b);  //<------solo los de mismo NIT
+                            }
+                            else
+                            {
+                                cliente_principal = reg.codcliente_b;
+                                _CodigosIguales = "'" + reg.codcliente_b + "'";
+                            }
+                            var consulta_dt = await _contextVPN.vehcredito
+                                .Where(vc => _CodigosIguales.Contains(vc.codcliente) &&
+                                             _contextVPN.vetipocredito
+                                                     .Where(tp => tp.es_fijo == false)
+                                                     .Select(tp => tp.codigo)
+                                                     .Contains(vc.codtipocredito) &&
+                                             vc.autoriza.Contains("AUTOMATICO") &&
+                                             vc.revertido == false)
+                                .OrderByDescending(vc => vc.fecha)
+                                .ThenByDescending(vc => vc.horareg).FirstOrDefaultAsync();
+                            if (consulta_dt == null)
+                            {
+                                resultado = false;
+                            }
+                            else
+                            {
+                                DateTime fecha_vence_asigna_credito_temp = consulta_dt.fecha;
+                                DateTime fecha_vence_credito_temp = consulta_dt.fechavenc;
+                                if (fecha_actual.Date < fecha_vence_credito_temp.Date)
+                                {
+                                    resultado = true;
+                                }
+                                else
+                                {
+                                    resultado = false;
+                                }
+                                // esto se ejecuta para asegurar que el credito este marcado como revertido
+                                var credito = await _contextVPN.vehcredito.FirstOrDefaultAsync(vc => vc.codigo == consulta_dt.codigo);
+                                if (credito != null)
+                                {
+                                    credito.revertido = true;
+                                    await _contextVPN.SaveChangesAsync();
+                                }
+                            }
+
+                        }
+                    }
+                }
+            }
+            return (resultado,msgInfo);
         }
 
 
@@ -1236,7 +1451,7 @@ namespace siaw_funciones
             // si es credito temporal no graba codigo de tipo de garantia y tampoco obs de garantia
             if (CRE.es_fijo == false)
             {
-                CRE.codtipogarantia = "0";
+                CRE.codtipogarantia = 0;
                 CRE.obs_garantia = "";
             }
 
@@ -1318,13 +1533,127 @@ namespace siaw_funciones
                 await _context.SaveChangesAsync();
 
                 // grabar en vehcredito
+                //solo ionsertar el credito para la casa matriz
+                var vehcreditoInsert = codigos_lista.Where(i => i == codigoPrincipal).Select(i => new vehcredito
+                {
+                    codcliente = i,
+                    fecha = CRE.fecha_asigna_credito,
+                    credant = (decimal)CRE.monto_credito_ant,
+                    monedaant = CRE.moneda_credito_ant,
+                    credito = (decimal)CRE.monto_nuevo_credito,
 
+                    moneda = CRE.moneda_nuevo_credito,
+                    fechavenc = CRE.fecha_vence_credito,
+                    codtipocredito = CRE.codtipocredito,
+                    usuario = CRE.usuarioreg,
+                    autoriza = CRE.autorizado_por,
 
+                    revertido = false,
+                    codtipogarantia = CRE.codtipogarantia,
+                    obs_garantia = CRE.obs_garantia,
+                    horareg = datosProf.getHoraActual(),
+                    hay_fecha_vence_garantia = CRE.hay_fecha_vence_garantia,
 
+                    fecha_vence_garantia = CRE.fecha_vence_lc,
+                    fecha_emision_garantia = CRE.fecha_emision_lc
+                }).ToList();
+
+                try
+                {
+                    _context.vehcredito.AddRange(vehcreditoInsert);
+                    await _context.SaveChangesAsync();
+                    return true;
+                }
+                catch (Exception)
+                {
+                    return false;
+                }
 
             }
+            else
+            {
+                /*
+                 ''//No deberia entrar a esta parte nunca
+                ''//cambio de credito disponible
+                'Dim nuevocreddisp, credactual, creddisp As Double
+                'Dim adaptador As SqlClient.SqlDataAdapter
+                'Dim tabla As New DataTable
+                'adaptador = sia_DAL.Datos.Instancia.ObtenerDataAdapter("select creditodisp from vecliente where codigo='" & CRE.codcliente & "' ")
+                'adaptador.Fill(tabla)
+                'If tabla.Rows.Count > 0 Then
+                '    creddisp = tabla.Rows(0)("creditodisp")
+                'Else
+                '    creddisp = 0
+                'End If
+                'tabla.Dispose()
+                'adaptador.Dispose()
+
+                'credactual = CDbl(CRE.monto_credito_ant) * sia_funciones.TipoCambio.Instancia.tipocambio(CRE.moneda_nuevo_credito, CRE.moneda_credito_ant, sia_funciones.Funciones.Instancia.fecha_del_servidor)
+                'creddisp = creddisp * sia_funciones.TipoCambio.Instancia.tipocambio(CRE.moneda_nuevo_credito, CRE.moneda_credito_ant, Now.Date)
+                'nuevocreddisp = creddisp + (CDbl(CRE.monto_nuevo_credito) - credactual)
 
 
+                ''//cambiar en cliente y poner en el historico todo dentro de una transaccion
+                'Dim coneccion As SqlClient.SqlConnection
+                'Dim transaccion As SqlClient.SqlTransaction
+                'Dim comando As SqlClient.SqlCommand
+                'Dim cadena As String = ""
+                'coneccion = sia_DAL.Datos.Instancia.ConeccionIndividual()
+                'If coneccion.State = ConnectionState.Open Then
+                'Else
+                '    'no se pudo conectar a la base de datos
+                '    resultado = False
+                'End If
+                'If resultado Then
+                '    transaccion = coneccion.BeginTransaction()
+                '    comando = New SqlClient.SqlCommand(cadena, coneccion)
+                '    comando.CommandType = CommandType.Text
+                '    comando.Transaction = transaccion
+                '    '///////////////////////////////////////////////////////////////////////////////////////////////
+                '    '///Cambiar credito en cliente
+                '    cadena = "UPDATE vecliente SET credito = " & CRE.monto_nuevo_credito & " ,creditodisp = " & CStr(nuevocreddisp) & "  , moneda='" & CRE.moneda_nuevo_credito & "', fvenccred='" & sia_DAL.Datos.Instancia.FechaISO(CRE.fecha_vence_credito) & "' WHERE codigo='" & CRE.codcliente & "' "
+                '    comando.CommandText = cadena
+                '    Try
+                '        comando.ExecuteNonQuery()
+                '    Catch e As Exception
+                '        resultado = False
+                '    End Try
+
+                '    cadena = "UPDATE vecliente SET contra_entrega = 0 WHERE codigo='" & CRE.codcliente & "' "
+                '    comando.CommandText = cadena
+                '    Try
+                '        comando.ExecuteNonQuery()
+                '    Catch e As Exception
+                '        resultado = False
+                '    End Try
+
+
+                '    '////grabar a historico
+                '    cadena = "INSERT INTO vehcredito(codcliente,fecha,credant,monedaant,credito,moneda,fechavenc,codtipocredito,usuario,autoriza,revertido,codtipogarantia,obs_garantia,horareg,hay_fecha_vence_garantia,fecha_vence_garantia,fecha_emision_garantia) VALUES('" + CRE.codcliente + "' , '" + sia_DAL.Datos.Instancia.FechaISO(CRE.fecha_asigna_credito) + "' , " + CRE.monto_credito_ant + " , '" + CRE.moneda_credito_ant + "' , " + CRE.monto_nuevo_credito + " , '" + CRE.moneda_nuevo_credito + "' , '" + sia_DAL.Datos.Instancia.FechaISO(CRE.fecha_vence_credito) + "' , '" + CRE.codtipocredito + "' , '" + CRE.usuarioreg + "', '" + CRE.autorizado_por + "' , '0','" & CRE.codtipogarantia & "','" & CRE.obs_garantia & "','" & Hour(Now()).ToString("00") + ":" + Minute(Now()).ToString("00") & "','" & IIf(CRE.hay_fecha_vence_garantia = True, "1", "0") & "','" & sia_DAL.Datos.Instancia.FechaISO(CRE.fecha_vence_lc) & "','" & sia_DAL.Datos.Instancia.FechaISO(CRE.fecha_emision_lc) & "') "
+                '    comando.CommandText = cadena
+                '    Try
+                '        comando.ExecuteNonQuery()
+                '    Catch e As Exception
+                '        resultado = False
+                '    End Try
+
+                'End If
+
+                'If resultado Then
+                '    transaccion.Commit()
+                'Else
+                '    transaccion.Rollback()
+                'End If
+
+                'comando.Dispose()
+                'transaccion.Dispose()
+                'coneccion.Close()
+                'coneccion.Dispose()
+                ''////////////
+                 */
+            }
+
+            return true;
 
         }
     }
@@ -1339,7 +1668,7 @@ namespace siaw_funciones
         public double monto_credito_ant { get; set; }
         public string moneda_credito_ant { get; set; }
         public bool es_fijo { get; set; }
-        public string codtipogarantia { get; set; }
+        public int codtipogarantia { get; set; }
 
         public string obs_garantia { get; set; }
         public DateTime fecha_asigna_credito { get; set; }
