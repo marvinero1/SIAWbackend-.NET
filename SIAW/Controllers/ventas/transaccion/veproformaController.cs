@@ -2665,6 +2665,20 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
 
+        //[Authorize]
+        [HttpGet]
+        [Route("aplicarCredTempAutoCli/{userConn}/{codcliente_real}/{usuario}/{codempresa}/{codmoneda}/{monto_proforma}/{moneda_cliente}/{monto_credito_disponible}/{idprof}/{numeroidprof}")]
+        public async Task<object> aplicarCredTempAutoCli(string userConn, string codcliente_real, string usuario, string codempresa, string codmoneda, double monto_proforma, string moneda_cliente, double monto_credito_disponible, string idprof, int numeroidprof)
+        {
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var resultados = await creditos.Añadir_Credito_Temporal_Automatico_Nal(_context, monto_credito_disponible, moneda_cliente, codcliente_real, usuario, codempresa, idprof + "-" + numeroidprof, monto_proforma, codmoneda);
+                return Ok(resultados);
+            }
+        }
 
 
         private async Task<(bool resultado_func, object? data, string msgAlertActualiza)> Validar_Credito_Disponible(DBContext _context, string codcliente_real, string usuario, string codempresa, string codmoneda, double totalProf, DateTime fecha)
