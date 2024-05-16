@@ -2665,8 +2665,8 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
 
-        //[Authorize]
-        [HttpGet]
+        [Authorize]
+        [HttpPost]
         [Route("aplicarCredTempAutoCli/{userConn}/{codcliente_real}/{usuario}/{codempresa}/{codmoneda}/{monto_proforma}/{moneda_cliente}/{monto_credito_disponible}/{idprof}/{numeroidprof}")]
         public async Task<object> aplicarCredTempAutoCli(string userConn, string codcliente_real, string usuario, string codempresa, string codmoneda, double monto_proforma, string moneda_cliente, double monto_credito_disponible, string idprof, int numeroidprof)
         {
@@ -3352,7 +3352,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
         // GET: api/post_quitar_descuento_por_deposito/5
         [HttpPost]
-        [Route("reqstQuitarDescDeposito/{userConn}/{codcliente}/{codcliente_real}/{nit}/{codempresa}/{subtotal}/{codmoneda}/{codproforma}")]
+        [Route("reqstQuitarDescDeposito/{userConn}/{codempresa}")]
         public async Task<ActionResult<object>> reqstQuitarDescDeposito(string userConn, string codempresa, List<tabladescuentos> tabladescuentos)
         {
             try
@@ -3561,7 +3561,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     tabladescuentos = tabladescuentos,
                     msgDesctApli = seAplicoDsctoPorDeposito.mensaje,
                     msgVentCob = "",
-                    megAlert = ""
+                    megAlert = "No se encontraron descuentos por deposito pendientes de aplicación."
                 });
             }
         }

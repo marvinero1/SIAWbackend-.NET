@@ -175,7 +175,7 @@ namespace siaw_funciones
                     proforma => proforma.codigo,
                     (detalle, proforma) => new { Detalle = detalle, Proforma = proforma })
                 .Where(joinResult =>
-                    !joinResult.Proforma.anulada == false &&
+                    joinResult.Proforma.anulada == false &&
                     joinResult.Proforma.codcliente_real == codcliente &&
                     joinResult.Proforma.aprobada == true &&
                     joinResult.Proforma.fecha >= desde.Date && joinResult.Proforma.fecha <= hasta.Date &&
@@ -203,7 +203,7 @@ namespace siaw_funciones
                     remision => remision.codigo,
                     (detalle, remision) => new { Detalle = detalle, Remision = remision })
                 .Where(joinResult =>
-                    !joinResult.Remision.anulada == false &&
+                    joinResult.Remision.anulada == false &&
                     joinResult.Remision.codcliente_real == codcliente &&
                     joinResult.Remision.anulada == false &&
                     joinResult.Remision.transferida == true &&
