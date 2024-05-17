@@ -3228,8 +3228,33 @@ namespace siaw_funciones
                 .Select(i=>i.tiempo).FirstOrDefaultAsync() ?? 0;
             return resultado;
         }
+
+        public async Task<List<dtDescxLineaCli>> Descuentosporlinea(DBContext _context, string codcliente)
+        {
+            var resultado = await _context.vedescliente
+                .Where(d => d.cliente == codcliente)
+                .Join(_context.initem, d => d.coditem, i => i.codigo, (d, i) => new { d, i })
+                .Join(_context.inlinea, di => di.i.codlinea, l => l.codigo, (di, l) => new { di.d, di.i, l })
+                .GroupBy(x => new { x.d.cliente, x.l.codgrupo })
+                .Select(g => new dtDescxLineaCli
+                {
+                    cliente = g.Key.cliente,
+                    codgrupo = g.Key.codgrupo ?? 0,
+                    nivel = g.Max(d => d.d.nivel) ?? ""
+                })
+                .ToListAsync();
+            return resultado;
+        }
     }
 
+
+
+    public class dtDescxLineaCli
+    {
+        public string cliente { get; set; }
+        public int codgrupo { get; set; }
+        public string nivel { get; set; }
+    }
 
     public class dtcbza
     {

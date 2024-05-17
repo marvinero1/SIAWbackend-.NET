@@ -28,6 +28,11 @@ using Humanizer;
 using System.Net;
 using System.Drawing.Drawing2D;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Xml;
+using NuGet.Packaging;
 
 namespace SIAW.Controllers.ventas.transaccion
 {
@@ -57,6 +62,7 @@ namespace SIAW.Controllers.ventas.transaccion
         private readonly siaw_funciones.Seguridad seguridad = new siaw_funciones.Seguridad();
 
         private readonly siaw_funciones.Funciones funciones = new Funciones();
+        private readonly siaw_funciones.ziputil ziputil = new ziputil();
         public veproformaController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;
@@ -4300,10 +4306,340 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
 
+
+        ////////////////////////////////////////////  IMPORTAR DOCUMENTO PROFORMA
+
+
+        [HttpGet]
+        [Route("importProf")]
+        public async Task<IActionResult> importProf([FromForm] IFormFile file)
+        {
+            /*
+            if (file == null || file.Length == 0)
+                return BadRequest("No file uploaded.");
+
+            // Guardar el archivo en una ubicación temporal
+            string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            string outputDirectory = Path.Combine(currentDirectory, "OutputFiles");
+
+            Directory.CreateDirectory(outputDirectory); // Crear el directorio si no existe
+
+            var filePath = Path.Combine(outputDirectory, file.FileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+            */
+
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest("No file uploaded.");
+            }
+            string filePath = "";
+            // Verificar el tamaño del archivo cargado
+            long fileSize = file.Length;
+            Console.WriteLine($"Uploaded file size: {fileSize} bytes");
+
+            string _targetDirectory = "";
+            try
+            {
+                _targetDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "OutputFiles");
+                // Combina el directorio de destino con el nombre del archivo
+                filePath = Path.Combine(_targetDirectory, file.FileName);
+
+                // Guarda el archivo en la ruta especificada
+                if (System.IO.File.Exists(filePath))
+                    return BadRequest("File with the same name already exists.");
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
+                }
+
+
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+                // Aquí puedes agregar la lógica para procesar el archivo .zip
+
+                ziputil zUtil = new ziputil();
+
+            string primerArchivo = zUtil.ObtenerPrimerArchivoEnZip(filePath);
+            ///descomprimir
+            try
+            {
+                await zUtil.DescomprimirArchivo(_targetDirectory, filePath, primerArchivo);
+
+                byte[] salt = Encoding.ASCII.GetBytes("pertec");
+                string password = "P@$$w0rd";
+                using (var cdk = new Rfc2898DeriveBytes(password, salt, 100)) 
+                {
+                    byte[] iv = { 0, 0, 0, 0, 0, 0, 0, 0 };
+                    byte[] key = cdk.GetBytes(64 / 8);
+                    byte[] IV2 = { 21, 22, 23, 24, 25, 26, 27, 28 };
+
+                    try
+                    {
+                        await funciones.DecryptData(Path.Combine(_targetDirectory, primerArchivo), Path.Combine(_targetDirectory, "profor.xml"), key, IV2);
+                    }
+                    catch (Exception)
+                    {
+                        throw;
+                    }
+                }
+
+
+                return Ok(new { filePath });
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+           
+        }
+
+
+
+
+        ////////////////////////////////////////////  EXPORTAR DOCUMENTO PROFORMA
+
+
+
+        [HttpGet]
+        [Route("exportProforma/{userConn}/{codProforma}/{id}/{numeroid}/{codcliente}")]
+        public async Task<ActionResult<List<object>>> exportProforma(string userConn, int codProforma, string id, int numeroid, string codcliente)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var result = await cargariedataset(_context, codProforma, id, numeroid, codcliente);
+                    if (result.resp)
+                    {
+                        string stringDataXml = ConvertDataSetToXml(result.iedataset);
+
+                        var resp_dataEncriptada = await exportar_encriptado(stringDataXml, id, numeroid);
+                        if (resp_dataEncriptada.resp)
+                        {
+                            return Ok(resp_dataEncriptada.encriptado);
+                        }
+
+                        return Ok(stringDataXml);
+                    }
+                    return Ok(result.resp);
+                }
+
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+        }
+
+        private string ConvertDataSetToXml(DataSet iedataset)
+        {
+            using (StringWriter sw = new StringWriter())
+            {
+                iedataset.WriteXml(sw, XmlWriteMode.WriteSchema);
+                return sw.ToString();
+            }
+        }
+
+        private async Task<(bool resp, DataSet iedataset)> cargariedataset(DBContext _context, int codProforma, string id, int numeroid, string codcliente)
+        {
+            DataSet iedataset = new DataSet();
+
+            try
+            {
+                iedataset.Clear();
+                iedataset.Reset();
+
+                // cargar cabecera
+                var dataProforma = await _context.veproforma.Where(i => i.codigo == codProforma).ToListAsync();
+                if (dataProforma.Any())
+                {
+                    DataTable cabeceraTable = dataProforma.ToDataTable();
+                    cabeceraTable.TableName = "cabecera";
+                    iedataset.Tables.Add(cabeceraTable);
+                    iedataset.Tables["cabecera"].Columns.Add("documento", typeof(string));
+                    iedataset.Tables["cabecera"].Rows[0]["documento"] = "PROFORMA";
+
+                }
+                /*
+                // Añadir campo identificador
+                iedataset.Tables["cabecera"].Columns.Add("documento", typeof(string));
+                iedataset.Tables["cabecera"].Rows[0]["documento"] = "PROFORMA";
+
+                */
+
+                // Cargar detalle usando LINQ y Entity Framework
+                var dataDetalle = await _context.veproforma1
+                    .Where(i => i.codproforma == codProforma)
+                    .ToListAsync();
+
+                if (dataDetalle.Any())
+                {
+                    DataTable detalleTable = dataDetalle.ToDataTable();   // convertir a dataTable
+                    detalleTable.TableName = "detalle";
+                    iedataset.Tables.Add(detalleTable);
+                }
+
+                // cargar recargos
+                var dataRecargos = await _context.verecargoprof
+                    .Where(i => i.codproforma == codProforma)
+                    .ToListAsync();
+
+                if (dataRecargos.Any())
+                {
+                    DataTable recargoTable = dataRecargos.ToDataTable();
+                    recargoTable.TableName = "recargo";
+                    iedataset.Tables.Add(recargoTable);
+                }
+
+                // cargar descuentos
+                var dataDescuentos = await _context.vedesextraprof
+                    .Where(i => i.codproforma == codProforma)
+                    .ToListAsync();
+                if (dataDescuentos.Any())
+                {
+                    DataTable descuentoTable = dataDescuentos.ToDataTable();
+                    descuentoTable.TableName = "descuento";
+                    iedataset.Tables.Add(descuentoTable);
+                }
+
+
+
+                // cargar iva
+                var dataIva = await _context.veproforma_iva
+                    .Where(i => i.codproforma == codProforma)
+                    .ToListAsync();
+                if (dataIva.Any())
+                {
+                    DataTable ivaTable = dataIva.ToDataTable();
+                    ivaTable.TableName = "iva";
+                    iedataset.Tables.Add(ivaTable);
+                }
+
+
+                // cargar etiqueta
+                var dataEtiqueta = await _context.veetiqueta_proforma
+                    .Where(i => i.id == id && i.numeroid == numeroid)
+                    .ToListAsync();
+                if (dataEtiqueta.Any())
+                {
+                    DataTable etiquetaTable = dataEtiqueta.ToDataTable();
+                    etiquetaTable.TableName = "etiqueta";
+                    iedataset.Tables.Add(etiquetaTable);
+                }
+
+
+                // cargar datos del cliente por si acaso
+                var dataCliente = await _context.vecliente
+                    .Where(i => i.codigo == codcliente)
+                    .ToListAsync();
+                if (dataCliente.Any())
+                {
+                    DataTable clienteTable = dataCliente.ToDataTable();
+                    clienteTable.TableName = "cliente";
+                    iedataset.Tables.Add(clienteTable);
+                }
+
+
+
+                // cargar datos de descuentos del cliente
+                var dataDescuentosCliente = await ventas.Descuentosporlinea(_context, codcliente);
+                if (dataDescuentosCliente.Any())
+                {
+                    DataTable vedesclienteTable = dataDescuentosCliente.ToDataTable();
+                    vedesclienteTable.TableName = "vedescliente";
+                    iedataset.Tables.Add(vedesclienteTable);
+                }
+
+                return (true, iedataset);
+            }
+            catch (Exception)
+            {
+                return (false, iedataset);
+            }
+        }
+
+
+
+        private async Task<(bool resp, string encriptado)> exportar_encriptado(string xmlText, string id, int numeroid)
+        {
+            ziputil zUtil = new ziputil();
+            string password = "P@$$w0rd";
+            byte[] salt = Encoding.ASCII.GetBytes("pertec");
+
+            using (var cdk = new Rfc2898DeriveBytes(password, salt, 100)) // 100 es el número de iteraciones recomendado
+            {
+                byte[] iv = { 0, 0, 0, 0, 0, 0, 0, 0 };
+                byte[] key = cdk.GetBytes(64 / 8);
+                byte[] IV2 = { 21, 22, 23, 24, 25, 26, 27, 28 };
+
+                try
+                {
+                    string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
+                    string outputDirectory = Path.Combine(currentDirectory, "OutputFiles");
+
+                    Directory.CreateDirectory(outputDirectory); // Crear el directorio si no existe
+                    string outName = Path.Combine(outputDirectory, id + "-" + numeroid + ".pro");
+
+                    string[] archivo = new string[1];
+                    archivo[0] = outName;
+
+                    await funciones.EncryptData(xmlText, outName, key, IV2);
+
+                    await zUtil.Comprimir(archivo, outName.Substring(0, outName.Length - 4) + ".zip", false);
+
+
+                    return (true, outName);
+                }
+                catch (Exception)
+                {
+                    return (false, "");
+                }
+            }
+        }
+
+
+
+
     }
 
 
+    public static class ListToDataTableConverter
+    {
+        public static DataTable ToDataTable<T>(this IList<T> data)
+        {
+            PropertyDescriptorCollection properties = TypeDescriptor.GetProperties(typeof(T));
+            DataTable table = new DataTable();
 
+            foreach (PropertyDescriptor prop in properties)
+            {
+                table.Columns.Add(prop.Name, Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType);
+            }
+
+            foreach (T item in data)
+            {
+                DataRow row = table.NewRow();
+                foreach (PropertyDescriptor prop in properties)
+                {
+                    row[prop.Name] = prop.GetValue(item) ?? DBNull.Value;
+                }
+                table.Rows.Add(row);
+            }
+
+            return table;
+        }
+    }
 
 
 

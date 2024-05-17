@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "Exzd7QSSi5ohE99bGuRWlE8erYBMde3cr1hts7jthoGs73IHhhaf82BTkR23fKpzqkLmnObjRfxMcFSxS9YeAA==",
+  "dgSpecHash": "HYKXv+JTVwHaJUuIk+nqOsrO7zNyuX3LKnP3MabsnYkImPIC4N4pocpwVSXjkDpLQIuPYWZ6GFI6cPv/Xfl65g==",
   "success": true,
   "projectFilePath": "C:\\laragon\\www\\siawbackend-.net\\SIAW\\SIAW.csproj",
   "expectedPackageFiles": [
@@ -147,6 +147,7 @@
     "C:\\Users\\anali\\.nuget\\packages\\runtime.ubuntu.14.04-x64.runtime.native.system.security.cryptography.openssl\\4.3.0\\runtime.ubuntu.14.04-x64.runtime.native.system.security.cryptography.openssl.4.3.0.nupkg.sha512",
     "C:\\Users\\anali\\.nuget\\packages\\runtime.ubuntu.16.04-x64.runtime.native.system.security.cryptography.openssl\\4.3.0\\runtime.ubuntu.16.04-x64.runtime.native.system.security.cryptography.openssl.4.3.0.nupkg.sha512",
     "C:\\Users\\anali\\.nuget\\packages\\runtime.ubuntu.16.10-x64.runtime.native.system.security.cryptography.openssl\\4.3.0\\runtime.ubuntu.16.10-x64.runtime.native.system.security.cryptography.openssl.4.3.0.nupkg.sha512",
+    "C:\\Users\\anali\\.nuget\\packages\\sharpziplib\\1.4.2\\sharpziplib.1.4.2.nupkg.sha512",
     "C:\\Users\\anali\\.nuget\\packages\\swashbuckle.aspnetcore\\6.2.3\\swashbuckle.aspnetcore.6.2.3.nupkg.sha512",
     "C:\\Users\\anali\\.nuget\\packages\\swashbuckle.aspnetcore.swagger\\6.2.3\\swashbuckle.aspnetcore.swagger.6.2.3.nupkg.sha512",
     "C:\\Users\\anali\\.nuget\\packages\\swashbuckle.aspnetcore.swaggergen\\6.2.3\\swashbuckle.aspnetcore.swaggergen.6.2.3.nupkg.sha512",
