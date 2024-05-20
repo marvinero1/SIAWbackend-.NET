@@ -767,3 +767,5 @@ C:\laragon\www\siawbackend-.net\SIAW\obj\Debug\net6.0\ref\SIAW.dll
 D:\Fuente SIAW2023\siawbackend-.net\SIAW\obj\Debug\net6.0\SIAW.sourcelink.json
 D:\Fuente SIAW2023\siawbackend-.net\SIAW\obj\Debug\net6.0\SIAW.csproj.Up2Date
 C:\laragon\www\siawbackend-.net\SIAW\bin\Debug\net6.0\ICSharpCode.SharpZipLib.dll
+C:\laragon\www\siawbackend-.net\SIAW\bin\Debug\net6.0\LibSIAVB.dll
+C:\laragon\www\siawbackend-.net\SIAW\bin\Debug\net6.0\LibSIAVB.pdb

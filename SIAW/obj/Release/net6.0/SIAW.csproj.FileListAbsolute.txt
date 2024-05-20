@@ -766,3 +766,6 @@ D:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Release\net6.0\siaw_DBContext.dll
 D:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Release\net6.0\siaw_funciones.dll
 D:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Release\net6.0\siaw_DBContext.pdb
 D:\Fuente SIAW2023\siawbackend-.net\SIAW\bin\Release\net6.0\siaw_funciones.pdb
+C:\laragon\www\siawbackend-.net\SIAW\bin\Release\net6.0\ICSharpCode.SharpZipLib.dll
+C:\laragon\www\siawbackend-.net\SIAW\bin\Release\net6.0\LibSIAVB.dll
+C:\laragon\www\siawbackend-.net\SIAW\bin\Release\net6.0\LibSIAVB.pdb

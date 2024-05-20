@@ -61,6 +61,7 @@ C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\NuGet.Packagi
 C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\NuGet.ProjectModel.dll
 C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\NuGet.Protocol.dll
 C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\NuGet.Versioning.dll
+C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\ICSharpCode.SharpZipLib.dll
 C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\Swashbuckle.AspNetCore.Swagger.dll
 C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\Swashbuckle.AspNetCore.SwaggerGen.dll
 C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\Swashbuckle.AspNetCore.SwaggerUI.dll
@@ -229,7 +230,9 @@ C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\runtimes\win\
 C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\runtimes\win\lib\netstandard2.0\System.Runtime.Caching.dll
 C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\runtimes\win\lib\net6.0\System.Security.Cryptography.ProtectedData.dll
 C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\runtimes\win\lib\net6.0\System.Windows.Extensions.dll
+C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\LibSIAVB.dll
 C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\siaw_DBContext.dll
 C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\siaw_funciones.dll
+C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\LibSIAVB.pdb
 C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\siaw_DBContext.pdb
 C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\PubTmp\Out\SIAW.deps.json

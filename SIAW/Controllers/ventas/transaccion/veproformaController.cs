@@ -18,6 +18,7 @@ using System.Security.Policy;
 using System.Text;
 using System.Web.Http.Results;
 using siaw_funciones;
+using LibSIAVB;
 using static siaw_funciones.Validar_Vta;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.CodeAnalysis.Differencing;
@@ -63,6 +64,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
         private readonly siaw_funciones.Funciones funciones = new Funciones();
         private readonly siaw_funciones.ziputil ziputil = new ziputil();
+        private readonly func_encriptado encripVB = new func_encriptado();
         public veproformaController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;
@@ -4384,7 +4386,8 @@ namespace SIAW.Controllers.ventas.transaccion
 
                     try
                     {
-                        await funciones.DecryptData(Path.Combine(_targetDirectory, primerArchivo), Path.Combine(_targetDirectory, "profor.xml"), key, IV2);
+                        await encripVB.DecryptData(Path.Combine(_targetDirectory, primerArchivo), Path.Combine(_targetDirectory, "profor.xml"));
+                        //await funciones.DecryptData(Path.Combine(_targetDirectory, primerArchivo), Path.Combine(_targetDirectory, "profor.xml"), key, IV2);
                     }
                     catch (Exception)
                     {
@@ -4412,7 +4415,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
         [HttpGet]
         [Route("exportProforma/{userConn}/{codProforma}/{id}/{numeroid}/{codcliente}")]
-        public async Task<ActionResult<List<object>>> exportProforma(string userConn, int codProforma, string id, int numeroid, string codcliente)
+        public async Task<IActionResult> exportProforma(string userConn, int codProforma, string id, int numeroid, string codcliente)
         {
             try
             {
@@ -4427,7 +4430,20 @@ namespace SIAW.Controllers.ventas.transaccion
                         var resp_dataEncriptada = await exportar_encriptado(stringDataXml, id, numeroid);
                         if (resp_dataEncriptada.resp)
                         {
-                            return Ok(resp_dataEncriptada.encriptado);
+                            string zipFilePath = resp_dataEncriptada.filePath; 
+
+                            if (System.IO.File.Exists(zipFilePath))
+                            {
+                                byte[] fileBytes = System.IO.File.ReadAllBytes(zipFilePath);
+                                string fileName = Path.GetFileName(zipFilePath);
+
+                                // Devuelve el archivo ZIP para descargar
+                                return File(fileBytes, "application/zip", fileName);
+                            }
+                            else
+                            {
+                                return NotFound("El archivo ZIP no se encontró.");
+                            }
                         }
 
                         return Ok(stringDataXml);
@@ -4481,87 +4497,138 @@ namespace SIAW.Controllers.ventas.transaccion
 
                 // Cargar detalle usando LINQ y Entity Framework
                 var dataDetalle = await _context.veproforma1
-                    .Where(i => i.codproforma == codProforma)
+                    .Where(p => p.codproforma == codProforma)
+                    .Join(_context.initem,
+                          p => p.coditem,
+                          i => i.codigo,
+                          (p, i) => new
+                          {
+                              p.codproforma,
+                              p.coditem,
+                              i.descripcion,
+                              i.medida,
+                              p.niveldesc,
+                              p.preciodesc,
+                              p.cantidad_pedida,
+                              p.cantidad,
+                              p.udm,
+                              p.porceniva,
+                              p.codtarifa,
+                              p.coddescuento,
+                              p.preciolista,
+                              p.precioneto,
+                              p.total,
+                              cumple = 1,
+                              p.cantaut,
+                              p.totalaut,
+                              porcendesc = 0.00,
+                              porcen_mercaderia = 0.000,
+                              p.peso,
+                              p.nroitem,
+                              empaque = 0
+                          })
+                    .OrderBy(p => p.coditem)
                     .ToListAsync();
-
+                /*
                 if (dataDetalle.Any())
                 {
                     DataTable detalleTable = dataDetalle.ToDataTable();   // convertir a dataTable
                     detalleTable.TableName = "detalle";
                     iedataset.Tables.Add(detalleTable);
-                }
+                }*/
+                DataTable detalleTable = dataDetalle.ToDataTable();   // convertir a dataTable
+                detalleTable.TableName = "detalle";
+                iedataset.Tables.Add(detalleTable);
 
                 // cargar recargos
                 var dataRecargos = await _context.verecargoprof
                     .Where(i => i.codproforma == codProforma)
                     .ToListAsync();
-
+                /*
                 if (dataRecargos.Any())
                 {
                     DataTable recargoTable = dataRecargos.ToDataTable();
                     recargoTable.TableName = "recargo";
                     iedataset.Tables.Add(recargoTable);
-                }
+                }*/
+                DataTable recargoTable = dataRecargos.ToDataTable();
+                recargoTable.TableName = "recargo";
+                iedataset.Tables.Add(recargoTable);
 
                 // cargar descuentos
                 var dataDescuentos = await _context.vedesextraprof
                     .Where(i => i.codproforma == codProforma)
                     .ToListAsync();
+                /*
                 if (dataDescuentos.Any())
                 {
                     DataTable descuentoTable = dataDescuentos.ToDataTable();
                     descuentoTable.TableName = "descuento";
                     iedataset.Tables.Add(descuentoTable);
-                }
-
+                }*/
+                DataTable descuentoTable = dataDescuentos.ToDataTable();
+                descuentoTable.TableName = "descuento";
+                iedataset.Tables.Add(descuentoTable);
 
 
                 // cargar iva
                 var dataIva = await _context.veproforma_iva
                     .Where(i => i.codproforma == codProforma)
                     .ToListAsync();
+                /*
                 if (dataIva.Any())
                 {
                     DataTable ivaTable = dataIva.ToDataTable();
                     ivaTable.TableName = "iva";
                     iedataset.Tables.Add(ivaTable);
-                }
-
+                }*/
+                DataTable ivaTable = dataIva.ToDataTable();
+                ivaTable.TableName = "iva";
+                iedataset.Tables.Add(ivaTable);
 
                 // cargar etiqueta
                 var dataEtiqueta = await _context.veetiqueta_proforma
                     .Where(i => i.id == id && i.numeroid == numeroid)
                     .ToListAsync();
+                /*
                 if (dataEtiqueta.Any())
                 {
                     DataTable etiquetaTable = dataEtiqueta.ToDataTable();
                     etiquetaTable.TableName = "etiqueta";
                     iedataset.Tables.Add(etiquetaTable);
-                }
-
+                }*/
+                DataTable etiquetaTable = dataEtiqueta.ToDataTable();
+                etiquetaTable.TableName = "etiqueta";
+                iedataset.Tables.Add(etiquetaTable);
 
                 // cargar datos del cliente por si acaso
                 var dataCliente = await _context.vecliente
                     .Where(i => i.codigo == codcliente)
                     .ToListAsync();
+                /*
                 if (dataCliente.Any())
                 {
                     DataTable clienteTable = dataCliente.ToDataTable();
                     clienteTable.TableName = "cliente";
                     iedataset.Tables.Add(clienteTable);
-                }
-
+                }*/
+                DataTable clienteTable = dataCliente.ToDataTable();
+                clienteTable.TableName = "cliente";
+                iedataset.Tables.Add(clienteTable);
 
 
                 // cargar datos de descuentos del cliente
                 var dataDescuentosCliente = await ventas.Descuentosporlinea(_context, codcliente);
+                /*
                 if (dataDescuentosCliente.Any())
                 {
                     DataTable vedesclienteTable = dataDescuentosCliente.ToDataTable();
                     vedesclienteTable.TableName = "vedescliente";
                     iedataset.Tables.Add(vedesclienteTable);
-                }
-
+                }*/
+                DataTable vedesclienteTable = dataDescuentosCliente.ToDataTable();
+                vedesclienteTable.TableName = "vedescliente";
+                iedataset.Tables.Add(vedesclienteTable);
                 return (true, iedataset);
             }
             catch (Exception)
@@ -4572,40 +4639,31 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
-        private async Task<(bool resp, string encriptado)> exportar_encriptado(string xmlText, string id, int numeroid)
+        private async Task<(bool resp, string filePath)> exportar_encriptado(string xmlText, string id, int numeroid)
         {
             ziputil zUtil = new ziputil();
-            string password = "P@$$w0rd";
-            byte[] salt = Encoding.ASCII.GetBytes("pertec");
-
-            using (var cdk = new Rfc2898DeriveBytes(password, salt, 100)) // 100 es el número de iteraciones recomendado
+            try
             {
-                byte[] iv = { 0, 0, 0, 0, 0, 0, 0, 0 };
-                byte[] key = cdk.GetBytes(64 / 8);
-                byte[] IV2 = { 21, 22, 23, 24, 25, 26, 27, 28 };
+                string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
+                string outputDirectory = Path.Combine(currentDirectory, "OutputFiles");
 
-                try
-                {
-                    string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
-                    string outputDirectory = Path.Combine(currentDirectory, "OutputFiles");
+                Directory.CreateDirectory(outputDirectory); // Crear el directorio si no existe
+                string outName = Path.Combine(outputDirectory, id + "-" + numeroid + ".pro");
 
-                    Directory.CreateDirectory(outputDirectory); // Crear el directorio si no existe
-                    string outName = Path.Combine(outputDirectory, id + "-" + numeroid + ".pro");
+                string[] archivo = new string[1];
+                archivo[0] = outName;
 
-                    string[] archivo = new string[1];
-                    archivo[0] = outName;
+                //await funciones.EncryptData(xmlText, outName, key, IV2);
+                await encripVB.EncryptData(xmlText, outName);
 
-                    await funciones.EncryptData(xmlText, outName, key, IV2);
-
-                    await zUtil.Comprimir(archivo, outName.Substring(0, outName.Length - 4) + ".zip", false);
+                await zUtil.Comprimir(archivo, outName.Substring(0, outName.Length - 4) + ".zip", false);
 
 
-                    return (true, outName);
-                }
-                catch (Exception)
-                {
-                    return (false, "");
-                }
+                return (true, outName.Substring(0, outName.Length - 4) + ".zip");
+            }
+            catch (Exception)
+            {
+                return (false, "");
             }
         }
 
