@@ -34,6 +34,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Xml;
 using NuGet.Packaging;
+using System.Xml.Linq;
 
 namespace SIAW.Controllers.ventas.transaccion
 {
@@ -1462,15 +1463,6 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
-
-
-
-
-
-
-
-
-
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
 
@@ -1504,8 +1496,8 @@ namespace SIAW.Controllers.ventas.transaccion
                             return BadRequest(new { resp = validacion_inicial.msg });
                         }
 
-                        string result = await Grabar_Documento(_context, idProf, codempresa, datosProforma);
-                        if (result != "ok")
+                        var result = await Grabar_Documento(_context, idProf, codempresa, datosProforma);
+                        if (result.resp != "ok")
                         {
                             dbContexTransaction.Rollback();
                             return BadRequest(new { resp = result });
@@ -1634,7 +1626,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
                         dbContexTransaction.Commit();
-                        return Ok(new { resp = "Se Grabo la Proforma de manera Exitosa" });
+                        return Ok(new { resp = "Se Grabo la Proforma de manera Exitosa", codProf = result.codprof });
                     }
                     catch (Exception)
                     {
@@ -1788,7 +1780,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 return false;
             }
         }
-        private async Task<string> Grabar_Documento(DBContext _context, string idProf, string codempresa, SaveProformaCompleta datosProforma)
+        private async Task<(string resp, int codprof)> Grabar_Documento(DBContext _context, string idProf, string codempresa, SaveProformaCompleta datosProforma)
         {
             veproforma veproforma = datosProforma.veproforma;
             List<veproforma1> veproforma1 = datosProforma.veproforma1;
@@ -1806,7 +1798,7 @@ namespace SIAW.Controllers.ventas.transaccion
             {
                 if (veproforma_valida.Count() < 1 || veproforma_valida == null)
                 {
-                    return "Antes de grabar el documento debe previamente validar el mismo!!!";
+                    return ("Antes de grabar el documento debe previamente validar el mismo!!!",0);
                 }
             }
 
@@ -1841,13 +1833,13 @@ namespace SIAW.Controllers.ventas.transaccion
 
             if (idnroactual == 0)
             {
-                return "Error al obtener los datos de numero de proforma";
+                return ("Error al obtener los datos de numero de proforma", 0);
             }
 
             // valida si existe ya la proforma
             if (await datos_proforma.existeProforma(_context, idProf, idnroactual))
             {
-                return "Ese numero de documento, ya existe, por favor consulte con el administrador del sistema.";
+                return ("Ese numero de documento, ya existe, por favor consulte con el administrador del sistema.", 0);
             }
 
             // obtener hora y fecha actual si es que la proforma no se importo
@@ -1959,7 +1951,7 @@ namespace SIAW.Controllers.ventas.transaccion
              */
 
 
-            return "ok";
+            return ("ok", codProforma);
 
 
         }
@@ -4312,36 +4304,23 @@ namespace SIAW.Controllers.ventas.transaccion
         ////////////////////////////////////////////  IMPORTAR DOCUMENTO PROFORMA
 
 
-        [HttpGet]
+        [HttpPost]
         [Route("importProf")]
         public async Task<IActionResult> importProf([FromForm] IFormFile file)
         {
-            /*
-            if (file == null || file.Length == 0)
-                return BadRequest("No file uploaded.");
-
+            
             // Guardar el archivo en una ubicación temporal
             string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
             string outputDirectory = Path.Combine(currentDirectory, "OutputFiles");
 
             Directory.CreateDirectory(outputDirectory); // Crear el directorio si no existe
 
-            var filePath = Path.Combine(outputDirectory, file.FileName);
-
-            using (var stream = new FileStream(filePath, FileMode.Create))
-            {
-                await file.CopyToAsync(stream);
-            }
-            */
 
             if (file == null || file.Length == 0)
             {
-                return BadRequest("No file uploaded.");
+                return BadRequest("No se cargo el archivo correctamente.");
             }
             string filePath = "";
-            // Verificar el tamaño del archivo cargado
-            long fileSize = file.Length;
-            Console.WriteLine($"Uploaded file size: {fileSize} bytes");
 
             string _targetDirectory = "";
             try
@@ -4350,57 +4329,29 @@ namespace SIAW.Controllers.ventas.transaccion
                 // Combina el directorio de destino con el nombre del archivo
                 filePath = Path.Combine(_targetDirectory, file.FileName);
 
-                // Guarda el archivo en la ruta especificada
-                if (System.IO.File.Exists(filePath))
-                    return BadRequest("File with the same name already exists.");
-
                 using (var stream = new FileStream(filePath, FileMode.Create))
                 {
                     await file.CopyToAsync(stream);
                 }
-
-
             }
             catch (Exception)
             {
-
                 throw;
             }
-                // Aquí puedes agregar la lógica para procesar el archivo .zip
-
-                ziputil zUtil = new ziputil();
+            ziputil zUtil = new ziputil();
 
             string primerArchivo = zUtil.ObtenerPrimerArchivoEnZip(filePath);
             ///descomprimir
             try
             {
                 await zUtil.DescomprimirArchivo(_targetDirectory, filePath, primerArchivo);
-
-                byte[] salt = Encoding.ASCII.GetBytes("pertec");
-                string password = "P@$$w0rd";
-                using (var cdk = new Rfc2898DeriveBytes(password, salt, 100)) 
-                {
-                    byte[] iv = { 0, 0, 0, 0, 0, 0, 0, 0 };
-                    byte[] key = cdk.GetBytes(64 / 8);
-                    byte[] IV2 = { 21, 22, 23, 24, 25, 26, 27, 28 };
-
-                    try
-                    {
-                        await encripVB.DecryptData(Path.Combine(_targetDirectory, primerArchivo), Path.Combine(_targetDirectory, "profor.xml"));
-                        //await funciones.DecryptData(Path.Combine(_targetDirectory, primerArchivo), Path.Combine(_targetDirectory, "profor.xml"), key, IV2);
-                    }
-                    catch (Exception)
-                    {
-                        throw;
-                    }
-                }
-
-
-                return Ok(new { filePath });
+                string xmlDecript = await encripVB.DecryptData(Path.Combine(_targetDirectory, primerArchivo));
+                //await funciones.DecryptData(Path.Combine(_targetDirectory, primerArchivo), Path.Combine(_targetDirectory, "profor.xml"), key, IV2);
+                return Ok(new { respXml = xmlDecript });
             }
             catch (Exception)
             {
-
+                return Problem("Error en el servidor");
                 throw;
             }
            
@@ -4409,23 +4360,118 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
+        [HttpPost]
+        [Route("importProfinJson")]
+        public async Task<IActionResult> importProfinJson([FromForm] IFormFile file)
+        {
+
+            // Guardar el archivo en una ubicación temporal
+            string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            string outputDirectory = Path.Combine(currentDirectory, "OutputFiles");
+
+            Directory.CreateDirectory(outputDirectory); // Crear el directorio si no existe
+
+
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest("No se cargo el archivo correctamente.");
+            }
+            string filePath = "";
+
+            string _targetDirectory = "";
+            try
+            {
+                _targetDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "OutputFiles");
+                // Combina el directorio de destino con el nombre del archivo
+                filePath = Path.Combine(_targetDirectory, file.FileName);
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
+                }
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+            ziputil zUtil = new ziputil();
+
+            string primerArchivo = zUtil.ObtenerPrimerArchivoEnZip(filePath);
+            ///descomprimir
+            try
+            {
+                await zUtil.DescomprimirArchivo(_targetDirectory, filePath, primerArchivo);
+                string xmlDecript = await encripVB.DecryptData(Path.Combine(_targetDirectory, primerArchivo));
+                //await funciones.DecryptData(Path.Combine(_targetDirectory, primerArchivo), Path.Combine(_targetDirectory, "profor.xml"), key, IV2);
+
+                DataSet dataSet = new DataSet();
+
+                using (StringReader stringReader = new StringReader(xmlDecript))
+                {
+                    dataSet.ReadXml(stringReader);
+                }
+
+                Console.WriteLine("XML convertido a DataSet exitosamente.");
+
+                // Suponiendo que tienes un DataSet llamado dataSet y quieres convertirlo a un diccionario de tablas:
+                Dictionary<string, DataTable> datosConvertidos = dataSet.ToDictionary();
+
+                // Accede a una tabla específica por su nombre
+                DataTable cabeceraTabla = datosConvertidos["cabecera"];
+                DataTable detalleTabla = datosConvertidos["detalle"];
+                DataTable recargoTabla = datosConvertidos["recargo"];
+                DataTable descuentoTabla = datosConvertidos["descuento"];
+                DataTable ivaTabla = datosConvertidos["iva"];
+                DataTable etiquetaTabla = datosConvertidos["etiqueta"];
+                DataTable clienteTabla = datosConvertidos["cliente"];
+                DataTable vedesclienteTabla = datosConvertidos["vedescliente"];
+
+                List<Dictionary<string, object>> cabeceraList = DataTableToListConverter.ConvertToList(cabeceraTabla);
+                List<Dictionary<string, object>> detalleList = DataTableToListConverter.ConvertToList(detalleTabla);
+                List<Dictionary<string, object>> recargoList = DataTableToListConverter.ConvertToList(recargoTabla);
+                List<Dictionary<string, object>> descuentoList = DataTableToListConverter.ConvertToList(descuentoTabla);
+                List<Dictionary<string, object>> ivaList = DataTableToListConverter.ConvertToList(ivaTabla);
+                List<Dictionary<string, object>> etiquetaList = DataTableToListConverter.ConvertToList(etiquetaTabla);
+                List<Dictionary<string, object>> clienteList = DataTableToListConverter.ConvertToList(clienteTabla);
+                List<Dictionary<string, object>> vedesclienteList = DataTableToListConverter.ConvertToList(vedesclienteTabla);
+                return Ok(new { 
+                    cabeceraList,
+                    detalleList,
+                    recargoList,
+                    descuentoList,
+                    ivaList,
+                    etiquetaList,
+                    clienteList,
+                    vedesclienteList
+                });
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+
+        }
+
         ////////////////////////////////////////////  EXPORTAR DOCUMENTO PROFORMA
 
 
 
         [HttpGet]
-        [Route("exportProforma/{userConn}/{codProforma}/{id}/{numeroid}/{codcliente}")]
-        public async Task<IActionResult> exportProforma(string userConn, int codProforma, string id, int numeroid, string codcliente)
+        [Route("exportProforma/{userConn}/{codProforma}/{codcliente}")]
+        public async Task<IActionResult> exportProforma(string userConn, int codProforma, string codcliente)
         {
             try
             {
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
-                    var result = await cargariedataset(_context, codProforma, id, numeroid, codcliente);
+                    var result = await cargariedataset(_context, codProforma, codcliente);
                     if (result.resp)
                     {
                         string stringDataXml = ConvertDataSetToXml(result.iedataset);
+                        string id = result.id;
+                        int numeroid = result.numeroid;
 
                         var resp_dataEncriptada = await exportar_encriptado(stringDataXml, id, numeroid);
                         if (resp_dataEncriptada.resp)
@@ -4450,7 +4496,6 @@ namespace SIAW.Controllers.ventas.transaccion
                     }
                     return Ok(result.resp);
                 }
-
             }
             catch (Exception)
             {
@@ -4468,7 +4513,7 @@ namespace SIAW.Controllers.ventas.transaccion
             }
         }
 
-        private async Task<(bool resp, DataSet iedataset)> cargariedataset(DBContext _context, int codProforma, string id, int numeroid, string codcliente)
+        private async Task<(bool resp, DataSet iedataset, string id, int numeroid)> cargariedataset(DBContext _context, int codProforma, string codcliente)
         {
             DataSet iedataset = new DataSet();
 
@@ -4488,6 +4533,8 @@ namespace SIAW.Controllers.ventas.transaccion
                     iedataset.Tables["cabecera"].Rows[0]["documento"] = "PROFORMA";
 
                 }
+                string id = dataProforma[0].id;
+                int numeroid = dataProforma[0].numeroid;
                 /*
                 // Añadir campo identificador
                 iedataset.Tables["cabecera"].Columns.Add("documento", typeof(string));
@@ -4629,11 +4676,11 @@ namespace SIAW.Controllers.ventas.transaccion
                 DataTable vedesclienteTable = dataDescuentosCliente.ToDataTable();
                 vedesclienteTable.TableName = "vedescliente";
                 iedataset.Tables.Add(vedesclienteTable);
-                return (true, iedataset);
+                return (true, iedataset, id, numeroid);
             }
             catch (Exception)
             {
-                return (false, iedataset);
+                return (false, iedataset, "", 0);
             }
         }
 
@@ -4699,7 +4746,40 @@ namespace SIAW.Controllers.ventas.transaccion
         }
     }
 
+    public static class DataSetToObjectConverter
+    {
+        public static Dictionary<string, DataTable> ToDictionary(this DataSet dataSet)
+        {
+            Dictionary<string, DataTable> result = new Dictionary<string, DataTable>();
 
+            foreach (DataTable table in dataSet.Tables)
+            {
+                result.Add(table.TableName, table);
+            }
+
+            return result;
+        }
+    }
+
+    public static class DataTableToListConverter
+    {
+        public static List<Dictionary<string, object>> ConvertToList(DataTable dataTable)
+        {
+            List<Dictionary<string, object>> list = new List<Dictionary<string, object>>();
+
+            foreach (DataRow row in dataTable.Rows)
+            {
+                Dictionary<string, object> dict = new Dictionary<string, object>();
+                foreach (DataColumn col in dataTable.Columns)
+                {
+                    dict[col.ColumnName] = row[col];
+                }
+                list.Add(dict);
+            }
+
+            return list;
+        }
+    }
 
     public class requestRecargaDetalle
     {

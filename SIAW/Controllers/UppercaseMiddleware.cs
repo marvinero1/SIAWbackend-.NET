@@ -24,7 +24,8 @@
                 if (context.Request.Method == "POST" || context.Request.Method == "PUT")
                 {
                     bool BANDERA = context.Request.Path.Value.Contains("/guardarProforma");
-                    if (!context.Request.Path.Value.Contains("/refreshToken") && !BANDERA)
+                    bool BANDERA2 = context.Request.Path.Value.Contains("/importProf");
+                    if (!context.Request.Path.Value.Contains("/refreshToken") && !BANDERA && !BANDERA2)
                     {
                         using (var reader = new StreamReader(context.Request.Body))
                         {
