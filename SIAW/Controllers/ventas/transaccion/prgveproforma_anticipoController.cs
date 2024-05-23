@@ -5,6 +5,7 @@ using siaw_DBContext.Data;
 using siaw_DBContext.Models;
 using Microsoft.AspNetCore.Authorization;
 using siaw_funciones;
+using siaw_DBContext.Models_Extra;
 
 namespace SIAW.Controllers.ventas.transaccion
 {
@@ -312,23 +313,7 @@ namespace SIAW.Controllers.ventas.transaccion
     }
 
 
-    public class tabla_veproformaAnticipo
-    {
-        public int ? codproforma { get; set; }
-        public int ? codanticipo { get; set; }
-        public string ? docanticipo { get; set; }
-
-        public string id_anticipo { get; set; }
-        public int nroid_anticipo { get; set; }
-
-        public double monto { get; set; }
-        public double ? tdc { get; set; }
-        public string codmoneda { get; set; }
-        public DateTime fechareg { get; set; }
-        public string usuarioreg { get; set; }
-        public string horareg { get; set; }
-        public string codvendedor { get; set; }
-    }
+    
 
 
     public class tabla_anticipos_pendientes

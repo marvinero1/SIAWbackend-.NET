@@ -14383,7 +14383,8 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<cocobranza_deposito_ajuste>(entity =>
             {
-                entity.HasNoKey();
+                entity.HasKey(e => e.codigo)
+                    .HasName("PK__cocobran__40F9A207FA12AC83");
 
                 entity.Property(e => e.fechareg).HasColumnType("smalldatetime");
 

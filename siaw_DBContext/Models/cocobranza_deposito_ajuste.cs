@@ -13,5 +13,6 @@ namespace siaw_DBContext.Models
         public string usuarioreg { get; set; }
         public string horareg { get; set; }
         public DateTime? fechareg { get; set; }
+        public int codigo { get; set; }
     }
 }

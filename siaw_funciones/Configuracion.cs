@@ -533,6 +533,15 @@ namespace siaw_funciones
 
             return result;
         }
+        public async Task<bool> emp_aplica_ajustes_en_descto_deposito(DBContext _context, string adparametros)
+        {
+            bool result = await _context.adparametros
+                .Where(i => i.codempresa == adparametros)
+                    .Select(parametro => parametro.aplicar_ajuste_descdeposito)
+                    .FirstOrDefaultAsync() ?? false;
+
+            return result;
+        }
     }
 }
  

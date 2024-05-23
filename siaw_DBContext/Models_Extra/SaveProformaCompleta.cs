@@ -8,7 +8,7 @@ namespace siaw_DBContext.Models_Extra
         public veproforma veproforma { get; set; }
         public List<veproforma1> veproforma1 { get; set; }
         public List<veproforma_valida>? veproforma_valida { get; set; }
-        public List<veproforma_anticipo>? veproforma_anticipo { get; set; }
+        public List<tabla_veproformaAnticipo>? dt_anticipo_pf { get; set; }
         public List<vedesextraprof>? vedesextraprof { get; set; }
         public List<verecargoprof>? verecargoprof { get; set; }
         public List<veproforma_iva>? veproforma_iva { get; set; }
@@ -24,5 +24,22 @@ namespace siaw_DBContext.Models_Extra
         public List<tabladescuentos>? vedesextraprof { get; set; }
         public List<tablarecargos>? verecargoprof { get; set; }
         public List<veproforma_iva>? veproforma_iva { get; set; }
+    }
+    public class tabla_veproformaAnticipo
+    {
+        public int? codproforma { get; set; }
+        public int? codanticipo { get; set; }
+        public string? docanticipo { get; set; }
+
+        public string id_anticipo { get; set; }
+        public int nroid_anticipo { get; set; }
+
+        public double monto { get; set; }
+        public double? tdc { get; set; }
+        public string codmoneda { get; set; }
+        public DateTime fechareg { get; set; }
+        public string usuarioreg { get; set; }
+        public string horareg { get; set; }
+        public string codvendedor { get; set; }
     }
 }

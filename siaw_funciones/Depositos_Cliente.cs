@@ -14,6 +14,7 @@ namespace siaw_funciones
     public class Depositos_Cliente
     {
         private readonly TipoCambio tipocambio = new TipoCambio();
+        private readonly Log log = new Log();
         //private readonly Ventas ventas = new Ventas();
         //private readonly IVentas ventas;
         //Clase necesaria para el uso del DBContext del proyecto siaw_Context
@@ -471,8 +472,10 @@ namespace siaw_funciones
                 _context.cocobranza_deposito.RemoveRange(dt);
                 await _context.SaveChangesAsync();
                 // grabar logs
+                await log.RegistrarEvento(_context, usuarioreg, Log.Entidades.Ventana, Datos_Deposito.codcliente, Datos_Deposito.codcliente, "", nomb_ventana, "Se elimino la cobranza:" + Datos_Deposito.idcbza + "-" + Datos_Deposito.nroidcbza + " en cocobranza_deposito.", Log.TipoLog.Edicion);
 
             }
+            // insertar el registro en cocobranza_deposito
             cocobranza_deposito newReg = new cocobranza_deposito();
             newReg.fechareg = fechareg;
             newReg.horareg = horareg;
@@ -490,8 +493,17 @@ namespace siaw_funciones
             _context.cocobranza_deposito.Add(newReg);
             await _context.SaveChangesAsync();
             // grabar logs
+            await log.RegistrarEvento(_context, usuarioreg, Log.Entidades.Ventana, Datos_Deposito.codcliente, Datos_Deposito.codcliente, "", nomb_ventana, "Se registro la  cobranza " + Datos_Deposito.idcbza + "-" + Datos_Deposito.nroidcbza + " en cocobranza deposito con el monto descuento de: " + Datos_Deposito.monto_descto.ToString(), Log.TipoLog.Edicion);
             return true;
         }
+
+        public async Task<double> Total_Cobranza_Credito_Ajustado(DBContext _context, int codcobranza, string codmoneda)
+        {
+            var dt = await _context.cocobranza_deposito_ajuste.Where(i => i.codcobranza_ajustada == codcobranza).SumAsync(i => i.monto);
+            return (double)dt;
+        }
+
+
     }
 
 

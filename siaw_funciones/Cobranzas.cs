@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Humanizer;
 using Microsoft.EntityFrameworkCore;
@@ -41,12 +42,17 @@ namespace siaw_funciones
         }
 
 
-        public async Task<bool> Registrar_Descuento_Por_Deposito_de_Cbza(DBContext _context, string codcobranza, string codcliente, string codcliente_real, string nit, int codproforma, string cod_empresa, string usuarioreg)
+        public static async Task<bool> Registrar_Descuento_Por_Deposito_de_Cbza(DBContext _context, int codcobranza, string codcliente, string codcliente_real, string nit, int codproforma, string cod_empresa, string usuarioreg)
         {
+            Cobranzas cob = new Cobranzas();
+            Configuracion conf = new Configuracion();
+            Ventas vent = new Ventas();
+            Depositos_Cliente depCli = new Depositos_Cliente();
+            datosProforma datPro = new datosProforma();
             DateTime Depositos_Desde_Fecha = new DateTime(2015, 5, 13);
-
+            bool resultado = false;
             // obtener las distribuciones de la cbza, y validar si las distribuciones o paggo estan dentro las fechas permitadas respecto del vencimiento
-            List<consultCocobranza> dt_credito_depositos_pendientes = await Depositos_Cobranzas_Credito_Cliente_Sin_Aplicar(_context, "codcbza", codcobranza, codcliente_real, nit, codcliente_real, false, "APLICAR_DESCTO", codproforma, "", cod_empresa, false, Depositos_Desde_Fecha, false);
+            List<consultCocobranza> dt_credito_depositos_pendientes = await cob.Depositos_Cobranzas_Credito_Cliente_Sin_Aplicar(_context, "codcbza", codcobranza.ToString(), codcliente_real, nit, codcliente_real, false, "APLICAR_DESCTO", codproforma, "", cod_empresa, false, Depositos_Desde_Fecha, false);
 
 
             foreach (var reg in dt_credito_depositos_pendientes)
@@ -59,19 +65,19 @@ namespace siaw_funciones
                 }
                 else
                 {
-                    reg.monpago = await Moneda_De_Pago_de_una_Cobranza2(_context, reg.codcobranza, reg.codremision);
+                    reg.monpago = await cob.Moneda_De_Pago_de_una_Cobranza2(_context, reg.codcobranza, reg.codremision);
                 }
             }
 
             //esta funcion totaliza las distribuciones de una cobranza en un solo monto
-            List<dtdepositos_pendientes> dtpendientes = await Totalizar_Cobranzas_Depositos_Pendientes(_context, dt_credito_depositos_pendientes);
+            List<dtdepositos_pendientes> dtpendientes = await cob.Totalizar_Cobranzas_Depositos_Pendientes(_context, dt_credito_depositos_pendientes);
 
 
             //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             //1ra ETAPA: registrar en cocobranza_deposito con codproforma=0, y con el monto de descuento limite
             Datos_Cbza_Deposito objdatos_dep = new Datos_Cbza_Deposito();
-            int coddesextra = await configuracion.emp_coddesextra_x_deposito(_context,cod_empresa);
-            double PORCEN_DESCTO = (double)await ventas.DescuentoExtra_Porcentaje(_context, coddesextra);
+            int coddesextra = await conf.emp_coddesextra_x_deposito(_context,cod_empresa);
+            double PORCEN_DESCTO = (double)await vent.DescuentoExtra_Porcentaje(_context, coddesextra);
             double monto_descto = 0;
 
             try
@@ -89,17 +95,181 @@ namespace siaw_funciones
                     monto_descto = Math.Round(objdatos_dep.monto_dist * 0.01 * PORCEN_DESCTO, 2);
                     objdatos_dep.monto_descto = monto_descto;
                     objdatos_dep.monto_rest = 0;
-
+                    await depCli.Insertar_Cobranza_Deposito(_context, objdatos_dep, "", usuarioreg, DateTime.Now.Date, datPro.getHoraActual());
                 }
+                resultado = true;
             }
             catch (Exception)
             {
-
-                throw;
+                resultado = false;
             }
 
-            return true;
+            // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            // 2da ETAPA: verificar si el cliente tiene algun saldo negativo que se haya generado por que se le dio algun 
+            // descuento port deposito mas alla de lo permitido
+            // si es asi de ela cbza nueva realizar los ajustes
+            // registrar ajuste
+
+            // primero verifica si la empresa esta habilitada para aplicar ajustes en descuentos por deposito 
+            if (! await conf.emp_aplica_ajustes_en_descto_deposito(_context,cod_empresa))
+            {
+                return resultado;
+            }
+            if (resultado)
+            {
+                try
+                {
+                    double ttlajustado = 0;
+                    double ttlsaldo_ajustar = 0;
+                    double ttldesc_aplicado = 0;
+                    double ttlsaldo_descto = 0;
+
+                    var dtdesc_deposito_negativo = await cob.Recargos_Por_Descto_Deposito_Excedente(_context, "cliente", "", codcliente, nit, codcliente_real, false, "APLICAR_DESCTO", codproforma, "", cod_empresa);
+                    foreach (var reg1 in dtdesc_deposito_negativo)
+                    {
+                        ttlajustado = await depCli.Total_Cobranza_Credito_Ajustado(_context, reg1.codcobranza, reg1.codmoneda);
+
+                        ttlsaldo_ajustar = reg1.monto_recargo - ttlajustado;
+
+                        ttlsaldo_ajustar = Math.Round(ttlsaldo_ajustar, 2);
+
+                        if (ttlsaldo_ajustar > 0)
+                        {
+                            // si hay algun monto por ajustar, buscar en los descuentos pendientes
+                            foreach (var reg2 in dtpendientes)
+                            {
+                                // 1ro. obtener el monto que se aplico en descuentos por deposito
+                                ttldesc_aplicado = await depCli.Total_Descuentos_Por_Deposito_Aplicado_De_Cobranza_En_Proforma(_context, reg2.codcobranza ?? 0, 0, reg2.moncbza);
+                                // 2do. obtener el monto que se aplico en ajustes
+                                ttldesc_aplicado += await depCli.Total_Ajustes_Por_Deposito_Aplicado_De_Cobranza(_context, reg2.codcobranza ?? 0, 0, reg2.moncbza);
+
+                                ttlsaldo_descto = (double)reg2.monto_dis * PORCEN_DESCTO * 0.01;
+                                ttlsaldo_descto = Math.Round(ttlsaldo_descto, 2);
+                                ttlsaldo_descto -= ttldesc_aplicado;
+                                if (ttlsaldo_descto >= ttlsaldo_ajustar)
+                                {
+                                    // si el saldo del descto por deposito es mayor al saldo por ajustar etonces el monto a a justar sera por todo el monto a ajustar
+                                    var nuevoRegistro = new cocobranza_deposito_ajuste
+                                    {
+                                        usuarioreg = usuarioreg,
+                                        horareg = datPro.getHoraActual(),
+                                        fechareg = DateTime.Now.Date,
+                                        codcobranza = reg2.codcobranza ?? 0,
+                                        codcobranza_ajustada = reg1.codcobranza,
+                                        monto = (decimal)ttlsaldo_ajustar
+                                    };
+                                    //registrar 
+                                    _context.cocobranza_deposito_ajuste.Add(nuevoRegistro);
+                                    await _context.SaveChangesAsync();
+                                }
+                                else
+                                {
+                                    // si hay algo de saldo del cual se pueda extraer algun monto, etonces se registra todo el saldo para ajustar
+                                    if (ttlsaldo_descto > 0)
+                                    {
+                                        var nuevoRegistro = new cocobranza_deposito_ajuste
+                                        {
+                                            usuarioreg = usuarioreg,
+                                            horareg = datPro.getHoraActual(),
+                                            fechareg = DateTime.Now.Date,
+                                            codcobranza = reg2.codcobranza ?? 0,
+                                            codcobranza_ajustada = reg1.codcobranza,
+                                            monto = (decimal)ttlsaldo_descto
+                                        };
+                                        //registrar 
+                                        _context.cocobranza_deposito_ajuste.Add(nuevoRegistro);
+                                        await _context.SaveChangesAsync();
+                                    }
+                                }
+
+                            }
+                        }
+                    }
+                    resultado = true;
+                }
+                catch (Exception)
+                {
+                    resultado = false;
+                }
+            }
+
+            return resultado;
         }
+
+        public async Task<List<dtcocobranza_deposito>?> Recargos_Por_Descto_Deposito_Excedente(DBContext _context, string BusquedaPor, string CodCbzas, string codcliente, string nit, string codcliente_real, bool buscar_por_nit, string para_que_es, int codproforma, string opcion, string codempresa)
+        {
+            try
+            {
+                List<consultCocobranza> dtcocobranza = await Consulta_Deposito_Cobranzas_Credito_Sin_Aplicar(_context, BusquedaPor, codcliente, nit, codcliente_real, buscar_por_nit, para_que_es, CodCbzas, true, new DateTime(2015, 5, 13));
+
+                // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                // %% A CONTINUACION SE FILTRAN LAS  CBZAS-DEPOSITOS PARA DEJAR SOLO LAS QUE SON APLICABLES
+                // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+                // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                // 1° Revisar si las cbzas-depositos que quedaron con saldos pendientes tienen todavia saldo disponible para aplicar
+                // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                double ttl_saldo_descto = 0;
+                double ttl_desctos_aplicado = 0;
+                double ttl_recargo_aplicado = 0;
+                double saldo_recargo = 0;
+                List<dtcocobranza_deposito> dtcocobranza_deposito = new List<dtcocobranza_deposito>();
+                foreach (var reg in dtcocobranza)
+                {
+                    // verifica solo las cbzas que ya fueron utilizados para desctos por deposito, si generaron negativo
+                    if (reg.tipo == 0)
+                    {
+                        ttl_saldo_descto = 0;
+                        ttl_desctos_aplicado = 0;
+                        // aqui en el se pondra el total que le queda por aplicar
+                        ttl_desctos_aplicado = await depositos_cliente.Total_Descuentos_Por_Deposito_Aplicado_De_Cobranza_En_Proforma(_context, reg.codcobranza, codproforma, reg.moncbza);
+                        ttl_saldo_descto = (double)reg.monto_dis - ttl_desctos_aplicado;
+                        ttl_saldo_descto = Math.Round(ttl_saldo_descto, 2);
+                        if (ttl_saldo_descto < 0)
+                        {
+                            // verificar si ya se aplico el recargo en otras proformas, y aplicar recargo solo si hay saldo
+                            saldo_recargo = Math.Abs(ttl_saldo_descto);
+                            ttl_recargo_aplicado = await depositos_cliente.Total_Recargos_Por_Deposito_Aplicado_De_Cobranza_En_Proforma(_context,reg.codcobranza,codproforma,reg.moncbza);
+                            saldo_recargo -= ttl_recargo_aplicado;
+                        }
+                        else
+                        {
+                            saldo_recargo = 0;
+                        }
+                        // solo añadir a la tabla los que generan saldo de recargo
+                        if (saldo_recargo > 0)
+                        {
+                            dtcocobranza_deposito new_reg = new dtcocobranza_deposito();
+                            new_reg.cliente = reg.cliente;
+                            new_reg.codcobranza = reg.codcobranza;
+                            new_reg.idcbza = reg.idcbza;
+                            new_reg.nroidcbza = reg.nroidcbza;
+                            new_reg.fecha_cbza = reg.fecha_cbza;
+
+                            new_reg.iddeposito = reg.iddeposito;
+                            new_reg.numeroiddeposito = reg.numeroiddeposito;
+                            new_reg.fdeposito = reg.fdeposito;
+                            new_reg.monto_limite_descto = (double)reg.monto_dis;
+                            new_reg.monto_descto_aplicado = ttl_desctos_aplicado;
+
+                            new_reg.saldo_descto = ttl_saldo_descto;
+                            new_reg.monto_recargo = saldo_recargo;
+                            new_reg.codmoneda = reg.moncbza;
+
+                            dtcocobranza_deposito.Add(new_reg);
+                        }
+                    }
+                }
+                return dtcocobranza_deposito;
+            }
+            catch (Exception)
+            {
+                Console.WriteLine("Ocurrio un error al generar el monto excedente de descuento por desposito!!!");
+                return null;
+            }
+        }
+
+
 
 
         public async Task<List<dtdepositos_pendientes>> Totalizar_Cobranzas_Depositos_Pendientes ( DBContext _context ,List<consultCocobranza> tblpendientes)
@@ -1825,7 +1995,24 @@ namespace siaw_funciones
 
     }
 
+    public class dtcocobranza_deposito
+    {
+        public string cliente { get; set; }
+        public int codcobranza { get; set; }
+        public string idcbza { get; set; }
+        public int nroidcbza { get; set; }
+        public DateTime fecha_cbza { get; set; }
 
+        public string iddeposito { get; set; }
+        public int numeroiddeposito { get; set; }
+        public DateTime fdeposito { get; set; }
+        public double monto_limite_descto { get; set; }
+        public double monto_descto_aplicado { get; set; }
+
+        public double saldo_descto { get; set; }
+        public double monto_recargo { get; set; }
+        public string codmoneda { get; set; }
+    }
     public class dtdesc_apli_prof_no_aprob
     {
         public bool borrar { get; set; }

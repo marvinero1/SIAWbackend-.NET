@@ -66,6 +66,9 @@ namespace SIAW.Controllers.ventas.transaccion
         private readonly siaw_funciones.Funciones funciones = new Funciones();
         private readonly siaw_funciones.ziputil ziputil = new ziputil();
         private readonly func_encriptado encripVB = new func_encriptado();
+        private readonly Anticipos_Vta_Contado anticipos_vta_contado = new Anticipos_Vta_Contado();
+        private readonly Log log = new Log();
+
         public veproformaController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;
@@ -1447,6 +1450,7 @@ namespace SIAW.Controllers.ventas.transaccion
         [Route("guardarProforma/{userConn}/{idProf}/{codempresa}")]
         public async Task<object> guardarProforma(string userConn, string idProf, string codempresa, SaveProformaCompleta datosProforma)
         {
+            bool check_desclinea_segun_solicitud = false;  // de momento no se utiliza, si se llegara a utilizar, se debe pedir por ruta
             veproforma veproforma = datosProforma.veproforma;
             List<veproforma1> veproforma1 = datosProforma.veproforma1;
             /*
@@ -1478,7 +1482,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
-                // ###############################  FALTA
+                // ###############################  SE PUEDE LLAMAR DESDE FRONT END PARA LUEGO IR DIRECTO AL GRABADO ???????
 
                 // RECALCULARPRECIOS(True, True);
 
@@ -1487,8 +1491,6 @@ namespace SIAW.Controllers.ventas.transaccion
                 {
                     try
                     {
-                        // RECALCULARPRECIOS(True, True)       // aca llamar a recarcular precio
-
                         // ESTA VALIDACION ES MOMENTANEA, DESPUES SE DEBE COLOCAR SU PROPIA RUTA PARA VALIDAR, YA QUE PEDIRA CLAVE.
                         var validacion_inicial = await Validar_Datos_Cabecera(_context, codempresa, veproforma);
                         if (!validacion_inicial.bandera)
@@ -1500,9 +1502,9 @@ namespace SIAW.Controllers.ventas.transaccion
                         if (result.resp != "ok")
                         {
                             dbContexTransaction.Rollback();
-                            return BadRequest(new { resp = result });
+                            return BadRequest(new { resp = result.resp });
                         }
-
+                        await log.RegistrarEvento(_context, veproforma.usuarioreg, Log.Entidades.Proforma, result.codprof.ToString(), idProf, result.numeroId.ToString(), "docveproforma.vb", "Grabar", Log.TipoLog.Creacion);
 
                         //Grabar Etiqueta
                         if (datosProforma.veetiqueta_proforma != null)
@@ -1538,90 +1540,53 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
-
-
-
-
-
+                        // devolver mensajes pero como alerta Extra
+                        string msgAler1 = "";
+                        // enlazar sol desctos con proforma
+                        if (check_desclinea_segun_solicitud == true && veproforma.idsoldesctos.Trim().Length > 0 && veproforma.nroidsoldesctos > 0)
+                        {
+                            if (!await ventas.Enlazar_Proforma_Nueva_Con_SolDesctos_Nivel(_context, result.codprof, veproforma.idsoldesctos, veproforma.nroidsoldesctos ?? 0))
+                            {
+                                msgAler1 = "Se grabo la Proforma, pero No se pudo realizar el enlace de esta proforma con la solicitud de descuentos de nivel, verifique el enlace en la solicitu de descuentos!!!";
+                            }
+                        }
 
                         // grabar la etiqueta dsd 16-05-2022        
                         // solo si es cliente casual, y el cliente referencia o real es un no casual
                         //If sia_funciones.Cliente.Instancia.Es_Cliente_Casual(codcliente.Text) = True And sia_funciones.Cliente.Instancia.Es_Cliente_Casual(codcliente_real) = False Then
 
                         // Desde 10-10-2022 se definira si una venta es casual o no si el codigo de cliente y el codigo de cliente real son diferentes entonces es una venta casual
+                        string msgAlert2 = "";
                         if (veproforma.codcliente != veproforma.codcliente_real)
                         {
-                            /*
-                            if (!await Grabar_Proforma_Etiqueta(_context,veproforma.id,veproforma.numeroid,desclinea_segun_solicitud,veproforma))
+                            if (!await Grabar_Proforma_Etiqueta(_context, idProf, result.numeroId,check_desclinea_segun_solicitud,veproforma))
                             {
-
+                                msgAlert2 = "Se grabo la Proforma, pero No se pudo grabar la etiqueta Cliente Casual/Referencia de la proforma!!!";
                             }
-                            */
                         }
-
-
-
-
                         /*
                          
-                        
-                        //grabar la etiqueta dsd 16-05-2022        
-                        //solo si es cliente casual, y el cliente referencia o real es un no casual
-                        //If sia_funciones.Cliente.Instancia.Es_Cliente_Casual(codcliente.Text) = True And sia_funciones.Cliente.Instancia.Es_Cliente_Casual(codcliente_real) = False Then
+                         '//validar lo que se validaba en la ventana de aprobar proforma
+                            Dim mi_idpf As String = sia_funciones.Ventas.Instancia.proforma_id(_CODPROFORMA)
+                            Dim mi_nroidpf As String = sia_funciones.Ventas.Instancia.proforma_numeroid(_CODPROFORMA)
 
-                        //Desde 10-10-2022 se definira si una venta es casual o no si el codigo de cliente y el codigo de cliente real son diferentes entonces es una venta casual
-                        If Not codcliente.Text = txtcodcliente_real.Text Then
-                            If Not Me.Grabar_Proforma_Etiqueta(codigo.Text) Then
-                                MessageBox.Show("No se pudo grabar la etiqueta Cliente Casual/Referencia de la proforma!!!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button1)
-                            End If
-                        End If
+                            '//validar lo que se validaba en la ventana de aprobar proforma
+                            Dim dt As New DataTable
+                            Dim qry As String = ""
+                            Dim coddesextra As String = sia_funciones.Configuracion.Instancia.emp_coddesextra_x_deposito(sia_compartidos.temporales.Instancia.codempresa)
 
-
-                        If MessageBox.Show("Se grabo la Proforma " & id.Text & "-" & numeroid.Text & " con Exito. Desea Exportar el documento? ", "Exportar", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) = Windows.Forms.DialogResult.Yes Then
-                            Me.exportar_Click()
-                        End If
-
-                        //validar lo que se validaba en la ventana de aprobar proforma
-                        Dim mi_idpf As String = sia_funciones.Ventas.Instancia.proforma_id(_CODPROFORMA)
-                        Dim mi_nroidpf As String = sia_funciones.Ventas.Instancia.proforma_numeroid(_CODPROFORMA)
-
-                        //validar lo que se validaba en la ventana de aprobar proforma
-                        Dim dt As New DataTable
-                        Dim qry As String = ""
-                        Dim coddesextra As String = sia_funciones.Configuracion.Instancia.emp_coddesextra_x_deposito(sia_compartidos.temporales.Instancia.codempresa)
-
-                        qry = "select * from vedesextraprof where  coddesextra='" & coddesextra & "' and codproforma=(select codigo from veproforma where id='" & mi_idpf & "' and numeroid='" & mi_nroidpf & "')"
-                        dt.Clear()
-                        dt = sia_DAL.Datos.Instancia.ObtenerDataTable(qry)
-                        '//verificar si la proforma tiene descto por deposito
-                        If dt.Rows.Count > 0 Then
-                            If Not Me.Validar_Desctos_Por_Depositos_Solo_Al_Grabar(id.Text, numeroid.Text) Then
-                                If sia_funciones.Ventas.Instancia.Eliminar_Descuento_Deposito_De_Proforma(id.Text, numeroid.Text, Me.Name) Then
-                                    MessageBox.Show("Se verifico que la proforma fue grabada con montos de descuentos por deposito incorrectos, por lo que se procedio a eliminar los descuentos por deposito de la proforma; " & mi_idpf & "-" & mi_nroidpf, "Alerta", MessageBoxButtons.OK, MessageBoxIcon.Exclamation, MessageBoxDefaultButton.Button1)
+                            qry = "select * from vedesextraprof where  coddesextra='" & coddesextra & "' and codproforma=(select codigo from veproforma where id='" & mi_idpf & "' and numeroid='" & mi_nroidpf & "')"
+                            dt.Clear()
+                            dt = sia_DAL.Datos.Instancia.ObtenerDataTable(qry)
+                            '//verificar si la proforma tiene descto por deposito
+                            If dt.Rows.Count > 0 Then
+                                If Not Me.Validar_Desctos_Por_Depositos_Solo_Al_Grabar(id.Text, numeroid.Text) Then
+                                    If sia_funciones.Ventas.Instancia.Eliminar_Descuento_Deposito_De_Proforma(id.Text, numeroid.Text, Me.Name) Then
+                                        MessageBox.Show("Se verifico que la proforma fue grabada con montos de descuentos por deposito incorrectos, por lo que se procedio a eliminar los descuentos por deposito de la proforma; " & mi_idpf & "-" & mi_nroidpf, "Alerta", MessageBoxButtons.OK, MessageBoxIcon.Exclamation, MessageBoxDefaultButton.Button1)
+                                    End If
                                 End If
                             End If
-                        End If
 
-                        //Borrar del detalle los Ceros en cantidad
-                        For i As Integer = 0 To tabladetalle.Rows.Count - 1
-                            If i < tabladetalle.Rows.Count Then
-                                If tabladetalle.Rows(i)("cantidad") = 0 Then
-                                    tabladetalle.Rows(i).Delete()
-                                    i = i - 1
-                                End If
-                            End If
-                        Next
-
-                        //mostrar dialogo de imprimir
-                        Preguntar_Tipo_Impresion()
-
-                        limpiardoc()
-                        mostrardatos("0")
-                        leerparametros()
-                        ponerpordefecto()
-                        id.Focus()
-                         
-                         
                          */
 
 
@@ -1706,7 +1671,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 End If
             End If
              */
-            return (true, "");
+            return (true, "Error al guardar todos los datos.");
         }
 
 
@@ -1780,12 +1745,12 @@ namespace SIAW.Controllers.ventas.transaccion
                 return false;
             }
         }
-        private async Task<(string resp, int codprof)> Grabar_Documento(DBContext _context, string idProf, string codempresa, SaveProformaCompleta datosProforma)
+        private async Task<(string resp, int codprof, int numeroId)> Grabar_Documento(DBContext _context, string idProf, string codempresa, SaveProformaCompleta datosProforma)
         {
             veproforma veproforma = datosProforma.veproforma;
             List<veproforma1> veproforma1 = datosProforma.veproforma1;
             var veproforma_valida = datosProforma.veproforma_valida;
-            var veproforma_anticipo = datosProforma.veproforma_anticipo;
+            var dt_anticipo_pf = datosProforma.dt_anticipo_pf;
             var vedesextraprof = datosProforma.vedesextraprof;
             var verecargoprof = datosProforma.verecargoprof;
             var veproforma_iva = datosProforma.veproforma_iva;
@@ -1798,7 +1763,7 @@ namespace SIAW.Controllers.ventas.transaccion
             {
                 if (veproforma_valida.Count() < 1 || veproforma_valida == null)
                 {
-                    return ("Antes de grabar el documento debe previamente validar el mismo!!!",0);
+                    return ("Antes de grabar el documento debe previamente validar el mismo!!!",0, 0);
                 }
             }
 
@@ -1825,6 +1790,9 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
+
+
+
             */
             //************************************************
 
@@ -1833,14 +1801,16 @@ namespace SIAW.Controllers.ventas.transaccion
 
             if (idnroactual == 0)
             {
-                return ("Error al obtener los datos de numero de proforma", 0);
+                return ("Error al obtener los datos de numero de proforma", 0, 0);
             }
 
             // valida si existe ya la proforma
             if (await datos_proforma.existeProforma(_context, idProf, idnroactual))
             {
-                return ("Ese numero de documento, ya existe, por favor consulte con el administrador del sistema.", 0);
+                return ("Ese numero de documento, ya existe, por favor consulte con el administrador del sistema.", 0, 0);
             }
+            veproforma.numeroid = idnroactual;
+            //fin de obtener id actual
 
             // obtener hora y fecha actual si es que la proforma no se importo
             if (veproforma.hora_inicial == "")
@@ -1886,19 +1856,39 @@ namespace SIAW.Controllers.ventas.transaccion
             //======================================================================================
             //grabar anticipos aplicados
             //======================================================================================
-            if (veproforma_anticipo.Count() > 0)
+            try
             {
-                var anticiposprevios = await _context.veproforma_anticipo.Where(i => i.codproforma == codProforma).ToListAsync();
-                if (anticiposprevios.Count() > 0)
+                if (dt_anticipo_pf.Count() > 0 && dt_anticipo_pf != null)
                 {
-                    _context.veproforma_anticipo.RemoveRange(anticiposprevios);
-                    await _context.SaveChangesAsync();
-                }
-                veproforma_anticipo = veproforma_anticipo.Select(p => { p.codproforma = codProforma; return p; }).ToList();
-                _context.veproforma_anticipo.AddRange(veproforma_anticipo);
-                await _context.SaveChangesAsync();
+                    var anticiposprevios = await _context.veproforma_anticipo.Where(i => i.codproforma == codProforma).ToListAsync();
+                    if (anticiposprevios.Count() > 0)
+                    {
+                        _context.veproforma_anticipo.RemoveRange(anticiposprevios);
+                        await _context.SaveChangesAsync();
+                    }
+                    var newData = dt_anticipo_pf
+                        .Select(i => new veproforma_anticipo
+                        {
+                            codproforma = codProforma,
+                            codanticipo = i.codanticipo,
+                            monto = (decimal?)i.monto,
+                            tdc = (decimal?)i.tdc,
 
+                            fechareg = i.fechareg,
+                            usuarioreg = veproforma.usuarioreg,
+                            horareg = datos_proforma.getHoraActual()
+                        }).ToList();
+                    _context.veproforma_anticipo.AddRange(newData);
+                    await _context.SaveChangesAsync();
+
+                }
             }
+            catch (Exception)
+            {
+
+                throw;
+            }
+            
 
 
             // grabar descto por deposito si hay descuentos
@@ -1921,10 +1911,36 @@ namespace SIAW.Controllers.ventas.transaccion
                 await grabariva(_context, codProforma, veproforma_iva);
             }
 
+            bool resultado = new bool();
+            // grabar descto por deposito
+            if (await ventas.Grabar_Descuento_Por_deposito_Pendiente(_context, codProforma, codempresa, veproforma.usuarioreg, vedesextraprof))
+            {
+                resultado=true;
+            }
+            else
+            {
+                resultado = false;
+            }
+
+            // ======================================================================================
+            // actualizar saldo restante de anticipos aplicados
+            // ======================================================================================
+            if (resultado)
+            {
+                foreach (var reg in dt_anticipo_pf)
+                {
+                    if (! await anticipos_vta_contado.ActualizarMontoRestAnticipo(_context,reg.id_anticipo,reg.nroid_anticipo,reg.codproforma ?? 0,reg.codanticipo ?? 0,reg.monto,codempresa))
+                    {
+                        resultado = false;
+                    }
+                }
+            }
+            
 
             /*
              
             //grabar descto por deposito
+            
             If resultado Then
                 If sia_funciones.Ventas.Instancia.Grabar_Descuento_Por_deposito_Pendiente(codigo.Text, tabladescuentos, sia_compartidos.temporales.Instancia.codempresa, sia_compartidos.temporales.Instancia.usuario) Then
                     resultado = True
@@ -1951,7 +1967,7 @@ namespace SIAW.Controllers.ventas.transaccion
              */
 
 
-            return ("ok", codProforma);
+            return ("ok", codProforma, veproforma.numeroid);
 
 
         }
@@ -4855,6 +4871,6 @@ namespace SIAW.Controllers.ventas.transaccion
         public bool desclinea_segun_solicitud { get; set; }
         public string idsoldesctos { get; set; }
         public int nroidsoldesctos { get; set; }
-
     }
+
 }

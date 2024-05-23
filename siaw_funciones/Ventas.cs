@@ -186,29 +186,32 @@ namespace siaw_funciones
         {
             int coddesextra_depositos = await configuracion.emp_coddesextra_x_deposito(_context, codempresa);
             decimal PORCEN_DESCTO = await DescuentoExtra_Porcentaje(_context, coddesextra_depositos);
-
+            bool resultado = true;
             bool ya_aplico = false;
-
-            var decuentoxDep = vedesextraprof.Where(i => i.coddesextra == coddesextra_depositos).FirstOrDefault();
-            if (decuentoxDep != null)
+            // busca los descuentos que son POR DEPOSITO
+            var decuentoxDeplIST = vedesextraprof.Where(i => i.coddesextra == coddesextra_depositos).ToList();
+            foreach (var reg in decuentoxDeplIST)
             {
-                if (decuentoxDep.codcobranza != 0)
+                if (reg.codcobranza != 0)
                 {
-                    if (await depositos_cliente.Cobranza_Credito_Se_Dio_Descto_Deposito(_context, (int)decuentoxDep.codcobranza))
+                    // verificar si la la cbza de credito alguna vez ya otorgo descto por deposito y esta registrado en cocobranza_deposito
+                    if (await depositos_cliente.Cobranza_Credito_Se_Dio_Descto_Deposito(_context, (int)reg.codcobranza))
                     {
                         ya_aplico = true;
                     }
                 }
-                else if (decuentoxDep.codcobranza_contado != 0)
+                else if (reg.codcobranza_contado != 0)
                 {
-                    if (await depositos_cliente.Cobranza_Contado_Ce_Se_Dio_Descto_Deposito(_context, (int)decuentoxDep.codcobranza_contado))
+                    // verificar si la cbza contado CE alguna vez ya otorgo descto por deposito y esta registrado en cocobranza_deposito
+                    if (await depositos_cliente.Cobranza_Contado_Ce_Se_Dio_Descto_Deposito(_context, (int)reg.codcobranza_contado))
                     {
                         ya_aplico = true;
                     }
                 }
-                else if (decuentoxDep.codanticipo != 0)
+                else if (reg.codanticipo != 0)
                 {
-                    if (await depositos_cliente.Anticipo_Contado_Aplicado_A_Proforma_Se_Dio_Descto_Deposito(_context, (int)decuentoxDep.codanticipo))
+                    // verificar el anticipo aplicado a proforma alguna vez ya otorgo descto por deposito y esta registrado en cocobranza_deposito
+                    if (await depositos_cliente.Anticipo_Contado_Aplicado_A_Proforma_Se_Dio_Descto_Deposito(_context, (int)reg.codanticipo))
                     {
                         ya_aplico = true;
                     }
@@ -217,50 +220,67 @@ namespace siaw_funciones
                 // se registra solo si no aplico antes
                 if (!ya_aplico)
                 {
-                    var dtcbza = new dtcbza();
-                    if (decuentoxDep.codcobranza != 0)
+                    try
                     {
-                        dtcbza = await _context.cocobranza
-                            .Where(i => i.codigo == decuentoxDep.codcobranza)
-                            .Select(i => new dtcbza
-                            {
-                                codigo = i.codigo,
-                                id = i.id,
-                                numeroid = i.numeroid,
-                                cliente = i.cliente,
-                                nit = i.nit
-                            }).FirstOrDefaultAsync();
+                        var dtcbza = new dtcbza();
+                        if (reg.codcobranza != 0)
+                        {
+                            dtcbza = await _context.cocobranza
+                                .Where(i => i.codigo == reg.codcobranza)
+                                .Select(i => new dtcbza
+                                {
+                                    codigo = i.codigo,
+                                    id = i.id,
+                                    numeroid = i.numeroid,
+                                    cliente = i.cliente,
+                                    nit = i.nit
+                                }).FirstOrDefaultAsync();
+                        }
+                        else if (reg.codcobranza_contado != 0)
+                        {
+                            dtcbza = await _context.cocobranza_contado
+                                .Where(i => i.codigo == reg.codcobranza_contado)
+                                .Select(i => new dtcbza
+                                {
+                                    codigo = i.codigo,
+                                    id = i.id,
+                                    numeroid = i.numeroid,
+                                    cliente = i.cliente,
+                                    nit = i.nit
+                                }).FirstOrDefaultAsync();
+                        }
+                        else
+                        {
+                            dtcbza = await _context.coanticipo
+                                .Where(i => i.codigo == reg.codanticipo)
+                                .Select(i => new dtcbza
+                                {
+                                    codigo = i.codigo,
+                                    id = i.id,
+                                    numeroid = i.numeroid,
+                                    cliente = i.codcliente,
+                                    nit = i.nit
+                                }).FirstOrDefaultAsync();
+                        }
+
+                        // si la cobranza no esta registrada en cocobranza_deposito se registra
+                        if (await Cobranzas.Registrar_Descuento_Por_Deposito_de_Cbza(_context, reg.codcobranza ?? 0, dtcbza.cliente, dtcbza.cliente, dtcbza.nit, codproforma, codempresa, usuarioreg))
+                        {
+                            resultado = true;
+                        }
+                        else
+                        {
+                            resultado = false;
+                            break;
+                        }
                     }
-                    else if (decuentoxDep.codcobranza_contado != 0)
+                    catch (Exception)
                     {
-                        dtcbza = await _context.cocobranza_contado
-                            .Where(i => i.codigo == decuentoxDep.codcobranza_contado)
-                            .Select(i => new dtcbza
-                            {
-                                codigo = i.codigo,
-                                id = i.id,
-                                numeroid = i.numeroid,
-                                cliente = i.cliente,
-                                nit = i.nit
-                            }).FirstOrDefaultAsync();
-                    }
-                    else
-                    {
-                        dtcbza = await _context.coanticipo
-                            .Where(i => i.codigo == decuentoxDep.codanticipo)
-                            .Select(i => new dtcbza
-                            {
-                                codigo = i.codigo,
-                                id = i.id,
-                                numeroid = i.numeroid,
-                                cliente = i.codcliente,
-                                nit = i.nit
-                            }).FirstOrDefaultAsync();
+                        resultado = false;
                     }
                 }
             }
-
-            return true;
+            return resultado;
         }
 
         public async Task<decimal> DescuentoExtra_Porcentaje(DBContext _context, int coddesextra)
@@ -3243,6 +3263,44 @@ namespace siaw_funciones
                     nivel = g.Max(d => d.d.nivel) ?? ""
                 })
                 .ToListAsync();
+            return resultado;
+        }
+
+        public async Task<bool> Enlazar_Proforma_Nueva_Con_SolDesctos_Nivel(DBContext _context, int codproforma, string idsol_des, int nroidsol_des)
+        {
+            bool resultado = true;
+            if (resultado)
+            {
+                // Encontrar el id de veproforma correspondiente
+                var proforma = await _context.veproforma
+                                            .Where(v => v.codigo == codproforma)
+                                            .FirstOrDefaultAsync();
+
+                if (proforma != null)
+                {
+                    // Encontrar el registro en vesoldsctos que debe ser actualizado
+                    var vesoldsctos = await _context.vesoldsctos
+                                                   .Where(v => v.id == idsol_des && v.numeroid == nroidsol_des)
+                                                   .FirstOrDefaultAsync();
+
+                    if (vesoldsctos != null)
+                    {
+                        // Actualizar el idproforma y numeroid_proforma
+                        vesoldsctos.idproforma = proforma.id;
+                        vesoldsctos.numeroid_proforma = proforma.numeroid;
+                        // Guardar los cambios en la base de datos
+                        await _context.SaveChangesAsync();
+                    }
+                    else
+                    {
+                        resultado = false;
+                    }
+                }
+                else
+                {
+                    resultado = false;
+                }
+            }
             return resultado;
         }
     }
