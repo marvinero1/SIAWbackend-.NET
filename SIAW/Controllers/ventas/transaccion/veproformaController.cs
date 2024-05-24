@@ -1293,6 +1293,89 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
 
+        [HttpGet]
+        [Route("getCantITemsbyEmp/{userConn}/{d_tipo}/{tarifa}/{coditem}/{cantEmpaques}")]
+        public async Task<ActionResult<int>> getCantITemsbyEmp(string userConn, string d_tipo, int tarifa, string coditem, int cantEmpaques)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    int _descuento_precio = await ventas.Codigo_Descuento_Especial_Precio(_context, tarifa);
+                    int _empaque_precio = await ventas.Codigo_Empaque_Precio(_context, tarifa);
+                    int _empaque_descuento = await ventas.Codigo_Empaque_Descuento_Especial(_context, _descuento_precio);
+                    double empaque = 0;
+                    if (d_tipo == "Precio")
+                    {
+                        // si es por precio
+                        empaque = await ventas.Empaque(_context, _empaque_precio, coditem);
+                    }
+                    else
+                    {
+                        // si es por descuento
+                        empaque = await ventas.Empaque(_context, _empaque_descuento, coditem);
+                    }
+                    if (empaque == 0)
+                    {
+                        empaque = 1;
+                    }
+                    return Ok(new { total = empaque * cantEmpaques });
+                }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+            }
+        }
+
+
+        [HttpPost]
+        [Route("getCantITemsbyEmpinGroup/{userConn}/{d_tipo}/{cantEmpaques}")]
+        public async Task<ActionResult<cargadofromMatriz>> getCantITemsbyEmpinGroup(string userConn, string d_tipo, int cantEmpaques, List<cargadofromMatriz> data)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    // como se agrega en conjunto por empaque, en teoria todos tienen mismo precio y mismo descuento.
+                    var tarifa = data[0].tarifa;
+
+                    int _descuento_precio = await ventas.Codigo_Descuento_Especial_Precio(_context, tarifa);
+                    int _empaque_precio = await ventas.Codigo_Empaque_Precio(_context, tarifa);
+                    int _empaque_descuento = await ventas.Codigo_Empaque_Descuento_Especial(_context, _descuento_precio);
+                    
+                    foreach (var item in data)
+                    {
+                        double empaque = 0;
+                        if (d_tipo == "Precio")
+                        {
+                            // si es por precio
+                            empaque = await ventas.Empaque(_context, _empaque_precio, item.coditem);
+                        }
+                        else
+                        {
+                            // si es por descuento
+                            empaque = await ventas.Empaque(_context, _empaque_descuento, item.coditem);
+                        }
+                        if (empaque == 0)
+                        {
+                            empaque = 1;
+                        }
+                        item.cantidad = (decimal)empaque * cantEmpaques;
+                        item.cantidad_pedida = (decimal)empaque * cantEmpaques;
+                    }
+                    
+                    return Ok(data);
+                }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+            }
+        }
+
 
         [HttpPost]
         [Route("getCantfromEmpaque/{userConn}")]
@@ -1510,10 +1593,12 @@ namespace SIAW.Controllers.ventas.transaccion
                         if (datosProforma.veetiqueta_proforma != null)
                         {
                             veetiqueta_proforma dt_etiqueta = datosProforma.veetiqueta_proforma;
+
                             if (dt_etiqueta.celular == null)
                             {
                                 dt_etiqueta.celular = "---";
                             }
+                            dt_etiqueta.numeroid = result.numeroId;
                             var etiqueta = await _context.veetiqueta_proforma.Where(i => i.id == dt_etiqueta.id && i.numeroid == dt_etiqueta.numeroid).FirstOrDefaultAsync();
                             if (etiqueta != null)
                             {
@@ -1810,6 +1895,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 return ("Ese numero de documento, ya existe, por favor consulte con el administrador del sistema.", 0, 0);
             }
             veproforma.numeroid = idnroactual;
+
             //fin de obtener id actual
 
             // obtener hora y fecha actual si es que la proforma no se importo
@@ -1825,8 +1911,21 @@ namespace SIAW.Controllers.ventas.transaccion
             // guarda cabecera (veproforma)
             _context.veproforma.Add(veproforma);
             await _context.SaveChangesAsync();
-
+         
             var codProforma = veproforma.codigo;
+
+            // actualiza numero id
+            var numeracion = _context.venumeracion.FirstOrDefault(n => n.id == idProf);
+            numeracion.nroactual += 1;
+            await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
+
+
+            int validaCantProf = await _context.veproforma.Where(i => i.id == veproforma.id && i.numeroid == veproforma.numeroid).CountAsync();
+            if (validaCantProf > 1)
+            {
+                return ("Se detecto más de un número del mismo documento, por favor consulte con el administrador del sistema.", 0, 0);
+            }
+
 
             // guarda detalle (veproforma1)
             // actualizar codigoproforma para agregar
@@ -1840,11 +1939,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
-            // actualiza numero id
-            var numeracion = _context.venumeracion.FirstOrDefault(n => n.id == idProf);
-            numeracion.nroactual += 1;
-            await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
-
+           
             //======================================================================================
             // grabar detalle de validacion
             //======================================================================================

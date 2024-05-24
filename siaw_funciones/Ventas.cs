@@ -2933,6 +2933,45 @@ namespace siaw_funciones
             return resultado;
         }
 
+        public async Task<int> Codigo_Empaque_Precio(DBContext _context, int codigo)
+        {
+            int resultado = 0;
+            try
+            {
+                var result = await _context.intarifa
+                .Where(v => v.codigo == codigo)
+                .Select(p => p.codempaque)
+                .FirstOrDefaultAsync();
+                resultado = result;
+            }
+            catch (Exception)
+            {
+                resultado = 0;
+            }
+            return resultado;
+        }
+
+        public async Task<int> Codigo_Descuento_Especial_Precio(DBContext _context, int codigo)
+        {
+            int resultado = 0;
+            try
+            {
+                var result = await _context.vedescuento_tarifa
+                    .Where(tarifa => tarifa.codtarifa == codigo && tarifa.coddescuento != 0 &&
+                    _context.vedescuento.Any(descuento => descuento.codigo == tarifa.coddescuento && descuento.habilitado == true))
+                    .Select(tarifa => tarifa.coddescuento)
+                    .FirstOrDefaultAsync();
+
+                resultado = result;
+            }
+            catch (Exception)
+            {
+                resultado = 0;
+            }
+            return resultado;
+        }
+
+
         public async Task<string> Sugerir_Empaque_De_DesctoEspecial(DBContext _contex, string coditem, int codtarifa, int coddescuento, double cantidad, string codcliente, string codempresa)
         {
             double minimo = 0;
