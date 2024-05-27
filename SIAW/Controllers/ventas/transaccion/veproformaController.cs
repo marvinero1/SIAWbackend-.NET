@@ -1530,8 +1530,8 @@ namespace SIAW.Controllers.ventas.transaccion
 
         [Authorize]
         [HttpPost]
-        [Route("guardarProforma/{userConn}/{idProf}/{codempresa}")]
-        public async Task<object> guardarProforma(string userConn, string idProf, string codempresa, SaveProformaCompleta datosProforma)
+        [Route("guardarProforma/{userConn}/{idProf}/{codempresa}/{paraAprobar}")]
+        public async Task<object> guardarProforma(string userConn, string idProf, string codempresa, bool paraAprobar, SaveProformaCompleta datosProforma)
         {
             bool check_desclinea_segun_solicitud = false;  // de momento no se utiliza, si se llegara a utilizar, se debe pedir por ruta
             veproforma veproforma = datosProforma.veproforma;
@@ -1649,6 +1649,25 @@ namespace SIAW.Controllers.ventas.transaccion
                                 msgAlert2 = "Se grabo la Proforma, pero No se pudo grabar la etiqueta Cliente Casual/Referencia de la proforma!!!";
                             }
                         }
+
+
+                        if (paraAprobar)
+                        {
+                            // *****************O J O *************************************************************************************************************
+                            // IMPLEMENTADO EN FECHA 26-04-2018 LLAMA A LA FUNNCION QUE VALIDA LO QUE SE VALIDA DESDE LA VENTANA DE APROBACION DE PROFORMAS
+                            // *****************O J O *************************************************************************************************************
+                            // Desde 23/11/2023 guardar el log de grabado aqui
+
+
+                            await log.RegistrarEvento(_context, veproforma.usuarioreg, Log.Entidades.Proforma, result.codprof.ToString(), veproforma.id, result.numeroId.ToString(), "veproformaController", "Grabar Para Aprobar", Log.TipoLog.Creacion);
+                            if (await ventas.proforma_para_aprobar(_context, result.codprof))
+                            {
+                                // **aprobar la proforma
+
+                            }
+                        }
+                        
+
                         /*
                          
                          '//validar lo que se validaba en la ventana de aprobar proforma

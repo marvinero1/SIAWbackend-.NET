@@ -3151,6 +3151,12 @@ namespace siaw_funciones
             return resultado;
         }
 
+        public async Task<bool> proforma_para_aprobar(DBContext _context, int codproforma)
+        {
+            var resultado = await _context.veproforma.Where(i => i.codigo == codproforma).Select(i => i.paraaprobar).FirstOrDefaultAsync() ?? false;
+            return resultado;
+        }
+
         public async Task<string> Cliente_De_Proforma(DBContext _context, int codproforma)
         {
             string resultado = "";
