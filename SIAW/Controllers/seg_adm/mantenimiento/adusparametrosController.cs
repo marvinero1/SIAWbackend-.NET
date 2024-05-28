@@ -121,12 +121,13 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
             {
                 return Problem("Error en el servidor");
                 throw;
+                throw;
             }
         }
 
         [HttpGet]
-        [Route("getAlmacenUser/{userConn}/{usuario}")]
-        public async Task<ActionResult<inconcepto>> getAlmacenUser(string userConn, string usuario)
+        [Route("getInfoUserAdus/{userConn}/{usuario}")]
+        public async Task<ActionResult<inconcepto>> getInfoUserAdus(string userConn, string usuario)
         {
             try
             {
@@ -137,7 +138,13 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 {
                     var codalmacen = await _context.adusparametros
                         .Where(item => item.usuario == usuario)
-                        .Select(item => item.codalmacen)
+                        .Select(item => new
+                        {
+                            item.codalmacen,
+                            item.codtarifa,
+                            item.coddescuento,
+                        }
+                        )
                         .FirstOrDefaultAsync();
 
                     if (codalmacen == null)

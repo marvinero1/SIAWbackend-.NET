@@ -68,6 +68,7 @@ namespace SIAW.Controllers.ventas.transaccion
         private readonly func_encriptado encripVB = new func_encriptado();
         private readonly Anticipos_Vta_Contado anticipos_vta_contado = new Anticipos_Vta_Contado();
         private readonly Log log = new Log();
+        private readonly Depositos_Cliente depositos_cliente = new Depositos_Cliente();
 
         public veproformaController(UserConnectionManager userConnectionManager)
         {
@@ -1157,7 +1158,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     var precioItem = await _context.intarifa1
                         .Where(i => i.codtarifa == tarifa && i.item == coditem)
                         .Select(i => i.precio)
-                        .FirstOrDefaultAsync();
+                        .FirstOrDefaultAsync() ?? 0;
                     //convertir a la moneda el precio item
                     var monedabase = await ventas.monedabasetarifa(_context, tarifa);
                     precioItem = await tipocambio.conversion(userConnectionString, codmoneda, monedabase, fecha, (decimal)precioItem);
@@ -1653,6 +1654,18 @@ namespace SIAW.Controllers.ventas.transaccion
 
                         if (paraAprobar)
                         {
+                            
+
+                            /*
+                            if (await Validar_Aprobar_Proforma)
+                            {
+                            ///////////////////********************************************************************************
+                            ///ACA FALTA ESTA VALIDACION
+                            }
+
+
+                            */
+
                             // *****************O J O *************************************************************************************************************
                             // IMPLEMENTADO EN FECHA 26-04-2018 LLAMA A LA FUNNCION QUE VALIDA LO QUE SE VALIDA DESDE LA VENTANA DE APROBACION DE PROFORMAS
                             // *****************O J O *************************************************************************************************************
@@ -1663,6 +1676,23 @@ namespace SIAW.Controllers.ventas.transaccion
                             if (await ventas.proforma_para_aprobar(_context, result.codprof))
                             {
                                 // **aprobar la proforma
+                                var profforAprobar = await _context.veproforma.Where(i => i.codigo == result.codprof).FirstOrDefaultAsync();
+                                profforAprobar.aprobada = true;
+                                profforAprobar.fechaaut = DateTime.Today.Date;
+                                profforAprobar.horaaut = datos_proforma.getHoraActual();
+                                profforAprobar.usuarioaut = veproforma.usuarioreg;
+                                _context.Entry(profforAprobar).State = EntityState.Modified;
+                                await _context.SaveChangesAsync();
+
+                                // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                                // realizar la reserva de la mercaderia
+                                // Desde 15/11/2023 registrar en el log si por alguna razon no actualiza en instoactual correctamente al disminuir el saldo de cantidad y la reserva en proforma
+                                if (await ventas.aplicarstocksproforma(_context,result.codprof,codempresa) == false)
+                                {
+                                    await log.RegistrarEvento(_context, veproforma.usuarioreg, Log.Entidades.Proforma, result.codprof.ToString(), veproforma.id, result.numeroId.ToString(), "veproformaController", "No actualizo stock al sumar cantidad de reserva en PF.", Log.TipoLog.Creacion);
+                                }
+                                // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
                             }
                         }
@@ -1706,6 +1736,55 @@ namespace SIAW.Controllers.ventas.transaccion
                 }
             }
         }
+
+
+        /*
+        private async Task<bool> Validar_Aprobar_Proforma(DBContext _context, string id_pf, int nroid_pf, int cod_proforma)
+        {
+            bool resultado = true;
+            var dt_pf = await _context.veproforma.Where(i => i.codigo == cod_proforma).FirstOrDefaultAsync();
+
+            ////////////////////////////////////////////////////////////////////////////////
+            // validar el monto de desctos por deposito aplicado
+            if (!await depositos_cliente.Validar_Desctos_x_Deposito_Otorgados_De_Cobranzas_Credito()
+            {
+
+            }
+
+
+
+        }
+        */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         private async Task<(bool bandera, string msg)> Validar_Datos_Cabecera(DBContext _context, string codempresa, veproforma veproforma)
         {

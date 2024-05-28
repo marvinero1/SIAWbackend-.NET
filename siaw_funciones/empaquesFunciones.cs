@@ -359,8 +359,8 @@ namespace siaw_funciones
                 var adparametros = await _context.adparametros
                                 .Where(a => a.codempresa == codempresa)
                                 .Select(a => a.obtener_cantidades_aprobadas_de_proformas)
-                                .FirstOrDefaultAsync();
-                return (bool)adparametros;
+                                .FirstOrDefaultAsync() ?? false;
+                return adparametros;
             }
         }
 

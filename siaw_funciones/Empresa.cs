@@ -31,8 +31,8 @@ namespace siaw_funciones
                 var stock_seguridad = await _context.adparametros
                     .Where(i => i.codempresa == codigoempresa)
                     .Select(i => i.stock_seguridad)
-                    .FirstOrDefaultAsync();
-                resultado = (bool)stock_seguridad;
+                    .FirstOrDefaultAsync() ?? false;
+                resultado = stock_seguridad;
             }
             return resultado;
         }

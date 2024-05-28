@@ -2622,10 +2622,10 @@ namespace siaw_funciones
             int resultado = 13;
             try
             {
-                var parametro = await _context.adparametros.FirstOrDefaultAsync();
+                var parametro = await _context.adparametros.Select(i => i.longitud_maxima_nit_facturacion).FirstOrDefaultAsync();
                 if (parametro != null)
                 {
-                    resultado = (int)parametro.longitud_maxima_nit_facturacion;
+                    resultado = (int)parametro.Value;
                 }
             }
             catch (Exception)
@@ -2642,10 +2642,10 @@ namespace siaw_funciones
             int resultado = 13;
             try
             {
-                var parametro = await _context.adparametros.FirstOrDefaultAsync();
+                var parametro = await _context.adparametros.Select(i => i.longitud_minima_nit_facturacion).FirstOrDefaultAsync();
                 if (parametro != null)
                 {
-                    resultado = (int)parametro.longitud_minima_nit_facturacion;
+                    resultado = (int)parametro.Value;
                 }
             }
             catch (Exception)
@@ -2654,7 +2654,6 @@ namespace siaw_funciones
                 throw;
             }
             return resultado;
-
         }
 
         public bool IsNumeric(string value)
