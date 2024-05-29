@@ -5601,6 +5601,27 @@ namespace siaw_funciones
                 .ToList();
             return elementosUnicos;
         }
+
+        public async Task<int> Precio_Unico_Del_Documento(List<itemDataMatriz> tabladetalle)
+        {
+            // esta funcion devolvera el codtarifa del detalle del pedido, pero siempre y cuando  haya un solo tipo de precio en el detalle
+            // de lo contrario devuelve: -1
+            int resultado = -1;
+
+            List<int> lista_precios = new List<int>();
+
+            lista_precios = await Lista_Precios_En_El_Documento(tabladetalle);
+
+            if (lista_precios.Count() == 1)
+            {
+                resultado = lista_precios[0];
+            }
+            else
+            {
+                resultado = -1;
+            }
+            return resultado;
+        }
         public async Task<ResultadoValidacion> Validar_Monto_Minimo_Para_Entrega_Pedido(DBContext _context, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, string codempresa)
         {
             bool resultado = true;

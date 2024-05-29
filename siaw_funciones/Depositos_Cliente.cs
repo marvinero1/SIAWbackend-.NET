@@ -666,11 +666,354 @@ namespace siaw_funciones
                     msgAlert = "El monto total de descuentos por deposito aplicados del Deposito: " + dt2[0].id + "-" + dt2[0].numeroid + " es mayor al disponible. Se aplico en esta proforma y otras un total de: " + MONTO_TTL_APLICADO + "(" + MON_MONTO_LIMITE + ") y el maximo aplicable es: " + MONTO_LIMITE + " verifique los descuentos por deposito aplicados del mencionado deposito.";
                     resultado = false;
                 }
+                else
+                {
+                    resultado = true;
+                }
             }
 
             return (resultado, msgAlert);
         }
-        
+
+
+
+        public async Task<(bool result, string msgAlert)> Validar_Desctos_x_Deposito_Otorgados_De_Cbzas_Contado_CE(DBContext _context, string idpf, int nroidpf, string codempresa)
+        {
+            bool resultado = false;
+            string msgAlert = "";
+            int coddesextra_deposito = await configuracion.emp_coddesextra_x_deposito(_context, codempresa);
+
+            //TODO EL ANALISIS DE LOS MONTOS APLICADOS DE UNA CBZA-DEPOSITO SE REALIZA EN LA MONEDA DE LA CBZA-DPOSITO
+            //ES DECIR SI HAY UNA PROROFMA EN bs Y LOS MONTOS DE DESCTO POR DEPOSITO ESTAN EN BS
+            //SE CONVERTIRAN A $US
+
+            /////////////////////////////////////////////////////////////////////////////////////
+            //1ª primero verificar si la proforma tiene desctos por deposito y con que cbzas
+            /////////////////////////////////////////////////////////////////////////////////////
+            var dt1 = await _context.vedesextraprof
+                .Join(_context.veproforma,
+                      p1 => p1.codproforma,
+                      p2 => p2.codigo,
+                      (p1, p2) => new { p1, p2 })
+                .Join(_context.cocobranza_contado,
+                      combined => combined.p1.codcobranza_contado,
+                      p3 => p3.codigo,
+                      (combined, p3) => new
+                      {
+                          combined.p1,
+                          combined.p2,
+                          p3
+                      })
+                .Where(x => x.p2.id == idpf
+                         && x.p2.numeroid == nroidpf
+                         && x.p1.coddesextra == coddesextra_deposito)
+                .Select(x => new
+                {
+                    id = x.p2.id,
+                    numeroid = x.p2.numeroid,
+                    fecha_pf = x.p2.fecha,
+                    montodoc = x.p1.montodoc,
+                    codmoneda_pf = x.p2.codmoneda,
+                    codmoneda_cb = x.p3.moneda,
+                    codcobranza_contado = x.p1.codcobranza_contado
+                })
+                .ToListAsync();
+
+            // si la proforma no tiene desctos por deposito se sale de la rutina, porque no hay nada que controlar
+            if (dt1.Count() == 0)
+            {
+                return (true, "");
+            }
+            foreach (var reg in dt1)
+            {
+                double MONTO_APLICADO_ESTA_PROF = 0;
+                string MON_APLICADO = "";
+                double dif_tolerancia = 0;
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                //si tiene desctos por deposito revisar de cada CBZA si esta bien aplicado el descto por deposito
+                if (reg.codmoneda_pf != reg.codmoneda_cb)
+                {
+                    MONTO_APLICADO_ESTA_PROF = (double)await tipocambio._conversion(_context, reg.codmoneda_cb, reg.codmoneda_pf, reg.fecha_pf, reg.montodoc);
+                    MON_APLICADO = reg.codmoneda_cb;
+                }
+                else
+                {
+                    MONTO_APLICADO_ESTA_PROF = (double)reg.montodoc;
+                    MON_APLICADO = reg.codmoneda_cb;
+                }
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                //2º verificar cuanto es el monto dist y el monto que se puede aplicar de cada cbza de la cual se aplico descto por deposito
+                ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                var dt2 = await _context.cocobranza_deposito
+                    .Join(_context.cocobranza_contado,
+                          p1 => p1.codcobranza_contado,
+                          p2 => p2.codigo,
+                          (p1, p2) => new { p1, p2 })
+                    .Where(x => x.p1.codcobranza_contado == reg.codcobranza_contado)
+                    .Select(x => new
+                    {
+                        codcbza = x.p2.codigo,
+                        id = x.p2.id,
+                        numeroid = x.p2.numeroid,
+                        fecha = x.p2.fecha,
+                        montobza = x.p2.monto,
+                        moneda = x.p2.moneda,
+                        //p1 = x.p1,
+                        montodescto = x.p1.montodescto,
+                    })
+                    .ToListAsync();
+                double MONTO_LIMITE = 0;
+                string MON_MONTO_LIMITE = "";
+                if (dt2.Count() > 0)
+                {
+                    MONTO_LIMITE = (double)dt2[0].montodescto;
+                    MON_MONTO_LIMITE = dt2[0].moneda;
+                }
+                else
+                {
+                    // si no hay registro en cocobranza_deposito algo esta mal y mejor no aprobar la
+                    // proforma
+                    return (false, "");
+                }
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                // 3ª totalizar los desctos por depositos que se otorgaron con esta CBZA-DEPOSITO
+                ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+                var dt3 = await _context.vedesextraprof
+                    .Join(_context.veproforma,
+                          p1 => p1.codproforma,
+                          p2 => p2.codigo,
+                          (p1, p2) => new { p1, p2 })
+                    .Join(_context.veremision,
+                          combined => combined.p2.codigo,
+                          p3 => p3.codproforma,
+                          (combined, p3) => new { combined.p1, combined.p2, p3 })
+                    .Where(x => x.p1.codcobranza_contado == reg.codcobranza_contado && x.p2.anulada == false && x.p3.anulada == false)
+                    .Select(x => new
+                    {
+                        codproforma = x.p2.codigo,
+                        idpf = x.p2.id,
+                        nroidpf = x.p2.numeroid,
+                        fecha_pf = x.p2.fecha,
+                        codcliente = x.p2.codcliente,
+                        id = x.p3.id,
+                        numeroid = x.p3.numeroid,
+                        fecha = x.p3.fecha,
+                        montodoc = x.p1.montodoc,
+                        codmoneda = x.p2.codmoneda
+                    })
+                    .ToListAsync();
+
+                double MONTO_TTL_APLICADO = 0;
+                foreach (var reg1 in dt3)
+                {
+                    double MONTO_aux_LIMITE = 0;
+                    // conversion de moneda
+                    if (reg1.codmoneda != MON_MONTO_LIMITE)
+                    {
+                        MONTO_aux_LIMITE = (double)await tipocambio._conversion(_context, MON_MONTO_LIMITE, reg1.codmoneda, reg1.fecha_pf, reg1.montodoc);
+                    }
+                    else
+                    {
+                        MONTO_aux_LIMITE = (double)reg1.montodoc;
+                    }
+                    MONTO_TTL_APLICADO += MONTO_aux_LIMITE;
+                }
+                // EL TOTAL EFECTIVAMENTE APLICADO Y FACTURADO MAS LO QUE SE QUIERE APROBAR
+                MONTO_TTL_APLICADO += MONTO_APLICADO_ESTA_PROF;
+                MONTO_TTL_APLICADO = Math.Round(MONTO_TTL_APLICADO, 2);
+
+                // CONTROLAR SI EL TOTAL FACTUTRADO MAS LO QUE FACTURARA SI ESTO SE APRUEBA
+                if (MONTO_TTL_APLICADO > MONTO_LIMITE)
+                {
+                    msgAlert = "El monto total de descuentos por deposito aplicados del Deposito: " + dt2[0].id + "-" + dt2[0].numeroid + " es mayor al disponible. Se aplico en esta proforma y otras un total de: " + MONTO_TTL_APLICADO + "(" + MON_MONTO_LIMITE + ") y el maximo aplicable es: " + MONTO_LIMITE + " verifique los descuentos por deposito aplicados del mencionado deposito.";
+                    resultado = false;
+                }
+                else
+                {
+                    resultado = true;
+                }
+            }
+
+            return (resultado, msgAlert);
+        }
+
+
+
+
+
+
+        public async Task<(bool result, string msgAlert)> Validar_Desctos_x_Deposito_Otorgados_De_Anticipos_Que_Pagaron_Proformas_Contado(DBContext _context, string idpf, int nroidpf, string codempresa)
+        {
+            bool resultado = false;
+            string msgAlert = "";
+            int coddesextra_deposito = await configuracion.emp_coddesextra_x_deposito(_context, codempresa);
+
+            //TODO EL ANALISIS DE LOS MONTOS APLICADOS DE UNA CBZA-DEPOSITO SE REALIZA EN LA MONEDA DE LA CBZA-DPOSITO
+            //ES DECIR SI HAY UNA PROROFMA EN bs Y LOS MONTOS DE DESCTO POR DEPOSITO ESTAN EN BS
+            //SE CONVERTIRAN A $US
+
+            /////////////////////////////////////////////////////////////////////////////////////
+            //1ª primero verificar si la proforma tiene desctos por deposito y con que cbzas
+            /////////////////////////////////////////////////////////////////////////////////////
+            var dt1 = await _context.vedesextraprof
+                .Join(_context.veproforma,
+                      p1 => p1.codproforma,
+                      p2 => p2.codigo,
+                      (p1, p2) => new { p1, p2 })
+                .Join(_context.coanticipo,
+                      combined => combined.p1.codanticipo,
+                      p3 => p3.codigo,
+                      (combined, p3) => new
+                      {
+                          combined.p1,
+                          combined.p2,
+                          p3
+                      })
+                .Where(x => x.p2.id == idpf
+                         && x.p2.numeroid == nroidpf
+                         && x.p1.coddesextra == coddesextra_deposito)
+                .Select(x => new
+                {
+                    id = x.p2.id,
+                    numeroid = x.p2.numeroid,
+                    fecha_pf = x.p2.fecha,
+                    montodoc = x.p1.montodoc,
+                    codmoneda_pf = x.p2.codmoneda,
+                    codmoneda_cb = x.p3.codmoneda,
+                    codanticipo = x.p1.codanticipo
+                })
+                .ToListAsync();
+
+            // si la proforma no tiene desctos por deposito se sale de la rutina, porque no hay nada que controlar
+            if (dt1.Count() == 0)
+            {
+                return (true, "");
+            }
+            foreach (var reg in dt1)
+            {
+                double MONTO_APLICADO_ESTA_PROF = 0;
+                string MON_APLICADO = "";
+                double dif_tolerancia = 0;
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                //si tiene desctos por deposito revisar de cada CBZA si esta bien aplicado el descto por deposito
+                if (reg.codmoneda_pf != reg.codmoneda_cb)
+                {
+                    MONTO_APLICADO_ESTA_PROF = (double)await tipocambio._conversion(_context, reg.codmoneda_cb, reg.codmoneda_pf, reg.fecha_pf, reg.montodoc);
+                    MON_APLICADO = reg.codmoneda_cb;
+                }
+                else
+                {
+                    MONTO_APLICADO_ESTA_PROF = (double)reg.montodoc;
+                    MON_APLICADO = reg.codmoneda_cb;
+                }
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                //2º verificar cuanto es el monto dist y el monto que se puede aplicar de cada cbza de la cual se aplico descto por deposito
+                ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                var dt2 = await _context.cocobranza_deposito
+                    .Join(_context.coanticipo,
+                          p1 => p1.codanticipo,
+                          p2 => p2.codigo,
+                          (p1, p2) => new { p1, p2 })
+                    .Where(x => x.p1.codanticipo == reg.codanticipo)
+                    .Select(x => new
+                    {
+                        codcbza = x.p2.codigo,
+                        id = x.p2.id,
+                        numeroid = x.p2.numeroid,
+                        fecha = x.p2.fecha,
+                        montobza = x.p2.monto,
+                        moneda = x.p2.codmoneda,
+                        //p1 = x.p1,
+                        montodescto = x.p1.montodescto,
+                    })
+                    .ToListAsync();
+                double MONTO_LIMITE = 0;
+                string MON_MONTO_LIMITE = "";
+                if (dt2.Count() > 0)
+                {
+                    MONTO_LIMITE = (double)dt2[0].montodescto;
+                    MON_MONTO_LIMITE = dt2[0].moneda;
+                }
+                else
+                {
+                    // si no hay registro en cocobranza_deposito algo esta mal y mejor no aprobar la
+                    // proforma
+                    return (false, "");
+                }
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                // 3ª totalizar los desctos por depositos que se otorgaron con esta CBZA-DEPOSITO
+                // y que ya estan facturados
+                ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+                var dt3 = await _context.vedesextraprof
+                    .Join(_context.veproforma,
+                          p1 => p1.codproforma,
+                          p2 => p2.codigo,
+                          (p1, p2) => new { p1, p2 })
+                    .Join(_context.veremision,
+                          combined => combined.p2.codigo,
+                          p3 => p3.codproforma,
+                          (combined, p3) => new { combined.p1, combined.p2, p3 })
+                    .Where(x => x.p1.codanticipo == reg.codanticipo && x.p2.anulada == false && x.p3.anulada == false)
+                    .Select(x => new
+                    {
+                        codproforma = x.p2.codigo,
+                        idpf = x.p2.id,
+                        nroidpf = x.p2.numeroid,
+                        fecha_pf = x.p2.fecha,
+                        codcliente = x.p2.codcliente,
+                        id = x.p3.id,
+                        numeroid = x.p3.numeroid,
+                        fecha = x.p3.fecha,
+                        montodoc = x.p1.montodoc,
+                        codmoneda = x.p2.codmoneda
+                    })
+                    .ToListAsync();
+
+                double MONTO_TTL_APLICADO = 0;
+                foreach (var reg1 in dt3)
+                {
+                    double MONTO_aux_LIMITE = 0;
+                    // conversion de moneda
+                    if (reg1.codmoneda != MON_MONTO_LIMITE)
+                    {
+                        MONTO_aux_LIMITE = (double)await tipocambio._conversion(_context, MON_MONTO_LIMITE, reg1.codmoneda, reg1.fecha_pf, reg1.montodoc);
+                    }
+                    else
+                    {
+                        MONTO_aux_LIMITE = (double)reg1.montodoc;
+                    }
+                    MONTO_TTL_APLICADO += MONTO_aux_LIMITE;
+                }
+                // EL TOTAL EFECTIVAMENTE APLICADO Y FACTURADO MAS LO QUE SE QUIERE APROBAR
+                MONTO_TTL_APLICADO += MONTO_APLICADO_ESTA_PROF;
+                MONTO_TTL_APLICADO = Math.Round(MONTO_TTL_APLICADO, 2);
+
+                // CONTROLAR SI EL TOTAL FACTUTRADO MAS LO QUE FACTURARA SI ESTO SE APRUEBA
+                if (MONTO_TTL_APLICADO > MONTO_LIMITE)
+                {
+                    msgAlert = "El monto total de descuentos por deposito aplicados del Deposito: " + dt2[0].id + "-" + dt2[0].numeroid + " es mayor al disponible. Se aplico en esta proforma y otras un total de: " + MONTO_TTL_APLICADO + "(" + MON_MONTO_LIMITE + ") y el maximo aplicable es: " + MONTO_LIMITE + " verifique los descuentos por deposito aplicados del mencionado deposito.";
+                    resultado = false;
+                }
+                else
+                {
+                    resultado = true;
+                }
+            }
+
+            return (resultado, msgAlert);
+        }
     }
 
 

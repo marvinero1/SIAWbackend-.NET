@@ -147,6 +147,36 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
         }
 
 
+        // GET: api/adparametros
+        [HttpGet]
+        [Route("getFirstEmpresa/{userConn}")]
+        public async Task<ActionResult<IEnumerable<adparametros>>> getFirstEmpresa(string userConn)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var result = await _context.adempresa.Select(i => i.codigo).FirstOrDefaultAsync() ?? "";
+                    if (result == "")
+                    {
+                        return BadRequest(new { resp = "No se encontraron datos." });
+                    }
+                    return Ok(new
+                    {
+                        empresa = result
+                    });
+                }
+
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+            }
+        }
+
 
         // PUT: api/adempresa/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754

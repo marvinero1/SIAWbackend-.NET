@@ -1727,6 +1727,7 @@ namespace siaw_DBContext.Data
         public virtual DbSet<vedesitem_log> vedesitem_log { get; set; }
         public virtual DbSet<vedesitem_log_aut> vedesitem_log_aut { get; set; }
         public virtual DbSet<vedesitem_parametros> vedesitem_parametros { get; set; }
+        public virtual DbSet<vedesitem_tarifa> vedesitem_tarifa { get; set; }
         public virtual DbSet<vedesnivel> vedesnivel { get; set; }
         public virtual DbSet<vedesnivel_clasificacion> vedesnivel_clasificacion { get; set; }
         public virtual DbSet<vedespacho> vedespacho { get; set; }
@@ -60521,6 +60522,17 @@ namespace siaw_DBContext.Data
                 entity.Property(e => e.desde_fecha).HasColumnType("smalldatetime");
 
                 entity.Property(e => e.hasta_fecha).HasColumnType("smalldatetime");
+            });
+
+            modelBuilder.Entity<vedesitem_tarifa>(entity =>
+            {
+                entity.HasNoKey();
+
+                entity.Property(e => e.nivel)
+                    .IsRequired()
+                    .HasMaxLength(1)
+                    .IsUnicode(false)
+                    .IsFixedLength();
             });
 
             modelBuilder.Entity<vedesnivel>(entity =>

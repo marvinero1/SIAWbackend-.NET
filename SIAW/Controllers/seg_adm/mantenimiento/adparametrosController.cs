@@ -36,7 +36,6 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                     var result = await _context.adparametros.ToListAsync();
                     return Ok(result);
                 }
-                
             }
             catch (Exception)
             {
@@ -46,36 +45,7 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
 
         }
 
-        // GET: api/adparametros
-        [HttpGet]
-        [Route("getFirstEmpresa/{userConn}")]
-        public async Task<ActionResult<IEnumerable<adparametros>>> getFirstEmpresa(string userConn)
-        {
-            try
-            {
-                // Obtener el contexto de base de datos correspondiente al usuario
-                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-
-                using (var _context = DbContextFactory.Create(userConnectionString))
-                {
-                    var result = await _context.adparametros.Select(i => i.codempresa).FirstOrDefaultAsync() ?? "";
-                    if (result == "")
-                    {
-                        return BadRequest(new { resp = "No se encontraron datos." });
-                    }
-                    return Ok(result);
-                }
-
-            }
-            catch (Exception)
-            {
-                return Problem("Error en el servidor");
-            }
-
-
-        }
-
-
+        
         // GET: api/adparametros/5
         [HttpGet("{userConn}/{codempresa}")]
         public async Task<ActionResult<adparametros>> Getadparametros(string userConn, string codempresa)

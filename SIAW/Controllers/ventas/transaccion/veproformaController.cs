@@ -1656,7 +1656,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         {
                             
 
-                            /*
+                            
                             if (await Validar_Aprobar_Proforma)
                             {
                             ///////////////////********************************************************************************
@@ -1664,7 +1664,7 @@ namespace SIAW.Controllers.ventas.transaccion
                             }
 
 
-                            */
+                            
 
                             // *****************O J O *************************************************************************************************************
                             // IMPLEMENTADO EN FECHA 26-04-2018 LLAMA A LA FUNNCION QUE VALIDA LO QUE SE VALIDA DESDE LA VENTANA DE APROBACION DE PROFORMAS
@@ -1738,15 +1738,56 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
 
-        /*
-        private async Task<bool> Validar_Aprobar_Proforma(DBContext _context, string id_pf, int nroid_pf, int cod_proforma)
+        
+        private async Task<bool> Validar_Aprobar_Proforma(DBContext _context, string id_pf, int nroid_pf, int cod_proforma,string codempresa)
         {
             bool resultado = true;
+            List<string> msgsAlert = new List<string>();
             var dt_pf = await _context.veproforma.Where(i => i.codigo == cod_proforma).FirstOrDefaultAsync();
 
             ////////////////////////////////////////////////////////////////////////////////
             // validar el monto de desctos por deposito aplicado
-            if (!await depositos_cliente.Validar_Desctos_x_Deposito_Otorgados_De_Cobranzas_Credito()
+            var respdepCoCred = await depositos_cliente.Validar_Desctos_x_Deposito_Otorgados_De_Cobranzas_Credito(_context, id_pf, nroid_pf, codempresa);
+            if (!respdepCoCred.result)
+            {
+                resultado = false;
+                if (respdepCoCred.msgAlert != "")
+                {
+                    msgsAlert.Add(respdepCoCred.msgAlert);
+                }
+            }
+
+            var respdepCoCont = await depositos_cliente.Validar_Desctos_x_Deposito_Otorgados_De_Cbzas_Contado_CE(_context, id_pf, nroid_pf, codempresa);
+            if (!respdepCoCont.result)
+            {
+                resultado = false;
+                if (respdepCoCont.msgAlert != "")
+                {
+                    msgsAlert.Add(respdepCoCont.msgAlert);
+                }
+            }
+
+            var respdepAntProfCont = await depositos_cliente.Validar_Desctos_x_Deposito_Otorgados_De_Anticipos_Que_Pagaron_Proformas_Contado(_context, id_pf, nroid_pf, codempresa);
+            if (!respdepAntProfCont.result)
+            {
+                resultado = false;
+                if (respdepAntProfCont.msgAlert != "")
+                {
+                    msgsAlert.Add(respdepAntProfCont.msgAlert);
+                }
+            }
+
+            if (resultado == false)
+            {
+                msgsAlert.Add("No se puede aprobar la proforma, porque tiene descuentos por deposito en montos no validos!!!");
+            }
+            ////////////////////////////////////////////////////////////////////////////////
+
+
+            //======================================================================================
+            /////////////////VALIDAR DESCTOS POR DEPOSITO APLICADOS
+            //======================================================================================
+            if (! await Validar_Descuentos_Por_Deposito_Excedente())
             {
 
             }
@@ -1754,15 +1795,63 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
         }
+
+
+
+
+        private async Task<bool> Validar_Descuentos_Por_Deposito_Excedente(DBContext _context, int cod_proforma, string codempresa, tabladescuentos tabladescuentos, veproforma veproforma)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            bool resultado = true;
+          
+           
+
+            objres = await validar_Vta.Validar_Descuento_Por_Deposito(_context, DVTA, tabladescuentos, codempresa);
+
+        }
+
+        /*
+        private async Task<bool> Llenar_Datos_Del_Documento(DBContext _context, int cod_proforma, string codempresa, List<itemDataMatriz> tabladetalle, veproforma veproforma)
+        {
+            var datos_id = await _context.adsiat_tipodocidentidad.Select(i => new
+            {
+                i.codigoclasificador,
+                i.descripcion
+            }).OrderBy(i => i.codigoclasificador).ToListAsync();
+            List<string> List_tipo_vta = new List<string>();
+            List_tipo_vta.Add("CONTADO");
+            List_tipo_vta.Add("CREDITO");
+
+            DatosDocVta DVTA = new DatosDocVta();
+            DVTA.coddocumento = cod_proforma;
+            DVTA.estado_doc_vta = "NUEVO";
+            DVTA.id = veproforma.id;
+            DVTA.numeroid = veproforma.numeroid.ToString();
+            DVTA.fechadoc = veproforma.fecha;
+            DVTA.codcliente = veproforma.codcliente;
+            DVTA.nombcliente = veproforma.nomcliente;
+            DVTA.nitfactura = veproforma.nit;
+            DVTA.tipo_doc_id = datos_id[veproforma.tipo_docid ?? 0].descripcion;
+
+            DVTA.codcliente_real = veproforma.codcliente_real;
+            DVTA.nomcliente_real = "";
+            DVTA.codmoneda = veproforma.codmoneda;
+            DVTA.codtarifadefecto = await validar_Vta.Precio_Unico_Del_Documento(tabladetalle);
+            DVTA.subtotaldoc = (double)veproforma.subtotal;
+
+            DVTA.totdesctos_extras = (double)veproforma.descuentos;
+            DVTA.totrecargos = (double)veproforma.recargos;
+            DVTA.totaldoc = (double)veproforma.total;
+            DVTA.tipo_vta = List_tipo_vta[veproforma.tipopago];
+            DVTA.codalmacen = veproforma.codalmacen.ToString();
+
+            DVTA.codvendedor = veproforma.codvendedor;
+            DVTA.preciovta = veproforma.
+
+        }
+
+
         */
-
-
-
-
-
-
-
-
 
 
 

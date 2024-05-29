@@ -6848,6 +6848,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[vedesitem_tarifa]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[vedesnivel]",
          "ObjectType": 0
       },
