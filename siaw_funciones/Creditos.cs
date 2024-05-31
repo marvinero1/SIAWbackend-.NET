@@ -91,7 +91,7 @@ namespace siaw_funciones
 
         }
 
-        public async Task<(bool resultado_func, object? data, string msgAlertActualiza)> ValidarCreditoDisponible_en_Bs(DBContext _context, bool mostrar_detalle, string codcliente, bool incluir_proformas, double totaldoc, string codempresa, string usuario, string monedae, string moneda_pf)
+        public async Task<(bool resultado_func, object? data, string msgAlertActualiza, double monto_credito_disponible)> ValidarCreditoDisponible_en_Bs(DBContext _context, bool mostrar_detalle, string codcliente, bool incluir_proformas, double totaldoc, string codempresa, string usuario, string monedae, string moneda_pf)
         {
             string codigoPrincipal = await cliente.CodigoPrincipal(_context, codcliente);
             // Solo considerarlo el principal si Tiene el mismo NIT, caso contrario usar solo el codigo individual de cliente
@@ -122,14 +122,14 @@ namespace siaw_funciones
 
             //saacr moneda actual
             string moneda_actual = "";
-            string moneda_base = await empresa.monedabase(_context, codempresa);
+            string moneda_base = await Empresa.monedabase(_context, codempresa);
             try
             {
                 moneda_actual = await Credito_Fijo_Asignado_Vigente_Moneda(_context, codcliente);
             }
             catch (Exception)
             {
-                moneda_actual = await empresa.monedabase(_context, codempresa);
+                moneda_actual = await Empresa.monedabase(_context, codempresa);
             }
             //sacar cuanto debe localmente
             decimal deuda_actual_bs = 0;
@@ -201,7 +201,7 @@ namespace siaw_funciones
             var resul1 = await cliente.Cliente_Saldo_Pendiente_Nacional(_context, codcliente, monedae);
             if (resul1.message != "")
             {
-                return (false, new {resp = resul1.message}, msgAlertActualiza);  // devolver error de mensaje REVISAR
+                return (false, new {resp = resul1.message}, msgAlertActualiza,0);  // devolver error de mensaje REVISAR
             }
             saldo_x_pagar_demas_ags_us = resul1.resp;
 
@@ -209,7 +209,7 @@ namespace siaw_funciones
             var resul2 = await cliente.Cliente_Saldo_Pendiente_Nacional(_context, codcliente, moneda_base);
             if (resul2.message != "")
             {
-                return (false, new { resp = resul1.message }, msgAlertActualiza);   // devolver error de mensaje REVISAR
+                return (false, new { resp = resul1.message }, msgAlertActualiza,0);   // devolver error de mensaje REVISAR
             }
             saldo_x_pagar_demas_ags_bs = resul2.resp;
 
@@ -220,7 +220,7 @@ namespace siaw_funciones
             var resul3 = await cliente.Cliente_Proformas_Aprobadas_Nacional(_context, codcliente, monedae);
             if (resul3.message != "")
             {
-                return (false, new { resp = resul3.message }, msgAlertActualiza);  // devolver error de mensaje REVISAR
+                return (false, new { resp = resul3.message }, msgAlertActualiza,0);  // devolver error de mensaje REVISAR
             }
             ttl_proformas_aprobadas_demas_ags_us = resul3.resp;
 
@@ -228,7 +228,7 @@ namespace siaw_funciones
             var resul4 = await cliente.Cliente_Proformas_Aprobadas_Nacional(_context, codcliente, moneda_base);
             if (resul4.message != "")
             {
-                return (false, new { resp = resul4.message }, msgAlertActualiza);  // devolver error de mensaje REVISAR
+                return (false, new { resp = resul4.message }, msgAlertActualiza,0);  // devolver error de mensaje REVISAR
             }
             ttl_proformas_aprobadas_demas_ags_bs = resul4.resp;
 
@@ -418,10 +418,10 @@ namespace siaw_funciones
                         sld = (resultado - totaldoc)
                     }
                 };
-                return (resultado_func, detalle, msgAlertActualiza);
+                return (resultado_func, detalle, msgAlertActualiza, monto_credito_disponible);
             }
 
-            return (resultado_func, null, msgAlertActualiza);
+            return (resultado_func, null, msgAlertActualiza,0);
 
         }
 
@@ -521,7 +521,7 @@ namespace siaw_funciones
             // Ir descontando deudas
             string monedacliente = await cliente.monedacliente(_context, cliente_principal_local, usuario, codempresa);
             string monedaext = await empresa.monedaext(_context, codempresa);
-            string monedabase = await empresa.monedabase(_context, codempresa);
+            string monedabase = await Empresa.monedabase(_context, codempresa);
             string moneda_credito = await Credito_Fijo_Asignado_Vigente_Moneda(_context, cliente_principal_local);
 
             // actualizar el credito disponible localmente
@@ -1881,7 +1881,7 @@ namespace siaw_funciones
 
         public async Task<double> Monto_Credito_Temp_Automatico(DBContext _context, double monto_credito_fijo, string moneda_credito, string codempresa)
         {
-            string monedabase = await empresa.monedabase(_context, codempresa);
+            string monedabase = await Empresa.monedabase(_context, codempresa);
             double resultado = 0;
             if (moneda_credito == monedabase)
             {

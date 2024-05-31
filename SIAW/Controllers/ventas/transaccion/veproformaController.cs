@@ -1655,15 +1655,14 @@ namespace SIAW.Controllers.ventas.transaccion
                         if (paraAprobar)
                         {
                             
-
+                            /*
                             
                             if (await Validar_Aprobar_Proforma)
                             {
                             ///////////////////********************************************************************************
                             ///ACA FALTA ESTA VALIDACION
                             }
-
-
+                            */
                             
 
                             // *****************O J O *************************************************************************************************************
@@ -1787,12 +1786,16 @@ namespace SIAW.Controllers.ventas.transaccion
             //======================================================================================
             /////////////////VALIDAR DESCTOS POR DEPOSITO APLICADOS
             //======================================================================================
+
+            /*
             if (! await Validar_Descuentos_Por_Deposito_Excedente())
             {
 
             }
 
+            */
 
+            return true;
 
         }
 
@@ -1806,7 +1809,8 @@ namespace SIAW.Controllers.ventas.transaccion
           
            
 
-            objres = await validar_Vta.Validar_Descuento_Por_Deposito(_context, DVTA, tabladescuentos, codempresa);
+            //objres = await validar_Vta.Validar_Descuento_Por_Deposito(_context, DVTA, tabladescuentos, codempresa);
+            return true;
 
         }
 
@@ -2952,9 +2956,12 @@ namespace SIAW.Controllers.ventas.transaccion
 
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
+                var moneda_cliente = await cliente.monedacliente(_context, codcliente_real, usuario, codempresa);
                 var resultados = await Validar_Credito_Disponible(_context, codcliente_real, usuario, codempresa, codmoneda, totalProf, fecha);
                 return Ok(new
                 {
+                    monto_credito_disponible = resultados.monto_credito_disponible,
+                    moneda_cliente = moneda_cliente,
                     msgAlertActualiza = resultados.msgAlertActualiza,
                     resultado_func = resultados.resultado_func,
                     data = resultados.data
@@ -2973,13 +2980,30 @@ namespace SIAW.Controllers.ventas.transaccion
 
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
-                var resultados = await creditos.Añadir_Credito_Temporal_Automatico_Nal(_context, monto_credito_disponible, moneda_cliente, codcliente_real, usuario, codempresa, idprof + "-" + numeroidprof, monto_proforma, codmoneda);
-                return Ok(resultados);
+                string docProf = idprof + "-" + numeroidprof;
+                var resultados = await creditos.Añadir_Credito_Temporal_Automatico_Nal(_context, monto_credito_disponible, moneda_cliente, codcliente_real, usuario, codempresa, docProf, monto_proforma, codmoneda);
+                string msgConfir = "";
+                if (resultados.resp)
+                {
+                    msgConfir = "El credito temporal se asigno exitosamente, verifique el credito.";
+                }
+                else
+                {
+                    msgConfir = "No se pudo asignar el credito temporal, verifique las condiciones del cliente.";
+                }
+                
+                return Ok(new
+                {
+                    msgConfir,
+                    resultados.resp,
+                    resultados.msgAlertOpcional,
+                    resultados.msgInfo
+                });
             }
         }
 
 
-        private async Task<(bool resultado_func, object? data, string msgAlertActualiza)> Validar_Credito_Disponible(DBContext _context, string codcliente_real, string usuario, string codempresa, string codmoneda, double totalProf, DateTime fecha)
+        private async Task<(bool resultado_func, object? data, string msgAlertActualiza, double monto_credito_disponible)> Validar_Credito_Disponible(DBContext _context, string codcliente_real, string usuario, string codempresa, string codmoneda, double totalProf, DateTime fecha)
         {
             string moneda_cliente = await cliente.monedacliente(_context, codcliente_real, usuario, codempresa);
 
@@ -2988,18 +3012,18 @@ namespace SIAW.Controllers.ventas.transaccion
             double monto_proforma = totalProf;
 
             string monedae = await empresa.monedaext(_context, codempresa);
-            string monedabase = await empresa.monedabase(_context, codempresa);
+            string monedabase = await Empresa.monedabase(_context, codempresa);
             if (codmoneda == monedae)
             {
                 var res = await creditos.ValidarCreditoDisponible_en_Bs(_context, true, codcliente_real, true, totalProf, codempresa, usuario, monedae, codmoneda);
-                return (res.resultado_func, res.data, res.msgAlertActualiza);
+                return (res.resultado_func, res.data, res.msgAlertActualiza, res.monto_credito_disponible);
             }
             else
             {
                 //Desde 17-04-2023
                 //convierte el monto de la proforma a la moneda del cliente y con el monto convertido valida
                 var res = await creditos.ValidarCreditoDisponible_en_Bs(_context, true, codcliente_real, true, (double)await tipocambio._conversion(_context, monedabase, codmoneda, fecha, (decimal)totalProf), codempresa, usuario, monedae, codmoneda);
-                return (res.resultado_func, res.data, res.msgAlertActualiza);
+                return (res.resultado_func, res.data, res.msgAlertActualiza, res.monto_credito_disponible);
             }
         }
 
@@ -3987,7 +4011,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     List<itemDataMatriz> dt = new List<itemDataMatriz>();
-                    int codempaque_permite_item_repetido = await configuracion.codempaque_permite_item_repetido(_context);
+                    int codempaque_permite_item_repetido = await configuracion.codempaque_permite_item_repetido(_context,codempresa);
                     // obtener los tipos de precio
                     int j = 0;
                     foreach (var reg in tabladetalle)

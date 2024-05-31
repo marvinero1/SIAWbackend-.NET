@@ -102,12 +102,23 @@ namespace siaw_funciones
 
             return result;
         }
-        public async Task<int> codempaque_permite_item_repetido(DBContext _context)
+        public async Task<int> codempaque_permite_item_repetido(DBContext _context, string codempresa)
         {
             try
             {
-                var resultado = await _context.adparametros.Select(i => i.codempaque_permite_item_repetido).FirstOrDefaultAsync() ?? 0;
+                int resultado = 0;
+                //using (_context )
+                //{
+                var result = await _context.adparametros
+                    .Where(v => v.codempresa == codempresa)
+                    .Select(parametro => parametro.codempaque_permite_item_repetido)
+                   .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = (int)result;
+                }
                 return resultado;
+                //}
             }
             catch (Exception)
             {
@@ -542,6 +553,48 @@ namespace siaw_funciones
 
             return result;
         }
+
+        public async Task<double> DuracionHabilAsync(DBContext _context, int almacen, DateTime desde, DateTime hasta)
+        {
+            DateTime fechaAux;
+
+            if (almacen.ToString().Trim() == "")
+            {
+                return 1;
+            }
+            else
+            {
+                // Verificar si la fecha desde es menor a hasta y si no invertir fechas
+                if (desde < hasta)
+                {
+                    // desde = desde;
+                    // hasta = hasta;
+                }
+                else
+                {
+                    fechaAux = desde;
+                    desde = hasta;
+                    hasta = fechaAux;
+                }
+
+                double duracion = hasta.Date.Subtract(desde.Date).TotalDays + 1;
+                // Descontar los días que no eran días hábiles
+                int noHabiles;
+                noHabiles = await _context.penohabil
+                    .CountAsync(ph => ph.codalmacen == almacen &&
+                                      ph.fecha >= desde.Date &&
+                                      ph.fecha <= hasta.Date);
+                duracion -= noHabiles;
+                if (duracion < 0)
+                {
+                    duracion = 0;
+                }
+
+                return duracion;
+            }
+        }
+
+
     }
 }
  

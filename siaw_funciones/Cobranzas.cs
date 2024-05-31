@@ -1404,7 +1404,7 @@ namespace siaw_funciones
             }
             return resultado;
         }
-        public async Task<bool> Existe_Cobranza_Contado(DBContext _context, string id, string nroid)
+        public async Task<bool> Existe_Cobranza_Contado(DBContext _context, string id, int nroid)
         {
             bool resultado = false;
             try
@@ -1414,7 +1414,7 @@ namespace siaw_funciones
                 //{
 
                 int count = _context.cocobranza_contado
-                .Where(c => c.id == id && c.numeroid == int.Parse(nroid))
+                .Where(c => c.id == id && c.numeroid == nroid)
                 .Count();
 
                 if (count > 0)
@@ -1991,6 +1991,576 @@ namespace siaw_funciones
                     return false;
                 }
             }
+        }
+
+
+        public async Task<decimal> AnticipoMonto(DBContext _context, string id, int numeroid, string codmoneda)
+        {
+            decimal resultado = 0;
+
+            try
+            {
+                var cuotas = await _context.coanticipo
+                    .Where(c => c.id == id && c.numeroid == numeroid)
+                    .Select(g => new
+                    {
+                        monto = g.monto,
+                        codmoneda = g.codmoneda,
+                        fecha = g.fecha
+                    })
+                    .ToListAsync();
+
+                if (cuotas.Any())
+                {
+                    foreach (var cuota in cuotas)
+                    {
+                        resultado += Convert.ToDecimal(tipocambio._conversion(_context, codmoneda, cuota.codmoneda, cuota.fecha.Date, (decimal)cuota.monto));
+                    }
+                }
+                else
+                {
+                    resultado = 0;
+                }
+            }
+            catch (Exception)
+            {
+                resultado = 0;
+            }
+
+            return resultado;
+        }
+        public async Task<decimal> Anticipo_Monto_Total_Revertido_A_Cobranza_Contado(DBContext _context, string id, int numeroid, string codmoneda)
+        {
+            decimal? resultado = 0;
+
+            try
+            {
+                if (string.IsNullOrWhiteSpace(id))
+                {
+                    return 0;
+                }
+
+                var query = from p1 in _context.cocobranza_contado_anticipo
+                            join p2 in _context.cocobranza_contado on p1.codcobranza equals p2.codigo
+                            join p3 in _context.coanticipo on p1.codanticipo equals p3.codigo
+                            where p3.id == id && p3.numeroid == numeroid
+                                  && p2.reciboanulado == false
+                                  && p3.anulado == false
+                            orderby p2.fecha ascending
+                            select new
+                            {
+                                p3.id,
+                                p3.numeroid,
+                                p3.monto,
+                                p3.montorest,
+                                p1,
+                                idcbza = p2.id,
+                                nroidcbza = p2.numeroid,
+                                montocbza = p2.monto,
+                                codmoneda_cbza = p2.moneda,
+                                fecha_cbza = p2.fecha
+                            };
+
+                var resultList = await query.ToListAsync();
+
+                foreach (var reg in resultList)
+                {
+                    if (reg.codmoneda_cbza == codmoneda)
+                    {
+                        resultado += reg.monto;
+                    }
+                    else
+                    {
+                        resultado += await tipocambio._conversion(_context, codmoneda, reg.codmoneda_cbza, reg.fecha_cbza, (decimal)reg.monto);
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                resultado = 0;
+            }
+
+            return (decimal)resultado;
+        }
+
+        public async Task<decimal> Anticipo_Monto_Total_Revertido_A_Cobranza(DBContext _context, string id, int numeroid, string codmoneda)
+        {
+            decimal? resultado = 0;
+
+            try
+            {
+                if (string.IsNullOrWhiteSpace(id))
+                {
+                    return 0;
+                }
+
+                var query = from p1 in _context.cocobranza_anticipo
+                            join p2 in _context.cocobranza on p1.codcobranza equals p2.codigo
+                            join p3 in _context.coanticipo on p1.codanticipo equals p3.codigo
+                            where p3.id == id && p3.numeroid == numeroid
+                                  && p2.reciboanulado == false
+                                  && p3.anulado == false
+                            orderby p2.fecha ascending
+                            select new
+                            {
+                                p3.id,
+                                p3.numeroid,
+                                p3.monto,
+                                p3.montorest,
+                                p1,
+                                idcbza = p2.id,
+                                nroidcbza = p2.numeroid,
+                                montocbza = p2.monto,
+                                codmoneda_cbza = p2.moneda,
+                                fecha_cbza = p2.fecha
+                            };
+
+                var resultList = await query.ToListAsync();
+
+                foreach (var reg in resultList)
+                {
+                    if (reg.codmoneda_cbza == codmoneda)
+                    {
+                        resultado += reg.monto;
+                    }
+                    else
+                    {
+                        resultado += await tipocambio._conversion(_context, codmoneda, reg.codmoneda_cbza, reg.fecha_cbza, (decimal)reg.monto);
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                resultado = 0;
+            }
+
+            return (decimal)resultado;
+        }
+
+        public async Task<decimal> Anticipo_Monto_Total_Devolucion(DBContext _context, string id, int numeroid, string codmoneda)
+        {
+            decimal? resultado = 0;
+
+            try
+            {
+                if (string.IsNullOrWhiteSpace(id))
+                {
+                    return 0;
+                }
+
+                var query = from p1 in _context.codevanticipo
+                            join p2 in _context.coanticipo on new { p1.idanticipo, p1.numeroidanticipo } equals new { idanticipo = p2.id, numeroidanticipo = p2.numeroid }
+                            where p1.idanticipo == id && p1.numeroidanticipo == numeroid
+                                  && p1.anulada == false
+                            orderby p1.fechareg ascending
+                            select new
+                            {
+                                p2.codcliente,
+                                monto_anticipo = p2.monto,
+                                montorest_anticipo = p2.montorest,
+                                codmoneda_anticipo = p2.codmoneda,
+                                p1.fecha,
+                                p1.monto
+                            };
+
+                var resultList = await query.ToListAsync();
+
+                foreach (var reg in resultList)
+                {
+                    if (reg.codmoneda_anticipo == codmoneda)
+                    {
+                        resultado += reg.monto;
+                    }
+                    else
+                    {
+                        resultado += await tipocambio._conversion(_context, codmoneda, reg.codmoneda_anticipo, reg.fecha, (decimal)reg.monto);
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                resultado = 0;
+            }
+
+            return (decimal)resultado;
+        }
+
+        public async Task<decimal> Anticipo_Monto_Total_Asignado_En_Factura_Mostrador(DBContext _context, string id, int numeroid, string codmoneda)
+        {
+            decimal? resultado = 0;
+
+            try
+            {
+                if (string.IsNullOrWhiteSpace(id))
+                {
+                    return 0;
+                }
+
+                var query = from p1 in _context.vefactura
+                            join p2 in _context.coanticipo on new { idanticipo = p1.idanticipo, numeroidanticipo = p1.numeroidanticipo ?? 0 } equals new { idanticipo = p2.id, numeroidanticipo = p2.numeroid }
+                            where p1.idanticipo == id && p1.numeroidanticipo == numeroid
+                                  && p1.anulada == false
+                            orderby p1.fecha ascending
+                            select new
+                            {
+                                codcliente_anticipo = p2.codcliente,
+                                id_anticipo = p2.id,
+                                numeroid_anticipo = p2.numeroid,
+                                monto_anticipo = p2.monto,
+                                montorest_anticipo = p2.montorest,
+                                codmoneda_anticipo = p2.codmoneda,
+                                p1.id,
+                                p1.numeroid,
+                                p1.fecha,
+                                p1.codcliente,
+                                p1.total,
+                                codmoneda_fc = p1.codmoneda,
+                                p1.idanticipo,
+                                p1.numeroidanticipo,
+                                monto_anticipo_asignado_enfc = p1.monto_anticipo,
+                            };
+
+                var resultList = await query.ToListAsync();
+
+                foreach (var reg in resultList)
+                {
+                    if (reg.codmoneda_fc == codmoneda)
+                    {
+                        resultado += reg.monto_anticipo_asignado_enfc;
+                    }
+                    else
+                    {
+                        resultado += await tipocambio._conversion(_context, codmoneda, reg.codmoneda_fc, reg.fecha, (decimal)reg.monto_anticipo);
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                resultado = 0;
+            }
+
+            return (decimal)resultado;
+        }
+
+        public async Task<bool> Anticipo_Esta_Anulado(DBContext _context, string id, string numeroid)
+        {
+            bool resultado;
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+
+                var anulado = _context.coanticipo
+                   .Where(c => c.id == id && c.numeroid == int.Parse(numeroid))
+                   .OrderByDescending(c => c.fecha)
+                   .Select(c => c.anulado)
+                   .FirstOrDefault();
+
+                if (anulado != null)
+                {
+                    resultado = anulado;
+                }
+                else
+                {
+                    resultado = true;
+                }
+                //}
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                resultado = true;
+            }
+            return resultado;
+        }
+
+        public async Task<bool> Existe_Anticipo(DBContext _context, string id, int nroid)
+        {
+            bool resultado = false;
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+
+                int count = await _context.coanticipo
+                .Where(c => c.id == id && c.numeroid == nroid)
+                .CountAsync();
+
+                if (count > 0)
+                {
+                    resultado = true;
+                }
+                else
+                {
+                    resultado = false;
+                }
+                //}
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return false;
+            }
+            return resultado;
+        }
+
+        public async Task<string> Cliente_De_Anticipo(DBContext _context, string id, int nroid)
+        {
+            string resultado;
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+
+                var codcliente = await _context.coanticipo
+                   .Where(c => c.id == id && c.numeroid == nroid)
+                   .Select(c => c.codcliente)
+                   .FirstOrDefaultAsync();
+
+                if (codcliente != null)
+                {
+                    resultado = codcliente;
+                }
+                else
+                {
+                    resultado = "";
+                }
+                //}
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                resultado = "";
+            }
+            return resultado;
+        }
+
+
+        public async Task<decimal> Anticipo_Monto_Total_Asignado_En_Proforma(DBContext _context, string id, int numeroid, string codmoneda)
+        {
+            decimal? resultado = 0;
+
+            try
+            {
+                if (string.IsNullOrWhiteSpace(id))
+                {
+                    return 0;
+                }
+
+                var query = from p1 in _context.veproforma_anticipo
+                            join p2 in _context.veproforma on p1.codproforma equals p2.codigo
+                            join p3 in _context.coanticipo on p1.codanticipo equals p3.codigo
+                            where p3.id == id && p3.numeroid == numeroid
+                                  && p2.anulada == false
+                                  && p3.anulado == false
+                            orderby p2.fecha ascending
+                            select new
+                            {
+                                p3.id,
+                                p3.numeroid,
+                                p3.monto,
+                                p3.montorest,
+                                p1,
+                                idpf = p2.id,
+                                nroidpf = p2.numeroid,
+                                ttl_pf = p2.total,
+                                codmoneda_pf = p2.codmoneda,
+                                fecha_pf = p2.fecha
+                            };
+
+                var resultList = await query.ToListAsync();
+
+                foreach (var reg in resultList)
+                {
+                    if (reg.codmoneda_pf == codmoneda)
+                    {
+                        resultado += reg.monto;
+                    }
+                    else
+                    {
+                        resultado += await tipocambio._conversion(_context, codmoneda, reg.codmoneda_pf, reg.fecha_pf, (decimal)reg.monto);
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                resultado = 0;
+            }
+
+            return (decimal)resultado;
+        }
+
+        public async Task<bool> Existe_Anticipo_Venta_Contado(DBContext _context, string id, int nroid)
+        {
+            bool resultado = false;
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+
+                int count = await _context.coanticipo
+                .Where(c => c.id == id && c.numeroid == nroid)
+                .CountAsync();
+
+                if (count > 0)
+                {
+                    resultado = true;
+                }
+                else
+                {
+                    resultado = false;
+                }
+                //}
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return false;
+            }
+            return resultado;
+        }
+
+        public async Task<decimal> Monto_De_Anticipo_PF(DBContext _context, string id, int nroid)
+        {
+            decimal resultado;
+            try
+            {
+                var monto = await _context.coanticipo
+                   .Where(c => c.id == id && c.numeroid == nroid)
+                   .Select(c => c.monto)
+                   .FirstOrDefaultAsync();
+
+                if (monto != null)
+                {
+                    resultado = (decimal)monto;
+                }
+                else
+                {
+                    resultado = 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                resultado = 0;
+            }
+            return resultado;
+        }
+
+        public async Task<string> Moneda_De_Anticipo(DBContext _context, string id, int nroid)
+        {
+            string resultado;
+            try
+            {
+                var codmoneda = await _context.coanticipo
+                   .Where(c => c.id == id && c.numeroid == nroid)
+                   .Select(c => c.codmoneda)
+                   .FirstOrDefaultAsync();
+
+                if (codmoneda != null)
+                {
+                    resultado = codmoneda;
+                }
+                else
+                {
+                    resultado = "";
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                resultado = "";
+            }
+            return resultado;
+        }
+
+        public async Task<string> Nit_De_Anticipo(DBContext _context, string id, int nroid)
+        {
+            string resultado;
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+
+                var nit = await _context.coanticipo
+                   .Where(c => c.id == id && c.numeroid == nroid)
+                   .Select(c => c.nit)
+                   .FirstOrDefaultAsync();
+
+                if (nit != null)
+                {
+                    resultado = nit;
+                }
+                else
+                {
+                    resultado = "";
+                }
+                //}
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                resultado = "";
+            }
+            return resultado;
+        }
+
+        public async Task<List<string>> Nombres_Facturados_Anticipo_Contado(DBContext _context, string id_anticipo, int numeroid_anticipo)
+        {
+            var resultado = new List<string>();
+            try
+            {
+                var query = _context.veproforma_anticipo
+                    .Join(_context.veproforma, p1 => p1.codproforma, p2 => p2.codigo, (p1, p2) => new { p1, p2 })
+                    .Join(_context.coanticipo, pp => pp.p1.codanticipo, p3 => p3.codigo, (pp, p3) => new { pp, p3 })
+                    .Where(ppp => ppp.pp.p2.anulada == false && ppp.p3.id == id_anticipo && ppp.p3.numeroid == numeroid_anticipo)
+                    .Select(ppp => ppp.pp.p2.nomcliente);
+
+                resultado = await query.Distinct().ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                resultado.Clear();
+            }
+            return resultado;
+        }
+
+        public async Task<string> Nombre_Nit_De_Anticipo(DBContext _context, string id, int nroid)
+        {
+            string resultado;
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+
+                var nomcliente_nit = await _context.coanticipo
+                   .Where(c => c.id == id && c.numeroid == nroid)
+                   .Select(c => c.nomcliente_nit)
+                   .FirstOrDefaultAsync();
+
+                if (nomcliente_nit != null)
+                {
+                    resultado = nomcliente_nit;
+                }
+                else
+                {
+                    resultado = "";
+                }
+                //}
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                resultado = "";
+            }
+            return resultado;
         }
 
     }

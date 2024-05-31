@@ -61533,7 +61533,8 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<vehcredito>(entity =>
             {
-                entity.HasNoKey();
+                entity.HasKey(e => e.codigo)
+                    .HasName("PK__vehcredi__40F9A207D7EC9CED");
 
                 entity.Property(e => e.autoriza)
                     .IsRequired()
@@ -61542,8 +61543,6 @@ namespace siaw_DBContext.Data
                 entity.Property(e => e.codcliente)
                     .IsRequired()
                     .HasMaxLength(10);
-
-                entity.Property(e => e.codigo).ValueGeneratedOnAdd();
 
                 entity.Property(e => e.codtipocredito)
                     .IsRequired()

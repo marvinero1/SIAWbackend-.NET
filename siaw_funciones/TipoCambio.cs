@@ -12,7 +12,6 @@ namespace siaw_funciones
     public class TipoCambio
     {
         //Clase necesaria para el uso del DBContext del proyecto siaw_Context
-        Empresa empresa = new Empresa();
         public static class DbContextFactory
         {
             public static DBContext Create(string connectionString)
@@ -223,7 +222,7 @@ namespace siaw_funciones
             var resultado = await _context.adusparametros.Where(v => v.usuario == usuario).Select(i => i.codmonedatdc).FirstOrDefaultAsync();
             if (resultado == null)
             {
-                resultado = await empresa.monedabase(_context, codempresa);
+                resultado = await Empresa.monedabase(_context, codempresa);
             }
             return resultado;
         }

@@ -13,6 +13,6 @@
         public DateTime fechareg { get; set; }
         public string usuarioreg { get; set; }
         public string horareg { get; set; }
-
+        public string codvendedor { get; set; }
     }
 }

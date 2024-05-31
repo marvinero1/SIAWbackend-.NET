@@ -2404,5 +2404,93 @@ namespace siaw_funciones
             return true;
         }
 
+
+        public async Task<decimal> cliente_debe_vencido(DBContext _context, string codigoCliente, string moneda, DateTime fecha)
+        {
+            decimal resultado = 0;
+
+            try
+            {
+                var cuotas = await _context.coplancuotas
+                    .Where(c => c.montopagado < c.monto && c.vencimiento <= fecha.Date && c.cliente == codigoCliente)
+                    .GroupBy(c => new { c.cliente, c.moneda })
+                    .Select(g => new
+                    {
+                        Cliente = g.Key.cliente,
+                        Debe = g.Sum(c => c.monto - c.montopagado),
+                        Moneda = g.Key.moneda
+                    })
+                    .ToListAsync();
+
+                if (cuotas.Any())
+                {
+                    foreach (var cuota in cuotas)
+                    {
+                        resultado += Convert.ToDecimal(tipocambio._conversion(_context, moneda, cuota.Moneda, DateTime.Now.Date, (decimal)cuota.Debe));
+                    }
+                }
+                else
+                {
+                    resultado = 0;
+                }
+            }
+            catch (Exception)
+            {
+                resultado = 0;
+            }
+
+            return resultado;
+        }
+        public async Task<string> Cliente_Nit_facturado(DBContext _context, string nit, string nomcliente)
+        {
+            string resultado = "";
+            try
+            {
+                var result = await _context.vefactura
+                    .Where(v => v.nit == nit && v.nomcliente == nomcliente)
+                    .Select(v => v.codcliente + " - " + v.nomcliente + " " + v.nit)
+                    .FirstOrDefaultAsync();
+
+                if (result != null)
+                {
+                    resultado = result;
+                }
+            }
+            catch (Exception)
+            {
+                resultado = "";
+            }
+            return resultado;
+        }
+        public async Task<decimal> Maximo_Vta(DBContext _context, string codcliente)
+        {
+            var resultado = await _context.vecliente.Where(i => i.codigo == codcliente).Select(i => i.maximo_vta).FirstOrDefaultAsync() ?? 0;
+            return resultado;
+        }
+        public async Task<string> TipoDeFactura(DBContext _context, string codcliente)
+        {
+            var tipofactura = await _context.vecliente
+                    .Where(item => item.codigo == codcliente)
+                    .Select(item => item.tipofactura)
+                    .FirstOrDefaultAsync();
+
+            if (tipofactura == null)
+            {
+                return "";
+            }
+            return tipofactura;
+        }
+
+        public async Task<string> Maximo_Vta_Moneda(DBContext _context, string codcliente)
+        {
+            var resultado = await _context.vecliente.Where(i => i.codigo == codcliente).Select(i => i.codmoneda_maximo_vta).FirstOrDefaultAsync() ?? "";
+            //if (resultado == "")
+            //{
+            //    resultado = await tipocambio.monedatdc(_context, usuario, codempresa);
+            //}
+            return resultado;
+        }
+
+
     }
 }

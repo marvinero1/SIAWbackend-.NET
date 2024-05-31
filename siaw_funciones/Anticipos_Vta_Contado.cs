@@ -9,6 +9,7 @@ using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static siaw_funciones.Validar_Vta;
 
 namespace siaw_funciones
 {
@@ -27,6 +28,9 @@ namespace siaw_funciones
         //Clase necesaria para el uso del DBContext del proyecto siaw_Context
         private Empresa empresa = new Empresa();
         private TipoCambio tipoCambio = new TipoCambio();
+        private Almacen almacen = new Almacen();
+        private Cliente cliente = new Cliente();
+        private Cobranzas cobranzas = new Cobranzas();
 
         public async Task<bool> ActualizarMontoRestAnticipo(DBContext _context, string id_anticipo, int numeroid_anticipo, int codproforma, int codanticipo, double monto_actual_aplicado, string codigoempresa)
         {
@@ -57,13 +61,13 @@ namespace siaw_funciones
                 else
                 {
                     monto_anticipo = 0;
-                    moneda_anticipo = await empresa.monedabase(_context, codigoempresa);
+                    moneda_anticipo = await Empresa.monedabase(_context, codigoempresa);
                 }
             }
             catch (Exception)
             {
                 monto_anticipo = 0;
-                moneda_anticipo = await empresa.monedabase(_context, codigoempresa);
+                moneda_anticipo = await Empresa.monedabase(_context, codigoempresa);
             }
 
 
@@ -279,5 +283,467 @@ namespace siaw_funciones
             }
             return false;
         }
+
+
+
+
+
+
+        public async Task<ResultadoValidacion> Validar_Anticipo_Asignado_2(DBContext _context, bool para_aprobar, DatosDocVta DVTA, List<vedetalleanticipoProforma> dt_anticipo_pf, string codempresa)
+        {
+            bool resultado = true;
+            string cadena = "";
+            string cadena0 = "";
+            string cadena1 = "";
+            string cadena2 = "";
+            string cadena3 = "";
+            string cadena4 = "";
+            string cadena5 = "";
+            string cadena6 = "";
+            ResultadoValidacion objres = new ResultadoValidacion();
+            objres.resultado = true;
+            objres.observacion = "";
+            objres.obsdetalle = "";
+            objres.datoA = "";
+            objres.datoB = "";
+            objres.accion = Acciones_Validar.Ninguna;
+
+            //si la venta es al credito no debe validar anticipos asignados
+            if (DVTA.tipo_vta == "CREDITO")
+            {
+                return objres;
+            }
+            //si la venta es al CONTADO - CONTRA ENTREGA no debe validar anticipos asignados
+            if (DVTA.tipo_vta == "CONTADO" && DVTA.contra_entrega == "SI")
+            {
+                return objres;
+            }
+            //si la venta es al CONTADO - CONTRA ENTREGA no debe validar anticipos asignados
+            if (DVTA.tipo_vta == "CONTADO" && DVTA.contra_entrega == "NO")
+            {
+                if (await almacen.Es_Tienda(_context, Convert.ToInt32(DVTA.codalmacen)))
+                {
+                    //si la venta es al contado y NO es contra entrega y ES tienda no se debe verificar que haya anticipo
+                    return objres;
+                }
+            }
+            ///////////////////////////////////////////////////////////////////
+            //VERIFICA QUE LA VENTA AL CONTADO TENGA ASIGNADO AL ANTICIPO
+            //DE PAGO RESPECTIVO
+            if (resultado == true)
+            {
+                if (dt_anticipo_pf.Count() == 0)
+                {
+                    cadena0 = "Toda venta al CONTADO debe tener asignado al menos un anticipo.";
+                    cadena0 += Environment.NewLine + "----------------------------------------";
+                    resultado = false;
+                }
+            }
+            //VERIFICAR SI EL ANTICIPO EXISTE
+            if (resultado == true)
+            {
+                foreach (var item in dt_anticipo_pf)
+                {
+                    if (await cobranzas.Existe_Anticipo_Venta_Contado(_context, item.id_anticipo, item.nroid_anticipo) == false)
+                    {
+                        if (cadena1.Trim().Length == 0)
+                        {
+                            cadena1 = "No Existen los Anticipos:";
+                        }
+
+                        cadena0 += Environment.NewLine + item.id_anticipo + "-" + item.nroid_anticipo + " no existe!!!";
+                        resultado = false;
+                    }
+                }
+            }
+            if (cadena1.Trim().Length > 0)
+            {
+                cadena1 += Environment.NewLine + "----------------------------------------";
+            }
+            ///////////////////////////////////////////////////////////////////
+            //VERIFICAR SI EL ANTICIPO ES DEL MISMO CLIENTE segun el codigo de cliente
+            string _NitAnticipo = "";
+            string _NombreNitAnticipo = "";
+            if (resultado == true)
+            {
+                foreach (var item in dt_anticipo_pf)
+                {
+                    if ((DVTA.codcliente == await cobranzas.Cliente_De_Anticipo(_context, item.id_anticipo, item.nroid_anticipo)) == false)
+                    {
+                        //el codcliente de la proforma  NO es el mismo al de ANTICIPO
+                        if (cadena2.Trim().Length == 0)
+                        {
+                            cadena2 = "Anticipos no son del Cliente:" + DVTA.codcliente;
+                        }
+                        cadena2 += Environment.NewLine + item.id_anticipo + "-" + item.nroid_anticipo;
+                        resultado = false;
+                    }
+                    else
+                    {
+                        //Desde 1/12/2023 solo validar el NIT si la venta es casual-referencial, y no cuando es una venta casual-casual o referencial-referencial
+                        if (await cliente.EsClienteSinNombre(_context, DVTA.codcliente) == true)
+                        {
+                            _NitAnticipo = await cobranzas.Nit_De_Anticipo(_context, item.id_anticipo, item.nroid_anticipo);
+                            _NombreNitAnticipo = await cobranzas.Nombre_Nit_De_Anticipo(_context, item.id_anticipo, item.nroid_anticipo);
+                            if ((DVTA.nitfactura == _NitAnticipo) == false)
+                            {
+                                if (cadena2.Trim().Length == 0)
+                                {
+                                    cadena2 = "Anticipo no pertenece al Cliente:" + DVTA.codcliente + " NIT: " + _NitAnticipo + "-" + _NombreNitAnticipo;
+                                }
+                                cadena2 += Environment.NewLine + item.id_anticipo + "-" + item.nroid_anticipo + " es del cliente con NIT: " + _NitAnticipo + " - " + _NombreNitAnticipo;
+                                resultado = false;
+                            }
+                        }
+
+                    }
+                }
+            }
+            if (cadena2.Trim().Length > 0)
+            {
+                cadena2 += Environment.NewLine + "----------------------------------------";
+            }
+            //QUE EL ANTICIPO SEA USADO PARA FACTURAR A UN MISNO NOMBRE DE CLIENTE
+            //esta politica fue decidia por JRA-MARIELA MONTAÑO A FINES DE FEBRERO-2016
+            //validar Nombres_Facturados_Anticipo_Contado
+            //esta validacion controla que el anticipo contado se haya utilizado
+            //solamente para sacar facturas a un mismo nombre y nit
+            //SE IMPLEMENTO EN MARZO2016
+            List<string> nombres_facturados;
+            foreach (var item in dt_anticipo_pf)
+            {
+                //obtener los nombres a los cuales se facturo con este anticipo contado
+                //que en la practica solo deberia haberse facturado a un solo nombre
+                nombres_facturados = await cobranzas.Nombres_Facturados_Anticipo_Contado(_context, item.id_anticipo, item.nroid_anticipo);
+                if (nombres_facturados.Count == 0)
+                {
+                    //si es el mismo nombre se verifica el sgte anticipo
+                }
+                else if (nombres_facturados.Count > 0)
+                {
+                    foreach (var nom in nombres_facturados)
+                    {
+                        if (nom != DVTA.nombcliente)
+                        {
+                            if (cadena3.Trim().Length == 0)
+                            {
+                                cadena3 = "Anticipos usado para facturar distintos NIT:" + DVTA.codcliente;
+                            }
+                            cadena3 += Environment.NewLine + "Anticipo: " + item.id_anticipo + "-" + item.nroid_anticipo + " ya fue utilizado para facturar al nombre: " + nom + " y solo se puede usar para facturar a ese nombre.";
+                            resultado = false;
+                        }
+                    }
+
+                }
+            }
+            if (cadena3.Trim().Length > 0)
+            {
+                cadena3 += Environment.NewLine + "----------------------------------------";
+            }
+            ///////////////////////////////////////////////////////////////////
+            //VERIFICAR EL SALDO DISPONIBLE DEL ANTICIPO
+            decimal monto_anticipo = 0;
+            decimal monto_rest_anticipo_pf = 0;
+            decimal monto_rest_anticipo_cb = 0;
+            decimal monto_rest_anticipo = 0;
+            string moneda_anticipo = "";
+
+            if (resultado == true)
+            {
+                foreach (var item in dt_anticipo_pf)
+                {
+                    //obtener el monto del anticipo
+                    monto_anticipo = await cobranzas.Monto_De_Anticipo_PF(_context, item.id_anticipo, item.nroid_anticipo);
+                    moneda_anticipo = await cobranzas.Moneda_De_Anticipo(_context, item.id_anticipo, item.nroid_anticipo);
+                    //convertir el monton del anticipo aplicado en PF a la moneda del anticipo
+                    if (item.codmoneda != moneda_anticipo)
+                    {
+                        //si la moneda del anticipo y proforma no son iguales entonces convertir el monto asignar a la moneda de la proforma
+                        item.monto = (double)await tipoCambio._conversion(_context, moneda_anticipo, item.codmoneda, item.fechareg, (decimal)item.monto);
+                        item.monto = Math.Round(item.monto, 2);
+                    }
+
+                    //actualizar el montorest
+                    await ActualizarMontoRestAnticipo(_context, item.id_anticipo, item.nroid_anticipo, item.codproforma, item.codanticipo, item.monto, codempresa);
+                    //obtener el monto restante del anticipo sin incluir el monto aplicado para esta proforma
+                    monto_rest_anticipo_pf = await Montorest_De_Anticipo_Sin_Proforma(_context, item.id_anticipo, item.nroid_anticipo, item.codproforma, codempresa);
+                    //obtener el monto restante del anticipo incluir el monto aplicado a una cobranza
+                    monto_rest_anticipo_cb = await Montorest_De_Anticipo_Cobranza_Anticipo(_context, item.id_anticipo, item.nroid_anticipo, codempresa);
+                    //obtener el monto restante del anticipo incluir el monto aplicado a una cobranza
+                    monto_rest_anticipo = (monto_rest_anticipo_pf + monto_rest_anticipo_cb) - monto_anticipo;
+                    monto_rest_anticipo = Math.Round(monto_rest_anticipo, 2);
+                    //verificar si el saldos del anticipo es mayor o igual al monto asignado
+                    if (item.monto > (double)monto_rest_anticipo)
+                    {
+                        if (cadena4.Trim().Length == 0)
+                        {
+                            cadena4 = "Saldo Insuficiente de Anticipo:" + DVTA.codcliente;
+                        }
+                        cadena4 += Environment.NewLine + "Saldo de: " + item.id_anticipo + "-" + item.nroid_anticipo + " --> es: " + monto_rest_anticipo + " y no alcanza para aplicar a la proforma.";
+                        resultado = false;
+                    }
+                    //convertir el monton del anticipo aplicado en PF a la moneda del anticipo
+                    if (item.codmoneda != moneda_anticipo)
+                    {
+                        //si la moneda del anticipo y proforma no son iguales entonces convertir el monto asignar a la moneda de la proforma
+                        item.monto = (double)await tipoCambio._conversion(_context, moneda_anticipo, item.codmoneda, item.fechareg, (decimal)item.monto);
+                        item.monto = Math.Round(item.monto, 2);
+                    }
+
+                }
+            }
+            if (cadena4.Trim().Length > 0)
+            {
+                cadena4 += Environment.NewLine + "----------------------------------------";
+            }
+            //VERIFICAR SI EL TOTAL ASIGNADO DE ANTICIPOS ES SUFICIENTE
+            //Desde 14/12/2023 si la moneda de los anticipos es diferente a la moneda de la proforma convertir a la moneda de la PF
+            decimal TTL_asignado = 0;
+            decimal DIFERENCIA = 0;
+            if (resultado == true)
+            {
+                foreach (var item in dt_anticipo_pf)
+                {
+                    TTL_asignado += (decimal)item.monto;
+                }
+                TTL_asignado = Math.Round(TTL_asignado, 2);
+                if (TTL_asignado < (decimal)DVTA.totaldoc)
+                {
+                    DIFERENCIA = Math.Round(Math.Abs(TTL_asignado - (decimal)DVTA.totaldoc), 2);
+                    if (DIFERENCIA >= (decimal)0.01)
+                    {
+                        //Desde 18/12/2024 ya no hay tolerancia de 0.03 segun indicado por mariela el monto debe ser exacto al momento de aplicar anticipos en una proforma
+                        cadena5 += Environment.NewLine + "El monto total de anticipo asignado no es suficiente para la venta, se asigno:" + TTL_asignado + "(" + DVTA.codmoneda + ") y el total de la venta es: " + DVTA.totaldoc + "(" + DVTA.codmoneda + ")";
+                        resultado = false;
+                    }
+                }
+                if (TTL_asignado > (decimal)DVTA.totaldoc)
+                {
+                    cadena5 += Environment.NewLine + "El monto total de anticipo asignado es mayor a la venta total. El monto de anticipo asignado es: " + TTL_asignado + "(" + DVTA.codmoneda + ") y el total de la venta es: " + DVTA.totaldoc + "(" + DVTA.codmoneda + ")";
+                    resultado = false;
+                }
+            }
+            if (cadena5.Trim().Length > 0)
+            {
+                cadena5 += Environment.NewLine + "----------------------------------------";
+            }
+            //VERIFICAR QUE EL CODIGO DE VENDEDOR DE LA PROFORMA SEA EL MISMO CODIGO DE VENDEDOR DE LOS ANTICIPOS APLICADOS
+            //Desde 23/01/2024
+            string codvendedor_pf = "";
+            codvendedor_pf = DVTA.codvendedor;
+            if (resultado == true)
+            {
+                foreach (var item in dt_anticipo_pf)
+                {
+                    if (codvendedor_pf != item.codvendedor)
+                    {
+                        cadena6 += Environment.NewLine + "El codigo de vendedor del anticipo: " + item.codvendedor + " no es igual que el codigo de vendedor de la proforma: " + codvendedor_pf + " .";
+                        resultado = false;
+                    }
+                }
+            }
+            if (cadena6.Trim().Length > 0)
+            {
+                cadena6 += Environment.NewLine + "----------------------------------------";
+            }
+
+            if (resultado == false)
+            {
+                objres.resultado = false;
+                cadena = cadena0;
+                if (cadena1.Trim().Length > 0)
+                {
+                    cadena += Environment.NewLine + cadena1;
+                }
+
+                if (cadena2.Trim().Length > 0)
+                {
+                    cadena += Environment.NewLine + cadena2;
+                }
+
+                if (cadena3.Trim().Length > 0)
+                {
+                    cadena += Environment.NewLine + cadena3;
+                }
+
+                if (cadena4.Trim().Length > 0)
+                {
+                    cadena += Environment.NewLine + cadena4;
+                }
+
+                if (cadena5.Trim().Length > 0)
+                {
+                    cadena += Environment.NewLine + cadena5;
+                }
+
+                if (cadena6.Trim().Length > 0)
+                {
+                    cadena += Environment.NewLine + cadena6;
+                }
+                objres.observacion = "Se econtraron observaciones en los anticipos asignados: ";
+                objres.obsdetalle = cadena;
+                objres.datoA = "";
+                objres.datoB = "";
+                objres.accion = Acciones_Validar.Ninguna;
+            }
+            return objres;
+        }
+
+        public async Task<decimal> Montorest_De_Anticipo_Sin_Proforma(DBContext _context, string id_anticipo, int nroid_anticipo, int codproforma, string codigoempresa)
+        {
+            decimal resultado = 0;
+            //string qry = "";
+            decimal monto_anticipo = 0;
+            decimal ttl_aplicado = 0;
+
+            try
+            {
+                var dt_anticipo = await _context.coanticipo.Where(i => i.id == id_anticipo && i.numeroid == nroid_anticipo)
+                    .Select(i => new
+                    {
+                        i.monto,
+                        i.codmoneda
+                    }).FirstOrDefaultAsync();
+                if (dt_anticipo != null)
+                {
+                    monto_anticipo = dt_anticipo.monto ?? 0;
+                }
+                else
+                {
+                    monto_anticipo = 0;
+                }
+            }
+            catch (Exception)
+            {
+                monto_anticipo = 0;
+            }
+
+            try
+            {
+                var dt = await (from p1 in _context.veproforma_anticipo
+                                join p2 in _context.veproforma on p1.codproforma equals p2.codigo
+                                join p3 in _context.coanticipo on p1.codanticipo equals p3.codigo
+                                where p3.id == id_anticipo && p3.numeroid == nroid_anticipo &&
+                                      p2.anulada == false && p1.codproforma != codproforma
+                                select new
+                                {
+                                    p1,
+                                    p2.id,
+                                    p2.numeroid,
+                                    p2.nomcliente,
+                                    p2.codmoneda,
+                                    codmoneda_anticipo = p3.codmoneda,
+                                    p3.fecha,
+                                    docanticipo = "",
+                                    p2.anulada,
+                                    id_anticipo = p3.id,
+                                    nroid_anticipo = p3.numeroid,
+                                    p3.para_venta_contado,
+                                    monto_anticipo = p3.monto
+                                }).ToListAsync();
+
+                decimal monto = 0;
+                foreach (var reg in dt)
+                {
+                    if (reg.codmoneda == reg.codmoneda_anticipo)
+                    {
+                        //No convertir el monto a asignar
+                        ttl_aplicado += reg.p1.monto ?? 0;
+                    }
+                    else
+                    {
+                        //si la moneda del anticipo y proforma no son iguales entonces convertir el monto asignar a la moneda del anticipo
+                        monto = await tipoCambio._conversion(_context, reg.codmoneda_anticipo, reg.codmoneda, reg.fecha, reg.p1.monto ?? 0);
+                        monto = Math.Round(monto, 2);
+                        ttl_aplicado += monto;
+                    }
+                }
+                resultado = monto_anticipo - ttl_aplicado;
+                if (resultado < 0)
+                {
+                    resultado = 0;
+                }
+                resultado = Math.Round(resultado, 2);
+
+            }
+            catch (Exception)
+            {
+                resultado = 0;
+            }
+
+            return resultado;
+        }
+
+        public async Task<decimal> Montorest_De_Anticipo_Cobranza_Anticipo(DBContext _context, string id_anticipo, int nroid_anticipo, string codigoempresa)
+        {
+            decimal resultado = 0;
+            //string qry = "";
+            decimal monto_anticipo = 0;
+            decimal ttl_aplicado = 0;
+
+            try
+            {
+                var dt_anticipo = await _context.coanticipo.Where(i => i.id == id_anticipo && i.numeroid == nroid_anticipo)
+                    .Select(i => new
+                    {
+                        i.monto,
+                        i.codmoneda
+                    }).FirstOrDefaultAsync();
+                if (dt_anticipo != null)
+                {
+                    monto_anticipo = dt_anticipo.monto ?? 0;
+                }
+                else
+                {
+                    monto_anticipo = 0;
+                }
+            }
+            catch (Exception)
+            {
+                monto_anticipo = 0;
+            }
+
+            try
+            {
+                var dt = await (from p1 in _context.cocobranza_anticipo
+                                join p2 in _context.cocobranza on p1.codcobranza equals p2.codigo
+                                join p3 in _context.coanticipo on p1.codanticipo equals p3.codigo
+                                where p3.id == id_anticipo && p3.numeroid == nroid_anticipo &&
+                                      p2.reciboanulado == false
+                                select new
+                                {
+                                    p1,
+                                    p2.id,
+                                    p2.numeroid,
+                                    p2.cliente,
+                                    p2.moneda,
+                                    docanticipo = "",
+                                    p2.reciboanulado,
+                                    id_anticipo = p3.id,
+                                    nroid_anticipo = p3.numeroid,
+                                    p3.para_venta_contado,
+                                    monto_anticipo = p3.monto
+                                }).ToListAsync();
+
+                foreach (var reg in dt)
+                {
+                    ttl_aplicado += reg.p1.monto ?? 0;
+                }
+                resultado = monto_anticipo - ttl_aplicado;
+                if (resultado < 0)
+                {
+                    resultado = 0;
+                }
+                resultado = Math.Round(resultado, 2);
+
+            }
+            catch (Exception)
+            {
+                resultado = 0;
+            }
+
+            return resultado;
+        }
+
     }
 }

@@ -215,5 +215,47 @@ namespace siaw_funciones
             resultado = descripcion.Trim();
             return resultado;
         }
+        public async Task<string> nombrecuenta_fondos(DBContext _context, string codigo)
+        {
+            string resultado;
+            string descripcion = "";
+            var result = await _context.fncuenta
+                .Where(v => v.id == codigo)
+                .Select(parametro => new
+                {
+                    parametro.descripcion
+                })
+                .FirstOrDefaultAsync();
+            if (result != null)
+            {
+                descripcion = result.descripcion;
+            }
+            resultado = descripcion.Trim();
+            return resultado;
+        }
+        public async Task<string> Nombre_Descuento_De_Nivel(DBContext _context, string nivel_desc)
+        {
+            string resultado;
+            string descripcion = "";
+            //using (_context)
+            ////using (var _context = DbContextFactory.Create(userConnectionString))
+            //{
+            var result = await _context.vedesitem_parametros
+                .Where(v => v.nivel == nivel_desc)
+                .Select(parametro => new
+                {
+                    parametro.descripcion
+                })
+                .FirstOrDefaultAsync();
+            if (result != null)
+            {
+                descripcion = result.descripcion;
+            }
+
+            //}
+            resultado = descripcion.Trim();
+            return resultado;
+        }
+
     }
 }

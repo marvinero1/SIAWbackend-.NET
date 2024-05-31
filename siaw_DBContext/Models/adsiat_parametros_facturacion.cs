@@ -21,5 +21,6 @@ namespace siaw_DBContext.Models
         public string nit_cliente { get; set; }
         public bool? servicio_internet_activo { get; set; }
         public bool? servicio_sin_activo { get; set; }
+        public int? nro_max_items_factura_siat { get; set; }
     }
 }

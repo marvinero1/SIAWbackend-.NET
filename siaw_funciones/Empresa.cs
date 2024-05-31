@@ -12,6 +12,7 @@ namespace siaw_funciones
     public class Empresa
     {
         //Clase necesaria para el uso del DBContext del proyecto siaw_Context
+        private readonly TipoCambio tipocambio = new TipoCambio();
         public static class DbContextFactory
         {
             public static DBContext Create(string connectionString)
@@ -85,7 +86,7 @@ namespace siaw_funciones
             return codalmacen;
             //}
         }
-        public async Task<string> monedabase(DBContext _context, string codigoempresa)
+        public static async Task<string> monedabase(DBContext _context, string codigoempresa)
         {
             //Esta funcion devuelve la moneda base de una determinada empresa
             string codmoneda = await _context.adempresa
@@ -253,6 +254,75 @@ namespace siaw_funciones
             return resultado;
         }
 
+        public async Task<decimal> MinimoComplementarAsync(DBContext _context, bool sinDescuentos, int codTarifa, string codEmpresa, string codMoneda, DateTime fecha)
+        {
+            decimal? resultado = 0;
+            decimal? minimo = 0;
+            string? monedaMin = "";
+
+            try
+            {
+                if (sinDescuentos)
+                {
+                    minimo = await _context.adparametros_complementarias
+                        .Where(ac => ac.codempresa == codEmpresa && ac.codtarifa == codTarifa && ac.sindesc == true)
+                        .Select(ac => ac.monto)
+                        .FirstOrDefaultAsync();
+
+                    monedaMin = await _context.adparametros_complementarias
+                        .Where(ac => ac.codempresa == codEmpresa && ac.codtarifa == codTarifa && ac.sindesc == true)
+                        .Select(ac => ac.codmoneda)
+                        .FirstOrDefaultAsync();
+                }
+                else
+                {
+                    minimo = await _context.adparametros_complementarias
+                        .Where(ac => ac.codempresa == codEmpresa && ac.codtarifa == codTarifa && ac.sindesc == false)
+                        .Select(ac => ac.monto)
+                        .FirstOrDefaultAsync();
+
+                    monedaMin = await _context.adparametros_complementarias
+                        .Where(ac => ac.codempresa == codEmpresa && ac.codtarifa == codTarifa && ac.sindesc == false)
+                        .Select(ac => ac.codmoneda)
+                        .FirstOrDefaultAsync();
+                }
+                if (monedaMin == codMoneda)
+                {
+                    resultado = minimo;
+                }
+                else
+                {
+                    resultado = await tipocambio._conversion(_context, codMoneda, monedaMin, fecha, (decimal)minimo);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                resultado = 0;
+            }
+
+            return (decimal)resultado;
+        }
+
+        public async Task<int> diascompleempresa(DBContext _context, string codempresa)
+        {
+            int resultado = 0;
+            try
+            {
+                var diascomplementarias = await _context.adparametros
+                .Where(v => v.codempresa == codempresa)
+                .Select(v => v.diascomplementarias)
+                .FirstOrDefaultAsync();
+
+                resultado = (int)diascomplementarias;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return 0;
+            }
+            return resultado;
+        }
 
     }
 }

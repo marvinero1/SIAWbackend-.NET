@@ -3347,6 +3347,172 @@ namespace siaw_funciones
             }
             return resultado;
         }
+
+
+        public async Task<(string id, int nroId)> Solicitud_Urgente_IdNroid_de_Proforma(DBContext _context, string idpf, int nroidpf)
+        {
+            try
+            {
+                var resultado = await _context.insolurgente
+                .Where(i => i.anulada == false &&
+                i.idproforma == idpf &&
+                i.numeroidproforma == nroidpf)
+                .Select(i => new
+                {
+                    i.id,
+                    i.numeroid
+                })
+                .FirstOrDefaultAsync();
+                if (resultado != null)
+                {
+                    return (resultado.id, resultado.numeroid);
+                }
+                return ("", 0);
+            }
+            catch (Exception)
+            {
+                return ("", 0);
+            }
+        }
+
+        public async Task<int> numitemscaja(DBContext _context, int nrocaja)
+        {
+            var resultado = await _context.vehoja
+                .Join(_context.vedosificacion,
+                      h => h.codigo,
+                      d => d.codhoja,
+                      (h, d) => new { H = h, D = d })
+                .Where(de => de.D.activa == true && de.D.nrocaja == nrocaja)
+                .Select(de => de.H.numitems)
+                .FirstOrDefaultAsync();
+
+            if (resultado != null)
+            {
+                return resultado;
+            }
+            return 0;
+        }
+
+        public async Task<bool> Existe_Factura(DBContext _context, string id, int numeroid)
+        {
+            var resultado = await _context.vefactura.Where(i => i.id == id && i.numeroid == numeroid).CountAsync();
+            if (resultado > 0)
+            {
+                return true;
+            }
+            return false;
+        }
+        public async Task<string> Cliente_De_Factura(DBContext _context, string id, int numeroid)
+        {
+            string resultado = "";
+            try
+            {
+                var resul = await _context.vefactura.Where(i => i.id == id && i.numeroid == numeroid).Select(i => i.codcliente).FirstOrDefaultAsync();
+                resultado = resultado ?? "";
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return "";
+            }
+            return resultado;
+        }
+        public async Task<DateTime> Fecha_de_Factura(DBContext _context, string id, int numeroid)
+        {
+            DateTime resultado = DateTime.MinValue;
+            try
+            {
+                var resul = await _context.vefactura.Where(i => i.id == id && i.numeroid == numeroid).Select(i => i.fecha).FirstOrDefaultAsync();
+                if (resul != null)
+                {
+                    resultado = (DateTime)resul;
+                }
+            }
+            catch
+            {
+                resultado = DateTime.MinValue;
+            }
+            return resultado;
+        }
+
+        public async Task<bool> Descuento_Linea_Habilitado(DBContext _context, string nivel)
+        {
+            var resultado = await _context.vedesitem_parametros.Where(i => i.nivel == nivel).Select(i => i.habilitado).FirstOrDefaultAsync();
+            return resultado ?? false;
+        }
+
+        public async Task<bool> Item_habilitado_para_DescExtra(DBContext _context, int coddesextra, string coditem)
+        {
+            var resultado = await _context.vedesextra_item.Where(i => i.coddesextra == coddesextra && i.coditem == coditem).Select(i => i.habilitado_para_desc).FirstOrDefaultAsync() ?? false;
+            return resultado;
+        }
+        public async Task<bool> Precio_Permite_Descto_Especial(DBContext _context, int coddescto_especial, int codtarifa)
+        {
+            try
+            {
+                bool resultado = true;
+                //using (_context)
+                //{
+                int count = _context.vedescuento_tarifa
+                    .Where(vc => vc.codtarifa == codtarifa && vc.coddescuento == coddescto_especial)
+                    .Count();
+                resultado = count > 0;
+                return resultado;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return false;
+            }
+        }
+        public async Task<bool> TarifaValidaNivel(DBContext _context, int codtarifa, string nivel)
+        {
+            bool resultado = false;
+            try
+            {
+
+                int count = await _context.vedesitem_tarifa
+                .CountAsync(t => t.nivel == nivel && t.codtarifa == codtarifa);
+
+                if (count > 0)
+                {
+                    resultado = true;
+                }
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return false;
+            }
+            return resultado;
+        }
+        public async Task<DateTime> Descuento_Linea_Fecha_Hasta(DBContext _context, string nivel)
+        {
+            DateTime resultado = new DateTime(1900, 1, 1);
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var result = await _context.vedesitem_parametros
+                    .Where(v => v.nivel == nivel)
+                    .Select(v => v.hasta_fecha)
+                    .FirstOrDefaultAsync();
+
+                if (result.HasValue)
+                {
+                    resultado = result.Value;
+                }
+                // }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+            }
+            return resultado.Date;
+        }
     }
 
 

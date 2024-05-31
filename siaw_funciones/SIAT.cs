@@ -100,6 +100,32 @@ namespace siaw_funciones
                 return -1;
             }
         }
+        public async Task<int> Nro_Maximo_Items_Factura_Segun_SIAT(DBContext _context, string codempresa)
+        {
+            try
+            {
+                int resultado = 0;
+                //using (_context)
+                //{
+                var result = await _context.adsiat_parametros_facturacion
+                    .Where(v => v.codempresa == codempresa)
+                    .Select(v => v.nro_max_items_factura_siat)
+                    .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = result ?? 0;
+                }
+                else { resultado = 0; }
+                //}
+                return resultado;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return 0;
+            }
+        }
+
 
     }
 }
