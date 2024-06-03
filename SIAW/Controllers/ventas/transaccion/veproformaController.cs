@@ -1531,6 +1531,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
         [Authorize]
         [HttpPost]
+        [QueueFilter(1)] // Limitar a 1 solicitud concurrente
         [Route("guardarProforma/{userConn}/{idProf}/{codempresa}/{paraAprobar}")]
         public async Task<object> guardarProforma(string userConn, string idProf, string codempresa, bool paraAprobar, SaveProformaCompleta datosProforma)
         {

@@ -84,6 +84,9 @@ if (app.Environment.IsProduction())
 app.UseCors("NuevaPolitica");
 app.UseAuthentication();
 
+// Agregar el middleware de cola de espera con un máximo de 1 solicitud concurrente
+// app.UseRequestQueue(1);
+
 app.UseMiddleware<UppercaseMiddleware>(); // Agregar aquí el middleware
 
 app.UseHttpsRedirection();
