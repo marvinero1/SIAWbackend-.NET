@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 //using SIAW.Data;
 using siaw_DBContext.Data;
+using siaw_funciones;
 
 namespace SIAW.Controllers
 {
@@ -45,7 +46,10 @@ namespace SIAW.Controllers
         {
             try
             {
-                FirstConnectionString = _configuration.GetConnectionString(connectionName);
+                // OBTENER CLAVE ENCRIPTADA
+                string encryptedConnectionString = _configuration.GetConnectionString(connectionName);
+                FirstConnectionString = EncryptionHelper.DecryptString(encryptedConnectionString);
+                //FirstConnectionString = _configuration.GetConnectionString(connectionName);
 
                 if (string.IsNullOrEmpty(FirstConnectionString))
                 {
@@ -138,6 +142,7 @@ namespace SIAW.Controllers
                 {
                     return BadRequest(new { resp = "Nombre de conexion invalido" });
                 }
+                connectionString = EncryptionHelper.DecryptString(connectionString);
                 if (!VerificarConexion(connectionString))
                 {
                     return BadRequest(new { resp = "No se puede establecer conexión con este Servidor" });

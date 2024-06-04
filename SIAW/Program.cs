@@ -68,6 +68,17 @@ builder.Services.AddScoped<UppercaseMiddleware>();
 //builder.Services.AddScoped<IVentas, Ventas>();
 //builder.Services.AddScoped<IValidarVta, Validar_Vta>();
 
+// OBTENER CLAVE ENCRIPTADA
+/*
+var encryptedConnectionString = builder.Configuration["ConnectionStrings:pp"];
+Console.WriteLine(encryptedConnectionString);
+
+var encriptado = EncryptionHelper.EncryptString(encryptedConnectionString);
+Console.WriteLine(encriptado);
+
+var decryptedConnectionString = EncryptionHelper.DecryptString(encriptado);
+Console.WriteLine(decryptedConnectionString);
+*/
 
 var app = builder.Build();
 
