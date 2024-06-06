@@ -3447,6 +3447,25 @@ namespace siaw_funciones
             var resultado = await _context.vedesextra_item.Where(i => i.coddesextra == coddesextra && i.coditem == coditem).Select(i => i.habilitado_para_desc).FirstOrDefaultAsync() ?? false;
             return resultado;
         }
+        public async Task<bool> proforma_es_complementaria(DBContext _context, int codigo)
+        {
+            try
+            {
+                int resultado = await _context.veproforma.Where(i => i.codigo == codigo).Select(i => i.codcomplementaria).FirstOrDefaultAsync();
+                if (resultado > 0)
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
         public async Task<bool> Precio_Permite_Descto_Especial(DBContext _context, int coddescto_especial, int codtarifa)
         {
             try
@@ -3513,6 +3532,326 @@ namespace siaw_funciones
             }
             return resultado.Date;
         }
+        public async Task<string> descuentosstr(DBContext _context, int codigo, string tipo, string tipo_descrip_desextra = "corta")
+        {
+            List<dtinfVtaReporte>? detalle = null;
+            List<dtinfDescReporte>? dt_descuentos = null;
+
+            if (tipo == "NR")
+            {
+                detalle = await _context.veremision1.Where(i => i.codremision == codigo)
+                    .Select(i => new dtinfVtaReporte
+                    {
+                        cantidad = (double)i.cantidad,
+                        preciolista = (double)i.preciolista,
+                        preciodesc = (double)(i.preciodesc ?? 0),
+                        total = (double)i.total,
+                        precioneto = (double)i.precioneto,
+                        coddescuento = i.coddescuento
+                    }).ToListAsync();
+
+                dt_descuentos = await _context.vedesextraremi
+                    .Where(d => d.codremision == codigo)
+                    .Join(
+                        _context.vedesextra,
+                        d => d.coddesextra,
+                        v => v.codigo,
+                        (d, v) => new dtinfDescReporte
+                        {
+                            descorta = v.descorta,
+                            desc_descto_completa = v.descripcion,
+                            montodoc = (double)d.montodoc
+                        })
+                    .OrderBy(x => x.descorta)
+                    .ToListAsync();
+
+            }
+            else if(tipo == "PF")
+            {
+                detalle = await _context.veproforma1.Where(i => i.codproforma == codigo)
+                    .Select(i => new dtinfVtaReporte
+                    {
+                        cantidad = (double)i.cantidad,
+                        preciolista = (double)i.preciolista,
+                        preciodesc = (double)(i.preciodesc ?? 0),
+                        total = (double)i.total,
+                        precioneto = (double)i.precioneto,
+                        coddescuento = i.coddescuento
+                    }).ToListAsync();
+
+                dt_descuentos = await _context.vedesextraprof
+                    .Where(d => d.codproforma == codigo)
+                    .Join(
+                        _context.vedesextra,
+                        d => d.coddesextra,
+                        v => v.codigo,
+                        (d, v) => new dtinfDescReporte
+                        {
+                            descorta = v.descorta,
+                            desc_descto_completa = v.descripcion,
+                            montodoc = (double)d.montodoc
+                        })
+                    .OrderBy(x => x.descorta)
+                    .ToListAsync();
+
+            }
+            else if(tipo == "CT")
+            {
+                detalle = await _context.vecotizacion1.Where(i => i.codcotizacion == codigo)
+                    .Select(i => new dtinfVtaReporte
+                    {
+                        cantidad = (double)i.cantidad,
+                        preciolista = (double)i.preciolista,
+                        preciodesc = (double)(i.preciodesc ?? 0),
+                        total = (double)i.total,
+                        precioneto = (double)i.precioneto,
+                        coddescuento = i.coddescuento
+                    }).ToListAsync();
+
+                dt_descuentos = await _context.vedesextracoti
+                    .Where(d => d.codcotizacion == codigo)
+                    .Join(
+                        _context.vedesextra,
+                        d => d.coddesextra,
+                        v => v.codigo,
+                        (d, v) => new dtinfDescReporte
+                        {
+                            descorta = v.descorta,
+                            desc_descto_completa = v.descripcion,
+                            montodoc = (double)d.montodoc
+                        })
+                    .OrderBy(x => x.descorta)
+                    .ToListAsync();
+            }
+
+            if (detalle != null && detalle.Count()>0)
+            {
+                double tot = 0;
+                double totlinea = 0;
+                double subtotal = 0;
+                // ##para sacar descuento por linea
+                foreach (var reg in detalle)
+                {
+                    tot = tot + (reg.cantidad * reg.preciolista);
+                    totlinea = totlinea + (reg.cantidad * reg.preciodesc);
+                    subtotal = subtotal + reg.total;
+                }
+                double TTL_DESCTOS = tot - totlinea;
+
+                //para otros descuentos desglozado
+                string cadena = "0 ";
+                List<int> descuentose = new List<int>();
+                List<double> totales = new List<double>();
+
+                // sacar tipos de descuento
+                foreach (var reg in detalle)
+                {
+                    if (reg.coddescuento > 0)
+                    {
+                        if (!descuentose.Contains(reg.coddescuento))
+                        {
+                            descuentose.Add(reg.coddescuento);
+                        }
+                    }
+                }
+
+                // sacar datos de documento
+                // sacartotales
+                foreach (var reg1 in descuentose)
+                {
+                    double totales_aux = 0;
+                    foreach (var reg in detalle)
+                    {
+                        if (reg.coddescuento == reg1)
+                        {
+                            totales_aux = totales_aux + (reg.cantidad * (reg.preciodesc - reg.precioneto));
+                        }
+                    }
+                    totales.Add(totales_aux);
+                }
+                int i = 0;
+                foreach (var reg1 in descuentose)
+                {
+                    cadena = cadena + await nombres.nombredescuento(_context, reg1) + "= " + totales[i].ToString("#,0.00", new System.Globalization.CultureInfo("en-US"));
+                    TTL_DESCTOS += totales[i];
+                    i++;
+
+                }
+
+                // fin para el desgloce
+                // #Descuentos para todo el documentos separar por pronto pago y otros
+                string cadena_todo = "";
+                foreach (var reg in dt_descuentos)
+                {
+                    TTL_DESCTOS += reg.montodoc;
+                    if (tipo_descrip_desextra == "corta")
+                    {
+                        cadena_todo = cadena_todo + (reg.descorta + "= " + reg.montodoc.ToString("#,0.00", new System.Globalization.CultureInfo("en-US"))) + " ";
+                    }
+                    else
+                    {
+                        cadena_todo = cadena_todo + (reg.desc_descto_completa + "= " + reg.montodoc.ToString("#,0.00", new System.Globalization.CultureInfo("en-US"))) + "| ";
+                    }
+                }
+                // #fin
+
+                // cadena = "PRECIO LISTA= " & CDbl(tot).ToString("###,##0.00") & "|  DESC DE LINEA= " & CDbl(tot - totlinea).ToString("###,##0.00") & "|  DESC ESPECIAL: " & cadena & "| DESC EXTRAS: " & cadena_todo & "|  TTL DESCTOS= " & TTL_DESCTOS.ToString("###,##0.00")
+                cadena = "PRECIO LISTA= " + tot.ToString("#,0.00", new System.Globalization.CultureInfo("en-US")) + "| DESC DE PROMOCION= " + (tot - totlinea).ToString("#,0.00", new System.Globalization.CultureInfo("en-US")) + "|  DESC ESPECIAL: " + cadena + "| DESC EXTRAS: " + cadena_todo + "|  TTL DESCTOS= " + TTL_DESCTOS.ToString("#,0.00", new System.Globalization.CultureInfo("en-US"));
+
+                return cadena;
+
+            }
+            else
+            {
+                return "";
+            }
+        }
+
+
+
+        public async Task<string> telefonocliente_direccion(DBContext _context, string codcliente, string direccion)
+        {
+            string resultado = "---";
+            try
+            {
+
+                resultado = await _context.vetienda
+                .Where(v => v.codcliente == codcliente && v.direccion.Contains(direccion))
+                .Select(v => v.telefono).FirstOrDefaultAsync() ?? "---";
+
+            }
+            catch (Exception ex)
+            {
+                resultado = await telefonocliente(_context, codcliente);
+            }
+            return resultado;
+        }
+
+        public async Task<string> telefonocliente(DBContext _context, string codcliente)
+        {
+            string resultado = "---";
+            try
+            {
+
+                resultado = await _context.vetienda
+                .Where(v => v.codcliente == codcliente && v.central==true)
+                .Select(v => v.telefono).FirstOrDefaultAsync() ?? "---";
+
+            }
+            catch (Exception ex)
+            {
+                resultado = "---";
+            }
+            return resultado;
+        }
+
+        public async Task<string> ptoventacliente_direccion(DBContext _context, string codcliente, string direccion, int largo = 0)
+        {
+            string resultado = "";
+            if (codcliente.Trim() == "")
+            {
+                resultado = "";
+            }
+            else
+            {
+                var tabla = await _context.vetienda
+                    .Where(t => t.codcliente == codcliente)
+                    .Join(_context.veptoventa,
+                          t => t.codptoventa,
+                          p => p.codigo,
+                          (t, p) => new
+                          {
+                              t.codptoventa,
+                              p.descripcion,
+                              direccion1 = t.direccion + " (" + p.descripcion + " - " + p.codprovincia + ")"
+                          })
+                    .Where(temp => temp.direccion1.Contains(direccion))
+                    .FirstOrDefaultAsync();
+                if (tabla != null)
+                {
+                    resultado = tabla.codptoventa + " " + tabla.descripcion;
+                }
+                else
+                {
+                    resultado = await ptoventacliente(_context, codcliente, largo);
+                }
+            }
+
+            if (largo > 0)
+            {
+                if (resultado.Length > largo)
+                {
+                    resultado = resultado.Substring(0, largo);
+                }
+            }
+            return resultado;
+        }
+
+        public async Task<string> ptoventacliente(DBContext _context, string codcliente, int largo = 0)
+        {
+            string resultado = "";
+            if (codcliente.Trim() == "")
+            {
+                resultado = "";
+            }
+            else
+            {
+                var tabla = await _context.vetienda
+                    .Where(t => t.codcliente == codcliente
+                    && t.central == true)
+                    .Join(_context.veptoventa,
+                          t => t.codptoventa,
+                          p => p.codigo,
+                          (t, p) => new
+                          {
+                              t.codptoventa,
+                              p.descripcion,
+                          })
+                    .FirstOrDefaultAsync();
+                if (tabla != null)
+                {
+                    resultado = tabla.codptoventa + " " + tabla.descripcion;
+                }
+                else
+                {
+                    resultado = "";
+                }
+            }
+
+            if (largo > 0)
+            {
+                if (resultado.Length > largo)
+                {
+                    resultado = resultado.Substring(0, largo);
+                }
+            }
+            return resultado;
+        }
+
+        public async Task<string> Proforma_Transporte(DBContext _context, int codproforma)
+        {
+            string resultado = "";
+            try
+            {
+                var dt = await _context.veproforma.Where(i => i.codigo == codproforma)
+                    .Select(i => new
+                    {
+                        i.tipoentrega,
+                        i.transporte,
+                        i.nombre_transporte
+                    }).FirstOrDefaultAsync();
+                if (dt != null)
+                {
+                    resultado = dt.tipoentrega + " - " + dt.transporte + " - " + dt.nombre_transporte;
+                }
+            }
+            catch (Exception)
+            {
+                resultado = "";
+            }
+            return resultado;
+        }
+
     }
 
 
@@ -3531,5 +3870,22 @@ namespace siaw_funciones
         public int numeroid { get; set; }
         public string cliente { get; set; }
         public string nit { get; set; }
+    }
+
+    public class dtinfVtaReporte
+    {
+        public double cantidad { get; set; }
+        public double preciolista { get; set; }
+        public double preciodesc { get; set; }
+        public double total { get; set; }
+        public double precioneto { get; set; }
+        public int coddescuento { get; set; }
+    }
+
+    public class dtinfDescReporte
+    {
+        public string descorta { get; set; }
+        public string desc_descto_completa { get; set; }
+        public double montodoc { get; set; }
     }
 }

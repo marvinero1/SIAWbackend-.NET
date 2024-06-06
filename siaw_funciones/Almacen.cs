@@ -38,5 +38,20 @@ namespace siaw_funciones
             }
             return false;
         }
+        public async Task<string> direccionalmacen(DBContext _context, int codalmacen)
+        {
+            try
+            {
+                var resultado = await _context.inalmacen
+                .Where(i => i.codigo == codalmacen)
+                .Select(i => i.direccion)
+                .FirstOrDefaultAsync() ?? "";
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
     }
 }

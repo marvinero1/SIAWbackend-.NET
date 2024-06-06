@@ -256,6 +256,78 @@ namespace siaw_funciones
             resultado = descripcion.Trim();
             return resultado;
         }
+        public async Task<string> nombreempresa(DBContext _context, string codigoempresa)
+        {
+            string resultado;
+            string descripcion = "";
+            var result = await _context.adempresa
+                .Where(v => v.codigo == codigoempresa)
+                .Select(parametro => new
+                {
+                    parametro.descripcion
+                })
+                .FirstOrDefaultAsync();
+            if (result != null)
+            {
+                descripcion = result.descripcion;
+            }
+            resultado = descripcion.Trim();
+            return resultado;
+        }
 
+        public async Task<string> nombredescuento(DBContext _context, int coddescuento)
+        {
+            string resultado;
+            string descripcion = "";
+            var result = await _context.vedescuento
+                .Where(v => v.codigo == coddescuento)
+                .Select(parametro => new
+                {
+                    parametro.descripcion
+                })
+                .FirstOrDefaultAsync();
+            if (result != null)
+            {
+                descripcion = result.descripcion;
+            }
+            resultado = descripcion.Trim();
+            return resultado;
+        }
+        public async Task<string> nombrecliente(DBContext _context, string codcliente)
+        {
+            string resultado;
+            string descripcion = "";
+            var result = await _context.vecliente
+                .Where(v => v.codigo == codcliente)
+                .Select(parametro => new
+                {
+                    parametro.razonsocial
+                })
+                .FirstOrDefaultAsync();
+            if (result != null)
+            {
+                descripcion = result.razonsocial;
+            }
+            resultado = descripcion.Trim();
+            return resultado;
+        }
+        public async Task<string> nombremoneda(DBContext _context, string codigomoneda)
+        {
+            string resultado;
+            string descripcion = "";
+            var result = await _context.admoneda
+                .Where(v => v.codigo == codigomoneda)
+                .Select(parametro => new
+                {
+                    parametro.descripcion
+                })
+                .FirstOrDefaultAsync();
+            if (result != null)
+            {
+                descripcion = result.descripcion;
+            }
+            resultado = descripcion.Trim();
+            return resultado;
+        }
     }
 }

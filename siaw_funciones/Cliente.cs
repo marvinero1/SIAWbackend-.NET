@@ -2490,7 +2490,29 @@ namespace siaw_funciones
             //}
             return resultado;
         }
-
-
+        public async Task<string> NombreComercial(DBContext _context, string codcliente)
+        {
+            try
+            {
+                var resultado = await _context.vecliente.Where(i => i.codigo == codcliente).Select(i => i.nombre_comercial).FirstOrDefaultAsync() ?? "";
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
+        public async Task<string> PuntoDeVenta_Casual(DBContext _context, int codptoventa)
+        {
+            try
+            {
+                var resultado = await _context.veptoventa.Where(i => i.codigo == codptoventa).Select(i => i.descripcion + " - " + i.codprovincia).FirstOrDefaultAsync() ?? "";
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
     }
 }

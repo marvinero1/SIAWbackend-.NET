@@ -35,6 +35,8 @@ using System.Security.Cryptography;
 using System.Xml;
 using NuGet.Packaging;
 using System.Xml.Linq;
+using Humanizer;
+using System.Globalization;
 
 namespace SIAW.Controllers.ventas.transaccion
 {
@@ -5038,7 +5040,402 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
 
+        [HttpGet]
+        [Route("getDataPDF/{userConn}/{codProforma}/{codcliente}/{codcliente_real}/{codempresa}/{cmbestado_contra_entrega}")]
+        public async Task<IActionResult> getDataPDF(string userConn, int codProforma, string codcliente, string codcliente_real, string codempresa, string cmbestado_contra_entrega)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    // OBTENER DATOS DE PROFORMA CUERPO
+                    var dtveproforma1 = await _context.veproforma1
+                        .Join(_context.initem,
+                              p1 => p1.coditem,
+                              p2 => p2.codigo,
+                              (p1, p2) => new { p1, p2 })
+                        .Where(x => x.p1.codproforma == codProforma && x.p1.cantidad > 0)
+                        .OrderBy(x => x.p1.coditem)
+                        .Select(x => new
+                        {
+                            coditem = x.p1.coditem,
+                            descripcion = x.p2.descripcion,
+                            medida = x.p2.medida,
+                            udm = x.p1.udm,
+                            cantidad = x.p1.cantidad,
+                            codtarifa = x.p1.codtarifa,
+                            precioneto = Math.Round(x.p1.precioneto,5),
+                            total = x.p1.total
+                        }).ToListAsync();
 
+
+                    string nomEmpresa = await nombres.nombreempresa(_context, codempresa);
+                    string nit = await empresa.NITempresa(_context, codempresa);
+                    bool proforma_es_complementaria = await ventas.proforma_es_complementaria(_context, codProforma);
+                    bool esClienteFinal = await cliente.EsClienteFinal(_context, codcliente_real);
+                    string dsctosdescrip = await ventas.descuentosstr(_context, codProforma, "PF", "Descripcion Completa");
+
+
+                    var docveprofCab = await _context.veproforma
+                        .Where(i => i.codigo == codProforma)
+                        .Select(i => new veproforma1_Report
+                        {
+                            // Report Header
+                            empresa = nomEmpresa,
+                            hora_impresion = DateTime.Now.ToString("h:mm tt"),   // hora de generacion de informacion de PDF
+                            fecha_impresion = DateTime.Now.ToString("d/M/yyyy"), // fecha de generacion de informacion de PDF
+                            rnit = "N.I.T.: " + nit,
+                            rnota_remision = "",                                // DE MOMENTO VACIO NO ES NECESARIO
+                            inicial = i.hora_inicial + " " + (i.fecha_inicial ?? DateTime.Today).ToString("d/M/yyyy"),
+
+                            // Page Header
+                            titulo = (proforma_es_complementaria ? "PROFORMA " + i.id + "-" + i.numeroid + " COMPLEMENTARIA " : "PROFORMA " + i.id + "-" + i.numeroid + " ") + (i.aprobada ? "APROBADA" : "NO-APROBADA"),
+                            tipopago = i.tipopago == 0 ? "CONTADO" : "CREDITO",
+                            codalmacen = i.codalmacen.ToString(),
+                            rcodcliente = i.codcliente,                 // verificar y cambiar luego si es cliente sin nombre.
+                            rcliente = i.nomcliente,                    // verificar y cambiar luego si es cliente sin nombre.
+                            rnombre_comercial = i.nomcliente,           // verificar y cambiar a nombre comercial luego.
+                            rcodvendedor = i.codvendedor.ToString(),
+                            rtdc = i.tdc.ToString(),
+                            rmonedabase = i.codmoneda,
+                            rfecha = i.fecha.ToString("d/M/yyyy") + " " + i.hora,
+                            rdireccion = i.direccion,                   // Esto debe cambiar si el cliente es casual.
+                            rtelefono = "---",                          // Esto debe cambiar dependiendo si es sin nombre, etc
+                            rpreparacion = i.preparacion + " " + (esClienteFinal ? "CLIENTE FINAL" : ""),
+                            rptoventa = i.direccion,                    // Esto debe cambiar dependiendo si es sin nombre, etc
+
+                            // Report Footer
+                            rpesototal = Math.Round((i.peso ?? 0),2).ToString(),
+                            rsubtotal = i.subtotal.ToString(),
+                            rrecargos = i.recargos.ToString(),
+                            rdescuentos = i.descuentos.ToString(),
+                            riva = (i.iva ?? 0).ToString(),
+                            rtotalimp = i.total.ToString(),
+                            rtotalliteral = "SON: " + veproformaController.ConvertDecimalToWords(i.total),    // AÑADE LUEGO LA DESCRIPCION DE MONEDA
+                            rdsctosdescrip = dsctosdescrip,
+                            rtransporte = "",                       // ACA FALTA REVISAR Y UNA VALIDACION CON PRTOF COMPLEMENTARIA
+                            rfletepor = i.fletepor,
+                            robs = i.obs,                           // ACA ARMAR DE ACUERDO A SI ES A CREDITO O NO Y DEMAS
+                            rfacturacion = i.nomcliente + " - " + i.nit + " - " + i.complemento_ci,
+                            rpagocontadoanticipado = "",            // VERIFICAR CON ANTICIPOS DE PROFORMA
+                            ridanticipo = "",                       // VERFICICAR CON ANTICIPOS DE PROFORMA
+                            rimprimir_etiqueta_cliente = "",        // VERIFICAR SI ES CLIENTE SIN NOMBRE
+
+                            crfecha_hr_inicial = (i.fecha_inicial ?? DateTime.Today).ToShortDateString() + " " + i.horareg,
+                            crfecha_hr_autoriza = i.aprobada == true ? ((i.fechaaut ?? DateTime.Today).ToShortDateString() + " " + i.horaaut) : " ",
+
+                        }).FirstOrDefaultAsync();
+
+
+
+                    // FINALIZAR CON EL LLENADO TENIENDO EN CUENTA LAS VALIDACIONES
+
+                    
+
+                    bool es_casual = false;
+                    if (codcliente != codcliente_real)
+                    {
+                        es_casual = true;
+                    }
+
+                    var dataAux = await _context.veproforma.Where(i => i.codigo == codProforma)
+                        .Select(i => new
+                        {
+                            i.id,
+                            i.numeroid,
+                            i.nomcliente,
+                            i.direccion,
+                            i.codalmacen,
+                            i.codmoneda,
+                            i.tipoentrega,
+                            i.tipopago,
+                            i.contra_entrega,
+                            i.obs,
+                            i.idpf_complemento,
+                            i.nroidpf_complemento,
+                            i.transporte,
+                            i.nombre_transporte
+                        }).FirstOrDefaultAsync();
+                    docveprofCab.rtotalliteral = docveprofCab.rtotalliteral + " " + await nombres.nombremoneda(_context, dataAux.codmoneda);
+
+                    // SI ES EL CLIENTE SIN NOMBRE MODIFICAR ALGUNOS DATOS DE IMPRESION
+                    if (await cliente.EsClienteSinNombre(_context,codcliente))
+                    {
+                        if (codcliente == codcliente_real)
+                        {
+                            docveprofCab.rcliente = "--";
+                            docveprofCab.rcodcliente = "CLIENTE:";
+                            docveprofCab.rnombre_comercial = dataAux.nomcliente;
+
+                            var dt_etiqueta_aux = await _context.veetiqueta_proforma.Where(i => i.id == dataAux.id && i.numeroid == dataAux.numeroid)
+                                .Select(i => new
+                                {
+                                    i.codigo,
+                                    i.linea1,
+                                    i.linea2,
+                                    i.representante,
+                                    i.telefono,
+                                    i.ciudad,
+                                    i.celular,
+                                }).FirstOrDefaultAsync();
+                            if (dt_etiqueta_aux != null)
+                            {
+                                docveprofCab.rptoventa = dt_etiqueta_aux.ciudad;
+                                docveprofCab.rtelefono = dt_etiqueta_aux.telefono + " - " + dt_etiqueta_aux.celular;
+                            }
+                            else
+                            {
+                                docveprofCab.rptoventa = dataAux.direccion;
+                                docveprofCab.rtelefono = "";
+                            }
+                        }
+                        else
+                        {
+                            docveprofCab.rcliente = "--";
+                            docveprofCab.rcodcliente = "CLIENTE:";
+                            docveprofCab.rnombre_comercial = dataAux.nomcliente;
+                            docveprofCab.rtelefono = await ventas.telefonocliente_direccion(_context, codcliente_real, dataAux.direccion);
+                            docveprofCab.rptoventa = await ventas.ptoventacliente_direccion(_context, codcliente_real, dataAux.direccion);
+                        }
+                        docveprofCab.rimprimir_etiqueta_cliente = "***IMPRIMIR ETIQUETA***";
+                    }
+                    else
+                    {
+                        docveprofCab.rcliente = await nombres.nombrecliente(_context, codcliente);
+                        docveprofCab.rcodcliente = codcliente;
+                        docveprofCab.rnombre_comercial = await cliente.NombreComercial(_context, codcliente.Trim());
+
+                        if (es_casual)
+                        {
+                            docveprofCab.rtelefono = await ventas.telefonocliente_direccion(_context, codcliente_real, dataAux.direccion);
+                            docveprofCab.rptoventa = await ventas.ptoventacliente_direccion(_context, codcliente_real, dataAux.direccion);
+                        }
+                        else
+                        {
+                            docveprofCab.rtelefono = await ventas.telefonocliente_direccion(_context, codcliente, dataAux.direccion);
+                            docveprofCab.rptoventa = await ventas.ptoventacliente_direccion(_context, codcliente, dataAux.direccion);
+                        }
+                    }
+
+
+                    if (es_casual)
+                    {
+                        // si el cliente es casual, poner la direccion del cliente casual y no del cliente referencia por instruccion Gerencia dsd 05-07-2022
+                        /*
+                         
+                        'rdireccion.Text = Chr(34) & direccion.Text & Chr(34)
+                        'rdireccion.Text = Chr(34) & sia_funciones.Cliente.Instancia.direccioncliente(codcliente.Text, Me.Usar_Bd_Opcional)
+                        'rdireccion.Text &= " (" & sia_funciones.Cliente.Instancia.PuntoDeVentaCliente_Segun_Direccion(codcliente.Text, rdireccion.Text) & ")" & Chr(34)
+            
+                         */
+
+                        // Desde 10-10-2022 si la venta es casual la direccion se pondra la del almacen
+                        docveprofCab.rdireccion = await almacen.direccionalmacen(_context, dataAux.codalmacen);
+                        // definir con que punto de venta se creara el cliente
+                        int codpto_vta = 0;
+                        var dt1 = await _context.inalmacen
+                            .Where(p1 => p1.codigo == dataAux.codalmacen)
+                            .Join(_context.adarea,
+                                  p1 => p1.codarea,
+                                  p2 => p2.codigo,
+                                  (p1, p2) => new
+                                  {
+                                      codarea = p2.codigo,
+                                      p2.descripcion,
+                                  })
+                            .FirstOrDefaultAsync();
+                        if (dt1 != null)
+                        {
+                            if (dt1.codarea == 300)
+                            {
+                                codpto_vta = 300;
+                            }
+                            else if (dt1.codarea == 400)
+                            {
+                                codpto_vta = 400;
+                            }
+                            else
+                            {
+                                codpto_vta = 800;
+                            }
+                        }
+                        docveprofCab.rdireccion = docveprofCab.rdireccion + " (" + await cliente.PuntoDeVenta_Casual(_context, codpto_vta) + ")";
+                    }
+                    else
+                    {
+                        docveprofCab.rdireccion = dataAux.direccion;
+                    }
+
+
+
+                    // ###########################################################################################
+                    // verificar si la proforma esta cancelada con anticipo
+                    // ###########################################################################################
+                    string cadena_anticipos = "";
+                    bool Pagado_Con_Anticipo = false;
+                    string docanticipo = "";
+
+                    var tblanticipos = await _context.veproforma_anticipo.Where(i => i.codproforma == codProforma).ToListAsync();
+                    if (tblanticipos.Count > 0)
+                    {
+                        Pagado_Con_Anticipo = true;
+                        foreach (var reg in tblanticipos)
+                        {
+                            docanticipo = await cobranzas.IdNroid_Anticipo(_context, reg.codanticipo ?? 0);
+                            cadena_anticipos = cadena_anticipos + "(" + docanticipo + ")";
+                        }
+                        docveprofCab.ridanticipo = cadena_anticipos;
+                        // docveprofCab.rnumeroidanticipo = "";
+                        docveprofCab.rpagocontadoanticipado = "LA PROFORMA SE PAGO CON ANTICIPO: ";
+                    }
+                    else
+                    {
+                        Pagado_Con_Anticipo = false;
+                        docveprofCab.ridanticipo = "";
+                        // docveprofCab.rnumeroidanticipo = "";
+                        docveprofCab.rpagocontadoanticipado = "";
+                    }
+                    // ###########################################################################################
+
+                    ////////////////////////////////////////////////////
+                    // definicion del campo de observaciones
+                    ////////////////////////////////////////////////////
+
+                    string observacion = dataAux.tipoentrega;
+                    if (dataAux.tipopago == 0)
+                    {
+                        //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                        //%%   ES CONTADO
+                        //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                        if (dataAux.contra_entrega ?? false)
+                        {
+                            observacion = observacion + "-" + "VENTA CONTADO - CONTRA ENTREGA" + cmbestado_contra_entrega;
+                        }
+                        else
+                        {
+                            if (Pagado_Con_Anticipo)
+                            {
+                                observacion = observacion + "-" + "VENTA CONTADO - YA FUE CANCELADO CON ANTIPO: " + cadena_anticipos;
+                            }
+                            else
+                            {
+                                observacion = observacion + "-" + "VENTA CONTADO - NO CANCELADO" + cmbestado_contra_entrega;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                        //%%   ES CREDITO
+                        //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                        if (dataAux.contra_entrega ?? false)
+                        {
+                            observacion = observacion + "-" + "VENTA CREDITO - CONTRA ENTREGA " + cmbestado_contra_entrega; 
+                        }
+                        else
+                        {
+                            observacion = observacion + "-" + "VENTA ENTREGA CREDITO";
+                        }
+                    }
+
+                    var dt_etiqueta = await _context.veetiqueta_proforma.Where(i => i.id == dataAux.id && i.numeroid == dataAux.numeroid)
+                        .Select(i => new
+                        {
+                            codigo = i.codigo,
+                            linea1 = i.linea1,
+                            linea2 = i.linea2,
+                            representante = i.representante,
+                            telefono = i.telefono,
+                            ciudad = i.ciudad,
+                            celular = i.celular,
+                            nom_factura = docveprofCab.rfacturacion
+                        })
+                        .FirstOrDefaultAsync();
+                    if (dt_etiqueta != null)
+                    {
+                        if (dt_etiqueta.linea2.Trim() == "" || dt_etiqueta.linea2.Trim() == "-")
+                        {
+                            if (es_casual)
+                            {
+                                // si es casual no mostrar la parte de etiqueta
+                                observacion = observacion + " - " + dataAux.obs;
+                            }
+                            else
+                            {
+                                observacion = observacion + " - " + dataAux.obs + " Etiqueta: " + dt_etiqueta.linea1;
+                            }
+                        }
+                        else
+                        {
+                            if (es_casual)
+                            {
+                                // si es casual no mostrar la parte de etiqueta
+                                observacion = observacion + " - " + dataAux.obs;
+                            }
+                            else
+                            {
+                                observacion = observacion + " - " + dataAux.obs + " Etiqueta: " + dt_etiqueta.linea2;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        observacion = observacion + " - " + dataAux.obs;
+                    }
+                    docveprofCab.robs = observacion;
+
+
+
+                    // si la proforma es dimediado y tiene complemento con una de precios mayorista
+                    // verificar si tiene complemento dimediado
+                    // implementado en fecha: 15-07-2021
+                    string _tipoentrega = "";
+                    string _complemento_dimediado = "";
+                    if (dataAux.idpf_complemento.Trim().Length > 0 && dataAux.nroidpf_complemento > 0)
+                    {
+                        _complemento_dimediado = "Complemento Dim: " + dataAux.idpf_complemento + "-" + dataAux.nroidpf_complemento;
+                        _tipoentrega = await ventas.Proforma_Transporte(_context, codProforma);
+                    }
+                    else
+                    {
+                        _complemento_dimediado = "";
+                        _tipoentrega = dataAux.transporte;
+                    }
+
+                    docveprofCab.rtransporte = _tipoentrega + " Nomb. Transporte: " + dataAux.nombre_transporte + " " + _complemento_dimediado;
+
+                    if (!es_casual)
+                    {
+                        dt_etiqueta = null;
+                    }
+                    return Ok(new
+                    {
+                        docveprofCab = docveprofCab,
+                        dtveproforma1 = dtveproforma1,
+                        dt_etiqueta = dt_etiqueta
+                    });
+                }
+
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+        }
+
+
+        private static string ConvertDecimalToWords(decimal number)
+        {
+            int integerPart = (int)Math.Truncate(number);
+            int decimalPart = (int)((number - integerPart) * 100);
+
+            string integerPartInWords = integerPart.ToWords(new CultureInfo("es")).ToUpper();
+            string decimalPartInWords = $"{decimalPart}/100";
+
+            return $"{integerPartInWords} {decimalPartInWords}";
+        }
 
     }
 

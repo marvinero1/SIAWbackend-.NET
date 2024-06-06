@@ -104,6 +104,15 @@ namespace siaw_funciones
                 .FirstOrDefaultAsync() ?? "";
             return codmoneda;
         }
+        public async Task<string> NITempresa(DBContext _context, string codigoempresa)
+        {
+            //Esta funcion devuelve la moneda base de una determinada empresa
+            string nit = await _context.adempresa
+                .Where(i => i.codigo == codigoempresa)
+                .Select(i => i.nit)
+                .FirstOrDefaultAsync() ?? "";
+            return nit;
+        }
         public async Task<bool> Forzar_Etiquetas(DBContext _context, string codempresa)
         {
             bool resultado = false;

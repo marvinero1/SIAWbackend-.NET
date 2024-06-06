@@ -2563,6 +2563,29 @@ namespace siaw_funciones
             return resultado;
         }
 
+        public async Task<string> IdNroid_Anticipo(DBContext _context, int codanticipo)
+        {
+            string resultado;
+            string datos = "";
+            var result = await _context.coanticipo
+                .Where(v => v.codigo == codanticipo)
+                .Select(parametro => new
+                {
+                    parametro.id,
+                    parametro.numeroid
+                })
+                .FirstOrDefaultAsync();
+            if (result != null)
+            {
+                datos = result.id + "-" + result.numeroid;
+            }
+            else
+            {
+                datos = "NSE";
+            }
+            resultado = datos.Trim();
+            return resultado;
+        }
     }
 
     public class dtcocobranza_deposito
