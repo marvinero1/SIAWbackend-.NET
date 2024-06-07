@@ -3852,6 +3852,37 @@ namespace siaw_funciones
             return resultado;
         }
 
+        public async Task<bool> proforma_ya_esta_etiqueta_impresa(DBContext _context, int codproforma)
+        {
+            try
+            {
+                bool resultado = await _context.veproforma.Where(i => i.codigo == codproforma).Select(i => i.etiqueta_impresa).FirstOrDefaultAsync() ?? false;
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+
+        public async Task proforma_marcar_etiqueta_impresa(DBContext _context, int codproforma)
+        {
+            try
+            {
+                var resultado = await _context.veproforma.Where(i => i.codigo == codproforma).FirstOrDefaultAsync();
+                if (resultado!=null)
+                {
+                    resultado.etiqueta_impresa = true;
+                    await _context.SaveChangesAsync();
+                }
+            }
+            catch (Exception)
+            {
+
+            }
+        }
+
     }
 
 

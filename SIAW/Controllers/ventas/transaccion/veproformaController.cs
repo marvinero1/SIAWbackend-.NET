@@ -1578,6 +1578,19 @@ namespace SIAW.Controllers.ventas.transaccion
                 {
                     try
                     {
+                        veproforma.fechareg = DateTime.Today.Date;
+                        veproforma.fechaaut = new DateTime(1900, 1, 1);     // PUEDE VARIAR SI ES PARA APROBAR
+                        veproforma.fecha_confirmada = DateTime.Today.Date;
+
+                        veproforma.horareg = DateTime.Now.ToString("HH:mm");
+                        veproforma.horaaut = "00:00";                       // PUEDE VARIAR SI ES PARA APROBAR
+                        veproforma.hora_confirmada = DateTime.Now.ToString("HH:mm");
+                        if (paraAprobar)
+                        {
+                            veproforma.fechaaut = DateTime.Today.Date;
+                            veproforma.horaaut = DateTime.Now.ToString("HH:mm");
+                        }
+
                         // ESTA VALIDACION ES MOMENTANEA, DESPUES SE DEBE COLOCAR SU PROPIA RUTA PARA VALIDAR, YA QUE PEDIRA CLAVE.
                         var validacion_inicial = await Validar_Datos_Cabecera(_context, codempresa, veproforma);
                         if (!validacion_inicial.bandera)
@@ -5085,7 +5098,7 @@ namespace SIAW.Controllers.ventas.transaccion
                             empresa = nomEmpresa,
                             hora_impresion = DateTime.Now.ToString("h:mm tt"),   // hora de generacion de informacion de PDF
                             fecha_impresion = DateTime.Now.ToString("d/M/yyyy"), // fecha de generacion de informacion de PDF
-                            rnit = "N.I.T.: " + nit,
+                            rnit = nit,
                             rnota_remision = "",                                // DE MOMENTO VACIO NO ES NECESARIO
                             inicial = i.hora_inicial + " " + (i.fecha_inicial ?? DateTime.Today).ToString("d/M/yyyy"),
 
@@ -5435,6 +5448,100 @@ namespace SIAW.Controllers.ventas.transaccion
             string decimalPartInWords = $"{decimalPart}/100";
 
             return $"{integerPartInWords} {decimalPartInWords}";
+        }
+
+
+   
+        [HttpGet]
+        [Route("getConsultEtiquetasImpresas/{userConn}/{codProforma}")]
+        public async Task<IActionResult> getConsultEtiquetasImpresas(string userConn, int codProforma)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    bool control = await ventas.proforma_ya_esta_etiqueta_impresa(_context, codProforma);
+                    return Ok(new
+                    {
+                        resultado = control
+                    });
+                }
+
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+        }
+        [HttpGet]
+        [Route("getEtiquetasProformaPDF/{userConn}/{codProforma}/{codempresa}")]
+        public async Task<IActionResult> getEtiquetasProformaPDF(string userConn, int codProforma, string codempresa)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var docInfProforma = await _context.veproforma.Where(i => i.codigo == codProforma)
+                        .Select(i => new
+                        {
+                            i.id,
+                            i.numeroid
+                        }).FirstOrDefaultAsync();
+
+                    if (docInfProforma!=null)
+                    {
+                        var etiquetas = await _context.veproforma
+                            .Where(p1 => p1.id == docInfProforma.id && p1.numeroid == docInfProforma.numeroid)
+                            .Join(_context.veproforma1,
+                                  p1 => p1.codigo,
+                                  p2 => p2.codproforma,
+                                  (p1, p2) => new { p1, p2 })
+                            .Where(joined => joined.p2.cantidad > 0)
+                            .Join(_context.initem,
+                                  joined => joined.p2.coditem,
+                                  p3 => p3.codigo,
+                                  (joined, p3) => new
+                                  {
+                                      coditem = joined.p2.coditem,
+                                      descripcion = p3.descripcion,
+                                      medida = p3.medida,
+                                      udm = p3.unidad,
+                                      cantidad = joined.p2.cantidad
+                                  })
+                            .ToListAsync();
+
+                        string empresaNom = await nombres.nombreempresa(_context, codempresa);
+                        string titulo = " ETIQUETAS PROFORMA " + docInfProforma.id + "-" + docInfProforma.numeroid;
+                        string nit = await empresa.NITempresa(_context, codempresa);
+
+                        await ventas.proforma_marcar_etiqueta_impresa(_context, codProforma);
+
+                        return Ok(new
+                        {
+                            // cabecera
+                            rempresa = empresaNom,
+                            rtitulo = titulo,
+                            rnit = nit,
+                            hora_impresion = DateTime.Now.ToString("h:mm tt"),   // hora de generacion de informacion de PDF
+                            fecha_impresion = DateTime.Now.ToString("dd/MM/yyyy"), // fecha de generacion de informacion de PDF
+
+                            // etiquetas
+                            etiquetas = etiquetas
+                        });
+                    }
+                    return BadRequest(new { resp = "No se encontraron datos con ese codigo de proforma" });
+
+                }
+
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
         }
 
     }
