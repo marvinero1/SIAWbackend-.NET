@@ -11,5 +11,6 @@ namespace siaw_DBContext.Models
         public string idproforma { get; set; }
         public string grupo { get; set; }
         public int id { get; set; }
+        public bool? para_web { get; set; }
     }
 }

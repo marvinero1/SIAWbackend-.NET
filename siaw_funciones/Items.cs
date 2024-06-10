@@ -351,5 +351,39 @@ namespace siaw_funciones
                 .Select(joined => joined.Linea.codgrupo).FirstOrDefaultAsync() ?? 0;
             return resultado;
         }
+
+        public async Task<List<inlinea_tuercas>?> inlinea_tuercas(DBContext _context, bool habilitado)
+        {
+            try
+            {
+                var resultado = await _context.inlinea_tuercas
+                .Where(i => i.habilitado == habilitado)
+                .OrderBy(i => i.codigo)
+                .ToListAsync();
+
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        public async Task<string> itemlinea(DBContext _context, string codigo)
+        {
+            try
+            {
+                var resultado = await _context.initem
+                .Where(i => i.codigo == codigo)
+                .Select(i => i.codlinea)
+                .FirstOrDefaultAsync() ?? "";
+
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
     }
 }

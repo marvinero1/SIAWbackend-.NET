@@ -3883,6 +3883,22 @@ namespace siaw_funciones
             }
         }
 
+        public async Task Detalle_tuercas_PF(DBContext _context, List<itemDataMatriz> tabladetalle)
+        {
+
+            var dt_inlinea_tuercas = await items.inlinea_tuercas(_context, true);
+            foreach (var reg in tabladetalle)
+            {
+                string item_linea_pf = await items.itemlinea(_context, reg.coditem);
+                if (await items.itemesconjunto(_context,reg.coditem) == true && (item_linea_pf != "05CT0" && item_linea_pf != "05CT1"))
+                {
+                    // es cjto
+
+                }
+            }
+        }
+
+
     }
 
 

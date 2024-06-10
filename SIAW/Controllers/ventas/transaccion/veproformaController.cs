@@ -1578,17 +1578,17 @@ namespace SIAW.Controllers.ventas.transaccion
                 {
                     try
                     {
-                        veproforma.fechareg = DateTime.Today.Date;
-                        veproforma.fechaaut = new DateTime(1900, 1, 1);     // PUEDE VARIAR SI ES PARA APROBAR
-                        veproforma.fecha_confirmada = DateTime.Today.Date;
+                        datosProforma.veproforma.fechareg = DateTime.Today.Date;
+                        datosProforma.veproforma.fechaaut = new DateTime(1900, 1, 1);     // PUEDE VARIAR SI ES PARA APROBAR
+                        datosProforma.veproforma.fecha_confirmada = DateTime.Today.Date;
 
-                        veproforma.horareg = DateTime.Now.ToString("HH:mm");
-                        veproforma.horaaut = "00:00";                       // PUEDE VARIAR SI ES PARA APROBAR
-                        veproforma.hora_confirmada = DateTime.Now.ToString("HH:mm");
+                        datosProforma.veproforma.horareg = DateTime.Now.ToString("HH:mm");
+                        datosProforma.veproforma.horaaut = "00:00";                       // PUEDE VARIAR SI ES PARA APROBAR
+                        datosProforma.veproforma.hora_confirmada = DateTime.Now.ToString("HH:mm");
                         if (paraAprobar)
                         {
-                            veproforma.fechaaut = DateTime.Today.Date;
-                            veproforma.horaaut = DateTime.Now.ToString("HH:mm");
+                            datosProforma.veproforma.fechaaut = DateTime.Today.Date;
+                            datosProforma.veproforma.horaaut = DateTime.Now.ToString("HH:mm");
                         }
 
                         // ESTA VALIDACION ES MOMENTANEA, DESPUES SE DEBE COLOCAR SU PROPIA RUTA PARA VALIDAR, YA QUE PEDIRA CLAVE.

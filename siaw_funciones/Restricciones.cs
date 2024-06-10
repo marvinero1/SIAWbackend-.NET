@@ -108,8 +108,11 @@ namespace siaw_funciones
                     }
                     else
                     {
-                        cantdesc = decimal.Parse((string)tabla.Rows[0]["cantidad"]);
-                        ultimo = bool.Parse((string)tabla.Rows[0]["ultimos"]);
+                        //cantdesc = decimal.Parse((string)tabla.Rows[0]["cantidad"]);
+                        //ultimo = bool.Parse((string)tabla.Rows[0]["ultimos"]);
+
+                        cantdesc = (decimal)tabla.Rows[0]["cantidad"];
+                        ultimo = (bool)tabla.Rows[0]["ultimos"];
                     }
 
                     if (cantdesc > canttarif)

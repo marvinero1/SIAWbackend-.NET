@@ -621,6 +621,7 @@ namespace siaw_DBContext.Data
         public virtual DbSet<inkit_cambio_arandelas> inkit_cambio_arandelas { get; set; }
         public virtual DbSet<inkit_precio> inkit_precio { get; set; }
         public virtual DbSet<inlinea> inlinea { get; set; }
+        public virtual DbSet<inlinea_tuercas> inlinea_tuercas { get; set; }
         public virtual DbSet<inliquidacion> inliquidacion { get; set; }
         public virtual DbSet<inliquidacion1> inliquidacion1 { get; set; }
         public virtual DbSet<inlistastock> inlistastock { get; set; }
@@ -21235,6 +21236,21 @@ namespace siaw_DBContext.Data
                 entity.Property(e => e.usuarioreg)
                     .IsRequired()
                     .HasMaxLength(10);
+            });
+
+            modelBuilder.Entity<inlinea_tuercas>(entity =>
+            {
+                entity.HasKey(e => e.codigo);
+
+                entity.Property(e => e.codigo).HasMaxLength(5);
+
+                entity.Property(e => e.descripcion).HasMaxLength(60);
+
+                entity.Property(e => e.fechareg).HasColumnType("smalldatetime");
+
+                entity.Property(e => e.horareg).HasMaxLength(5);
+
+                entity.Property(e => e.usuarioreg).HasMaxLength(10);
             });
 
             modelBuilder.Entity<inliquidacion>(entity =>

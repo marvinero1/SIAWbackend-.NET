@@ -2412,6 +2412,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[inlinea_tuercas]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[inliquidacion]",
          "ObjectType": 0
       },

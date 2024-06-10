@@ -213,7 +213,7 @@ namespace SIAW.Controllers.ventas.mantenimiento
                     var resultado = await _context.venumeracion
                         .Where(v => v.tipodoc == 2 && v.habilitado == true &&
                                     _context.adusuario_idproforma
-                                        .Where(a => a.usuario == codUsuario)
+                                        .Where(a => a.usuario == codUsuario && a.para_web==true)
                                         .Select(a => a.idproforma)
                                         .Contains(v.id))
                         .OrderBy(v => v.id)

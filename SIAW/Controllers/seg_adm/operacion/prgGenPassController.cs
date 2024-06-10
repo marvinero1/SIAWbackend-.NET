@@ -72,20 +72,23 @@ namespace SIAW.Controllers.seg_adm.operacion
             {
                 try
                 {
-                    var autoriza = await _context.adautorizacion
-                        .Where(i => i.nivel == requestPermisoEsp.servicio && i.codpersona == requestPermisoEsp.codpersona)
-                        .FirstOrDefaultAsync();
-                    if (autoriza != null)
+                    var autorizaList = await _context.adautorizacion
+                        .Where(i => i.nivel == requestPermisoEsp.servicio && i.codempresa == requestPermisoEsp.codempresa && i.vencimiento >= DateTime.Today.Date)
+                        .ToListAsync();
+                    if (autorizaList.Count() > 0)
                     {
                         string passEncript = await funciones.EncriptarMD5(requestPermisoEsp.password);
-                        if (passEncript == autoriza.password) 
+                        var confirmacion = autorizaList.Where(i => i.password == passEncript).FirstOrDefault();
+                        if (confirmacion != null)
                         {
                             // antes de devolver OK se debe guardar logs de autorizacion
                             await seguridad.grabar_log_permisos(_context, requestPermisoEsp.servicio + " - " + requestPermisoEsp.descServicio, requestPermisoEsp.obs, requestPermisoEsp.datos_documento, requestPermisoEsp.usuario, requestPermisoEsp.fechareg, requestPermisoEsp.horareg);
-                            return Ok(new { resp = autoriza.obs }); ///  autorizado a cierta persona
+                            return Ok(new { resp = confirmacion.obs }); ///  autorizado a cierta persona
                         }
-                        return BadRequest( new { resp = "La contraseña no es correcta para su usuario" });
+                        //return BadRequest(new { resp = "La contraseña no es correcta para su usuario" });
                     }
+
+                    // tratar el password otp
                     string pass = await genSpecialAut(codalmacen, requestPermisoEsp.dato_a, requestPermisoEsp.dato_b, requestPermisoEsp.servicio.ToString());
                     if (pass == requestPermisoEsp.password)
                     {

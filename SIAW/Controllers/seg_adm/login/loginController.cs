@@ -117,9 +117,10 @@ namespace SIAW.Controllers
                     guardaStringConection(userConn, connectionString);
                     return Ok(new {token= jwtToken });                  //------Bienvenido
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    return Problem("Error en el servidor");
+                    Console.WriteLine($"Error: {ex.Message}\nStack Trace: {ex.StackTrace}");
+                    return Problem($"Error: {ex.Message}\nStack Trace: {ex.StackTrace}");
                     throw;
                 }
             }
