@@ -1485,12 +1485,12 @@ namespace siaw_funciones
                 return 0;
             }
         }
-        public async Task<List<Validar_Vta.Dtnegativos>> ValidarNegativosDocVenta(DBContext _context, List<itemDataMatriz> tabladetalle, int codalmacen, string idproforma, int numeroidproforma, List<string> mensajes, List<string> negativos, string cod_empresa, string usrreg)
+        public async Task<List<Dtnegativos>> ValidarNegativosDocVenta(DBContext _context, List<itemDataMatriz> tabladetalle, int codalmacen, string idproforma, int numeroidproforma, List<string> mensajes, List<string> negativos, string cod_empresa, string usrreg)
         {
             //1RA parte DESARMADO DE CONJUNTOS
             bool resultado = true;
             bool controlarStockSeguridad = false;
-            List<Validar_Vta.Dtnegativos> dtunido = new List<Validar_Vta.Dtnegativos>();
+            List<Dtnegativos> dtunido = new List<Dtnegativos>();
             List<Validar_Vta.Dt_desglosado> dt_desglosado = new List<Validar_Vta.Dt_desglosado>();
             int bandera = -1;
             // obtener informacion del stock actual
@@ -1575,7 +1575,7 @@ namespace siaw_funciones
                 }
                 if (bandera < 0)
                 {
-                    Validar_Vta.Dtnegativos registro = new Validar_Vta.Dtnegativos
+                    Dtnegativos registro = new Dtnegativos
                     {
                         kit = desglosado.kit,
                         nro_partes = desglosado.nro_partes,

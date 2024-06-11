@@ -171,11 +171,11 @@ namespace siaw_funciones
             }
 
         }
-        public async Task<List<Validar_Vta.Dtnocumplen>> ValidarMaximoPorcentajeDeMercaderiaVenta(DBContext _context, string codcliente_real, bool Usar_Bd_Opcional, List<itemDataMatrizMaxVta> dt, int codalmacen, decimal porcentajeMaximo, string id_pf, int nro_id_pf, string cod_empresa, string usrreg)
+        public async Task<List<Dtnocumplen>> ValidarMaximoPorcentajeDeMercaderiaVenta(DBContext _context, string codcliente_real, bool Usar_Bd_Opcional, List<itemDataMatrizMaxVta> dt, int codalmacen, decimal porcentajeMaximo, string id_pf, int nro_id_pf, string cod_empresa, string usrreg)
         {
             string cadena_items = "";
             int bandera = -1;
-            List<Validar_Vta.Dtnocumplen> dtunido = new List<Validar_Vta.Dtnocumplen>();
+            List<Dtnocumplen> dtunido = new List<Dtnocumplen>();
 
             foreach (var detalle in dt)
             {
@@ -221,7 +221,7 @@ namespace siaw_funciones
                     //{
 
                     //}
-                    Validar_Vta.Dtnocumplen registro = new Validar_Vta.Dtnocumplen
+                    Dtnocumplen registro = new Dtnocumplen
                     {
                         codigo = detalle.coditem,
                         descripcion = await items.itemdescripcion(_context, detalle.coditem) + " (" + await items.itemmedida(_context, detalle.coditem) + ")",

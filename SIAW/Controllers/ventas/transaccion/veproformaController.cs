@@ -1028,6 +1028,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 List<vedetalleEtiqueta> vedetalleEtiqueta = new List<vedetalleEtiqueta>();
                 List<vedetalleanticipoProforma>? vedetalleanticipoProforma = new List<vedetalleanticipoProforma>();
                 List<verecargosDatos>? verecargosDatos = new List<verecargosDatos>();
+                List<Controles>? controles_recibidos = new List<Controles>();
 
                 datosDocVta = RequestValidacion.datosDocVta;
                 itemDataMatriz = RequestValidacion.detalleItemsProf;
@@ -1035,9 +1036,9 @@ namespace SIAW.Controllers.ventas.transaccion
                 vedetalleEtiqueta = RequestValidacion.detalleEtiqueta;
                 vedetalleanticipoProforma = RequestValidacion.detalleAnticipos;
                 verecargosDatos = RequestValidacion.detalleRecargos;
+                controles_recibidos = RequestValidacion.detalleControles;
 
-
-                var resultado = await validar_Vta.DocumentoValido(userConnectionString, cadena_controles, entidad, opcion_validar, datosDocVta, itemDataMatriz, vedesextraDatos, vedetalleEtiqueta, vedetalleanticipoProforma, verecargosDatos, codempresa, usuario);
+                var resultado = await validar_Vta.DocumentoValido(userConnectionString, cadena_controles, entidad, opcion_validar, datosDocVta, itemDataMatriz, vedesextraDatos, vedetalleEtiqueta, vedetalleanticipoProforma, verecargosDatos, controles_recibidos, codempresa, usuario); 
                 if (resultado != null)
                 {
                     ///
@@ -1578,6 +1579,26 @@ namespace SIAW.Controllers.ventas.transaccion
                 {
                     try
                     {
+                        if (datosProforma.veproforma.idsoldesctos == null)
+                        {
+                            datosProforma.veproforma.idsoldesctos = "";
+                        }
+                        if (datosProforma.veproforma.estado_contra_entrega == null)
+                        {
+                            datosProforma.veproforma.estado_contra_entrega = "";
+                        }
+                        if (datosProforma.veproforma.contra_entrega == null)
+                        {
+                            datosProforma.veproforma.contra_entrega = false;
+                        }
+                        if (datosProforma.veproforma.tipo_complementopf == null)
+                        {
+                            datosProforma.veproforma.tipo_complementopf = 0;
+                        }
+                        if (datosProforma.veproforma.tipo_complementopf >= 3)
+                        {
+                            datosProforma.veproforma.tipo_complementopf = 0;
+                        }
                         datosProforma.veproforma.fechareg = DateTime.Today.Date;
                         datosProforma.veproforma.fechaaut = new DateTime(1900, 1, 1);     // PUEDE VARIAR SI ES PARA APROBAR
                         datosProforma.veproforma.fecha_confirmada = DateTime.Today.Date;
@@ -1585,6 +1606,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         datosProforma.veproforma.horareg = DateTime.Now.ToString("HH:mm");
                         datosProforma.veproforma.horaaut = "00:00";                       // PUEDE VARIAR SI ES PARA APROBAR
                         datosProforma.veproforma.hora_confirmada = DateTime.Now.ToString("HH:mm");
+                         
                         if (paraAprobar)
                         {
                             datosProforma.veproforma.fechaaut = DateTime.Today.Date;
@@ -2318,6 +2340,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
         //[Authorize]
         [HttpPost]
+        [QueueFilter(1)] // Limitar a 1 solicitud concurrente
         [Route("totabilizarProf/{userConn}/{usuario}/{codempresa}/{desclinea_segun_solicitud}/{cmbtipo_complementopf}/{opcion_nivel}")]
         public async Task<object> totabilizarProf(string userConn, string usuario, string codempresa, bool desclinea_segun_solicitud, int cmbtipo_complementopf, string opcion_nivel, TotabilizarProformaCompleta datosProforma)
         {

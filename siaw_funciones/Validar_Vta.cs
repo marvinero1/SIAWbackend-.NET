@@ -98,39 +98,39 @@ namespace siaw_funciones
             public string clave_servicio { get; set; } = "";
             public string accion { get; set; } = "";
         }
-        public class Dtnocumplen
-        {
-            public string codigo { get; set; }
-            public string descripcion { get; set; }
-            public decimal cantidad { get; set; }
-            public decimal cantidad_pf_anterior { get; set; }
-            public decimal cantidad_pf_total { get; set; }
-            public decimal porcen_venta { get; set; }
-            public int coddescuento { get; set; }
-            public int codtarifa { get; set; }
-            public decimal saldo { get; set; }
-            public decimal porcen_maximo { get; set; }
-            public decimal porcen_mercaderia { get; set; }
-            public decimal cantidad_permitida_seg_porcen { get; set; }
-            public int empaque_precio { get; set; }
-            public string obs { get; set; }
-        }
-        public class Dtnegativos
-        {
-            public string kit { get; set; }
-            public int nro_partes { get; set; }
-            public string coditem_cjto { get; set; }
-            public string coditem_suelto { get; set; }
-            public string codigo { get; set; }
-            public string descitem { get; set; }
-            public decimal cantidad { get; set; }
-            public decimal cantidad_conjunto { get; set; }
-            public decimal cantidad_suelta { get; set; }
-            public decimal saldo_descontando_reservas { get; set; }
-            public decimal saldo_sin_descontar_reservas { get; set; }
-            public decimal cantidad_reservada_para_cjtos { get; set; }
-            public string obs { get; set; }
-        }
+        //public class Dtnocumplen
+        //{
+        //    public string codigo { get; set; }
+        //    public string descripcion { get; set; }
+        //    public decimal cantidad { get; set; }
+        //    public decimal cantidad_pf_anterior { get; set; }
+        //    public decimal cantidad_pf_total { get; set; }
+        //    public decimal porcen_venta { get; set; }
+        //    public int coddescuento { get; set; }
+        //    public int codtarifa { get; set; }
+        //    public decimal saldo { get; set; }
+        //    public decimal porcen_maximo { get; set; }
+        //    public decimal porcen_mercaderia { get; set; }
+        //    public decimal cantidad_permitida_seg_porcen { get; set; }
+        //    public int empaque_precio { get; set; }
+        //    public string obs { get; set; }
+        //}
+        //public class Dtnegativos
+        //{
+        //    public string kit { get; set; }
+        //    public int nro_partes { get; set; }
+        //    public string coditem_cjto { get; set; }
+        //    public string coditem_suelto { get; set; }
+        //    public string codigo { get; set; }
+        //    public string descitem { get; set; }
+        //    public decimal cantidad { get; set; }
+        //    public decimal cantidad_conjunto { get; set; }
+        //    public decimal cantidad_suelta { get; set; }
+        //    public decimal saldo_descontando_reservas { get; set; }
+        //    public decimal saldo_sin_descontar_reservas { get; set; }
+        //    public decimal cantidad_reservada_para_cjtos { get; set; }
+        //    public string obs { get; set; }
+        //}
         public class Dt_desglosado
         {
             public string kit { get; set; }
@@ -143,41 +143,41 @@ namespace siaw_funciones
             public double cantidad_suelta { get; set; }
         }
 
-        public class Controles
-        {
-            public int Codigo { get; set; }
-            public int Orden { get; set; }
-            public string CodControl { get; set; }
-            public bool? Grabar { get; set; }
-            public string GrabarAprobar { get; set; }
-            public bool? HabilitadoPf { get; set; }
-            public bool? HabilitadoNr { get; set; }
-            public bool? HabilitadoFc { get; set; }
-            public string Descripcion { get; set; }
-            public string? CodServicio { get; set; }
-            // ... otras propiedades ...
-            public string NroItems { get; set; }
-            public string Descuentos { get; set; }
-            public string Recargos { get; set; }
-            public string Nit { get; set; }
-            public string Subtotal { get; set; }
-            public double Total { get; set; }
-            public string Preparacion { get; set; }
-            // ... otras propiedades ...
-            public string DescGrabar { get; set; }
-            public string DescGrabarAprobar { get; set; }
-            public string Valido { get; set; }
-            public string Observacion { get; set; }
-            public string ObsDetalle { get; set; }
-            public string DescServicio { get; set; }
-            public string DatoA { get; set; }
-            public string DatoB { get; set; }
-            public string ClaveServicio { get; set; }
-            public string Accion { get; set; }
-            // Nuevo atributo de la clase Dtnegativos
-            public List<Dtnegativos> Dtnegativos { get; set; }
-            public List<Dtnocumplen> Dtnocumplen { get; set; }
-        }
+        //public class Controles
+        //{
+        //    public int Codigo { get; set; }
+        //    public int Orden { get; set; }
+        //    public string CodControl { get; set; }
+        //    public bool? Grabar { get; set; }
+        //    public string GrabarAprobar { get; set; }
+        //    public bool? HabilitadoPf { get; set; }
+        //    public bool? HabilitadoNr { get; set; }
+        //    public bool? HabilitadoFc { get; set; }
+        //    public string Descripcion { get; set; }
+        //    public string? CodServicio { get; set; }
+        //    // ... otras propiedades ...
+        //    public string NroItems { get; set; }
+        //    public string Descuentos { get; set; }
+        //    public string Recargos { get; set; }
+        //    public string Nit { get; set; }
+        //    public string Subtotal { get; set; }
+        //    public double Total { get; set; }
+        //    public string Preparacion { get; set; }
+        //    // ... otras propiedades ...
+        //    public string DescGrabar { get; set; }
+        //    public string DescGrabarAprobar { get; set; }
+        //    public string Valido { get; set; }
+        //    public string Observacion { get; set; }
+        //    public string ObsDetalle { get; set; }
+        //    public string DescServicio { get; set; }
+        //    public string DatoA { get; set; }
+        //    public string DatoB { get; set; }
+        //    public string ClaveServicio { get; set; }
+        //    public string Accion { get; set; }
+        //    // Nuevo atributo de la clase Dtnegativos
+        //    public List<Dtnegativos> Dtnegativos { get; set; }
+        //    public List<Dtnocumplen> Dtnocumplen { get; set; }
+        //}
         public class intarifaMonMinMay
         {
             public int codtarifa { get; set; }
@@ -204,7 +204,7 @@ namespace siaw_funciones
         private SIAT siat = new SIAT();
         //Task<ActionResult<itemDataMatriz>>
         //Task<Controles>
-        public async Task<List<Controles>> DocumentoValido(string userConnectionString, string cadena_control, string tipodoc, string opcion_validar, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos, List<vedetalleEtiqueta> dt_etiqueta, List<vedetalleanticipoProforma> dt_anticipo_pf, List<verecargosDatos> tablarecargos,string codempresa, string usuario)
+        public async Task<List<Controles>> DocumentoValido(string userConnectionString, string cadena_control, string tipodoc, string opcion_validar, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos, List<vedetalleEtiqueta> dt_etiqueta, List<vedetalleanticipoProforma> dt_anticipo_pf, List<verecargosDatos> tablarecargos, List<Controles>? tabla_controles_recibido, string codempresa, string usuario)
         {
             List<Controles> resultados = new List<Controles>();
             try
@@ -273,6 +273,8 @@ namespace siaw_funciones
                                          Subtotal = DVTA.subtotaldoc.ToString(),
                                          Total = DVTA.totaldoc,
                                          Preparacion = DVTA.preparacion,
+                                         TipoVenta = DVTA.tipo_vta,
+                                         Contra_Entrega = DVTA.contra_entrega,
                                          // ... otras propiedades ...
                                          DescGrabar = "",
                                          DescGrabarAprobar = "",
@@ -321,6 +323,62 @@ namespace siaw_funciones
             {
                 Console.WriteLine(ex.Message);
             }
+            try
+            {
+                //Validar que los controles_again si recibimos por primera vez en teoria es la primera vez que valida, entonces no debe comparar resultados ya validados
+                if (tabla_controles_recibido != null)
+                {
+                    if (tabla_controles_recibido.Count > 0)
+                    {
+                        //Comparar con lo nuevo validado
+                        foreach (var reg_1 in resultados)
+                        {
+                            // Si el control no es válido, verificar si se recibio el dato como valido
+                            if (reg_1.Valido == "NO")
+                            {
+                                // Buscar si en el primer listado está el control, si no está añadirlo, si está verifica si ya se validó
+                                foreach (var reg_2 in tabla_controles_recibido)
+                                {
+                                    if (reg_2.CodControl == reg_1.CodControl)
+                                    {
+                                        // Si se validó ya antes, se copiará la validación
+                                        if (reg_2.Valido == "SI")
+                                        {
+                                            // Verificar si los principales parámetros no cambiaron
+                                            // Si no cambiaron y antes ya estaba válido, la validación o autorización se replica
+                                            if (reg_2.NroItems == reg_1.NroItems &&
+                                                reg_2.Descuentos == reg_1.Descuentos &&
+                                                reg_2.Recargos == reg_1.Recargos &&
+                                                reg_2.Nit == reg_1.Nit &&
+                                                reg_2.Subtotal == reg_1.Subtotal &&
+                                                reg_2.Preparacion == reg_1.Preparacion &&
+                                                reg_2.TipoVenta == reg_1.TipoVenta &&
+                                                reg_2.Contra_Entrega == reg_1.Contra_Entrega &&
+                                                reg_2.ClaveServicio == "AUTORIZADO" &&
+                                                reg_2.Total == reg_1.Total)
+                                            {
+                                                reg_1.Valido = "SI";
+                                                reg_1.ClaveServicio = reg_2.ClaveServicio;
+                                            }
+                                        }
+                                        break; // Salir del bucle una vez encontrado
+                                    }
+                                }
+                                // Fin de buscar si está en el primer listado
+                            }
+                        }
+
+                        // Copiar a la primera lista
+                        resultados.Clear();
+                        resultados = new List<Controles>(tabla_controles_recibido);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+            
             return resultados;
         }
         private ResultadoValidacion InicializarResultado(ref ResultadoValidacion objres)
