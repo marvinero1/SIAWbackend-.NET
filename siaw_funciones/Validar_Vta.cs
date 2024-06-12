@@ -266,11 +266,11 @@ namespace siaw_funciones
                                          Descripcion = vc.descripcion,
                                          CodServicio = vc.codservicio,
                                          // ... otras propiedades ...
-                                         NroItems = DVTA.nroitems.ToString(),
-                                         Descuentos = DVTA.totdesctos_extras.ToString(),
-                                         Recargos = DVTA.totrecargos.ToString(),
+                                         NroItems = DVTA.nroitems,
+                                         Descuentos = DVTA.totdesctos_extras,
+                                         Recargos = DVTA.totrecargos,
                                          Nit = DVTA.nitfactura,
-                                         Subtotal = DVTA.subtotaldoc.ToString(),
+                                         Subtotal = DVTA.subtotaldoc,
                                          Total = DVTA.totaldoc,
                                          Preparacion = DVTA.preparacion,
                                          TipoVenta = DVTA.tipo_vta,
@@ -8691,22 +8691,23 @@ namespace siaw_funciones
                             .Distinct()
                             .FirstOrDefaultAsync() ?? tabla;
                     }
-                    // convertir a la moneda en la cual se esta haciendo la proforma
-                    double Monto_Min_Tarifa = (double)await tipocambio._conversion(_context, DVTA.codmoneda, tabla.moneda, DVTA.fecha, tabla.montomin);
+                    
+                }
+                // convertir a la moneda en la cual se esta haciendo la proforma
+                double Monto_Min_Tarifa = (double)await tipocambio._conversion(_context, DVTA.codmoneda, tabla.moneda, DVTA.fecha, tabla.montomin);
 
-                    // verificar si el monto min del tipo de precio es mayor, si es mayo se obtiene su codtarifa
-                    if (MONTO_MAYOR == 0)
+                // verificar si el monto min del tipo de precio es mayor, si es mayo se obtiene su codtarifa
+                if (MONTO_MAYOR == 0)
+                {
+                    MONTO_MAYOR = Monto_Min_Tarifa;
+                    resultado = tabla.codtarifa;
+                }
+                else
+                {
+                    if (Monto_Min_Tarifa > MONTO_MAYOR)
                     {
                         MONTO_MAYOR = Monto_Min_Tarifa;
                         resultado = tabla.codtarifa;
-                    }
-                    else
-                    {
-                        if (Monto_Min_Tarifa > MONTO_MAYOR)
-                        {
-                            MONTO_MAYOR = Monto_Min_Tarifa;
-                            resultado = tabla.codtarifa;
-                        }
                     }
                 }
             }

@@ -61181,6 +61181,8 @@ namespace siaw_DBContext.Data
                     .HasMaxLength(5)
                     .IsUnicode(false);
 
+                entity.Property(e => e.latitud_entrega).HasMaxLength(50);
+
                 entity.Property(e => e.linea1)
                     .HasMaxLength(50)
                     .IsUnicode(false);
@@ -61188,6 +61190,8 @@ namespace siaw_DBContext.Data
                 entity.Property(e => e.linea2)
                     .HasMaxLength(30)
                     .IsUnicode(false);
+
+                entity.Property(e => e.longitud_entrega).HasMaxLength(50);
 
                 entity.Property(e => e.representante).HasMaxLength(200);
 

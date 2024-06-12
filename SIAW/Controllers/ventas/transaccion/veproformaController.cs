@@ -1369,6 +1369,8 @@ namespace SIAW.Controllers.ventas.transaccion
                         }
                         item.cantidad = (decimal)empaque * cantEmpaques;
                         item.cantidad_pedida = (decimal)empaque * cantEmpaques;
+                        item.descripcion = await _context.initem.Where(i => i.codigo == item.coditem).Select(i => i.descripcion).FirstOrDefaultAsync() ?? "";
+                        item.medida = await _context.initem.Where(i => i.codigo == item.coditem).Select(i => i.medida).FirstOrDefaultAsync() ?? "";
                     }
                     
                     return Ok(data);
@@ -1429,6 +1431,8 @@ namespace SIAW.Controllers.ventas.transaccion
                             reg.cantidad_pedida = cantPrecio;
                         }
 
+                        reg.descripcion = await _context.initem.Where(i => i.codigo == reg.coditem).Select(i => i.descripcion).FirstOrDefaultAsync() ?? "";
+                        reg.medida = await _context.initem.Where(i => i.codigo == reg.coditem).Select(i => i.medida).FirstOrDefaultAsync() ?? "";
                     }
                     return Ok(data);
                 }
@@ -1532,11 +1536,11 @@ namespace SIAW.Controllers.ventas.transaccion
             return resultado;
         }
 
-        [Authorize]
+        //[Authorize]
         [HttpPost]
         [QueueFilter(1)] // Limitar a 1 solicitud concurrente
-        [Route("guardarProforma/{userConn}/{idProf}/{codempresa}/{paraAprobar}")]
-        public async Task<object> guardarProforma(string userConn, string idProf, string codempresa, bool paraAprobar, SaveProformaCompleta datosProforma)
+        [Route("guardarProforma/{userConn}/{idProf}/{codempresa}/{paraAprobar}/{codcliente_real}")]
+        public async Task<object> guardarProforma(string userConn, string idProf, string codempresa, bool paraAprobar, string codcliente_real, SaveProformaCompleta datosProforma)
         {
             bool check_desclinea_segun_solicitud = false;  // de momento no se utiliza, si se llegara a utilizar, se debe pedir por ruta
             veproforma veproforma = datosProforma.veproforma;
@@ -1614,7 +1618,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         }
 
                         // ESTA VALIDACION ES MOMENTANEA, DESPUES SE DEBE COLOCAR SU PROPIA RUTA PARA VALIDAR, YA QUE PEDIRA CLAVE.
-                        var validacion_inicial = await Validar_Datos_Cabecera(_context, codempresa, veproforma);
+                        var validacion_inicial = await Validar_Datos_Cabecera(_context, codempresa, codcliente_real, veproforma);
                         if (!validacion_inicial.bandera)
                         {
                             return BadRequest(new { resp = validacion_inicial.msg });
@@ -1681,9 +1685,9 @@ namespace SIAW.Controllers.ventas.transaccion
 
                         // Desde 10-10-2022 se definira si una venta es casual o no si el codigo de cliente y el codigo de cliente real son diferentes entonces es una venta casual
                         string msgAlert2 = "";
-                        if (veproforma.codcliente != veproforma.codcliente_real)
+                        if (veproforma.codcliente != codcliente_real)
                         {
-                            if (!await Grabar_Proforma_Etiqueta(_context, idProf, result.numeroId,check_desclinea_segun_solicitud,veproforma))
+                            if (!await Grabar_Proforma_Etiqueta(_context, idProf, result.numeroId,check_desclinea_segun_solicitud, codcliente_real, veproforma))
                             {
                                 msgAlert2 = "Se grabo la Proforma, pero No se pudo grabar la etiqueta Cliente Casual/Referencia de la proforma!!!";
                             }
@@ -1917,7 +1921,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
-        private async Task<(bool bandera, string msg)> Validar_Datos_Cabecera(DBContext _context, string codempresa, veproforma veproforma)
+        private async Task<(bool bandera, string msg)> Validar_Datos_Cabecera(DBContext _context, string codempresa, string codcliente_real, veproforma veproforma)
         {
             // POR AHORA VALIDACIONES QUE REQUIERAN CONSULTA A BASE DE DATOS.
             string id = veproforma.id;
@@ -1927,7 +1931,7 @@ namespace SIAW.Controllers.ventas.transaccion
             string nomcliente = veproforma.nomcliente;
             string nit = veproforma.nit;
             string codmoneda = veproforma.codmoneda;
-            string codcliente_real = veproforma.codcliente_real;
+            //string codcliente_real = veproforma.codcliente_real;
 
             veproforma.direccion = (veproforma.direccion == "") ? "---" : veproforma.direccion;
             veproforma.obs = (veproforma.obs == "") ? "---" : veproforma.obs;
@@ -1990,7 +1994,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
-        private async Task<bool> Grabar_Proforma_Etiqueta(DBContext _context, string idProf, int nroidpf, bool desclinea_segun_solicitud, veproforma dtpf)
+        private async Task<bool> Grabar_Proforma_Etiqueta(DBContext _context, string idProf, int nroidpf, bool desclinea_segun_solicitud, string codcliente_real, veproforma dtpf)
         {
             try
             {
@@ -2024,7 +2028,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 }
                 else
                 {
-                    datospfe.codcliente_real = dtpf.codcliente_real;
+                    datospfe.codcliente_real = codcliente_real;
                 }
                 datospfe.fecha = dtpf.fecha;
                 datospfe.direccion = dtpf.direccion;
@@ -2341,8 +2345,8 @@ namespace SIAW.Controllers.ventas.transaccion
         //[Authorize]
         [HttpPost]
         [QueueFilter(1)] // Limitar a 1 solicitud concurrente
-        [Route("totabilizarProf/{userConn}/{usuario}/{codempresa}/{desclinea_segun_solicitud}/{cmbtipo_complementopf}/{opcion_nivel}")]
-        public async Task<object> totabilizarProf(string userConn, string usuario, string codempresa, bool desclinea_segun_solicitud, int cmbtipo_complementopf, string opcion_nivel, TotabilizarProformaCompleta datosProforma)
+        [Route("totabilizarProf/{userConn}/{usuario}/{codempresa}/{desclinea_segun_solicitud}/{cmbtipo_complementopf}/{opcion_nivel}/{codcliente_real}")]
+        public async Task<object> totabilizarProf(string userConn, string usuario, string codempresa, bool desclinea_segun_solicitud, int cmbtipo_complementopf, string opcion_nivel, string codcliente_real, TotabilizarProformaCompleta datosProforma)
         {
             veproforma veproforma = datosProforma.veproforma;
             List<veproforma1> veproforma1 = datosProforma.veproforma1;
@@ -2446,7 +2450,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     {
                         return BadRequest(new { resp = "Ha elegido utilizar la solicitud de descuentos de nivel: " + veproforma.idsoldesctos + "-" + veproforma.nroidsoldesctos + " para aplicar descuentos de linea, pero la solicitud indicada no existe!!!" });
                     }
-                    if (veproforma.codcliente_real != await ventas.Cliente_Solicitud_Descuento_Nivel(_context, veproforma.idsoldesctos, veproforma.nroidsoldesctos ?? 0))
+                    if (codcliente_real != await ventas.Cliente_Solicitud_Descuento_Nivel(_context, veproforma.idsoldesctos, veproforma.nroidsoldesctos ?? 0))
                     {
                         return BadRequest(new { resp = "La solicitud de descuentos de nivel: " + veproforma.idsoldesctos + "-" + veproforma.nroidsoldesctos + " a la que hace referencia no pertenece al mismo cliente de esta proforma!!!" });
                     }
@@ -2472,7 +2476,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     return BadRequest(new { resp = "No se encontro informacion con los datos proporcionados." });
                 }
 
-                var totales = await RECALCULARPRECIOS(_context, false, codempresa, cmbtipo_complementopf, resultado, verecargoprof, veproforma, vedesextraprof);
+                var totales = await RECALCULARPRECIOS(_context, false, codempresa, cmbtipo_complementopf,codcliente_real, resultado, verecargoprof, veproforma, vedesextraprof);
 
 
                 return Ok(new
@@ -2485,8 +2489,8 @@ namespace SIAW.Controllers.ventas.transaccion
 
         //[Authorize]
         [HttpPost]
-        [Route("recarcularRecargos/{userConn}/{codempresa}/{descuentos}")]
-        public async Task<object> recarcularRecargos(string userConn, string codempresa, double descuentos, RequestRecarlculaRecargoDescuentos RequestRecargos)
+        [Route("recarcularRecargos/{userConn}/{codempresa}/{descuentos}/{codcliente_real}")]
+        public async Task<object> recarcularRecargos(string userConn, string codempresa, double descuentos, string codcliente_real, RequestRecarlculaRecargoDescuentos RequestRecargos)
         {
             try
             {
@@ -2506,7 +2510,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     double recargo = respRecargo.total;
                     tablarecargos = respRecargo.tablarecargos;
 
-                    var total = await vertotal(_context, subtotal, recargo, descuentos, veproforma.codcliente_real, veproforma.codmoneda, codempresa, veproforma.fecha, tabla_detalle, tablarecargos);
+                    var total = await vertotal(_context, subtotal, recargo, descuentos, codcliente_real, veproforma.codmoneda, codempresa, veproforma.fecha, tabla_detalle, tablarecargos);
                     return new
                     {
                         subtotal = subtotal,
@@ -2526,8 +2530,8 @@ namespace SIAW.Controllers.ventas.transaccion
 
         //[Authorize]
         [HttpPost]
-        [Route("recarcularDescuentos/{userConn}/{codempresa}/{recargos}/{cmbtipo_complementopf}")]
-        public async Task<object> recarcularDescuentos(string userConn, string codempresa, double recargos, int cmbtipo_complementopf, RequestRecarlculaRecargoDescuentos RequestDescuentos)
+        [Route("recarcularDescuentos/{userConn}/{codempresa}/{recargos}/{cmbtipo_complementopf}/{codcliente_real}")]
+        public async Task<object> recarcularDescuentos(string userConn, string codempresa, double recargos, int cmbtipo_complementopf, string codcliente_real, RequestRecarlculaRecargoDescuentos RequestDescuentos)
         {
             try
             {
@@ -2550,7 +2554,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         double descuento = respDescuento.respdescuentos;
                         tabladescuentos = respDescuento.tabladescuentos;
 
-                        var total = await vertotal(_context, subtotal, recargos, descuento, veproforma.codcliente_real, veproforma.codmoneda, codempresa, veproforma.fecha, tabla_detalle, RequestDescuentos.tablarecargos);
+                        var total = await vertotal(_context, subtotal, recargos, descuento, codcliente_real, veproforma.codmoneda, codempresa, veproforma.fecha, tabla_detalle, RequestDescuentos.tablarecargos);
                         return new
                         {
                             subtotal = subtotal,
@@ -2570,7 +2574,7 @@ namespace SIAW.Controllers.ventas.transaccion
             }
         }
 
-        private async Task<object> RECALCULARPRECIOS(DBContext _context, bool reaplicar_desc_deposito, string codempresa, int cmbtipo_complementopf, List<itemDataMatriz> tabla_detalle, List<tablarecargos> tablarecargos, veproforma veproforma, List<tabladescuentos> vedesextraprof)
+        private async Task<object> RECALCULARPRECIOS(DBContext _context, bool reaplicar_desc_deposito, string codempresa, int cmbtipo_complementopf, string codcliente_real, List<itemDataMatriz> tabla_detalle, List<tablarecargos> tablarecargos, veproforma veproforma, List<tabladescuentos> vedesextraprof)
         {
             var tabladescuentos = vedesextraprof.Select(i => new tabladescuentos
             {
@@ -2599,7 +2603,7 @@ namespace SIAW.Controllers.ventas.transaccion
             var respDescuento = await verdesextra(_context, codempresa, veproforma.nit, veproforma.codmoneda, cmbtipo_complementopf, veproforma.idpf_complemento, veproforma.nroidpf_complemento ?? 0, subtotal, veproforma.fecha, tabladescuentos, tabla_detalle);
             double descuento = respDescuento.respdescuentos;
 
-            var resultados = await vertotal(_context, subtotal, recargo, descuento, veproforma.codcliente_real, veproforma.codmoneda, codempresa, veproforma.fecha, tabla_detalle, tablarecargos);
+            var resultados = await vertotal(_context, subtotal, recargo, descuento, codcliente_real, veproforma.codmoneda, codempresa, veproforma.fecha, tabla_detalle, tablarecargos);
             //QUITAR
             return new
             {
@@ -5660,6 +5664,8 @@ namespace SIAW.Controllers.ventas.transaccion
         public string codmoneda { get; set; }
         public DateTime fecha { get; set; }
         public bool cumpleMin { get; set; } = true;
+        public string ? descripcion { get; set; }
+        public string ? medida { get; set; }
     }
     public class getTarifaPrincipal_Rodrigo
     {

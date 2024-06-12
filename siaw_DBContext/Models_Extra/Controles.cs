@@ -20,11 +20,11 @@ namespace siaw_DBContext.Models_Extra
         public string Descripcion { get; set; }
         public string? CodServicio { get; set; }
         // ... otras propiedades ...
-        public string NroItems { get; set; }
-        public string Descuentos { get; set; }
-        public string Recargos { get; set; }
+        public int NroItems { get; set; }
+        public double Descuentos { get; set; }
+        public double Recargos { get; set; }
         public string Nit { get; set; }
-        public string Subtotal { get; set; }
+        public double Subtotal { get; set; }
         public double Total { get; set; }
         public string Preparacion { get; set; }
         public string TipoVenta { get; set; }

@@ -17,5 +17,7 @@ namespace siaw_DBContext.Models
         public string telefono { get; set; }
         public string ciudad { get; set; }
         public string celular { get; set; }
+        public string latitud_entrega { get; set; }
+        public string longitud_entrega { get; set; }
     }
 }

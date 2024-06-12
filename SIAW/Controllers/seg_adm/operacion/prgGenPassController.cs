@@ -61,7 +61,7 @@ namespace SIAW.Controllers.seg_adm.operacion
 
 
         // POST: api/
-        [Authorize]
+        //[Authorize]
         [HttpPost]
         [Route("verifPermisoEsp/{userConn}")]
         public async Task<ActionResult<bool>> verifPermisoEsp(string userConn, requestPermisoEsp requestPermisoEsp)

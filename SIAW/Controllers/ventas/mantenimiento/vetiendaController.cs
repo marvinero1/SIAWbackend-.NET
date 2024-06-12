@@ -140,7 +140,9 @@ namespace SIAW.Controllers.ventas.mantenimiento
                     {
                         telefono = v.telefono,
                         direccion = v.direccion + " (" + p.descripcion + " - " + p.codprovincia + ")",
-                        central = v.central
+                        central = v.central,
+                        latitud = v.latitud,
+                        longitud = v.longitud
                     })
                     .ToListAsync();
 
