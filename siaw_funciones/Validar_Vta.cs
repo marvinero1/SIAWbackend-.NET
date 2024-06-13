@@ -369,8 +369,8 @@ namespace siaw_funciones
                         }
 
                         // Copiar a la primera lista
-                        resultados.Clear();
-                        resultados = new List<Controles>(tabla_controles_recibido);
+                        // resultados.Clear();
+                        // resultados = new List<Controles>(tabla_controles_recibido);
                     }
                 }
             }
@@ -7674,6 +7674,70 @@ namespace siaw_funciones
             }
             return objres;
         }
+
+        public async Task<ResultadoValidacion> Validar_Recargo_Aplicado_Por_Desc_Deposito_Excedente(DBContext _context, DatosDocVta DVTA, List<verecargosDatos> tablarecargos, string codempresa)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            InicializarResultado(objres);
+            //validar que no se recargue(demas) por descuento por deposito excendente
+            string cadena = "";
+            decimal ttl_recargo_aplicado = 0;
+            decimal ttl_descdeposito_aplicado = 0;
+            decimal ttl_limite_descto_original = 0;
+            decimal ttl_limite_descto = 0;
+            decimal ttl_limite_recargo = 0;
+            decimal ttl_saldo_recargo = 0;
+            int codrecargo_deposito = await configuracion.emp_codrecargo_x_deposito(_context, codempresa);
+
+            foreach (var recargos in tablarecargos)
+            {
+                //solo validar el recargo por deposito excedente, otros recargos no validar aqui
+                if (recargos.codrecargo == codrecargo_deposito)
+                {
+                    //buscar la cobranza que genero el descto por deposito y verificar si genero recargo, el monto del recargo y el saldo de recargo
+                    var dt1 = await cobranzas.Recargos_Por_Descto_Deposito_Excedente(_context, "CBZA", recargos.codcobranza.ToString(), DVTA.codcliente, DVTA.nitfactura, DVTA.codcliente_real, false, "APLICAR_DESCTO", DVTA.coddocumento, "Proforma_Nueva", codempresa);
+                    //si hay registro verificar
+                    if (dt1 != null)
+                    {
+                        foreach (var dt in dt1)
+                        {
+                            ttl_limite_descto_original = (decimal)dt.monto_limite_descto;
+                            ttl_limite_descto = (decimal)dt.monto_limite_descto;
+                            ttl_descdeposito_aplicado = (decimal)dt.monto_descto_aplicado;
+                            ttl_limite_recargo = (decimal)dt.monto_recargo;
+                            //obtener cuanto ya se aplico de recargo
+                            ttl_recargo_aplicado = (decimal)await depositos_cliente.Total_Recargos_Por_Deposito_Aplicado_De_Cobranza_En_Proforma(_context, recargos.codcobranza, DVTA.coddocumento, DVTA.codmoneda);
+                            //total recargo por aplicar
+                            ttl_saldo_recargo = ttl_limite_recargo - ttl_recargo_aplicado;
+                            //si el monto del recargo es mayor al saldo entonces genera error
+                            if (ttl_saldo_recargo < recargos.montodoc)
+                            {
+                                objres.resultado = false;
+                                cadena = Environment.NewLine + "- Limite de recargo de la Cbza: " + dt.idcbza.ToString() + "-" + dt.nroidcbza.ToString() + " es:" + ttl_limite_recargo.ToString() + " Aplicado: " + ttl_recargo_aplicado + " Por Aplicar: " + ttl_saldo_recargo + " Aplicando Ahora: " + recargos.montodoc;
+                            }
+                        }
+
+                    }
+                    else
+                    {
+                        objres.resultado = false;
+                        cadena = Environment.NewLine + "- La Cbza no tiene descuento por deposito disponible, por lo tanto tampoco podria generar recargo!!!";
+                    }
+                }
+            }
+
+            if (objres.resultado == false)
+            {
+                objres.resultado = false;
+                objres.observacion = "El monto del recargo por descuento de deposito excedente que intenta aplicar es mayor al recargo disponible!!!";
+                objres.obsdetalle = cadena;
+                objres.datoA = "";
+                objres.datoB = "";
+                objres.accion = Acciones_Validar.Ninguna;
+            }
+            return objres;
+        }
+
         public async Task<ResultadoValidacion> Validar_Descuento_Por_Deposito(DBContext _context, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();

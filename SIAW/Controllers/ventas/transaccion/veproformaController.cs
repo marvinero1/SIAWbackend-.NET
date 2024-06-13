@@ -1185,6 +1185,18 @@ namespace SIAW.Controllers.ventas.transaccion
                     }
                     else { porcen_merca = 0; }
 
+                    // descuento asignar asutomaticamente dependiendo de cantidad
+                    var _descuento_precio = await ventas.Codigo_Descuento_Especial_Precio(_context, tarifa);
+                    // pregunta si la cantidad ingresada cumple o no el empaque para descuento
+                    if (await ventas.Cumple_Empaque_De_DesctoEspecial(_context,coditem,tarifa,_descuento_precio,cantidad,codcliente))
+                    {
+                        // si cumple
+                        descuento = _descuento_precio;
+                    }
+                    else
+                    {
+                        descuento = 0;
+                    }
 
                     //descuento de nivel del cliente
                     var niveldesc = await cliente.niveldesccliente(_context, codcliente, coditem, tarifa, opcion_nivel, false);
@@ -1479,6 +1491,18 @@ namespace SIAW.Controllers.ventas.transaccion
                 }
                 else { porcen_merca = 0; }
 
+                // descuento asignar asutomaticamente dependiendo de cantidad
+                var _descuento_precio = await ventas.Codigo_Descuento_Especial_Precio(_context, reg.tarifa);
+                // pregunta si la cantidad ingresada cumple o no el empaque para descuento
+                if (await ventas.Cumple_Empaque_De_DesctoEspecial(_context, reg.coditem, reg.tarifa, _descuento_precio, reg.cantidad, reg.codcliente))
+                {
+                    // si cumple
+                    reg.descuento = _descuento_precio;
+                }
+                else
+                {
+                    reg.descuento = 0;
+                }
 
                 //descuento de nivel del cliente
                 var niveldesc = await cliente.niveldesccliente(_context, reg.codcliente, reg.coditem, reg.tarifa, reg.opcion_nivel, false);
@@ -1508,6 +1532,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         medida = i.medida,
                         udm = i.unidad,
                         porceniva = (double)i.iva,
+                        empaque = reg.empaque,
                         cantidad_pedida = (double)reg.cantidad_pedida,
                         cantidad = (double)reg.cantidad,
                         porcen_mercaderia = (double)Math.Round(porcen_merca, 2),
@@ -1780,7 +1805,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
         
-        private async Task<bool> Validar_Aprobar_Proforma(DBContext _context, string id_pf, int nroid_pf, int cod_proforma,string codempresa)
+        private async Task<(bool resp, List<string> msgsAlert)> Validar_Aprobar_Proforma(DBContext _context, string id_pf, int nroid_pf, int cod_proforma,string codempresa, List<vedesextraDatos> tabladescuentos, DatosDocVta DVTA, List<verecargosDatos> tablarecargos)
         {
             bool resultado = true;
             List<string> msgsAlert = new List<string>();
@@ -1821,6 +1846,7 @@ namespace SIAW.Controllers.ventas.transaccion
             if (resultado == false)
             {
                 msgsAlert.Add("No se puede aprobar la proforma, porque tiene descuentos por deposito en montos no validos!!!");
+                return (false, msgsAlert);
             }
             ////////////////////////////////////////////////////////////////////////////////
 
@@ -1829,33 +1855,105 @@ namespace SIAW.Controllers.ventas.transaccion
             /////////////////VALIDAR DESCTOS POR DEPOSITO APLICADOS
             //======================================================================================
 
-            /*
-            if (! await Validar_Descuentos_Por_Deposito_Excedente())
+            var validDescDepApli = await Validar_Descuentos_Por_Deposito_Excedente(_context,codempresa,tabladescuentos,DVTA);
+            if (!validDescDepApli.result)
             {
+                resultado = false;
+                msgsAlert.Add(validDescDepApli.msgAlert);
+                msgsAlert.Add("La proforma no puede ser aprobada, porque tiene descuentos por deposito en montos no validos!!!");
+                return (false, msgsAlert);
+            }
+            //======================================================================================
+            ///////////////VALIDAR RECARGOS POR DEPOSITO APLICADOS
+            //======================================================================================
+            var validRecargoDepExcedente = await Validar_Recargos_Por_Deposito_Excedente(_context, codempresa, tablarecargos, DVTA);
+            if (!validRecargoDepExcedente.result)
+            {
+                resultado = false;
+                msgsAlert.Add(validDescDepApli.msgAlert);
+                msgsAlert.Add("La proforma no puede ser aprobada, porque tiene recargos por descuentos por deposito excedentes en montos no validos!!!");
+                return (false, msgsAlert);
+            }
+
+            //////////////////////////////////////////////
+
+            // mostrar mensaje de credito disponible
+            /*
+            
+            If IsDBNull(reg("contra_entrega")) Then
+                qry = "update veproforma set contra_entrega=0 where id='" & id_pf & "' and numeroid='" & nroid_pf & "'"
+                sia_DAL.Datos.Instancia.EjecutarComando(qry)
+            End If
+
+             */
+
+            // tipo pago CONTADO
+            if (DVTA.tipo_vta == "CONTADO")
+            {
+                ////////////////////////////////////////////////////////////////////////////////////////////
+                // se añadio en fecha 15-3-2016
+                // es venta al contado y no necesita validar el credito
+                // TODA VENTA AL CONTADO DEBE TENER ASIGNADO ID-NROID DE ANTICIPO SI ES PAGO ANTICIPADO
+                // SI SE HABILITO LA OPCION DE PAGO ANTICIPADO
+                ////////////////////////////////////////////////////////////////////////////////////////////
+                var dt_anticipos = await anticipos_vta_contado.Anticipos_Aplicados_a_Proforma(_context, id_pf, nroid_pf);
+                if (dt_anticipos.Count > 0)
+                {
+                    ResultadoValidacion objres = new ResultadoValidacion();
+                    objres = await anticipos_vta_contado.Validar_Anticipo_Asignado_2(_context, true, DVTA, dt_anticipos, codempresa);
+                    if (objres.resultado)
+                    {
+                        // Desde 15/01/2024 se cambio esta funcion porque no estaba validando correctamente la transformacion de moneda de los anticipos a aplicarse ya se en $us o BS
+                        // If sia_funciones.Anticipos_Vta_Contado.Instancia.Validar_Anticipo_Asignado(True, dt_anticipos, reg("codcliente"), reg("nomcliente"), reg("total")) = True Then
+                        goto finalizar_ok;
+                    }
+                    else
+                    {
+
+                    }
+                }
 
             }
 
-            */
-
-            return true;
+        finalizar_ok:
+            return (true, msgsAlert);
 
         }
 
 
 
 
-        private async Task<bool> Validar_Descuentos_Por_Deposito_Excedente(DBContext _context, int cod_proforma, string codempresa, tabladescuentos tabladescuentos, veproforma veproforma)
+        private async Task<(bool result, string msgAlert)> Validar_Descuentos_Por_Deposito_Excedente(DBContext _context, string codempresa, List<vedesextraDatos> tabladescuentos, DatosDocVta DVTA)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             bool resultado = true;
-          
+            string msgAlert = "";
            
+            objres = await validar_Vta.Validar_Descuento_Por_Deposito(_context, DVTA, tabladescuentos, codempresa);
 
-            //objres = await validar_Vta.Validar_Descuento_Por_Deposito(_context, DVTA, tabladescuentos, codempresa);
-            return true;
-
+            if (objres.resultado == false)
+            {
+                msgAlert = objres.observacion + " " + objres.obsdetalle + "Alerta Descuentos Por Deposito!!!";
+                resultado = false;
+            }
+            return (resultado,msgAlert);
         }
+        private async Task<(bool result, string msgAlert)> Validar_Recargos_Por_Deposito_Excedente(DBContext _context, string codempresa, List<verecargosDatos> tablarecargos, DatosDocVta DVTA)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            bool resultado = true;
+            string msgAlert = "";
+            
+            objres = await validar_Vta.Validar_Recargo_Aplicado_Por_Desc_Deposito_Excedente(_context, DVTA, tablarecargos, codempresa);
 
+            if (objres.resultado == false)
+            {
+                msgAlert = objres.observacion + " " + objres.obsdetalle + "Alerta!!!";
+                resultado = false;
+            }
+            
+            return (resultado, msgAlert);
+        }
         /*
         private async Task<bool> Llenar_Datos_Del_Documento(DBContext _context, int cod_proforma, string codempresa, List<itemDataMatriz> tabladetalle, veproforma veproforma)
         {
@@ -5655,6 +5753,7 @@ namespace SIAW.Controllers.ventas.transaccion
         public string coditem { get; set; }
         public int tarifa { get; set; }
         public int descuento { get; set; }
+        public int ? empaque { get; set; }
         public decimal cantidad_pedida { get; set; }
         public decimal cantidad { get; set; }
         public string codcliente { get; set; }

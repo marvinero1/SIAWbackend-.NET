@@ -286,7 +286,49 @@ namespace siaw_funciones
 
 
 
+        public async Task<List <vedetalleanticipoProforma>> Anticipos_Aplicados_a_Proforma(DBContext _context, string id, int nroid)
+        {
+            var dt_anticipos = await _context.veproforma_anticipo
+                .Join(_context.veproforma,
+                      p1 => p1.codproforma,
+                      p2 => p2.codigo,
+                      (p1, p2) => new { p1, p2 })
+                .Join(_context.coanticipo,
+                      combined => combined.p1.codanticipo,
+                      p3 => p3.codigo,
+                      (combined, p3) => new { combined.p1, combined.p2, p3 })
+                .Where(x => x.p2.id == id && x.p2.numeroid == nroid)
+                .Select(x => new vedetalleanticipoProforma
+                {
+                    codproforma = x.p2.codigo,
+                    codanticipo = x.p3.codigo,
+                    docanticipo = x.p3.id + "-" + x.p3.numeroid,
+                    id_anticipo = x.p3.id,
+                    nroid_anticipo = x.p3.numeroid,
+                    monto = (double)(x.p3.monto ?? 0),
+                    tdc = (double)(x.p3.tdc_cambio ?? 0),
+                    codmoneda = x.p3.codmoneda,
+                    fechareg = x.p3.fechareg,
+                    usuarioreg = x.p3.usuarioreg,
+                    horareg = x.p3.horareg,
+                    codvendedor = x.p3.codvendedor.ToString()
 
+                    /*
+                    x.p1,                               // All fields from veproforma_anticipo
+                    x.p2.id,                            // id from veproforma
+                    x.p2.numeroid,                      // numeroid from veproforma
+                    x.p2.nomcliente,                    // nomcliente from veproforma
+                    x.p2.codmoneda,                     // codmoneda from veproforma
+                    docanticipo = "",                   // Empty string as docanticipo
+                    x.p3.anulado,                       // anulado from coanticipo
+                    id_anticipo = x.p3.id,              // id from coanticipo as id_anticipo
+                    nroid_anticipo = x.p3.numeroid,     // numeroid from coanticipo as nroid_anticipo
+                    x.p3.para_venta_contado,            // para_venta_contado from coanticipo
+                    x.p3.codvendedor                    // codvendedor from coanticipo
+                    */
+                }).ToListAsync();
+            return dt_anticipos;
+        }
 
 
         public async Task<ResultadoValidacion> Validar_Anticipo_Asignado_2(DBContext _context, bool para_aprobar, DatosDocVta DVTA, List<vedetalleanticipoProforma> dt_anticipo_pf, string codempresa)

@@ -7,6 +7,7 @@
         public string medida { get; set; }
         public string udm { get; set; }
         public double porceniva { get; set; }
+        public int ? empaque { get; set; }
         public double cantidad_pedida { get; set; }
         public double cantidad { get; set; }
         public double porcen_mercaderia { get; set; }
