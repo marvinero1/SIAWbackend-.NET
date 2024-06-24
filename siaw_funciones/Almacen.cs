@@ -53,5 +53,21 @@ namespace siaw_funciones
                 return "";
             }
         }
+        public async Task<int> AreaAlmacen(DBContext _context, int codalmacen)
+        {
+            int resultado = 0;
+            try
+            {
+                resultado = await _context.inalmacen
+                .Where(i => i.codigo == codalmacen)
+                .Select(i => i.codarea)
+                .FirstOrDefaultAsync();
+            }
+            catch (Exception)
+            {
+                resultado = 0;
+            }
+            return resultado;
+        }
     }
 }

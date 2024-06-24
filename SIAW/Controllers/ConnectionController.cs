@@ -60,7 +60,7 @@ namespace SIAW.Controllers
                     return BadRequest(new { resp = "No se puede establecer conexión con este Servidor" });
                 }
 
-                string query = "SELECT codigo, descripcion, orden FROM adempresa";
+                string query = "SELECT codigo, descripcion, orden FROM adempresa order by orden asc";
                 using (SqlConnection con = new SqlConnection(FirstConnectionString))
                 {
                     con.Open();

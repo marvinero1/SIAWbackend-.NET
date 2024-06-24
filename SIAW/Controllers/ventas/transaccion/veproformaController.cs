@@ -825,7 +825,76 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
+        [HttpGet]
+        [Route("getPreciosItem/{userConn}/{item}/{codalmacen}/{codmoneda}")]
+        public async Task<ActionResult<IEnumerable<adusparametros>>> getPreciosItem(string userConn, string item, int codalmacen, string codmoneda)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    int area = await almacen.AreaAlmacen(_context, codalmacen);
+                    string precios_por_defecto = "";
+                    switch (area)
+                    {
+                        case 300:
+                            precios_por_defecto = "1,2,3";
+                            break;
+                        case 400:
+                            precios_por_defecto = "4,5,6";
+                            break;
+                        case 800:
+                            precios_por_defecto = "7,8,9";
+                            break;
+                        default:
+                            precios_por_defecto = "0";
+                            break;
+                    }
+                    var dt = await _context.intarifa
+                                    .Join(_context.intarifa1,
+                                          t => t.codigo,
+                                          t1 => t1.codtarifa,
+                                          (t, t1) => new { t, t1 })
+                                    .Where(joined => joined.t1.item == item)
+                                    .OrderBy(joined => joined.t.codigo)
+                                    .Select(joined => new
+                                    {
+                                        codigo = joined.t.codigo,
+                                        descripcion = joined.t.descripcion,
+                                        precio = joined.t1.precio
+                                    })
+                                    .ToListAsync();
 
+                    var codigos = precios_por_defecto.Split(',').ToList();
+
+                    var filteredResult = dt
+                        .Where(joined => codigos.Contains(joined.codigo.ToString()))
+                        .ToList();
+
+                    // luego convertir los precios del detalle segun el tipo de cambio seleccionado en la proforma
+                    string cadena = "";
+                    foreach (var reg in filteredResult)
+                    {
+                        double precio_lista = (double)await tipocambio._conversion(_context, codmoneda, await ventas.monedabasetarifa(_context, reg.codigo), DateTime.Today.Date, reg.precio ?? 0);
+                        precio_lista = (double)await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, (decimal)precio_lista);
+                        cadena = cadena + "(" + reg.codigo + ")" + reg.descripcion + "-" + precio_lista + " , ";
+                    }
+
+                    return Ok(new
+                    {
+                        precios = cadena
+                    });
+                }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+        }
 
 
         protected int Getcod_area_empaqueFromadparametros(string userConnectionString)
@@ -1722,14 +1791,9 @@ namespace SIAW.Controllers.ventas.transaccion
                         if (paraAprobar)
                         {
                             
-                            /*
                             
-                            if (await Validar_Aprobar_Proforma)
-                            {
-                            ///////////////////********************************************************************************
-                            ///ACA FALTA ESTA VALIDACION
-                            }
-                            */
+                            
+                            
                             
 
                             // *****************O J O *************************************************************************************************************
@@ -1739,31 +1803,51 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
                             await log.RegistrarEvento(_context, veproforma.usuarioreg, Log.Entidades.Proforma, result.codprof.ToString(), veproforma.id, result.numeroId.ToString(), "veproformaController", "Grabar Para Aprobar", Log.TipoLog.Creacion);
-                            if (await ventas.proforma_para_aprobar(_context, result.codprof))
+                            string mensajeAprobacion = "";
+                            var resultValApro = await Validar_Aprobar_Proforma(_context, veproforma.id, result.numeroId, result.codprof, codempresa, datosProforma.tabladescuentos, datosProforma.DVTA, datosProforma.tablarecargos);
+                            if (resultValApro.resp)
                             {
-                                // **aprobar la proforma
-                                var profforAprobar = await _context.veproforma.Where(i => i.codigo == result.codprof).FirstOrDefaultAsync();
-                                profforAprobar.aprobada = true;
-                                profforAprobar.fechaaut = DateTime.Today.Date;
-                                profforAprobar.horaaut = datos_proforma.getHoraActual();
-                                profforAprobar.usuarioaut = veproforma.usuarioreg;
-                                _context.Entry(profforAprobar).State = EntityState.Modified;
-                                await _context.SaveChangesAsync();
-
-                                // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                                // realizar la reserva de la mercaderia
-                                // Desde 15/11/2023 registrar en el log si por alguna razon no actualiza en instoactual correctamente al disminuir el saldo de cantidad y la reserva en proforma
-                                if (await ventas.aplicarstocksproforma(_context,result.codprof,codempresa) == false)
+                                // verifica antes si la proforma esta grabar para aprobar
+                                if (await ventas.proforma_para_aprobar(_context, result.codprof))
                                 {
-                                    await log.RegistrarEvento(_context, veproforma.usuarioreg, Log.Entidades.Proforma, result.codprof.ToString(), veproforma.id, result.numeroId.ToString(), "veproformaController", "No actualizo stock al sumar cantidad de reserva en PF.", Log.TipoLog.Creacion);
-                                }
-                                // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                                    // **aprobar la proforma
+                                    var profforAprobar = await _context.veproforma.Where(i => i.codigo == result.codprof).FirstOrDefaultAsync();
+                                    profforAprobar.aprobada = true;
+                                    profforAprobar.fechaaut = DateTime.Today.Date;
+                                    profforAprobar.horaaut = datos_proforma.getHoraActual();
+                                    profforAprobar.usuarioaut = veproforma.usuarioreg;
+                                    _context.Entry(profforAprobar).State = EntityState.Modified;
+                                    await _context.SaveChangesAsync();
 
+                                    // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                                    // realizar la reserva de la mercaderia
+                                    // Desde 15/11/2023 registrar en el log si por alguna razon no actualiza en instoactual correctamente al disminuir el saldo de cantidad y la reserva en proforma
+                                    if (await ventas.aplicarstocksproforma(_context, result.codprof, codempresa) == false)
+                                    {
+                                        await log.RegistrarEvento(_context, veproforma.usuarioreg, Log.Entidades.Proforma, result.codprof.ToString(), veproforma.id, result.numeroId.ToString(), "veproformaController", "No actualizo stock al sumar cantidad de reserva en PF.", Log.TipoLog.Creacion);
+                                    }
+                                    // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+                                    mensajeAprobacion = "La proforma fue grabada para aprobar y tambien aprobada.";
+                                }
+                                else
+                                {
+                                    mensajeAprobacion = "La proforma no se grabo para aprobar por lo cual no se puede aprobar.";
+                                }
 
                             }
+                            else
+                            {
+                                mensajeAprobacion = "La proforma solo se grabo para aprobar, pero no se pudo aprobar porque no cumple con las condiciones de aprobacion!!! Revise la proforma en la ventana de modificacion de proformas.";
+                                var desaprobarProforma = await _context.veproforma.Where(i => i.codigo == result.codprof).FirstOrDefaultAsync();
+                                desaprobarProforma.aprobada = false;
+                                desaprobarProforma.fechaaut = new DateTime(1900,1,1);
+                                desaprobarProforma.horaaut = "00:00";
+                                desaprobarProforma.usuarioaut = "";
+                                _context.Entry(desaprobarProforma).State = EntityState.Modified;
+                                await _context.SaveChangesAsync();
+                            }
                         }
-                        
-
                         /*
                          
                          '//validar lo que se validaba en la ventana de aprobar proforma
@@ -1909,9 +1993,13 @@ namespace SIAW.Controllers.ventas.transaccion
                     }
                     else
                     {
-
+                        if (dt_anticipos != null)
+                        {
+                            return (false, msgsAlert);
+                        }
                     }
                 }
+                goto finalizar_ok;
 
             }
 
@@ -2261,6 +2349,8 @@ namespace SIAW.Controllers.ventas.transaccion
             // guarda detalle (veproforma1)
             // actualizar codigoproforma para agregar
             veproforma1 = veproforma1.Select(p => { p.codproforma = codProforma; return p; }).ToList();
+            // colocar obs como vacio no nulo
+            veproforma1 = veproforma1.Select(o => { o.obs = ""; return o; }).ToList();
             // actualizar peso del detalle.
             veproforma1 = await ventas.Actualizar_Peso_Detalle_Proforma(_context, veproforma1);
 
@@ -2447,23 +2537,24 @@ namespace SIAW.Controllers.ventas.transaccion
         public async Task<object> totabilizarProf(string userConn, string usuario, string codempresa, bool desclinea_segun_solicitud, int cmbtipo_complementopf, string opcion_nivel, string codcliente_real, TotabilizarProformaCompleta datosProforma)
         {
             veproforma veproforma = datosProforma.veproforma;
-            List<veproforma1> veproforma1 = datosProforma.veproforma1;
+            List<veproforma1_2> veproforma1_2 = datosProforma.veproforma1_2;
             List<veproforma_valida> veproforma_valida = datosProforma.veproforma_valida;
             var veproforma_anticipo = datosProforma.veproforma_anticipo;
             var vedesextraprof = datosProforma.vedesextraprof;
             var verecargoprof = datosProforma.verecargoprof;
             var veproforma_iva = datosProforma.veproforma_iva;
 
-            if (veproforma1.Count() < 1)
+            if (veproforma1_2.Count() < 1)
             {
                 return BadRequest(new { resp = "No se esta recibiendo ningun dato, verifique esta situación." });
             }
 
-            var data = veproforma1.Select(i => new cargadofromMatriz
+            var data = veproforma1_2.Select(i => new cargadofromMatriz
             {
                 coditem = i.coditem,
                 tarifa = i.codtarifa,
                 descuento = i.coddescuento,
+                empaque = i.empaque,
                 cantidad_pedida = i.cantidad_pedida ?? 0,
                 cantidad = i.cantidad,
                 codcliente = veproforma.codcliente,
@@ -2474,13 +2565,14 @@ namespace SIAW.Controllers.ventas.transaccion
                 fecha = veproforma.fecha
             }).ToList();
 
-            var tabla_detalle = veproforma1.Select(i => new itemDataMatriz
+            var tabla_detalle = veproforma1_2.Select(i => new itemDataMatriz
             {
                 coditem = i.coditem,
                 descripcion = "",
                 medida = "",
                 udm = i.udm,
                 porceniva = (double)i.porceniva,
+                empaque = i.empaque,
                 cantidad_pedida = (double)i.cantidad_pedida,
                 cantidad = (double)i.cantidad,
                 porcen_mercaderia = 0,

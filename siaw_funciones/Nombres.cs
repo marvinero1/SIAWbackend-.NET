@@ -329,5 +329,23 @@ namespace siaw_funciones
             resultado = descripcion.Trim();
             return resultado;
         }
+        public async Task<string> nombre_servicio(DBContext _context, int codservicio)
+        {
+            string resultado;
+            string descripcion = "";
+            var result = await _context.adservicio
+                .Where(v => v.nivel == codservicio)
+                .Select(parametro => new
+                {
+                    parametro.descripcion
+                })
+                .FirstOrDefaultAsync();
+            if (result != null)
+            {
+                descripcion = result.descripcion;
+            }
+            resultado = descripcion.Trim();
+            return resultado;
+        }
     }
 }
