@@ -50,6 +50,13 @@ namespace SIAW.Controllers.ventas.modificacion
         private readonly Anticipos_Vta_Contado anticipos_vta_contado = new Anticipos_Vta_Contado();
         private readonly siaw_funciones.TipoCambio tipocambio = new siaw_funciones.TipoCambio();
         private readonly siaw_funciones.Nombres nombres = new siaw_funciones.Nombres();
+        private readonly siaw_funciones.Empresa empresa = new siaw_funciones.Empresa();
+        private readonly siaw_funciones.Almacen almacen = new siaw_funciones.Almacen();
+        private readonly siaw_funciones.datosProforma datos_proforma = new siaw_funciones.datosProforma();
+        private readonly siaw_funciones.Ventas ventas = new siaw_funciones.Ventas();
+        private readonly Depositos_Cliente depositos_cliente = new Depositos_Cliente();
+        private readonly siaw_funciones.Validar_Vta validar_Vta = new siaw_funciones.Validar_Vta();
+        private readonly Log log = new Log();
 
 
 
@@ -59,8 +66,8 @@ namespace SIAW.Controllers.ventas.modificacion
         }
 
         [HttpGet]
-        [Route("getUltiProfId/{userConn}/{idProforma}/{nroidProforma}/{codempresa}")]
-        public async Task<object> getUltiProfId(string userConn, string idProforma, int nroidProforma, string codempresa)
+        [Route("getUltiProfId/{userConn}")]
+        public async Task<object> getUltiProfId(string userConn)
         {
             try
             {
@@ -86,8 +93,8 @@ namespace SIAW.Controllers.ventas.modificacion
         }
 
         [HttpGet]
-        [Route("obtProfxModif/{userConn}/{idProforma}/{nroidProforma}/{codempresa}")]
-        public async Task<object> obtProfxModif(string userConn, string idProforma, int nroidProforma, string codempresa)
+        [Route("obtProfxModif/{userConn}/{idProforma}/{nroidProforma}")]
+        public async Task<object> obtProfxModif(string userConn, string idProforma, int nroidProforma)
         {
             try
             {
@@ -111,7 +118,7 @@ namespace SIAW.Controllers.ventas.modificacion
                     // obtener tipo cliente
                     var tipo_cliente = await cliente.Tipo_Cliente(_context, cabecera.codcliente);
                     // establecer ubicacion
-                    if (cabecera.ubicacion == null || cabecera.ubicacion=="")
+                    if (cabecera.ubicacion == null || cabecera.ubicacion == "")
                     {
                         cabecera.ubicacion = "NSE";
                     }
@@ -122,7 +129,7 @@ namespace SIAW.Controllers.ventas.modificacion
                         descConfirmada = "CONFIRMADA " + cabecera.hora_confirmada + " " + (cabecera.fecha_confirmada ?? new DateTime(1900, 1, 1)).ToShortDateString();
                     }
 
-                   bool cliHabilitado = await cliente.clientehabilitado(_context,cabecera.codcliente);
+                    bool cliHabilitado = await cliente.clientehabilitado(_context, cabecera.codcliente);
 
                     // obtener detalles.
                     var codProforma = cabecera.codigo;
@@ -188,9 +195,10 @@ namespace SIAW.Controllers.ventas.modificacion
                     // obtener iva
                     var iva = await _context.veproforma_iva.Where(i => i.codproforma == codProforma).ToListAsync();
                     // veproforma etiqueta
-                    var profEtiqueta = await _context.veproforma_etiqueta.Where(i =>i.id_proforma==idProforma && i.nroid_proforma == nroidProforma).ToListAsync();
+                    var profEtiqueta = await _context.veproforma_etiqueta.Where(i => i.id_proforma == idProforma && i.nroid_proforma == nroidProforma).ToListAsync();
                     // veetiqueta proforma
                     var etiquetaProf = await _context.veetiqueta_proforma.Where(i => i.id == idProforma && i.numeroid == nroidProforma).ToListAsync();
+
 
 
                     // OBTENER ANTICIPOS
@@ -294,12 +302,849 @@ namespace SIAW.Controllers.ventas.modificacion
 
             foreach (var reg in dtvalidar)
             {
-                if (reg.codservicio!=null && reg.codservicio > 0)
+                if (reg.codservicio != null && reg.codservicio > 0)
                 {
                     reg.descservicio = await nombres.nombre_servicio(_context, reg.codservicio ?? 0);
                 }
             }
             return dtvalidar;
+        }
+
+
+
+
+
+
+        //[Authorize]
+        [HttpPost]
+        [QueueFilter(1)] // Limitar a 1 solicitud concurrente
+        [Route("guardarProforma/{userConn}/{codProforma}/{codempresa}/{paraAprobar}/{codcliente_real}")]
+        public async Task<object> guardarProforma(string userConn, int codProforma, string codempresa, bool paraAprobar, string codcliente_real, SaveProformaCompleta datosProforma)
+        {
+            bool check_desclinea_segun_solicitud = false;  // de momento no se utiliza, si se llegara a utilizar, se debe pedir por ruta
+            veproforma veproforma = datosProforma.veproforma;
+            List<veproforma1> veproforma1 = datosProforma.veproforma1;
+            /*
+            List<veproforma_valida> veproforma_valida = datosProforma.veproforma_valida;
+            List<veproforma_anticipo> veproforma_anticipo = datosProforma.veproforma_anticipo;
+            List<vedesextraprof> vedesextraprof = datosProforma.vedesextraprof;
+            List<verecargoprof> verecargoprof = datosProforma.verecargoprof;
+            List<veproforma_iva> veproforma_iva = datosProforma.veproforma_iva;
+
+            */
+
+
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            List<string> msgAlerts = new List<string>();
+
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+
+                // ###############################
+                // ACTUALIZAR DATOS DE CODIGO PRINCIPAL SI ES APLICABLE
+                await cliente.ActualizarParametrosDePrincipal(_context, veproforma.codcliente);
+                // ###############################
+
+
+                //###############################
+                // validacion 
+
+                if (veproforma1.Count() <= 0)
+                {
+                    return BadRequest(new { resp = "No hay ningun item en su documento!!!" });
+                }
+
+                if (veproforma.anulada)
+                {
+                    return BadRequest(new { resp = "Esta Proforma esta Anulada y por lo tanto no puede ser modificada!!!" });
+                }
+
+                if (veproforma.aprobada)
+                {
+                    if (veproforma.transferida)
+                    {
+                        return BadRequest(new { resp = "Esta Proforma ya fue aprobada y transferida, no puede ser modificada. Para modificarla debe desaprobar la Proforma." });
+                    }
+                    else
+                    {
+                        return BadRequest(new { resp = "Esta Proforma ya fue aprobada, aunque no ha sido transferida aun, no puede ser modificada. Para modificarla debe desaprobar la Proforma." });
+                    }
+                }
+                // fin de validacion 
+                //###############################
+
+
+
+                // ###############################  SE PUEDE LLAMAR DESDE FRONT END PARA LUEGO IR DIRECTO AL GRABADO ???????
+
+                // RECALCULARPRECIOS(True, True);
+
+
+                using (var dbContexTransaction = _context.Database.BeginTransaction())
+                {
+                    try
+                    {
+                        if (datosProforma.veproforma.idsoldesctos == null)
+                        {
+                            datosProforma.veproforma.idsoldesctos = "";
+                        }
+                        if (datosProforma.veproforma.estado_contra_entrega == null)
+                        {
+                            datosProforma.veproforma.estado_contra_entrega = "";
+                        }
+                        if (datosProforma.veproforma.contra_entrega == null)
+                        {
+                            datosProforma.veproforma.contra_entrega = false;
+                        }
+                        if (datosProforma.veproforma.tipo_complementopf == null)
+                        {
+                            datosProforma.veproforma.tipo_complementopf = 0;
+                        }
+                        if (datosProforma.veproforma.tipo_complementopf >= 3)
+                        {
+                            datosProforma.veproforma.tipo_complementopf = 0;
+                        }
+                        datosProforma.veproforma.fechareg = DateTime.Today.Date;
+                        // datosProforma.veproforma.fechaaut = new DateTime(1900, 1, 1);     // PUEDE VARIAR SI ES PARA APROBAR
+                        
+
+                        datosProforma.veproforma.horareg = DateTime.Now.ToString("HH:mm");
+                        //datosProforma.veproforma.horaaut = "00:00";                       // PUEDE VARIAR SI ES PARA APROBAR
+                        
+                        if (veproforma.confirmada == true)
+                        {
+                            datosProforma.veproforma.fecha_confirmada = DateTime.Today.Date;
+                            datosProforma.veproforma.hora_confirmada = DateTime.Now.ToString("HH:mm");
+                        }
+                        else
+                        {
+                            datosProforma.veproforma.fecha_confirmada = new DateTime(1900, 1, 1);
+                            datosProforma.veproforma.hora_confirmada = "00:00";
+                        }
+                        /*
+                        if (paraAprobar)
+                        {
+                            datosProforma.veproforma.fechaaut = DateTime.Today.Date;
+                            datosProforma.veproforma.horaaut = DateTime.Now.ToString("HH:mm");
+                        }*/
+
+
+                        string msgCondClienteAlert = "";
+                        string lbltipo_cliente = await cliente.Tipo_Cliente(_context, veproforma.codcliente);
+                        if (lbltipo_cliente == "COMPETENCIA" || lbltipo_cliente == "V°B° PRESIDENCIA")
+                        {
+                            msgCondClienteAlert = "Verifique las condiciones de venta ya que se trata de un cliente de tipo: " + lbltipo_cliente;
+                        }
+
+
+
+
+                        // ESTA VALIDACION ES MOMENTANEA, DESPUES SE DEBE COLOCAR SU PROPIA RUTA PARA VALIDAR, YA QUE PEDIRA CLAVE.
+                        var validacion_inicial = await Validar_Datos_Cabecera(_context, codempresa, codcliente_real, veproforma);
+                        if (!validacion_inicial.bandera)
+                        {
+                            return BadRequest(new { resp = validacion_inicial.msg });
+                        }
+
+                        var result = await Grabar_Documento(_context, codProforma, codempresa, datosProforma);
+                        if (result.resp != "ok")
+                        {
+                            dbContexTransaction.Rollback();
+                            return BadRequest(new { resp = result.resp });
+                        }
+                        await log.RegistrarEvento(_context, veproforma.usuarioreg, Log.Entidades.Proforma, result.codprof.ToString(), veproforma.id, result.numeroId.ToString(), "docveproforma.vb", "Grabar", Log.TipoLog.Modificacion);
+
+                        //Grabar Etiqueta
+                        if (datosProforma.veetiqueta_proforma != null)
+                        {
+                            veetiqueta_proforma dt_etiqueta = datosProforma.veetiqueta_proforma;
+
+                            if (dt_etiqueta.celular == null)
+                            {
+                                dt_etiqueta.celular = "---";
+                            }
+                            dt_etiqueta.numeroid = result.numeroId;
+                            var etiqueta = await _context.veetiqueta_proforma.Where(i => i.id == dt_etiqueta.id && i.numeroid == dt_etiqueta.numeroid).FirstOrDefaultAsync();
+                            if (etiqueta != null)
+                            {
+                                _context.veetiqueta_proforma.Remove(etiqueta);
+                                await _context.SaveChangesAsync();
+                            }
+                            _context.veetiqueta_proforma.Add(dt_etiqueta);
+                            await _context.SaveChangesAsync();
+                        }
+
+                        ////ACTUALIZAR PESO
+                        ///ya se guarda el documento con el peso calculado.
+
+
+
+                        /*
+                         //enlazar sol desctos con proforma   FALTA 
+                        If desclinea_segun_solicitud.Checked = True And idsoldesctos.Text.Trim.Length > 0 And nroidsoldesctos.Text.Trim.Length > 0 Then
+                            If Not sia_funciones.Ventas.Instancia.Enlazar_Proforma_Nueva_Con_SolDesctos_Nivel(codigo.Text, idsoldesctos.Text, nroidsoldesctos.Text) Then
+                                MessageBox.Show("No se pudo realizar el enlace de esta proforma con la solicitud de descuentos de nivel, verifique el enlace en la solicitu de descuentos!!!", "ErroR de Enlace", MessageBoxButtons.OK, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button1)
+                            End If
+                        End If
+                         */
+
+
+
+                        // devolver mensajes pero como alerta Extra
+                        string msgAler1 = "";
+                        // enlazar sol desctos con proforma
+                        if (check_desclinea_segun_solicitud == true && veproforma.idsoldesctos.Trim().Length > 0 && veproforma.nroidsoldesctos > 0)
+                        {
+                            if (!await ventas.Enlazar_Proforma_Nueva_Con_SolDesctos_Nivel(_context, result.codprof, veproforma.idsoldesctos, veproforma.nroidsoldesctos ?? 0))
+                            {
+                                msgAler1 = "Se grabo la Proforma, pero No se pudo realizar el enlace de esta proforma con la solicitud de descuentos de nivel, verifique el enlace en la solicitu de descuentos!!!";
+                                msgAlerts.Add(msgAler1);
+                            }
+                        }
+
+                        // grabar la etiqueta dsd 16-05-2022        
+                        // solo si es cliente casual, y el cliente referencia o real es un no casual
+                        //If sia_funciones.Cliente.Instancia.Es_Cliente_Casual(codcliente.Text) = True And sia_funciones.Cliente.Instancia.Es_Cliente_Casual(codcliente_real) = False Then
+
+                        // Desde 10-10-2022 se definira si una venta es casual o no si el codigo de cliente y el codigo de cliente real son diferentes entonces es una venta casual
+                        string msgAlert2 = "";
+                        if (veproforma.codcliente != codcliente_real)
+                        {
+                            if (!await Grabar_Proforma_Etiqueta(_context, veproforma.id, result.numeroId, check_desclinea_segun_solicitud, codcliente_real, veproforma))
+                            {
+                                msgAlert2 = "No se pudo grabar la etiqueta Cliente Casual/Referencia de la proforma!!!";
+                                msgAlerts.Add(msgAlert2);
+                            }
+                        }
+
+
+                        if (paraAprobar)
+                        {
+
+                            // *****************O J O *************************************************************************************************************
+                            // IMPLEMENTADO EN FECHA 26-04-2018 LLAMA A LA FUNNCION QUE VALIDA LO QUE SE VALIDA DESDE LA VENTANA DE APROBACION DE PROFORMAS
+                            // *****************O J O *************************************************************************************************************
+                            // Desde 23/11/2023 guardar el log de grabado aqui
+
+
+                            await log.RegistrarEvento(_context, veproforma.usuarioreg, Log.Entidades.Proforma, result.codprof.ToString(), veproforma.id, result.numeroId.ToString(), "veproformaController", "Grabar Para Aprobar", Log.TipoLog.Creacion);
+                            string mensajeAprobacion = "";
+                            var resultValApro = await Validar_Aprobar_Proforma(_context, veproforma.id, result.numeroId, result.codprof, codempresa, datosProforma.tabladescuentos, datosProforma.DVTA, datosProforma.tablarecargos);
+
+                            msgAlerts.AddRange(resultValApro.msgsAlert);
+
+
+                            if (resultValApro.resp)
+                            {
+                                // verifica antes si la proforma esta grabar para aprobar
+                                if (await ventas.proforma_para_aprobar(_context, result.codprof))
+                                {
+                                    // **aprobar la proforma
+                                    var profforAprobar = await _context.veproforma.Where(i => i.codigo == result.codprof).FirstOrDefaultAsync();
+                                    profforAprobar.aprobada = true;
+                                    profforAprobar.fechaaut = DateTime.Today.Date;
+                                    profforAprobar.horaaut = datos_proforma.getHoraActual();
+                                    profforAprobar.usuarioaut = veproforma.usuarioreg;
+                                    _context.Entry(profforAprobar).State = EntityState.Modified;
+                                    await _context.SaveChangesAsync();
+
+                                    // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                                    // realizar la reserva de la mercaderia
+                                    // Desde 15/11/2023 registrar en el log si por alguna razon no actualiza en instoactual correctamente al disminuir el saldo de cantidad y la reserva en proforma
+                                    if (await ventas.aplicarstocksproforma(_context, result.codprof, codempresa) == false)
+                                    {
+                                        await log.RegistrarEvento(_context, veproforma.usuarioreg, Log.Entidades.Proforma, result.codprof.ToString(), veproforma.id, result.numeroId.ToString(), "veproformaController", "No actualizo stock al sumar cantidad de reserva en PF.", Log.TipoLog.Creacion);
+                                    }
+                                    // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+                                    mensajeAprobacion = "La proforma fue grabada para aprobar y tambien aprobada.";
+                                }
+                                else
+                                {
+                                    mensajeAprobacion = "La proforma no se grabo para aprobar por lo cual no se puede aprobar.";
+                                }
+
+                            }
+                            else
+                            {
+                                mensajeAprobacion = "La proforma solo se grabo para aprobar, pero no se pudo aprobar porque no cumple con las condiciones de aprobacion!!! Revise la proforma en la ventana de modificacion de proformas.";
+                                var desaprobarProforma = await _context.veproforma.Where(i => i.codigo == result.codprof).FirstOrDefaultAsync();
+                                desaprobarProforma.aprobada = false;
+                                desaprobarProforma.fechaaut = new DateTime(1900, 1, 1);
+                                desaprobarProforma.horaaut = "00:00";
+                                desaprobarProforma.usuarioaut = "";
+                                _context.Entry(desaprobarProforma).State = EntityState.Modified;
+                                await _context.SaveChangesAsync();
+                            }
+                            msgAlerts.Add(mensajeAprobacion);
+
+                        }
+                        /*
+                         
+                         '//validar lo que se validaba en la ventana de aprobar proforma
+                            Dim mi_idpf As String = sia_funciones.Ventas.Instancia.proforma_id(_CODPROFORMA)
+                            Dim mi_nroidpf As String = sia_funciones.Ventas.Instancia.proforma_numeroid(_CODPROFORMA)
+
+                            '//validar lo que se validaba en la ventana de aprobar proforma
+                            Dim dt As New DataTable
+                            Dim qry As String = ""
+                            Dim coddesextra As String = sia_funciones.Configuracion.Instancia.emp_coddesextra_x_deposito(sia_compartidos.temporales.Instancia.codempresa)
+
+                            qry = "select * from vedesextraprof where  coddesextra='" & coddesextra & "' and codproforma=(select codigo from veproforma where id='" & mi_idpf & "' and numeroid='" & mi_nroidpf & "')"
+                            dt.Clear()
+                            dt = sia_DAL.Datos.Instancia.ObtenerDataTable(qry)
+                            '//verificar si la proforma tiene descto por deposito
+                            If dt.Rows.Count > 0 Then
+                                If Not Me.Validar_Desctos_Por_Depositos_Solo_Al_Grabar(id.Text, numeroid.Text) Then
+                                    If sia_funciones.Ventas.Instancia.Eliminar_Descuento_Deposito_De_Proforma(id.Text, numeroid.Text, Me.Name) Then
+                                        MessageBox.Show("Se verifico que la proforma fue grabada con montos de descuentos por deposito incorrectos, por lo que se procedio a eliminar los descuentos por deposito de la proforma; " & mi_idpf & "-" & mi_nroidpf, "Alerta", MessageBoxButtons.OK, MessageBoxIcon.Exclamation, MessageBoxDefaultButton.Button1)
+                                    End If
+                                End If
+                            End If
+
+                         */
+
+
+                        dbContexTransaction.Commit();
+                        return Ok(new { resp = "Se Grabo la Proforma de manera Exitosa", codProf = result.codprof, alerts = msgAlerts });
+                    }
+                    catch (Exception)
+                    {
+                        dbContexTransaction.Rollback();
+                        return Problem("Error en el servidor");
+                        throw;
+                    }
+                }
+            }
+        }
+
+
+        private async Task<(bool resp, List<string> msgsAlert)> Validar_Aprobar_Proforma(DBContext _context, string id_pf, int nroid_pf, int cod_proforma, string codempresa, List<vedesextraDatos> tabladescuentos, DatosDocVta DVTA, List<verecargosDatos> tablarecargos)
+        {
+            bool resultado = true;
+            List<string> msgsAlert = new List<string>();
+            var dt_pf = await _context.veproforma.Where(i => i.codigo == cod_proforma).FirstOrDefaultAsync();
+
+            ////////////////////////////////////////////////////////////////////////////////
+            // validar el monto de desctos por deposito aplicado
+            var respdepCoCred = await depositos_cliente.Validar_Desctos_x_Deposito_Otorgados_De_Cobranzas_Credito(_context, id_pf, nroid_pf, codempresa);
+            if (!respdepCoCred.result)
+            {
+                resultado = false;
+                if (respdepCoCred.msgAlert != "")
+                {
+                    msgsAlert.Add(respdepCoCred.msgAlert);
+                }
+            }
+
+            var respdepCoCont = await depositos_cliente.Validar_Desctos_x_Deposito_Otorgados_De_Cbzas_Contado_CE(_context, id_pf, nroid_pf, codempresa);
+            if (!respdepCoCont.result)
+            {
+                resultado = false;
+                if (respdepCoCont.msgAlert != "")
+                {
+                    msgsAlert.Add(respdepCoCont.msgAlert);
+                }
+            }
+
+            var respdepAntProfCont = await depositos_cliente.Validar_Desctos_x_Deposito_Otorgados_De_Anticipos_Que_Pagaron_Proformas_Contado(_context, id_pf, nroid_pf, codempresa);
+            if (!respdepAntProfCont.result)
+            {
+                resultado = false;
+                if (respdepAntProfCont.msgAlert != "")
+                {
+                    msgsAlert.Add(respdepAntProfCont.msgAlert);
+                }
+            }
+
+            if (resultado == false)
+            {
+                msgsAlert.Add("No se puede aprobar la proforma, porque tiene descuentos por deposito en montos no validos!!!");
+                return (false, msgsAlert);
+            }
+            ////////////////////////////////////////////////////////////////////////////////
+
+
+            //======================================================================================
+            /////////////////VALIDAR DESCTOS POR DEPOSITO APLICADOS
+            //======================================================================================
+
+            var validDescDepApli = await Validar_Descuentos_Por_Deposito_Excedente(_context, codempresa, tabladescuentos, DVTA);
+            if (!validDescDepApli.result)
+            {
+                resultado = false;
+                msgsAlert.Add(validDescDepApli.msgAlert);
+                msgsAlert.Add("La proforma no puede ser aprobada, porque tiene descuentos por deposito en montos no validos!!!");
+                return (false, msgsAlert);
+            }
+            //======================================================================================
+            ///////////////VALIDAR RECARGOS POR DEPOSITO APLICADOS
+            //======================================================================================
+            var validRecargoDepExcedente = await Validar_Recargos_Por_Deposito_Excedente(_context, codempresa, tablarecargos, DVTA);
+            if (!validRecargoDepExcedente.result)
+            {
+                resultado = false;
+                msgsAlert.Add(validDescDepApli.msgAlert);
+                msgsAlert.Add("La proforma no puede ser aprobada, porque tiene recargos por descuentos por deposito excedentes en montos no validos!!!");
+                return (false, msgsAlert);
+            }
+
+            //////////////////////////////////////////////
+
+            // mostrar mensaje de credito disponible
+            /*
+            
+            If IsDBNull(reg("contra_entrega")) Then
+                qry = "update veproforma set contra_entrega=0 where id='" & id_pf & "' and numeroid='" & nroid_pf & "'"
+                sia_DAL.Datos.Instancia.EjecutarComando(qry)
+            End If
+
+             */
+
+            // tipo pago CONTADO
+            if (DVTA.tipo_vta == "CONTADO")
+            {
+                ////////////////////////////////////////////////////////////////////////////////////////////
+                // se añadio en fecha 15-3-2016
+                // es venta al contado y no necesita validar el credito
+                // TODA VENTA AL CONTADO DEBE TENER ASIGNADO ID-NROID DE ANTICIPO SI ES PAGO ANTICIPADO
+                // SI SE HABILITO LA OPCION DE PAGO ANTICIPADO
+                ////////////////////////////////////////////////////////////////////////////////////////////
+                var dt_anticipos = await anticipos_vta_contado.Anticipos_Aplicados_a_Proforma(_context, id_pf, nroid_pf);
+                if (dt_anticipos.Count > 0)
+                {
+                    ResultadoValidacion objres = new ResultadoValidacion();
+                    objres = await anticipos_vta_contado.Validar_Anticipo_Asignado_2(_context, true, DVTA, dt_anticipos, codempresa);
+                    if (objres.resultado)
+                    {
+                        // Desde 15/01/2024 se cambio esta funcion porque no estaba validando correctamente la transformacion de moneda de los anticipos a aplicarse ya se en $us o BS
+                        // If sia_funciones.Anticipos_Vta_Contado.Instancia.Validar_Anticipo_Asignado(True, dt_anticipos, reg("codcliente"), reg("nomcliente"), reg("total")) = True Then
+                        goto finalizar_ok;
+                    }
+                    else
+                    {
+                        if (dt_anticipos != null)
+                        {
+                            return (false, msgsAlert);
+                        }
+                    }
+                }
+                goto finalizar_ok;
+
+            }
+
+        finalizar_ok:
+            return (true, msgsAlert);
+
+        }
+
+        private async Task<(bool result, string msgAlert)> Validar_Descuentos_Por_Deposito_Excedente(DBContext _context, string codempresa, List<vedesextraDatos> tabladescuentos, DatosDocVta DVTA)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            bool resultado = true;
+            string msgAlert = "";
+
+            objres = await validar_Vta.Validar_Descuento_Por_Deposito(_context, DVTA, tabladescuentos, codempresa);
+
+            if (objres.resultado == false)
+            {
+                msgAlert = objres.observacion + " " + objres.obsdetalle + "Alerta Descuentos Por Deposito!!!";
+                resultado = false;
+            }
+            return (resultado, msgAlert);
+        }
+        private async Task<(bool result, string msgAlert)> Validar_Recargos_Por_Deposito_Excedente(DBContext _context, string codempresa, List<verecargosDatos> tablarecargos, DatosDocVta DVTA)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            bool resultado = true;
+            string msgAlert = "";
+
+            objres = await validar_Vta.Validar_Recargo_Aplicado_Por_Desc_Deposito_Excedente(_context, DVTA, tablarecargos, codempresa);
+
+            if (objres.resultado == false)
+            {
+                msgAlert = objres.observacion + " " + objres.obsdetalle + "Alerta!!!";
+                resultado = false;
+            }
+
+            return (resultado, msgAlert);
+        }
+
+        private async Task<bool> Grabar_Proforma_Etiqueta(DBContext _context, string idProf, int nroidpf, bool desclinea_segun_solicitud, string codcliente_real, veproforma dtpf)
+        {
+            try
+            {
+                veproforma_etiqueta datospfe = new veproforma_etiqueta();
+                // obtener datos de la etiqueta
+                var dt_etiqueta = await _context.veetiqueta_proforma.Where(i => i.id == idProf && i.numeroid == nroidpf).FirstOrDefaultAsync();
+                // obtener datos de proforma
+                /*
+                var dtpf = await _context.veproforma.Where(i => i.id == idProf && i.numeroid == nroidpf)
+                    .Select(i => new
+                    {
+                        i.codigo,
+                        i.id,
+                        i.numeroid,
+                        i.fecha,
+                        i.codcliente,
+                        i.direccion,
+                        i.latitud_entrega,
+                        i.longitud_entrega,
+                        i.codalmacen
+                    })
+                    .FirstOrDefaultAsync();
+                */
+                datospfe.id_proforma = idProf;
+                datospfe.nroid_proforma = nroidpf;
+                datospfe.codalmacen = dtpf.codalmacen;
+                datospfe.codcliente_casual = dtpf.codcliente;
+                if (desclinea_segun_solicitud == true && dtpf.idsoldesctos.Trim().Length > 0 && (dtpf.nroidsoldesctos > 0 || dtpf.nroidsoldesctos != null))
+                {
+                    datospfe.codcliente_real = await ventas.Cliente_Referencia_Solicitud_Descuentos(_context, dtpf.idsoldesctos, dtpf.nroidsoldesctos ?? 0);
+                }
+                else
+                {
+                    datospfe.codcliente_real = codcliente_real;
+                }
+                datospfe.fecha = dtpf.fecha;
+                datospfe.direccion = dtpf.direccion;
+                if (dt_etiqueta != null)
+                {
+                    datospfe.ciudad = dt_etiqueta.ciudad;
+                }
+                else
+                {
+                    datospfe.ciudad = "";
+                }
+
+                datospfe.latitud_entrega = dtpf.latitud_entrega;
+                datospfe.longitud_entrega = dtpf.longitud_entrega;
+                datospfe.horareg = dtpf.horareg;
+                datospfe.fechareg = dtpf.fechareg;
+                datospfe.usuarioreg = dtpf.usuarioreg;
+
+                // insertar proforma_etiqueta (datospfe)
+                var profEtiqueta = await _context.veproforma_etiqueta.Where(i => i.id_proforma == datospfe.id_proforma && i.nroid_proforma == datospfe.nroid_proforma).FirstOrDefaultAsync();
+                if (profEtiqueta != null)
+                {
+                    _context.veproforma_etiqueta.Remove(profEtiqueta);
+                    await _context.SaveChangesAsync();
+                }
+                _context.veproforma_etiqueta.Add(datospfe);
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        private async Task<(bool bandera, string msg)> Validar_Datos_Cabecera(DBContext _context, string codempresa, string codcliente_real, veproforma veproforma)
+        {
+            // POR AHORA VALIDACIONES QUE REQUIERAN CONSULTA A BASE DE DATOS.
+            string id = veproforma.id;
+            int codalmacen = veproforma.codalmacen;
+            int codvendedor = veproforma.codvendedor;
+            string codcliente = veproforma.codcliente;
+            string nomcliente = veproforma.nomcliente;
+            string nit = veproforma.nit;
+            string codmoneda = veproforma.codmoneda;
+            //string codcliente_real = veproforma.codcliente_real;
+
+            veproforma.direccion = (veproforma.direccion == "") ? "---" : veproforma.direccion;
+            veproforma.obs = (veproforma.obs == "") ? "---" : veproforma.obs;
+
+            string direccion = veproforma.direccion;
+            string obs = veproforma.obs;
+
+            int tipo_doc_id = veproforma.tipo_docid ?? -2;
+
+            // verificar si se puede realizar ventas a codigos SN
+            if (await cliente.EsClienteSinNombre(_context, codcliente))
+            {
+                if (nit.Trim().Length > 0)
+                {
+                    if (int.TryParse(nit, out int result))
+                    {
+                        if (result > 0)
+                        {
+                            // ya no se podra hacer ventas a codigo sin nombre dsd mayo 2022, se debe asignar codigo al cliente
+                            if (!await configuracion.emp_permitir_facturas_sin_nombre(_context, codempresa))
+                            {
+                                return (false, "No se puede realizar facturas a codigos SIN NOMBRE y con NIT diferente de Cero, si va a facturar a un NIT/CI dfte. de cero debe crear al cliente!!!.");
+                            }
+                        }
+                        // si se puede facturar a codigo SIN NOMBRE CON NIT CERO
+                    }
+                    // igual devuelve valido si el nit no es numerico, mas abajo se validara si es correcto
+                }
+                // igual devuelve valido si NO INGRESO EL nit, mas abajo se validara si es correcto
+            }
+
+            if (!await cliente.clientehabilitado(_context, codcliente_real))
+            {
+                return (false, "Ese Cliente: " + codcliente_real + " no esta habilitado.");
+            }
+            // Desde 14 / 08 / 2023 validar que el cliente casual este habilitado
+            if (!await cliente.clientehabilitado(_context, codcliente))
+            {
+                return (false, "Ese Cliente: " + codcliente + " no esta habilitado.");
+            }
+
+            tipo_doc_id = tipo_doc_id + 1;
+            var respNITValido = await ventas.Validar_NIT_Correcto(_context, nit, tipo_doc_id.ToString());
+            if (!respNITValido.EsValido)
+            {
+                return (false, "Verifique que el NIT tenga el formato correcto!!! " + respNITValido.Mensaje);
+            }
+
+            //validar el NIT en el SIN
+            /*
+            If resultado Then
+                If Not Validar_NIT_En_El_SIN() Then
+                    cmbtipo_docid.Focus()
+                    resultado = False
+                End If
+            End If
+             */
+            return (true, "Error al guardar todos los datos.");
+        }
+
+
+
+
+
+
+
+        private async Task<(string resp, int codprof, int numeroId)> Grabar_Documento(DBContext _context, int codProforma, string codempresa, SaveProformaCompleta datosProforma)
+        {
+            veproforma veproforma = datosProforma.veproforma;
+            List<veproforma1> veproforma1 = datosProforma.veproforma1;
+            var veproforma_valida = datosProforma.veproforma_valida;
+            var dt_anticipo_pf = datosProforma.dt_anticipo_pf;
+            var vedesextraprof = datosProforma.vedesextraprof;
+            var verecargoprof = datosProforma.verecargoprof;
+            var veproforma_iva = datosProforma.veproforma_iva;
+
+            ////////////////////   GRABAR DOCUMENTO
+
+            /*
+            ///////////////////////////////////////////////   FALTA VALIDACIONES
+            
+
+            If Not Validar_Detalle() Then
+                Return False
+            End If
+
+            If Not Validar_Datos() Then
+                Return False
+            End If
+             
+            //************************************************
+            //control implementado en fecha: 09-10-2020
+
+            If Not Me.Validar_Saldos_Negativos(False) Then
+                If MessageBox.Show("La proforma genera saldos negativos, esta seguro de grabar la proforma???", "Validar Negativos", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1) = Windows.Forms.DialogResult.No Then
+                    Return False
+                End If
+            End If
+
+
+
+
+
+
+            */
+            //************************************************
+
+            // Actualizar cabecera (veproforma)
+            _context.Entry(veproforma).State = EntityState.Modified;
+            await _context.SaveChangesAsync();
+
+
+
+            // guarda detalle (veproforma1)
+            // actualizar codigoproforma para agregar
+            veproforma1 = veproforma1.Select(p => { p.codproforma = codProforma; return p; }).ToList();
+            // colocar obs como vacio no nulo
+            veproforma1 = veproforma1.Select(o => { o.obs = ""; return o; }).ToList();
+            // actualizar peso del detalle.
+            veproforma1 = await ventas.Actualizar_Peso_Detalle_Proforma(_context, veproforma1);
+
+            // grabar detalle de proforma
+
+            await grabarDetalleProf(_context, codProforma, veproforma1);
+
+
+
+            //======================================================================================
+            // grabar detalle de validacion
+            //======================================================================================
+
+            veproforma_valida = veproforma_valida.Select(p => { p.codproforma = codProforma; return p; }).ToList();
+
+            // grabar validaciones
+
+            await grabarValidaciones(_context, codProforma, veproforma_valida);
+
+            
+
+         
+
+            // grabar descto por deposito si hay descuentos
+
+            if (vedesextraprof.Count() > 0)
+            {
+                await grabardesextra(_context, codProforma, vedesextraprof);
+            }
+
+            // grabar recargo si hay recargos
+            if (verecargoprof.Count > 0)
+            {
+                await grabarrecargo(_context, codProforma, verecargoprof);
+            }
+
+            // grabar iva
+
+            if (veproforma_iva.Count > 0)
+            {
+                await grabariva(_context, codProforma, veproforma_iva);
+            }
+
+
+            //======================================================================================
+            //grabar anticipos aplicados
+            //======================================================================================
+            try
+            {
+                if (dt_anticipo_pf.Count() > 0 && dt_anticipo_pf != null)
+                {
+                    var anticiposprevios = await _context.veproforma_anticipo.Where(i => i.codproforma == codProforma).ToListAsync();
+                    if (anticiposprevios.Count() > 0)
+                    {
+                        _context.veproforma_anticipo.RemoveRange(anticiposprevios);
+                        await _context.SaveChangesAsync();
+                    }
+                    var newData = dt_anticipo_pf
+                        .Select(i => new veproforma_anticipo
+                        {
+                            codproforma = codProforma,
+                            codanticipo = i.codanticipo,
+                            monto = (decimal?)i.monto,
+                            tdc = (decimal?)i.tdc,
+
+                            fechareg = i.fechareg,
+                            usuarioreg = veproforma.usuarioreg,
+                            horareg = datos_proforma.getHoraActual()
+                        }).ToList();
+                    _context.veproforma_anticipo.AddRange(newData);
+                    await _context.SaveChangesAsync();
+
+                }
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+
+
+
+
+            bool resultado = new bool();
+            //======================================================================================
+            // insertar en la tabla de descuentos por deposito pendientes
+            //======================================================================================
+            if (await ventas.Grabar_Descuento_Por_deposito_Pendiente(_context, codProforma, codempresa, veproforma.usuarioreg, vedesextraprof))
+            {
+                resultado = true;
+            }
+            else
+            {
+                resultado = false;
+            }
+
+            // ======================================================================================
+            // actualizar saldo restante de anticipos aplicados
+            // ======================================================================================
+            if (resultado)
+            {
+                foreach (var reg in dt_anticipo_pf)
+                {
+                    if (!await anticipos_vta_contado.ActualizarMontoRestAnticipo(_context, reg.id_anticipo, reg.nroid_anticipo, reg.codproforma ?? 0, reg.codanticipo ?? 0, reg.monto, codempresa))
+                    {
+                        resultado = false;
+                    }
+                }
+            }
+            return ("ok", codProforma, veproforma.numeroid);
+
+
+        }
+
+
+        private async Task grabarDetalleProf(DBContext _context, int codProf, List<veproforma1> veproforma1)
+        {
+            var detalleProfAnt = await _context.veproforma1.Where(i => i.codproforma == codProf).ToListAsync();
+            if (detalleProfAnt.Count() > 0)
+            {
+                _context.veproforma1.RemoveRange(detalleProfAnt);
+                await _context.SaveChangesAsync();
+            }
+            _context.veproforma1.AddRange(veproforma1);
+            await _context.SaveChangesAsync();
+        }
+        private async Task grabarValidaciones(DBContext _context, int codProf, List<veproforma_valida> veproforma_valida)
+        {
+            var validacionAnt = await _context.veproforma_valida.Where(i => i.codproforma == codProf).ToListAsync();
+            if (validacionAnt.Count() > 0)
+            {
+                _context.veproforma_valida.RemoveRange(validacionAnt);
+                await _context.SaveChangesAsync();
+            }
+            _context.veproforma_valida.AddRange(veproforma_valida);
+            await _context.SaveChangesAsync();
+        }
+        private async Task grabardesextra(DBContext _context, int codProf, List<vedesextraprof> vedesextraprof)
+        {
+            var descExtraAnt = await _context.vedesextraprof.Where(i => i.codproforma == codProf).ToListAsync();
+            if (descExtraAnt.Count() > 0)
+            {
+                _context.vedesextraprof.RemoveRange(descExtraAnt);
+                await _context.SaveChangesAsync();
+            }
+            vedesextraprof = vedesextraprof.Select(p => { p.codproforma = codProf; return p; }).ToList();
+            _context.vedesextraprof.AddRange(vedesextraprof);
+            await _context.SaveChangesAsync();
+        }
+
+
+        private async Task grabarrecargo(DBContext _context, int codProf, List<verecargoprof> verecargoprof)
+        {
+            var recargosAnt = await _context.verecargoprof.Where(i => i.codproforma == codProf).ToListAsync();
+            if (recargosAnt.Count() > 0)
+            {
+                _context.verecargoprof.RemoveRange(recargosAnt);
+                await _context.SaveChangesAsync();
+            }
+            verecargoprof = verecargoprof.Select(p => { p.codproforma = codProf; return p; }).ToList();
+            _context.verecargoprof.AddRange(verecargoprof);
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task grabariva(DBContext _context, int codProf, List<veproforma_iva> veproforma_iva)
+        {
+            var ivaAnt = await _context.veproforma_iva.Where(i => i.codproforma == codProf).ToListAsync();
+            if (ivaAnt.Count() > 0)
+            {
+                _context.veproforma_iva.RemoveRange(ivaAnt);
+                await _context.SaveChangesAsync();
+            }
+            veproforma_iva = veproforma_iva.Select(p => { p.codproforma = codProf; return p; }).ToList();
+            _context.veproforma_iva.AddRange(veproforma_iva);
+            await _context.SaveChangesAsync();
         }
 
     }

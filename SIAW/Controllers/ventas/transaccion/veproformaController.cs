@@ -1651,6 +1651,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
+            List<string> msgAlerts = new List<string>();
 
 
             using (var _context = DbContextFactory.Create(userConnectionString))
@@ -1699,17 +1700,26 @@ namespace SIAW.Controllers.ventas.transaccion
                         }
                         datosProforma.veproforma.fechareg = DateTime.Today.Date;
                         datosProforma.veproforma.fechaaut = new DateTime(1900, 1, 1);     // PUEDE VARIAR SI ES PARA APROBAR
-                        datosProforma.veproforma.fecha_confirmada = DateTime.Today.Date;
 
                         datosProforma.veproforma.horareg = DateTime.Now.ToString("HH:mm");
                         datosProforma.veproforma.horaaut = "00:00";                       // PUEDE VARIAR SI ES PARA APROBAR
-                        datosProforma.veproforma.hora_confirmada = DateTime.Now.ToString("HH:mm");
-                         
+                        
+                        if (veproforma.confirmada == true)
+                        {
+                            datosProforma.veproforma.fecha_confirmada = DateTime.Today.Date;
+                            datosProforma.veproforma.hora_confirmada = DateTime.Now.ToString("HH:mm");
+                        }
+                        else
+                        {
+                            datosProforma.veproforma.fecha_confirmada = new DateTime(1900, 1, 1);
+                            datosProforma.veproforma.hora_confirmada = "00:00";
+                        }
+                        /*
                         if (paraAprobar)
                         {
                             datosProforma.veproforma.fechaaut = DateTime.Today.Date;
                             datosProforma.veproforma.horaaut = DateTime.Now.ToString("HH:mm");
-                        }
+                        }*/
 
                         // ESTA VALIDACION ES MOMENTANEA, DESPUES SE DEBE COLOCAR SU PROPIA RUTA PARA VALIDAR, YA QUE PEDIRA CLAVE.
                         var validacion_inicial = await Validar_Datos_Cabecera(_context, codempresa, codcliente_real, veproforma);
@@ -1770,9 +1780,10 @@ namespace SIAW.Controllers.ventas.transaccion
                             if (!await ventas.Enlazar_Proforma_Nueva_Con_SolDesctos_Nivel(_context, result.codprof, veproforma.idsoldesctos, veproforma.nroidsoldesctos ?? 0))
                             {
                                 msgAler1 = "Se grabo la Proforma, pero No se pudo realizar el enlace de esta proforma con la solicitud de descuentos de nivel, verifique el enlace en la solicitu de descuentos!!!";
+                                msgAlerts.Add(msgAler1);
                             }
                         }
-
+                       
                         // grabar la etiqueta dsd 16-05-2022        
                         // solo si es cliente casual, y el cliente referencia o real es un no casual
                         //If sia_funciones.Cliente.Instancia.Es_Cliente_Casual(codcliente.Text) = True And sia_funciones.Cliente.Instancia.Es_Cliente_Casual(codcliente_real) = False Then
@@ -1784,17 +1795,17 @@ namespace SIAW.Controllers.ventas.transaccion
                             if (!await Grabar_Proforma_Etiqueta(_context, idProf, result.numeroId,check_desclinea_segun_solicitud, codcliente_real, veproforma))
                             {
                                 msgAlert2 = "Se grabo la Proforma, pero No se pudo grabar la etiqueta Cliente Casual/Referencia de la proforma!!!";
+                                msgAlerts.Add(msgAlert2);
                             }
                         }
 
-
                         if (paraAprobar)
                         {
-                            
-                            
-                            
-                            
-                            
+
+
+
+
+
 
                             // *****************O J O *************************************************************************************************************
                             // IMPLEMENTADO EN FECHA 26-04-2018 LLAMA A LA FUNNCION QUE VALIDA LO QUE SE VALIDA DESDE LA VENTANA DE APROBACION DE PROFORMAS
@@ -1805,6 +1816,10 @@ namespace SIAW.Controllers.ventas.transaccion
                             await log.RegistrarEvento(_context, veproforma.usuarioreg, Log.Entidades.Proforma, result.codprof.ToString(), veproforma.id, result.numeroId.ToString(), "veproformaController", "Grabar Para Aprobar", Log.TipoLog.Creacion);
                             string mensajeAprobacion = "";
                             var resultValApro = await Validar_Aprobar_Proforma(_context, veproforma.id, result.numeroId, result.codprof, codempresa, datosProforma.tabladescuentos, datosProforma.DVTA, datosProforma.tablarecargos);
+
+                            msgAlerts.AddRange(resultValApro.msgsAlert);
+
+
                             if (resultValApro.resp)
                             {
                                 // verifica antes si la proforma esta grabar para aprobar
@@ -1834,7 +1849,6 @@ namespace SIAW.Controllers.ventas.transaccion
                                 {
                                     mensajeAprobacion = "La proforma no se grabo para aprobar por lo cual no se puede aprobar.";
                                 }
-
                             }
                             else
                             {
@@ -1847,6 +1861,8 @@ namespace SIAW.Controllers.ventas.transaccion
                                 _context.Entry(desaprobarProforma).State = EntityState.Modified;
                                 await _context.SaveChangesAsync();
                             }
+                            msgAlerts.Add(mensajeAprobacion);
+
                         }
                         /*
                          
@@ -1875,7 +1891,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
                         dbContexTransaction.Commit();
-                        return Ok(new { resp = "Se Grabo la Proforma de manera Exitosa", codProf = result.codprof });
+                        return Ok(new { resp = "Se Grabo la Proforma de manera Exitosa", codProf = result.codprof, alerts = msgAlerts });
                     }
                     catch (Exception)
                     {
@@ -5634,11 +5650,12 @@ namespace SIAW.Controllers.ventas.transaccion
                     }
 
                     docveprofCab.rtransporte = _tipoentrega + " Nomb. Transporte: " + dataAux.nombre_transporte + " " + _complemento_dimediado;
-
+                    /*
                     if (!es_casual)
                     {
                         dt_etiqueta = null;
                     }
+                    */
                     return Ok(new
                     {
                         docveprofCab = docveprofCab,

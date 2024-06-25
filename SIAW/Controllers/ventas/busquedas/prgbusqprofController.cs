@@ -17,7 +17,7 @@ namespace SIAW.Controllers.ventas.busquedas
         {
             _userConnectionManager = userConnectionManager;
         }
-        [HttpGet]
+        [HttpPost]
         [Route("getProformasByParam/{userConn}")]
         public async Task<IActionResult> getProformasByParam(string userConn, RequestBusquedaProf? filtrosBusquedaProf)
         {
@@ -55,6 +55,7 @@ namespace SIAW.Controllers.ventas.busquedas
                         .OrderBy(i => i.fecha)
                         .ThenBy(i => i.id)
                         .ThenBy(i =>i.numeroid)
+                        .Take(100)
                         .Select(i => new
                         {
                             i.codigo,
