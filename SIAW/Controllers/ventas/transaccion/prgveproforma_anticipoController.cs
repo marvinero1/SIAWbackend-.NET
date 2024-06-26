@@ -198,7 +198,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
         /// PESTAÑA NRO 2
-        [Authorize]
+        //[Authorize]
         [HttpPut]
         [Route("btnrefrescar_Anticipos/{userConn}/{codcliente}/{fdesde}/{fhasta}/{nit}/{codclienteReal}/{codigoempresa}")]
         public async Task<ActionResult<IEnumerable<tabla_anticipos_pendientes>>> btnrefrescar_Anticipos(string userConn, string codcliente, DateTime fdesde, DateTime fhasta, string nit, string codclienteReal, string codigoempresa)

@@ -3898,6 +3898,92 @@ namespace siaw_funciones
             }
         }
 
+        public async Task<List<ProformasWF>> Detalle_Proformas_Aprobadas_WF(string userConnectionString, string codempresa, string usuario)
+        {
+            List<ProformasWF> resultado = new List<ProformasWF>();
+            try
+            {
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var sql = @"
+                        WITH myproforma AS
+                        (
+                            SELECT aprobada, transferida, codigo codproforma, id AS codpf, numeroid, codcliente, nomcliente, codvendedor,
+                                   fecha_inicial, hora_inicial, fecha, fechareg, horareg, fechaaut, horaaut, usuarioreg, total, peso
+                            FROM veproforma sf 
+                            WHERE sf.fecha >= '20240601' AND sf.id LIKE 'w%'
+                        ),
+                        Tiempo AS
+                        (
+                            SELECT p.*, 
+                                   (SELECT COUNT(coditem) FROM veproforma1 WHERE codproforma = p.codproforma) AS nroitems,
+                                   nr.id AS id_nr, nr.numeroid AS nroid_nr, nr.fechareg AS fechareg_nr, nr.horareg AS horareg_nr,
+                                   CASE WHEN p.transferida = 1 THEN (DATEDIFF(day, p.fecha_inicial, nr.fechareg)) * 24 ELSE 0 END AS diasHrs_tomo,
+                                   CASE WHEN p.transferida = 1 THEN DATEDIFF(HOUR, p.hora_inicial, nr.horareg) ELSE 0 END AS hrs_tomo,
+                                   nr.tipopago, nr.contra_entrega, nr.estado_contra_entrega
+                            FROM myproforma p
+                            LEFT JOIN veremision nr ON nr.codproforma = p.codproforma
+                        )
+                        SELECT *, diasHrs_tomo + hrs_tomo AS ttl_hrs FROM Tiempo
+                        WHERE transferida = 1
+                        ORDER BY codvendedor, codpf, numeroid;
+                    ";
+
+                    // Ejecutar la consulta SQL
+                    var connection = _context.Database.GetDbConnection();
+                    await connection.OpenAsync();
+                    using (var command = connection.CreateCommand())
+                    {
+                        command.CommandText = sql;
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                var proforma = new ProformasWF
+                                {
+                                    Aprobada = reader.GetBoolean(reader.GetOrdinal("aprobada")),
+                                    Transferida = reader.GetBoolean(reader.GetOrdinal("transferida")),
+                                    Codproforma = reader.GetInt32(reader.GetOrdinal("codproforma")),
+                                    Codpf = reader.GetString(reader.GetOrdinal("codpf")),
+                                    Numeroid = reader.GetInt32(reader.GetOrdinal("numeroid")),
+                                    Codcliente = reader.GetString(reader.GetOrdinal("codcliente")),
+                                    Nomcliente = reader.GetString(reader.GetOrdinal("nomcliente")),
+                                    Codvendedor = reader.GetInt32(reader.GetOrdinal("codvendedor")),
+                                    Fecha_inicial = reader.GetDateTime(reader.GetOrdinal("fecha_inicial")),
+                                    Hora_inicial = reader.GetString(reader.GetOrdinal("hora_inicial")),
+                                    Fecha = reader.GetDateTime(reader.GetOrdinal("fecha")),
+                                    Fechareg = reader.GetDateTime(reader.GetOrdinal("fechareg")),
+                                    Horareg = reader.GetString(reader.GetOrdinal("horareg")),
+                                    Fechaaut = reader.GetDateTime(reader.GetOrdinal("fechaaut")),
+                                    Horaaut = reader.GetString(reader.GetOrdinal("horaaut")),
+                                    Usuarioreg = reader.GetString(reader.GetOrdinal("usuarioreg")),
+                                    Total = reader.GetDecimal(reader.GetOrdinal("total")),
+                                    Peso = reader.GetDecimal(reader.GetOrdinal("peso")),
+                                    Nroitems = reader.GetInt32(reader.GetOrdinal("nroitems")),
+                                    Id_nr = reader.GetString(reader.GetOrdinal("id_nr")),
+                                    Nroid_nr = reader.GetInt32(reader.GetOrdinal("nroid_nr")),
+                                    Fechareg_nr = reader.GetDateTime(reader.GetOrdinal("fechareg_nr")),
+                                    Horareg_nr = reader.GetString(reader.GetOrdinal("horareg_nr")),
+                                    DiasHrs_tomo = reader.GetInt32(reader.GetOrdinal("diasHrs_tomo")),
+                                    Hrs_tomo = reader.GetInt32(reader.GetOrdinal("hrs_tomo")),
+                                    Tipopago = reader.GetByte(reader.GetOrdinal("tipopago")),
+                                    Contra_entrega = reader.GetBoolean(reader.GetOrdinal("contra_entrega")),
+                                    Estado_contra_entrega = reader.GetString(reader.GetOrdinal("estado_contra_entrega")),
+                                    Ttl_hrs = reader.GetInt32(reader.GetOrdinal("ttl_hrs"))
+                                };
+                                resultado.Add(proforma);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+            return resultado;
+        }
+
 
     }
 

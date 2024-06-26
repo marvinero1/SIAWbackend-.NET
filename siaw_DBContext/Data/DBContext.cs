@@ -213,6 +213,7 @@ namespace siaw_DBContext.Data
         public virtual DbSet<adusuario> adusuario { get; set; }
         public virtual DbSet<adusuario_crmcliente> adusuario_crmcliente { get; set; }
         public virtual DbSet<adusuario_crmvendedor> adusuario_crmvendedor { get; set; }
+        public virtual DbSet<adusuario_destinatarios> adusuario_destinatarios { get; set; }
         public virtual DbSet<adusuario_idproforma> adusuario_idproforma { get; set; }
         public virtual DbSet<adusuario_tarifa> adusuario_tarifa { get; set; }
         public virtual DbSet<advehiculo> advehiculo { get; set; }
@@ -7691,6 +7692,8 @@ namespace siaw_DBContext.Data
 
                 entity.Property(e => e.login).HasMaxLength(10);
 
+                entity.Property(e => e.celcorporativo).HasMaxLength(10);
+
                 entity.Property(e => e.codrol)
                     .HasMaxLength(15)
                     .IsUnicode(false);
@@ -7715,6 +7718,10 @@ namespace siaw_DBContext.Data
                     .IsRequired()
                     .HasMaxLength(40)
                     .HasDefaultValueSql("('')");
+
+                entity.Property(e => e.passwordcorreo)
+                    .HasMaxLength(100)
+                    .IsUnicode(false);
 
                 entity.Property(e => e.usuarioreg)
                     .IsRequired()
@@ -7747,6 +7754,16 @@ namespace siaw_DBContext.Data
                 entity.Property(e => e.vendedor)
                     .IsRequired()
                     .HasMaxLength(50);
+            });
+
+            modelBuilder.Entity<adusuario_destinatarios>(entity =>
+            {
+                entity.HasKey(e => e.codigo)
+                    .HasName("PK__adusuari__40F9A2072EE34EE7");
+
+                entity.Property(e => e.destinatarios)
+                    .HasMaxLength(100)
+                    .IsUnicode(false);
             });
 
             modelBuilder.Entity<adusuario_idproforma>(entity =>

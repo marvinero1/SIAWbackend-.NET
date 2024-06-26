@@ -5778,6 +5778,35 @@ namespace SIAW.Controllers.ventas.transaccion
             }
         }
 
+
+        [HttpPost]
+        [Route("DetallePFAprobadasWF/{userConn}/{codempresa}/{usuario}")]
+        public async Task<ActionResult<List<ProformasWF>>> DetallePFAprobadasWF(string userConn, string codempresa, string usuario)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                List<ProformasWF>? proformas_aprobadas = new List<ProformasWF>();
+                var resultado = await ventas.Detalle_Proformas_Aprobadas_WF(userConnectionString, codempresa, usuario);
+                if (resultado != null)
+                {
+                    ///
+                    string jsonResult = JsonConvert.SerializeObject(resultado);
+
+                    return Ok(jsonResult);
+                }
+                else { return BadRequest(new { resp = "No se pudo generar el detalle de proformas aprobadas grabadas en el SIAW." }); }
+            }
+            catch (Exception ex)
+            {
+                return Problem("Error en el servidor: " + ex.ToString());
+                throw;
+            }
+
+        }
+
+
+
     }
 
 

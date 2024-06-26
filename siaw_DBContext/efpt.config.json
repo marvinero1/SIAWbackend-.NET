@@ -772,6 +772,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[adusuario_destinatarios]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[adusuario_idproforma]",
          "ObjectType": 0
       },

@@ -19,5 +19,7 @@ namespace siaw_DBContext.Models
         public string correo { get; set; }
         public string password_siaw { get; set; }
         public DateTime fechareg_siaw { get; set; }
+        public string passwordcorreo { get; set; }
+        public string celcorporativo { get; set; }
     }
 }

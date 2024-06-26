@@ -1,7 +1,10 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Net.Mail;
+using System.Net;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
@@ -384,6 +387,66 @@ namespace siaw_funciones
                 }
             }
         }
+
+
+
+        ///////////////////////////// ENVIAR EMAILS
+        public bool EnviarEmail(string emailOrigen, string emailDestino, List<string>? emailsCC, string emailOrigenCredencial, string pwdEmailCredencialOrigen, string tituloMail, string cuerpoMail, byte[] pdfBytes, string nombreArchivo)
+        {
+            bool resultado = true;
+            try
+            {
+                SmtpClient smtpServer = new SmtpClient();
+                MailMessage email = new MailMessage();
+
+                smtpServer.UseDefaultCredentials = false;
+                smtpServer.Credentials = new NetworkCredential(emailOrigenCredencial, pwdEmailCredencialOrigen);
+                smtpServer.Port = 587;
+                smtpServer.EnableSsl = true;
+                smtpServer.Host = "smtp.gmail.com";
+
+                email = new MailMessage();
+                email.From = new MailAddress(emailOrigen);
+                email.To.Add(emailDestino);
+                email.Subject = tituloMail;
+                email.IsBodyHtml = true;  // Permitir HTML en el cuerpo del correo
+                email.Body = cuerpoMail;
+
+
+                // Agregar destinatarios CC
+                if (emailsCC != null)
+                {
+                    foreach (var emailCC in emailsCC)
+                    {
+                        email.CC.Add(emailCC);
+                    }
+                }
+
+
+                // Adjuntar archivo PDF
+                if (pdfBytes != null && pdfBytes.Length > 0)
+                {
+                    using (var pdfStream = new MemoryStream(pdfBytes, writable: false))
+                    {
+                        var attachment = new Attachment(pdfStream, nombreArchivo, "application/pdf");
+                        email.Attachments.Add(attachment);
+
+                        // Enviar correo
+                        smtpServer.Send(email);
+                    }
+                }
+
+                resultado = true;
+            }
+            catch (Exception error_t)
+            {
+                resultado = false;
+            }
+
+            return resultado;
+        }
+
+
 
     }
 }

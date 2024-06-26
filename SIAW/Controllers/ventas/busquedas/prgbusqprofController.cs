@@ -36,7 +36,7 @@ namespace SIAW.Controllers.ventas.busquedas
                         }
                         if (filtrosBusquedaProf.ftodos1)
                         {
-                            query = query.Where(i => i.fecha >= filtrosBusquedaProf.fechade.Date && i.fecha <= filtrosBusquedaProf.fechaa.Date);
+                            query = query.Where(i => i.fecha >= (filtrosBusquedaProf.fechade ?? new DateTime(1900,1,1)).Date && i.fecha <= (filtrosBusquedaProf.fechaa ?? new DateTime(1900, 1, 1)).Date);
                         }
                         if (filtrosBusquedaProf.atodos1)
                         {
@@ -87,8 +87,8 @@ namespace SIAW.Controllers.ventas.busquedas
         public string id1 { get; set; } = string.Empty;
         public string id2 { get; set; } = string.Empty;
         public bool ftodos1 { get; set; } = false;
-        public DateTime fechade { get; set; } = new DateTime(1900,1,1);
-        public DateTime fechaa { get; set; } = new DateTime(1900, 1, 1);
+        public DateTime? fechade { get; set; } = new DateTime(1900,1,1);
+        public DateTime? fechaa { get; set; } = new DateTime(1900, 1, 1);
         public bool atodos1 { get; set; } = false;
         public int codalmacen1 { get; set; } = 0;
         public int codalmacen2 { get; set; } = 0;
