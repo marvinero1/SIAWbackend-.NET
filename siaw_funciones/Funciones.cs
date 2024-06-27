@@ -407,18 +407,18 @@ namespace siaw_funciones
 
                 email = new MailMessage();
                 email.From = new MailAddress(emailOrigen);
-                email.To.Add(emailDestino);
+                //email.To.Add(emailDestino);
                 email.Subject = tituloMail;
                 email.IsBodyHtml = true;  // Permitir HTML en el cuerpo del correo
                 email.Body = cuerpoMail;
 
 
-                // Agregar destinatarios CC
+                // Agregar destinatarios con copias incluido
                 if (emailsCC != null)
                 {
                     foreach (var emailCC in emailsCC)
                     {
-                        email.CC.Add(emailCC);
+                        email.To.Add(emailCC);
                     }
                 }
 

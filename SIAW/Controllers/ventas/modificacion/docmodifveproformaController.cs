@@ -56,6 +56,7 @@ namespace SIAW.Controllers.ventas.modificacion
         private readonly siaw_funciones.Ventas ventas = new siaw_funciones.Ventas();
         private readonly Depositos_Cliente depositos_cliente = new Depositos_Cliente();
         private readonly siaw_funciones.Validar_Vta validar_Vta = new siaw_funciones.Validar_Vta();
+        private readonly siaw_funciones.Despachos despachos = new siaw_funciones.Despachos();
         private readonly Log log = new Log();
 
 
@@ -127,6 +128,30 @@ namespace SIAW.Controllers.ventas.modificacion
                     if ((cabecera.confirmada ?? false) == true)
                     {
                         descConfirmada = "CONFIRMADA " + cabecera.hora_confirmada + " " + (cabecera.fecha_confirmada ?? new DateTime(1900, 1, 1)).ToShortDateString();
+                    }
+
+                    string estadodoc = "";
+                    if (cabecera.anulada)
+                    {
+                        estadodoc = "ANULADA";
+                    }
+                    else
+                    {
+                        if (cabecera.transferida)
+                        {
+                            estadodoc = "TRANSFERIDA";
+                        }
+                        else
+                        {
+                            if (cabecera.aprobada)
+                            {
+                                estadodoc = "APROBADA";
+                            }
+                            else
+                            {
+                                estadodoc = "NO APROBADA";
+                            }
+                        }
                     }
 
                     bool cliHabilitado = await cliente.clientehabilitado(_context, cabecera.codcliente);
@@ -220,6 +245,7 @@ namespace SIAW.Controllers.ventas.modificacion
                         descConfirmada,
                         habilitado = cliHabilitado,
                         anticiposTot,
+                        estadodoc,
 
                         cabecera = cabecera,
                         detalle = detalle,
@@ -311,8 +337,54 @@ namespace SIAW.Controllers.ventas.modificacion
         }
 
 
+        //[Authorize]
+        [HttpPut]
+        [Route("anularProforma/{userConn}/{codProforma}/{usuario}/{codempresa}")]
+        public async Task<object> anularProforma(string userConn, int codProforma, string usuario, string codempresa,RequestAnularProf requestAnularProf)
+        {
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var veproformaModif = await _context.veproforma.Where(i => i.codigo == codProforma)
+                    .Select(i => new
+                    {
+                        i.anulada,
+                        i.transferida,
+                        i.aprobada,
+                        i.id,
+                        i.numeroid
+                    }).FirstOrDefaultAsync();
+                if (veproformaModif == null)
+                {
+                    return NotFound(new { resp = "No existe un registro con ese código" });
+                }
+                if (veproformaModif.anulada == true)
+                {
+                    return BadRequest(new { resp = "Esta Proforma ya esta Anulada." });
+                }
+                if (veproformaModif.transferida == true)
+                {
+                    return BadRequest(new { resp = "Esta Proforma ya fue transferida, no puede ser anulada. Para anularla anule el documento al cual fue transferida." });
+                }
+                if (veproformaModif.aprobada == true)
+                {
+                    return BadRequest(new { resp = "Esta Proforma esta aprobada por tanto no puede ser anulada, debe proceder a desaprobar!!!" });
+                }
 
 
+                if (await ventas.anular_proforma(_context,codProforma))
+                {
+                    await log.RegistrarEvento(_context, usuario, Log.Entidades.Proforma, codProforma.ToString(), veproformaModif.id, veproformaModif.numeroid.ToString(), "docmodifveproforma", "Anular", Log.TipoLog.Anulacion);
+                    await despachos.eliminar_prof_de_despachos(_context, veproformaModif.id, veproformaModif.numeroid);
+                    // Desde 03/04/2024 al anular una proforma se debe actualizar los saldos de los anticipos que tuviera enlazada la proforma
+                    await Actualizar_saldos_anticipos(_context, codempresa, requestAnularProf.dt_anticipo_pf, requestAnularProf.dt_anticipo_pf_inicial);
+                    return Ok(new { resp = "Se Anulo la Proforma con exito. " });  
+                }
+                return BadRequest(new { resp = "No se pudo Anular esta Proforma." });  
+            }
+        }
 
 
         //[Authorize]
@@ -332,7 +404,10 @@ namespace SIAW.Controllers.ventas.modificacion
             List<veproforma_iva> veproforma_iva = datosProforma.veproforma_iva;
 
             */
-
+            if (codProforma != veproforma.codigo)
+            {
+                return BadRequest(new { resp = "Existe un problema con los codigos de Proforma, consulte al administrador de Sistemas!!!" });
+            }
 
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
@@ -346,7 +421,7 @@ namespace SIAW.Controllers.ventas.modificacion
                 // ACTUALIZAR DATOS DE CODIGO PRINCIPAL SI ES APLICABLE
                 await cliente.ActualizarParametrosDePrincipal(_context, veproforma.codcliente);
                 // ###############################
-
+                datosProforma.veproforma.paraaprobar = paraAprobar;
 
                 //###############################
                 // validacion 
@@ -961,6 +1036,15 @@ namespace SIAW.Controllers.ventas.modificacion
             //************************************************
 
             // Actualizar cabecera (veproforma)
+            try
+            {
+
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
             _context.Entry(veproforma).State = EntityState.Modified;
             await _context.SaveChangesAsync();
 
@@ -1147,8 +1231,46 @@ namespace SIAW.Controllers.ventas.modificacion
             await _context.SaveChangesAsync();
         }
 
+        private async Task<bool> Actualizar_saldos_anticipos(DBContext _context, string codempresa, List<tabla_veproformaAnticipo>? dt_anticipo_pf, List<tabla_veproformaAnticipo>? dt_anticipo_pf_inicial)
+        {
+            //======================================================================================
+            // actualizar saldo restante de anticipos aplicados
+            //======================================================================================
+            bool resultado = true;
+            foreach (var reg in dt_anticipo_pf)
+            {
+                // añadir detalle al documento
+                if (!await anticipos_vta_contado.ActualizarMontoRestAnticipo(_context, reg.id_anticipo, reg.nroid_anticipo, reg.codproforma ?? 0, reg.codanticipo ?? 0, reg.monto, codempresa))
+                {
+                    resultado = false;
+                }
+            }
+            //======================================================================================
+            // Desde 03/04/2024 actualizar saldo restante de anticipos aplicados INIALMENTE, YA QUE PUEDE SER QUE UNA PROFORMA LO QUITEN LOS ANTICIPOS
+            // Y SE DEBE LIBERAR EL SALDOS DE LOS ANTICIPOS INICIALES
+            //======================================================================================
+            if (resultado)
+            {
+                foreach (var reg in dt_anticipo_pf_inicial)
+                {
+                    // añadir detalle al documento
+                    if (!await anticipos_vta_contado.ActualizarMontoRestAnticipo(_context, reg.id_anticipo, reg.nroid_anticipo, 0, reg.codanticipo ?? 0, 0, codempresa))
+                    {
+                        resultado = false;
+                    }
+                }
+            }
+            return resultado;
+
+        }
+
     }
 
+    public class RequestAnularProf
+    {
+        public List<tabla_veproformaAnticipo>? dt_anticipo_pf { get; set; }
+        public List<tabla_veproformaAnticipo>? dt_anticipo_pf_inicial { get; set; }
+    }
 
     public class DataValidar
     {

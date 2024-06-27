@@ -31,8 +31,8 @@ namespace SIAW.Controllers.z_pruebas
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         //[Authorize]
         [HttpPost]
-        [Route("pruebaEnvioCorreo/{userConn}/{usuario}/{codvendedor}/{codproforma}")]
-        public async Task<ActionResult> pruebaEnvioCorreo(string userConn, string usuario, int codvendedor, int codproforma, [FromForm] IFormFile pdfFile)
+        [Route("envioCorreoProforma/{userConn}/{usuario}/{codvendedor}/{codproforma}")]
+        public async Task<ActionResult> envioCorreoProforma(string userConn, string usuario, int codvendedor, int codproforma, [FromForm] IFormFile pdfFile)
         {
             if (pdfFile == null || pdfFile.Length == 0)
             {
@@ -53,19 +53,14 @@ namespace SIAW.Controllers.z_pruebas
                         await pdfFile.CopyToAsync(memoryStream);
                         pdfBytes = memoryStream.ToArray();
                     }
-                   
-
-                    string direcc_mail_cliente = "analista.nal.informatica2@pertec.com.bo";
-                    string titulo = "Solicitud Recepción de Pedido";
-
                     var credenciales = await _context.adusuario.Where(i => i.login == usuario)
-                        .Select(i => new
-                        {
-                            i.correo,
-                            i.passwordcorreo,
-                            i.celcorporativo,
-                            i.persona
-                        }).FirstOrDefaultAsync();
+                         .Select(i => new
+                         {
+                             i.correo,
+                             i.passwordcorreo,
+                             i.celcorporativo,
+                             i.persona
+                         }).FirstOrDefaultAsync();
 
                     var nombreVendedor = await _context.pepersona.Where(i => i.codigo == (credenciales.persona))
                         .Select(i => i.nombre1 + " " + i.nombre2 + " " + i.apellido1 + " " + i.apellido2).FirstOrDefaultAsync();
@@ -87,6 +82,12 @@ namespace SIAW.Controllers.z_pruebas
                             i.total
                         }).FirstOrDefaultAsync();
 
+
+
+                    //string direcc_mail_cliente = "analista.nal.informatica2@pertec.com.bo";
+                    string titulo = "Solicitud Recepción de Proforma " + dataProf.id + "-" + dataProf.numeroid;
+
+                    
                     string detalle = @"
                         
 
@@ -262,7 +263,7 @@ namespace SIAW.Controllers.z_pruebas
                                         &zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;
                                     </div>
 
-                                    <div style=""max-width: 600px; margin: 0 auto;"" class=""email-container"">
+                                    <div style=""max-width: 75%; margin: 0 auto;"" class=""email-container"">
 
                                         <!-- Email Body : BEGIN -->
                                         <table align=""center"" role=""presentation"" cellspacing=""0"" cellpadding=""0"" border=""0"" width=""100%""
@@ -277,69 +278,53 @@ namespace SIAW.Controllers.z_pruebas
                                             </tr>
                                             <!-- Email Header : END -->
 
-                                            <!-- Hero Image, Flush : BEGIN -->
-                                            <tr>
-                                                <td style=""background-color: #ffffff;"">
-                                                    <img src=""https://pertec.com.bo/assets/img/bg.jpg"" width=""450"" height="""" alt=""alt_text""
-                                                        border=""0""
-                                                        style=""width: 100%; max-width: 600px; height: auto; background: #dddddd; font-family: sans-serif; font-size: 15px; line-height: 15px; color: #555555; margin: auto; display: block;""
-                                                        class=""g-img"">
-                                                </td>
-                                            </tr>
-                                            <!-- Hero Image, Flush : END -->
-
                                             <!-- 1 Column Text + Button : BEGIN -->
                                             <tr>
                                                 <td style=""background-color: #ffffff;"">
                                                     <table role=""presentation"" cellspacing=""0"" cellpadding=""0"" border=""0"" width=""100%"">
                                                         <tr>
                                                             <td
-                                                                style=""padding: 20px; font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif; font-size: 15px; line-height: 20px; color: #555555;"">
+                                                                style=""padding: 15px; font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif; font-size: 15px; line-height: 20px; color: #555555;"">
                                                                 <h1
                                                                     style=""text-align: center;margin: 0 0 10px 0; font-family: Franklin Gothic Medium; font-size: 25px; line-height: 30px; color: #333333; font-weight: normal;"">
-                                                                    Solicitud Recepción de Pedido</h1>
-                                                                <p style=""margin: 0;"">Servicio al Cliente: <br></p>
+                                                                    Solicitud Recepción de Proforma</h1>
                                                             </td>
                                                         </tr>
 
                                                         <tr>
                                                             <td
-                                                                style=""padding: 0px 45px 30px 45px; font-family: Franklin Gothic Medium; font-size: 15px; line-height: 20px; color: #555555;"">
-                                                                <h2 style=""margin: 0 0 10px 0; font-family: Franklin Gothic Medium; font-size: 18px; line-height: 22px; color: #333333; font-weight: bold;"">
-                                                                </h2>
+                                                                style=""padding: 0px 45px 30px 45px; font-family: Franklin Gothic; font-size: 15px; color: #555555;"">
 
                                                                 <p style=""margin: 0;"">
-                                                                    La presente es para informarles que se ha generado una nueva proforma con la siguiente información:
+                                                                    Servicio al Cliente:
                                                                     <br><br>
-                                                                    Detalles de la Proforma:
+                                                                    Tomar nota de la generación de una nueva proforma con la siguiente información:
                                                                     <br><br>
-                                                                    •	ID y Número ID de Proforma: " + dataProf.id + "-" + dataProf.numeroid +
+                                                                    <strong>Detalles de la Proforma:</strong>
+                                                                    <br><br>
+                                                                    <strong>•	ID y Número ID de Proforma: </strong>" + dataProf.id + "-" + dataProf.numeroid +
                                                                     @"<br>
-                                                                    •	Fecha: " + dataProf.fecha +
+                                                                    <strong>•	Fecha: </strong>" + dataProf.fecha.ToShortDateString() +
                                                                     @"<br>
-                                                                    •	Cliente: " + dataProf.codcliente + " - " + dataProf.nomcliente +
+                                                                    <strong>•	Cliente: </strong>" + dataProf.codcliente + " - " + dataProf.nomcliente +
                                                                     @"<br>
-                                                                    •	Vendedor: " + dataProf.codvendedor +
+                                                                    <strong>•	Vendedor </strong>" + dataProf.codvendedor +
                                                                     @"<br>
-                                                                    •	Subtotal: " + dataProf.subtotal +
-                                                                    @"< br>
-                                                                    •	Descuentos: " + dataProf.descuentos +
-                                                                    @"< br>
-                                                                    •	Total: " + dataProf.total +
-                                                                    @"< br><br>
+                                                                    <strong>•	Subtotal: </strong>" + dataProf.subtotal +
+                                                                    @"<br>
+                                                                    <strong>•	Descuentos: </strong>" + dataProf.descuentos +
+                                                                    @"<br>
+                                                                    <strong>•	Total: </strong>" + dataProf.total +
+                                                                    @"<br><br>
 
                                                                     Se adjunta en PDF la proforma generada para su aprobación.
                                                                     <br><br>
-                                                                    Por favor, procedan con la aprobación y seguimiento necesario para esta proforma. Si necesitan información adicional o hay alguna duda, 
-                                                                    no duden en ponerse en contacto conmigo.
+                                                                    Por favor, proceder con la aprobación y seguimiento.
                                                                     <br><br>
-                                                                    PostData: [Notas de Vendedor con alguna observacion].
-                                                                    <br><br>
-                                                                    Gracias por su atención y apoyo.
+                                                                    En caso de dudas o de requerir mayor información ponerse en contacto con mi persona.
                                                                     <br><br>
                                                                     Saludos cordiales,
                                                                     <br><br>" +
-
                                                                     nombreVendedor +
                                                                     @"<br>" +
                                                                     credenciales.correo +
@@ -352,36 +337,11 @@ namespace SIAW.Controllers.z_pruebas
                                                             </td>
                                                         </tr>
 
-                                                        <tr>
-                                                            <td style=""padding: 0 20px;"">
-                                                                <!-- Button : BEGIN -->
-                                                                <table align=""center"" role=""presentation"" cellspacing=""0"" cellpadding=""0"" border=""0""
-                                                                    style=""margin: auto;"">
-                                                                    <tr>
-                                                                        <td class=""button-td button-td-primary""
-                                                                            style=""border-radius: 4px; background: #093070;"">
-                                                                            <a class=""button-a button-a-primary"" href=""https://pertec.com.bo/""
-                                                                                style=""background: #093070; border: 1px solid #000000; font-family: Franklin Gothic Medium; font-size: 15px; 
-													                            line-height: 15px;text-decoration: none; padding: 13px 17px; color: #ffffff; display: block; border-radius: 4px;"">
-                                                    	                            Ir a Pertec</a>
-                                                                        </td>
-                                                                    </tr>
-                                                                </table>
-                                                                <!-- Button : END -->
-                                                            </td>
-                                                        </tr>
-                                                    </table><br><br>
+                                                    </table>
                                                 </td>
                                             </tr>
                                             <!-- 1 Column Text + Button : END -->
 
-                                            <!-- Clear Spacer : BEGIN -->
-                                            <tr>
-                                                <td aria-hidden=""true"" height=""40"" style=""font-size: 0px; line-height: 0px;"">
-                                                    &nbsp;
-                                                </td>
-                                            </tr>
-                                            <!-- Clear Spacer : END -->
                                         </table>
                                         <!-- Email Body : END -->
 
@@ -391,7 +351,6 @@ namespace SIAW.Controllers.z_pruebas
                                             <tr>
                                                 <td
                                                     style=""padding: 20px; font-family: Franklin Gothic Medium; font-size: 12px; line-height: 15px; text-align: center; color: #ffffff;"">
-                                                    <br><br>
                                                     Pertec S.R.L © | Maestros en Pernos<br><span class=""unstyle-auto-detected-links"">
                                                         Dirección: # 4581 Calle Innominada, Arocagua, Cochabamba-Bolivia,
                                                         <br>Telf: (+591) 471-6000</span> <span>Whatsapp: 72221031</span> <span>Celular:
@@ -414,8 +373,9 @@ namespace SIAW.Controllers.z_pruebas
                                                         <tr>
                                                             <td style=""padding: 20px; text-align: left; font-family: Franklin Gothic Medium; font-size: 15px; 
 									                            line-height: 20px; color: #000;text-align: center;"">
-                                                                <p style=""margin: 0;"">Derechos Reservados Pertec S.R.L © | Maestros en Pernos
-                                                                    {{ date('Y') }}</p>
+                                                                <p style=""margin: 0;"">Derechos Reservados Pertec S.R.L © | Maestros en Pernos " +
+                                                                    DateTime.Today.ToString("d-M-yyyy") +
+                                                                @"</p>
                                                             </td>
                                                         </tr>
                                                     </table>
@@ -428,13 +388,11 @@ namespace SIAW.Controllers.z_pruebas
 
                             </html>
 
-
-
                         "
                     ;
 
 
-                    bool envio = funciones.EnviarEmail(credenciales.correo, direcc_mail_cliente, emailsCc, credenciales.correo, credenciales.passwordcorreo, titulo, detalle, pdfBytes, pdfFile.FileName);
+                    bool envio = funciones.EnviarEmail(credenciales.correo, "", emailsCc, credenciales.correo, credenciales.passwordcorreo, titulo, detalle, pdfBytes, pdfFile.FileName);
                     if (envio)
                     {
                         return Ok("Correo enviado con éxito.");

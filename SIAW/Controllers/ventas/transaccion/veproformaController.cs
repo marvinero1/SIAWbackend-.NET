@@ -1661,6 +1661,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 // ACTUALIZAR DATOS DE CODIGO PRINCIPAL SI ES APLICABLE
                 await cliente.ActualizarParametrosDePrincipal(_context, veproforma.codcliente);
                 // ###############################
+                datosProforma.veproforma.paraaprobar = paraAprobar;
 
                 if (veproforma1.Count() <= 0)
                 {
@@ -1801,10 +1802,6 @@ namespace SIAW.Controllers.ventas.transaccion
 
                         if (paraAprobar)
                         {
-
-
-
-
 
 
                             // *****************O J O *************************************************************************************************************
@@ -5062,7 +5059,6 @@ namespace SIAW.Controllers.ventas.transaccion
                                 return NotFound("El archivo ZIP no se encontró.");
                             }
                         }
-
                         return Ok(stringDataXml);
                     }
                     return Ok(result.resp);
@@ -5276,7 +5272,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
                 await zUtil.Comprimir(archivo, outName.Substring(0, outName.Length - 4) + ".zip", false);
 
-
+                
                 return (true, outName.Substring(0, outName.Length - 4) + ".zip");
             }
             catch (Exception)

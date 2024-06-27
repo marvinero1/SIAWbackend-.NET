@@ -3898,6 +3898,48 @@ namespace siaw_funciones
             }
         }
 
+
+        public async Task<bool> anular_proforma(DBContext _context, int codProforma)
+        {
+            try
+            {
+                var tabla = await _context.veproforma.Where(i => i.codcomplementaria == codProforma).FirstOrDefaultAsync();
+                if (tabla != null)
+                {
+                    var tabla2 = await _context.veproforma.Where(i => i.codigo == codProforma).FirstOrDefaultAsync();
+                    if (tabla2.codcomplementaria > 0)
+                    {
+                        tabla.codcomplementaria = tabla2.codcomplementaria;
+                        _context.Entry(tabla).State = EntityState.Modified;
+                        await _context.SaveChangesAsync();
+                    }
+                    else
+                    {
+                        tabla.codcomplementaria = 0;
+                        _context.Entry(tabla).State = EntityState.Modified;
+                        await _context.SaveChangesAsync();
+                    }
+                }
+                var veproformaModif = await _context.veproforma.Where(i => i.codigo == codProforma).FirstOrDefaultAsync();
+                veproformaModif.codcomplementaria = 0;
+                veproformaModif.confirmada = false;
+                veproformaModif.anulada = true;
+                veproformaModif.aprobada = false;
+                veproformaModif.paraaprobar = false;
+
+                _context.Entry(veproformaModif).State = EntityState.Modified;
+                await _context.SaveChangesAsync();
+
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+
+
         public async Task<List<ProformasWF>> Detalle_Proformas_Aprobadas_WF(string userConnectionString, string codempresa, string usuario)
         {
             List<ProformasWF> resultado = new List<ProformasWF>();
