@@ -8197,7 +8197,7 @@ namespace siaw_funciones
                 objres.datoB = "";
                 objres.observacion = "Los descuentos extras aplicados no corresponden con el tipo de venta: " + DVTA.tipo_vta;
                 objres.obsdetalle = cadena;
-                objres.accion = Acciones_Validar.Ninguna;
+                objres.accion = Acciones_Validar.Pedir_Servicio;
             }
             return objres;
         }

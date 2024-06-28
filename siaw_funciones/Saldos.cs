@@ -391,7 +391,7 @@ namespace siaw_funciones
                     var pivot = await empaque_func.GetSaldosActual(conexion, codalmacen, kit.item);
                     var cantDisp = pivot.cantidad / kit.cantidad;
                     pivot.cantidad = cantDisp;
-                    if (instoactual == null)
+                    if (instoactual.cantidad == null)
                     {
                         instoactual = pivot;
                     }

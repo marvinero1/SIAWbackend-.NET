@@ -5059,7 +5059,7 @@ namespace SIAW.Controllers.ventas.transaccion
                                 return NotFound("El archivo ZIP no se encontró.");
                             }
                         }
-                        return Ok(stringDataXml);
+                        //return Ok(stringDataXml);
                     }
                     return Ok(result.resp);
                 }
