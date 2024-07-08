@@ -3234,6 +3234,27 @@ namespace siaw_funciones
             return resultado;
         }
 
+        public async Task<string> Cliente_Referencia_Proforma_Etiqueta(DBContext _context, string id_proforma, int nroid_proforma)
+        {
+            var resultado = await _context.veproforma_etiqueta.Where(i => i.id_proforma == id_proforma && i.nroid_proforma == nroid_proforma)
+                .Select(i => new
+                {
+                    i.codcliente_casual,
+                    i.codcliente_real
+                }).FirstOrDefaultAsync();
+            if (resultado != null)
+            {
+                if (resultado.codcliente_real != null)
+                {
+                    return resultado.codcliente_real;
+                }
+                return resultado.codcliente_casual;
+            }
+            return "";
+        }
+
+
+
         public async Task<string> Cliente_Referencia_Proforma_Etiqueta_Segun_CodProforma(DBContext _context, int codproforma)
         {
 

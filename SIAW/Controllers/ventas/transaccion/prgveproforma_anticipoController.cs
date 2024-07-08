@@ -19,6 +19,7 @@ namespace SIAW.Controllers.ventas.transaccion
         private readonly Cobranzas cobranzas = new Cobranzas();
         private readonly Cliente cliente = new Cliente();
         private readonly Anticipos_Vta_Contado anticipos_vta_contado = new Anticipos_Vta_Contado();
+        private readonly Empresa empresa = new Empresa();
         public prgveproforma_anticipoController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;
@@ -68,11 +69,14 @@ namespace SIAW.Controllers.ventas.transaccion
 
         // GET: api/vedesextra
         [HttpPost]
-        [Route("validaAsignarAnticipo/{userConn}/{txtcodmoneda_proforma}/{txtcodmoneda_anticipo}/{txtmonto_asignar}/{txtttl_proforma}")]
-        public async Task<ActionResult<IEnumerable<object>>> validaAsignarAnticipo(string userConn, string txtcodmoneda_proforma, string txtcodmoneda_anticipo, double txtmonto_asignar, double txtttl_proforma, List<tabla_veproformaAnticipo> tabla_veproformaAnticipo)
+        [Route("validaAsignarAnticipo/{userConn}/{txtcodmoneda_proforma}/{txtcodmoneda_anticipo}/{txtmonto_asignar}/{txtmonto_rest}/{txtttl_proforma}/{codempresa}")]
+        public async Task<ActionResult<IEnumerable<object>>> validaAsignarAnticipo(string userConn, string txtcodmoneda_proforma, string txtcodmoneda_anticipo, double txtmonto_asignar, double txtmonto_rest, double txtttl_proforma, string codempresa, List<tabla_veproformaAnticipo> tabla_veproformaAnticipo)
         {
             try
             {
+                double diferencia = 0;
+                string monedae = "";
+
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
@@ -80,6 +84,39 @@ namespace SIAW.Controllers.ventas.transaccion
                 {
                     double ttl = await totalizar_asignacion(_context, txtcodmoneda_proforma, tabla_veproformaAnticipo);
                     string msgAlerta = "";
+                    monedae = await empresa.monedaext(_context, codempresa);
+
+                    //'Desde 04-06-2024 permitir que se pueda asignar un anticipo mayor al restante con un maximo de 0.50 Bs por instruccion de gerencia
+                    diferencia = 0;
+                    if (txtmonto_asignar > txtmonto_rest)
+                    {
+                        return BadRequest(new { resp = "El monto que desea asignar sobre pasa el monto restante del anticipo." });
+                    }
+                    //'En caso que se este asignando menos el monto del anticipo, se debe validar que el sobrante no debe ser menor o igual a 0.50 Bs
+                    diferencia = 0;
+                    if (txtmonto_asignar < txtmonto_rest)
+                    {
+                        //VALIDAR QUE LA DIFERENCIA NO SEA MAYOR A 0.5 POR INSTRUCCION DE SUP NAL OPER Y GERENCIA
+                        if (txtcodmoneda_anticipo == monedae)
+                        {
+                            diferencia = Math.Round(Math.Abs(txtmonto_rest - txtmonto_asignar), 2);
+                            if (Math.Abs(diferencia) <= 0.1)
+                            {
+                                return BadRequest(new { resp = "Existe una diferencia de " + diferencia + ". Debe aplicar el monto total del anticipo, modifique el monto a aplicar." });
+                            }
+
+                        }
+                        else
+                        {
+                            diferencia = Math.Round(Math.Abs(txtmonto_rest - txtmonto_asignar), 2);
+                            if (Math.Abs(diferencia) <= 0.5)
+                            {
+                                return BadRequest(new { resp = "Existe una diferencia de " + diferencia + ". Debe aplicar el monto total del anticipo, modifique el monto a aplicar." });
+                            }
+                        }
+                    }
+
+                    //validar que la moneda del anticipo y de la proforma sea la misma
                     if (txtcodmoneda_proforma == txtcodmoneda_anticipo)
                     {
                         // No convertir el monto a asignar
@@ -88,6 +125,8 @@ namespace SIAW.Controllers.ventas.transaccion
                     }
                     else
                     {
+                        //'Desde 14/12/2023 por instrucciuon de gerencia ya se puede aplicar proformas de distinta moneda a la proforma, al realizar el calculo de aplicacion 
+                        //'controlar que el monto a asignar sea el correcto realizando las conversiones correspondientes
                         // si la moneda del anticipo y proforma no son iguales entonces convertir el monto asignar a la moneda de la proforma
                         if (txtcodmoneda_proforma != txtcodmoneda_anticipo)
                         {
@@ -98,11 +137,30 @@ namespace SIAW.Controllers.ventas.transaccion
                         ttl = Math.Round(ttl, 2);
                     }
 
+                    diferencia = 0;
                     if (ttl > txtttl_proforma)
                     {
-                        return BadRequest(new { resp = "El monto que desea asignar mas el monto ya asignado supera el total de la proforma" });
+                        //VALIDAR QUE LA DIFERENCIA NO SEA MAYOR A 0.5 POR INSTRUCCION DE SUP NAL OPER Y GERENCIA
+                        if (txtcodmoneda_anticipo == monedae)
+                        {
+                            diferencia = Math.Round(Math.Abs(txtttl_proforma - ttl), 2);
+                            if (Math.Abs(diferencia) > 0.1)
+                            {
+                                return BadRequest(new { resp = "El monto que desea asignar mas el monto ya asignado supera el total de la proforma permitido." });
+                            }
+
+                        }
+                        else
+                        {
+                            diferencia = Math.Round(Math.Abs(txtttl_proforma - ttl), 2);
+                            if (Math.Abs(diferencia) > 0.5)
+                            {
+                                return BadRequest(new { resp = "El monto que desea asignar mas el monto ya asignado supera el total de la proforma permitido." });
+                            }
+                        }
+                        //return BadRequest(new { resp = "El monto que desea asignar mas el monto ya asignado supera el total de la proforma" });
                     }
-                    return Ok(new {value = true, msg = msgAlerta });
+                    return Ok(new { value = true, msg = msgAlerta });
                 }
             }
             catch (Exception)
@@ -110,6 +168,49 @@ namespace SIAW.Controllers.ventas.transaccion
                 return Problem("Error en el servidor");
             }
         }
+
+        //public async Task<ActionResult<IEnumerable<object>>> validaAsignarAnticipo(string userConn, string txtcodmoneda_proforma, string txtcodmoneda_anticipo, double txtmonto_asignar, double txtttl_proforma, List<tabla_veproformaAnticipo> tabla_veproformaAnticipo)
+        //{
+        //    try
+        //    {
+        //        // Obtener el contexto de base de datos correspondiente al usuario
+        //        string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+        //        using (var _context = DbContextFactory.Create(userConnectionString))
+        //        {
+        //            double ttl = await totalizar_asignacion(_context, txtcodmoneda_proforma, tabla_veproformaAnticipo);
+        //            string msgAlerta = "";
+        //            if (txtcodmoneda_proforma == txtcodmoneda_anticipo)
+        //            {
+        //                // No convertir el monto a asignar
+        //                ttl += txtmonto_asignar;
+        //                ttl = Math.Round(ttl, 2);
+        //            }
+        //            else
+        //            {
+        //                // si la moneda del anticipo y proforma no son iguales entonces convertir el monto asignar a la moneda de la proforma
+        //                if (txtcodmoneda_proforma != txtcodmoneda_anticipo)
+        //                {
+        //                    msgAlerta = "La moneda del anticipo es diferente a la moneda de la proforma, el monto a asignar se convertirá a la moneda de la proforma.";
+        //                }
+        //                double monto_asignar = (double)await tipoCambio._conversion(_context, txtcodmoneda_proforma, txtcodmoneda_anticipo, DateTime.Now, (decimal)txtmonto_asignar);
+        //                ttl += monto_asignar;
+        //                ttl = Math.Round(ttl, 2);
+        //            }
+
+        //            if (ttl > txtttl_proforma)
+        //            {
+        //                return BadRequest(new { resp = "El monto que desea asignar mas el monto ya asignado supera el total de la proforma" });
+        //            }
+        //            return Ok(new {value = true, msg = msgAlerta });
+        //        }
+        //    }
+        //    catch (Exception)
+        //    {
+        //        return Problem("Error en el servidor");
+        //    }
+        //}
+
 
         private async Task<double> totalizar_asignacion(DBContext _context, string codmoneda_proforma, List<tabla_veproformaAnticipo> tabla_veproformaAnticipo)
         {
