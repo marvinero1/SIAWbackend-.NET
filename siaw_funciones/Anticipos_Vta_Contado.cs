@@ -548,21 +548,32 @@ namespace siaw_funciones
                 {
                     TTL_asignado += (decimal)item.monto;
                 }
+
                 TTL_asignado = Math.Round(TTL_asignado, 2);
                 if (TTL_asignado < (decimal)DVTA.totaldoc)
                 {
                     DIFERENCIA = Math.Round(Math.Abs(TTL_asignado - (decimal)DVTA.totaldoc), 2);
-                    if (DIFERENCIA >= (decimal)0.01)
+                    if (DIFERENCIA > (decimal)0.5)
                     {
+                        //'Desde 04/06/2024 debe haber una tolerancia de 0.5 segun solciitado por la supervisora nal de operaciones y servicio al cliente autorizado por gerencia
+                        //if (DIFERENCIA >= (decimal)0.01)
                         //Desde 18/12/2024 ya no hay tolerancia de 0.03 segun indicado por mariela el monto debe ser exacto al momento de aplicar anticipos en una proforma
-                        cadena5 += Environment.NewLine + "El monto total de anticipo asignado no es suficiente para la venta, se asigno:" + TTL_asignado + "(" + DVTA.codmoneda + ") y el total de la venta es: " + DVTA.totaldoc + "(" + DVTA.codmoneda + ")";
+                        //'    cadena5 &= vbCrLf & "El monto total de anticipo asignado no es suficiente para la venta, se asigno:" & TTL_asignado.ToString & "(" & DVTA.codmoneda & ") y el total de la venta es: " & DVTA.totaldoc.ToString & "(" & DVTA.codmoneda & ")"
+                        cadena5 += Environment.NewLine + "Existe una diferencia de: " + DIFERENCIA + ". El monto total de anticipo asignado no es suficiente para la venta, se asigno:" + TTL_asignado.ToString() + "(" + DVTA.codmoneda + ") y el total de la venta es: " + DVTA.totaldoc.ToString() + "(" + DVTA.codmoneda + ")";
                         resultado = false;
                     }
                 }
                 if (TTL_asignado > (decimal)DVTA.totaldoc)
                 {
-                    cadena5 += Environment.NewLine + "El monto total de anticipo asignado es mayor a la venta total. El monto de anticipo asignado es: " + TTL_asignado + "(" + DVTA.codmoneda + ") y el total de la venta es: " + DVTA.totaldoc + "(" + DVTA.codmoneda + ")";
-                    resultado = false;
+                    //'Desde 04/06/2024 debe haber una tolerancia de 0.5 segun solciitado por la supervisora nal de operaciones y servicio al cliente autorizado por gerencia
+                    DIFERENCIA = Math.Round(Math.Abs(TTL_asignado - (decimal)DVTA.totaldoc), 2);
+                    if (DIFERENCIA > (decimal)0.5)
+                    {
+                        cadena5 += Environment.NewLine + "Existe una diferencia de: " + DIFERENCIA + ". El monto total de anticipo asignado es mayor a la venta total. El monto de anticipo asignado es: " + TTL_asignado.ToString() + "(" + DVTA.codmoneda + ") y el total de la venta es: " + DVTA.totaldoc.ToString() + "(" + DVTA.codmoneda + ")";
+                        resultado = false;
+                    }
+                    //    'cadena5 &= vbCrLf & "El monto total de anticipo asignado es mayor a la venta total. El monto de anticipo asignado es: " & TTL_asignado.ToString & "(" & DVTA.codmoneda & ") y el total de la venta es: " & DVTA.totaldoc.ToString & "(" & DVTA.codmoneda & ")"
+                    //'resultado = False
                 }
             }
             if (cadena5.Trim().Length > 0)

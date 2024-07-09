@@ -1804,6 +1804,7 @@ namespace siaw_DBContext.Data
         public virtual DbSet<veproforma_aa> veproforma_aa { get; set; }
         public virtual DbSet<veproforma_anticipo> veproforma_anticipo { get; set; }
         public virtual DbSet<veproforma_anticipo1> veproforma_anticipo1 { get; set; }
+        public virtual DbSet<veproforma_anticipo_diferencias> veproforma_anticipo_diferencias { get; set; }
         public virtual DbSet<veproforma_etiqueta> veproforma_etiqueta { get; set; }
         public virtual DbSet<veproforma_iva> veproforma_iva { get; set; }
         public virtual DbSet<veproforma_paquetes> veproforma_paquetes { get; set; }
@@ -63036,6 +63037,22 @@ namespace siaw_DBContext.Data
                     .IsRequired()
                     .HasMaxLength(5)
                     .IsUnicode(false);
+            });
+
+            modelBuilder.Entity<veproforma_anticipo_diferencias>(entity =>
+            {
+                entity.HasKey(e => e.codigo)
+                    .HasName("PK__veprofor__40F9A207E119A9D9");
+
+                entity.Property(e => e.fechareg).HasColumnType("smalldatetime");
+
+                entity.Property(e => e.horareg).HasMaxLength(5);
+
+                entity.Property(e => e.monto).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.tdc).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.usuarioreg).HasMaxLength(15);
             });
 
             modelBuilder.Entity<veproforma_etiqueta>(entity =>

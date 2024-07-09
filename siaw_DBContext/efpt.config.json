@@ -7148,6 +7148,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[veproforma_anticipo_diferencias]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[veproforma_anticipo1]",
          "ObjectType": 0
       },

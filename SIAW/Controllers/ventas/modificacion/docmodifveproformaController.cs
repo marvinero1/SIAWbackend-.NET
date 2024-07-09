@@ -1008,7 +1008,7 @@ namespace SIAW.Controllers.ventas.modificacion
 
             /*
             ///////////////////////////////////////////////   FALTA VALIDACIONES
-            
+
 
             If Not Validar_Detalle() Then
                 Return False
@@ -1017,7 +1017,7 @@ namespace SIAW.Controllers.ventas.modificacion
             If Not Validar_Datos() Then
                 Return False
             End If
-             
+
             //************************************************
             //control implementado en fecha: 09-10-2020
 
@@ -1038,17 +1038,15 @@ namespace SIAW.Controllers.ventas.modificacion
             // Actualizar cabecera (veproforma)
             try
             {
-
+                _context.Entry(veproforma).State = EntityState.Modified;
+                await _context.SaveChangesAsync();
             }
             catch (Exception)
             {
 
                 throw;
             }
-            _context.Entry(veproforma).State = EntityState.Modified;
-            await _context.SaveChangesAsync();
-
-
+            
 
             // guarda detalle (veproforma1)
             // actualizar codigoproforma para agregar
@@ -1074,9 +1072,9 @@ namespace SIAW.Controllers.ventas.modificacion
 
             await grabarValidaciones(_context, codProforma, veproforma_valida);
 
-            
 
-         
+
+
 
             // grabar descto por deposito si hay descuentos
 
@@ -1104,14 +1102,16 @@ namespace SIAW.Controllers.ventas.modificacion
             //======================================================================================
             try
             {
+                var anticiposprevios = await _context.veproforma_anticipo.Where(i => i.codproforma == codProforma).ToListAsync();
+                if (anticiposprevios.Count() > 0)
+                {
+                    _context.veproforma_anticipo.RemoveRange(anticiposprevios);
+                    await _context.SaveChangesAsync();
+                }
+
                 if (dt_anticipo_pf.Count() > 0 && dt_anticipo_pf != null)
                 {
-                    var anticiposprevios = await _context.veproforma_anticipo.Where(i => i.codproforma == codProforma).ToListAsync();
-                    if (anticiposprevios.Count() > 0)
-                    {
-                        _context.veproforma_anticipo.RemoveRange(anticiposprevios);
-                        await _context.SaveChangesAsync();
-                    }
+
                     var newData = dt_anticipo_pf
                         .Select(i => new veproforma_anticipo
                         {
@@ -1134,8 +1134,55 @@ namespace SIAW.Controllers.ventas.modificacion
                 throw;
             }
 
+            //======================================================================================
+            //grabar diferencias de anticipos aplicados
+            //======================================================================================
+            try
+            {
+                var diferencias_previos = await _context.veproforma_anticipo_diferencias.Where(i => i.codproforma == codProforma).ToListAsync();
+                if (diferencias_previos.Count() > 0)
+                {
+                    _context.veproforma_anticipo_diferencias.RemoveRange(diferencias_previos);
+                    await _context.SaveChangesAsync();
+                }
+                //obtener si hay diferencia enntre el total de aplicado de anticipo contra el total de la proforma
+                decimal ttl_anticipos_aplicados = 0;
+                decimal ttl_pf = 0;
+                decimal diferencia_ant_pf = 0;
+                bool anticipo_mayor = true;
 
+                if (dt_anticipo_pf.Count() > 0 && dt_anticipo_pf != null)
+                {
+                    foreach (var ant in dt_anticipo_pf)
+                    {
+                        ttl_anticipos_aplicados += Math.Round(Convert.ToDecimal(ant.monto), 2);
+                    }
+                    ttl_pf = Math.Round(veproforma.total);
+                    diferencia_ant_pf = Math.Round(ttl_anticipos_aplicados - ttl_pf, 2);
+                    if (ttl_anticipos_aplicados != ttl_pf)
+                    {
+                        anticipo_mayor = ttl_anticipos_aplicados > ttl_pf;
 
+                        var newData = new veproforma_anticipo_diferencias
+                        {
+                            codproforma = codProforma,
+                            monto = diferencia_ant_pf,
+                            tdc = 1,
+                            fechareg = DateTime.Parse(datos_proforma.getFechaActual()),
+                            usuarioreg = veproforma.usuarioreg,
+                            horareg = datos_proforma.getHoraActual(),
+                            anticipo_aplicado_mayor = anticipo_mayor
+                        };
+                        await _context.veproforma_anticipo_diferencias.AddAsync(newData);
+                        await _context.SaveChangesAsync();
+                    }
+                }
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
 
             bool resultado = new bool();
             //======================================================================================

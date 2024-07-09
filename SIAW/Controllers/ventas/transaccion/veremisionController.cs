@@ -19,15 +19,79 @@ namespace SIAW.Controllers.ventas.transaccion
         private readonly Anticipos_Vta_Contado anticipos_vta_contado = new Anticipos_Vta_Contado();
         private readonly siaw_funciones.Nombres nombres = new siaw_funciones.Nombres();
         private readonly siaw_funciones.TipoCambio tipocambio = new siaw_funciones.TipoCambio();
+        private readonly siaw_funciones.Configuracion configuracion = new siaw_funciones.Configuracion();
+
         private readonly Log log = new Log();
 
         public veremisionController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;
         }
-
-
         [HttpGet]
+        [Route("getParametrosIniciales/{userConn}/{usuario}/{codempresa}")]
+        public async Task<object> getParametrosIniciales(string userConn, string usuario, string codempresa)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    // obtener ID
+                    string id = await configuracion.usr_idremision(_context,usuario);
+                    // obtener nroID
+                    int numeroid = new int();
+                    if (id == "")
+                    {
+                        numeroid = 0;
+                    }
+                    else
+                    {
+                        var numeracion =  await _context.venumeracion.Where(i => i.id == id).FirstOrDefaultAsync();
+                        if (numeracion == null)
+                        {
+                            numeroid = 0;
+                        }
+                        else
+                        {
+                            numeroid = numeracion.nroactual + 1;
+                        }
+                    }
+                    //obtener cod vendedor
+                    int codvendedor = await configuracion.usr_codvendedor(_context,usuario);
+                    // obtener codmoneda
+                    var codmoneda = await configuracion.usr_codmoneda(_context,usuario);
+                    // obtener tdc
+                    var tdc = await tipocambio._tipocambio(_context, await Empresa.monedabase(_context,codempresa),codmoneda,DateTime.Now.Date);
+                    // obtener almacen actual
+                    var codalmacen = await configuracion.usr_codalmacen(_context,usuario);
+                    // obtener codigo tarifa defecto
+                    var codtarifadefect = await configuracion.usr_codtarifa(_context,usuario);
+                    // obtener codigo decuento defecto
+                    var coddescuentodefect = await configuracion.usr_coddescuento(_context, usuario);
+
+                    return Ok(new
+                    {
+                        id,
+                        numeroid,
+                        codvendedor,
+                        codmoneda,
+                        tdc,
+                        codalmacen,
+                        codtarifadefect,
+                        coddescuentodefect
+                    });
+                }
+
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+        }
+
+            [HttpGet]
         [Route("validaTranferencia/{userConn}/{idProforma}/{nroidProforma}")]
         public async Task<object> validaTranferencia(string userConn, string idProforma, int nroidProforma)
         {
@@ -267,7 +331,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
-
+        /*
 
 
         private async Task<(string resp, int codprof, int numeroId)> Grabar_Documento(DBContext _context, string idProf, string codempresa, SaveProformaCompleta datosProforma)
@@ -453,7 +517,7 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
 
-
+        */
 
 
     }

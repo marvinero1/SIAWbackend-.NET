@@ -594,7 +594,138 @@ namespace siaw_funciones
             }
         }
 
-
+        public async Task<string> usr_idremision(DBContext _context, string usuario)
+        {
+            try
+            {
+                var result = await _context.adusparametros
+                    .Where(parametro => parametro.usuario == usuario)
+                    .Select(i => new
+                    {
+                        i.idremision
+                    })
+                    .FirstOrDefaultAsync();
+                if (result == null)
+                {
+                    return "";
+                }
+                return result.idremision;
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
+        public async Task<int> usr_codvendedor(DBContext _context, string usuario)
+        {
+            try
+            {
+                var result = await _context.adusparametros
+                    .Where(parametro => parametro.usuario == usuario)
+                    .Select(i => new
+                    {
+                        i.codvendedor
+                    })
+                    .FirstOrDefaultAsync();
+                if (result == null)
+                {
+                    return 0;
+                }
+                return result.codvendedor ?? 0;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
+        public async Task<string> usr_codmoneda(DBContext _context, string usuario)
+        {
+            try
+            {
+                var result = await _context.adusparametros
+                    .Where(parametro => parametro.usuario == usuario)
+                    .Select(i => new
+                    {
+                        i.codmoneda
+                    })
+                    .FirstOrDefaultAsync();
+                if (result == null)
+                {
+                    return "";
+                }
+                return result.codmoneda;
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
+        public async Task<int> usr_codalmacen(DBContext _context, string usuario)
+        {
+            try
+            {
+                var result = await _context.adusparametros
+                    .Where(parametro => parametro.usuario == usuario)
+                    .Select(i => new
+                    {
+                        i.codalmacen
+                    })
+                    .FirstOrDefaultAsync();
+                if (result == null)
+                {
+                    return 0;
+                }
+                return result.codalmacen ?? 0;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
+        public async Task<int> usr_codtarifa(DBContext _context, string usuario)
+        {
+            try
+            {
+                var result = await _context.adusparametros
+                    .Where(parametro => parametro.usuario == usuario)
+                    .Select(i => new
+                    {
+                        i.codtarifa
+                    })
+                    .FirstOrDefaultAsync();
+                if (result == null)
+                {
+                    return 0;
+                }
+                return result.codtarifa ?? 0;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
+        public async Task<int> usr_coddescuento(DBContext _context, string usuario)
+        {
+            try
+            {
+                var result = await _context.adusparametros
+                    .Where(parametro => parametro.usuario == usuario)
+                    .Select(i => new
+                    {
+                        i.coddescuento
+                    })
+                    .FirstOrDefaultAsync();
+                if (result == null)
+                {
+                    return 0;
+                }
+                return result.coddescuento ?? 0;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
     }
 }
  

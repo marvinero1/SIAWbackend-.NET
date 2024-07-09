@@ -2191,8 +2191,6 @@ namespace SIAW.Controllers.ventas.transaccion
             return (true, "Error al guardar todos los datos.");
         }
 
-
-
         private async Task<bool> Grabar_Proforma_Etiqueta(DBContext _context, string idProf, int nroidpf, bool desclinea_segun_solicitud, string codcliente_real, veproforma dtpf)
         {
             try
@@ -2280,13 +2278,13 @@ namespace SIAW.Controllers.ventas.transaccion
             {
                 if (veproforma_valida.Count() < 1 || veproforma_valida == null)
                 {
-                    return ("Antes de grabar el documento debe previamente validar el mismo!!!",0, 0);
+                    return ("Antes de grabar el documento debe previamente validar el mismo!!!", 0, 0);
                 }
             }
 
             /*
             ///////////////////////////////////////////////   FALTA VALIDACIONES
-            
+
 
             If Not Validar_Detalle() Then
                 Return False
@@ -2295,7 +2293,7 @@ namespace SIAW.Controllers.ventas.transaccion
             If Not Validar_Datos() Then
                 Return False
             End If
-             
+
             //************************************************
             //control implementado en fecha: 09-10-2020
 
@@ -2343,7 +2341,7 @@ namespace SIAW.Controllers.ventas.transaccion
             // guarda cabecera (veproforma)
             _context.veproforma.Add(veproforma);
             await _context.SaveChangesAsync();
-         
+
             var codProforma = veproforma.codigo;
 
             // actualiza numero id
@@ -2373,7 +2371,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
-           
+
             //======================================================================================
             // grabar detalle de validacion
             //======================================================================================
@@ -2387,14 +2385,15 @@ namespace SIAW.Controllers.ventas.transaccion
             //======================================================================================
             try
             {
+                var anticiposprevios = await _context.veproforma_anticipo.Where(i => i.codproforma == codProforma).ToListAsync();
+                if (anticiposprevios.Count() > 0)
+                {
+                    _context.veproforma_anticipo.RemoveRange(anticiposprevios);
+                    await _context.SaveChangesAsync();
+                }
                 if (dt_anticipo_pf.Count() > 0 && dt_anticipo_pf != null)
                 {
-                    var anticiposprevios = await _context.veproforma_anticipo.Where(i => i.codproforma == codProforma).ToListAsync();
-                    if (anticiposprevios.Count() > 0)
-                    {
-                        _context.veproforma_anticipo.RemoveRange(anticiposprevios);
-                        await _context.SaveChangesAsync();
-                    }
+
                     var newData = dt_anticipo_pf
                         .Select(i => new veproforma_anticipo
                         {
@@ -2403,7 +2402,7 @@ namespace SIAW.Controllers.ventas.transaccion
                             monto = (decimal?)i.monto,
                             tdc = (decimal?)i.tdc,
 
-                            fechareg = i.fechareg,
+                            fechareg = DateTime.Parse(datos_proforma.getFechaActual()),
                             usuarioreg = veproforma.usuarioreg,
                             horareg = datos_proforma.getHoraActual()
                         }).ToList();
@@ -2417,9 +2416,56 @@ namespace SIAW.Controllers.ventas.transaccion
 
                 throw;
             }
-            
 
+            //======================================================================================
+            //grabar diferencias de anticipos aplicados
+            //======================================================================================
+            try
+            {
+                var diferencias_previos = await _context.veproforma_anticipo_diferencias.Where(i => i.codproforma == codProforma).ToListAsync();
+                if (diferencias_previos.Count() > 0)
+                {
+                    _context.veproforma_anticipo_diferencias.RemoveRange(diferencias_previos);
+                    await _context.SaveChangesAsync();
+                }
+                //obtener si hay diferencia enntre el total de aplicado de anticipo contra el total de la proforma
+                decimal ttl_anticipos_aplicados = 0;
+                decimal ttl_pf = 0;
+                decimal diferencia_ant_pf = 0;
+                bool anticipo_mayor = true;
 
+                if (dt_anticipo_pf.Count() > 0 && dt_anticipo_pf != null)
+                {
+                    foreach (var ant in dt_anticipo_pf)
+                    {
+                        ttl_anticipos_aplicados += Math.Round(Convert.ToDecimal(ant.monto), 2);
+                    }
+                    ttl_pf = Math.Round(veproforma.total,2);
+                    diferencia_ant_pf = Math.Round(ttl_anticipos_aplicados - ttl_pf, 2);
+                    if (ttl_anticipos_aplicados != ttl_pf)
+                    {
+                        anticipo_mayor = ttl_anticipos_aplicados > ttl_pf;
+
+                        var newData = new veproforma_anticipo_diferencias
+                        {
+                            codproforma = codProforma,
+                            monto = diferencia_ant_pf,
+                            tdc = 1,
+                            fechareg = DateTime.Parse(datos_proforma.getFechaActual()),
+                            usuarioreg = veproforma.usuarioreg,
+                            horareg = datos_proforma.getHoraActual(),
+                            anticipo_aplicado_mayor = anticipo_mayor
+                        };
+                        await _context.veproforma_anticipo_diferencias.AddAsync(newData);
+                        await _context.SaveChangesAsync();
+                    }
+                }
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
             // grabar descto por deposito si hay descuentos
 
             if (vedesextraprof.Count() > 0)
@@ -2444,7 +2490,7 @@ namespace SIAW.Controllers.ventas.transaccion
             // grabar descto por deposito
             if (await ventas.Grabar_Descuento_Por_deposito_Pendiente(_context, codProforma, codempresa, veproforma.usuarioreg, vedesextraprof))
             {
-                resultado=true;
+                resultado = true;
             }
             else
             {
@@ -2458,18 +2504,19 @@ namespace SIAW.Controllers.ventas.transaccion
             {
                 foreach (var reg in dt_anticipo_pf)
                 {
-                    if (! await anticipos_vta_contado.ActualizarMontoRestAnticipo(_context,reg.id_anticipo,reg.nroid_anticipo,reg.codproforma ?? 0,reg.codanticipo ?? 0,reg.monto,codempresa))
+                    if (!await anticipos_vta_contado.ActualizarMontoRestAnticipo(_context, reg.id_anticipo, reg.nroid_anticipo, reg.codproforma ?? 0, reg.codanticipo ?? 0, 0, codempresa))
+                    //    if (!await anticipos_vta_contado.ActualizarMontoRestAnticipo(_context, reg.id_anticipo, reg.nroid_anticipo, reg.codproforma ?? 0, reg.codanticipo ?? 0, reg.monto, codempresa))
                     {
                         resultado = false;
                     }
                 }
             }
-            
+
 
             /*
-             
+
             //grabar descto por deposito
-            
+
             If resultado Then
                 If sia_funciones.Ventas.Instancia.Grabar_Descuento_Por_deposito_Pendiente(codigo.Text, tabladescuentos, sia_compartidos.temporales.Instancia.codempresa, sia_compartidos.temporales.Instancia.usuario) Then
                     resultado = True
@@ -2492,7 +2539,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     Next
                 End If
             End If
-             
+
              */
 
 
