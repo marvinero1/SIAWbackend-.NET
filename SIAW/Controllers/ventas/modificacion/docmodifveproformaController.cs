@@ -1077,10 +1077,19 @@ namespace SIAW.Controllers.ventas.modificacion
 
 
             // grabar descto por deposito si hay descuentos
-
-            if (vedesextraprof.Count() > 0)
+            try
             {
-                await grabardesextra(_context, codProforma, vedesextraprof);
+                if (vedesextraprof.Count() > 0)
+                {
+                    await grabardesextra(_context, codProforma, vedesextraprof);
+                }
+
+                
+            }
+            catch (Exception)
+            {
+
+                throw;
             }
 
             // grabar recargo si hay recargos
@@ -1095,7 +1104,6 @@ namespace SIAW.Controllers.ventas.modificacion
             {
                 await grabariva(_context, codProforma, veproforma_iva);
             }
-
 
             //======================================================================================
             //grabar anticipos aplicados
@@ -1247,6 +1255,7 @@ namespace SIAW.Controllers.ventas.modificacion
                 await _context.SaveChangesAsync();
             }
             vedesextraprof = vedesextraprof.Select(p => { p.codproforma = codProf; return p; }).ToList();
+            vedesextraprof = vedesextraprof.Select(p => { p.id = 0; return p; }).ToList();
             _context.vedesextraprof.AddRange(vedesextraprof);
             await _context.SaveChangesAsync();
         }

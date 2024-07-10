@@ -3,7 +3,7 @@
     public class vedesextraDatos
     {
         public int coddesextra { get; set; }
-        public string descrip { get; set; }
+        public string descripcion { get; set; }
         public decimal porcen { get; set; }
         public decimal montodoc { get; set; }
         public int codcobranza { get; set; }

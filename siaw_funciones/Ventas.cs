@@ -3960,6 +3960,23 @@ namespace siaw_funciones
         }
 
 
+        ///////////////////////////////////////////////////////////////////////////////
+        //esta funcion verifica si un id de ventas descarga mercaderia o no
+        ///////////////////////////////////////////////////////////////////////////////
+        public async Task<bool> iddescarga(DBContext _context, string id)
+        {
+            try
+            {
+                bool resultado = await _context.venumeracion.Where(i => i.id == id).Select(i => i.descarga).FirstOrDefaultAsync();
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return true;
+            }
+        }
+
+
 
         public async Task<List<ProformasWF>> Detalle_Proformas_Aprobadas_WF(string userConnectionString, string codempresa, string usuario)
         {

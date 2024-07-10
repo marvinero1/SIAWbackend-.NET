@@ -3,7 +3,7 @@
     public class verecargosDatos
     {
         public int codrecargo { get; set; }
-        public string descrip { get; set; }
+        public string descripcion { get; set; }
         public decimal porcen { get; set; }
         public decimal monto { get; set; }
         public string moneda { get; set; }

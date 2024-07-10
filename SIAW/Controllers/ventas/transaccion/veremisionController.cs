@@ -21,6 +21,7 @@ namespace SIAW.Controllers.ventas.transaccion
         private readonly siaw_funciones.TipoCambio tipocambio = new siaw_funciones.TipoCambio();
         private readonly siaw_funciones.Configuracion configuracion = new siaw_funciones.Configuracion();
 
+        private readonly Documento documento = new Documento();
         private readonly Log log = new Log();
 
         public veremisionController(UserConnectionManager userConnectionManager)
@@ -47,16 +48,9 @@ namespace SIAW.Controllers.ventas.transaccion
                     }
                     else
                     {
-                        var numeracion =  await _context.venumeracion.Where(i => i.id == id).FirstOrDefaultAsync();
-                        if (numeracion == null)
-                        {
-                            numeroid = 0;
-                        }
-                        else
-                        {
-                            numeroid = numeracion.nroactual + 1;
-                        }
+                        numeroid = await documento.ventasnumeroid(_context, id) + 1;
                     }
+
                     //obtener cod vendedor
                     int codvendedor = await configuracion.usr_codvendedor(_context,usuario);
                     // obtener codmoneda
@@ -331,193 +325,187 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
-        /*
+        
 
 
-        private async Task<(string resp, int codprof, int numeroId)> Grabar_Documento(DBContext _context, string idProf, string codempresa, SaveProformaCompleta datosProforma)
+        private async Task<(string resp, int codNRemision, int numeroId)> Grabar_Documento(DBContext _context, string id, string codempresa, bool desclinea_segun_solicitud, int codProforma, SaveNRemisionCompleta datosRemision)
         {
-            veproforma veproforma = datosProforma.veproforma;
-            List<veproforma1> veproforma1 = datosProforma.veproforma1;
-            var veproforma_valida = datosProforma.veproforma_valida;
-            var dt_anticipo_pf = datosProforma.dt_anticipo_pf;
-            var vedesextraprof = datosProforma.vedesextraprof;
-            var verecargoprof = datosProforma.verecargoprof;
-            var veproforma_iva = datosProforma.veproforma_iva;
+            veremision veremision = datosRemision.veremision;
+            List<veremision1> veremision1 = datosRemision.veremision1;
+            var vedesextraremi = datosRemision.vedesextraremi;
+            var verecargoremi = datosRemision.verecargoremi;
+            var veremision_iva = datosRemision.veremision_iva;
+            var veremision_chequerechazado = datosRemision.veremision_chequerechazado;
+
+
 
             ////////////////////   GRABAR DOCUMENTO
+            //obtener id actual
 
-            int _ag = await empresa.AlmacenLocalEmpresa(_context, codempresa);
-            // verificar si valido el documento, si es tienda no es necesario que valide primero
-            if (!await almacen.Es_Tienda(_context, _ag))
-            {
-                if (veproforma_valida.Count() < 1 || veproforma_valida == null)
-                {
-                    return ("Antes de grabar el documento debe previamente validar el mismo!!!", 0, 0);
-                }
-            }
-
-
-            //obtenemos numero actual de proforma de nuevo
-            int idnroactual = await datos_proforma.getNumActProd(_context, idProf);
-
-            if (idnroactual == 0)
-            {
-                return ("Error al obtener los datos de numero de proforma", 0, 0);
-            }
-
-            // valida si existe ya la proforma
-            if (await datos_proforma.existeProforma(_context, idProf, idnroactual))
+            int idnroactual = await documento.ventasnumeroid(_context, id);
+            if (await documento.existe_notaremision(_context,id,idnroactual + 1))
             {
                 return ("Ese numero de documento, ya existe, por favor consulte con el administrador del sistema.", 0, 0);
             }
-            veproforma.numeroid = idnroactual;
+            veremision.numeroid = idnroactual + 1;
+            // fin de obtener id actual
 
-            //fin de obtener id actual
 
-            // obtener hora y fecha actual si es que la proforma no se importo
-            if (veproforma.hora_inicial == "")
+            // verificacion para ver si el documento descarga mercaderia
+            bool descarga = await ventas.iddescarga(_context, id);
+
+
+            if (desclinea_segun_solicitud == false)
             {
-                veproforma.fecha_inicial = DateTime.Parse(datos_proforma.getFechaActual());
-                veproforma.hora_inicial = datos_proforma.getHoraActual();
+                veremision.idsoldesctos = "0";
+                veremision.nroidsoldesctos = 0;
             }
 
 
             // accion de guardar
 
-            // guarda cabecera (veproforma)
-            _context.veproforma.Add(veproforma);
+            // guarda cabecera (veremision)
+            _context.veremision.Add(veremision);
             await _context.SaveChangesAsync();
 
-            var codProforma = veproforma.codigo;
+            var codNRemision = veremision.codigo;
 
             // actualiza numero id
-            var numeracion = _context.venumeracion.FirstOrDefault(n => n.id == idProf);
+            var numeracion = _context.venumeracion.FirstOrDefault(n => n.id == id);
             numeracion.nroactual += 1;
             await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
 
 
-            int validaCantProf = await _context.veproforma.Where(i => i.id == veproforma.id && i.numeroid == veproforma.numeroid).CountAsync();
-            if (validaCantProf > 1)
-            {
-                return ("Se detecto más de un número del mismo documento, por favor consulte con el administrador del sistema.", 0, 0);
-            }
 
-
-            // guarda detalle (veproforma1)
+            // guarda detalle (veremision1)
             // actualizar codigoproforma para agregar
-            veproforma1 = veproforma1.Select(p => { p.codproforma = codProforma; return p; }).ToList();
-            // colocar obs como vacio no nulo
-            veproforma1 = veproforma1.Select(o => { o.obs = ""; return o; }).ToList();
+            veremision1 = veremision1.Select(p => { p.codremision = codNRemision; return p; }).ToList();
             // actualizar peso del detalle.
-            veproforma1 = await ventas.Actualizar_Peso_Detalle_Proforma(_context, veproforma1);
+            //veremision1 = await ventas.Actualizar_Peso_Detalle_Proforma(_context, veproforma1);
 
-            _context.veproforma1.AddRange(veproforma1);
+            _context.veremision1.AddRange(veremision1);
             await _context.SaveChangesAsync();
 
 
 
-
-
-            //======================================================================================
-            // grabar detalle de validacion
-            //======================================================================================
-
-            veproforma_valida = veproforma_valida.Select(p => { p.codproforma = codProforma; return p; }).ToList();
-            _context.veproforma_valida.AddRange(veproforma_valida);
-            await _context.SaveChangesAsync();
-
-            //======================================================================================
-            //grabar anticipos aplicados
-            //======================================================================================
-            try
+            // actualizar proforma a transferida
+            if (codProforma!=0)
             {
-                if (dt_anticipo_pf.Count() > 0 && dt_anticipo_pf != null)
+                try
                 {
-                    var anticiposprevios = await _context.veproforma_anticipo.Where(i => i.codproforma == codProforma).ToListAsync();
-                    if (anticiposprevios.Count() > 0)
+                    var proforma = await _context.veproforma.Where(i => i.codigo == codProforma).FirstOrDefaultAsync();
+
+                    if (proforma != null)
                     {
-                        _context.veproforma_anticipo.RemoveRange(anticiposprevios);
+                        proforma.transferida = true;
                         await _context.SaveChangesAsync();
                     }
-                    var newData = dt_anticipo_pf
-                        .Select(i => new veproforma_anticipo
-                        {
-                            codproforma = codProforma,
-                            codanticipo = i.codanticipo,
-                            monto = (decimal?)i.monto,
-                            tdc = (decimal?)i.tdc,
+                    else
+                    {
+                        return ("No se pudo encontrar la proforma para transferirla, por favor consulte con el administrador del sistema.", 0, 0);
+                    }
+                }
+                catch (Exception)
+                {
+                    return ("Error al transferir la proforma, por favor consulte con el administrador del sistema.", 0, 0);
+                }
+            }
 
-                            fechareg = i.fechareg,
-                            usuarioreg = veproforma.usuarioreg,
-                            horareg = datos_proforma.getHoraActual()
-                        }).ToList();
-                    _context.veproforma_anticipo.AddRange(newData);
-                    await _context.SaveChangesAsync();
-
+            try
+            {
+                // grabar descto si hay descuentos
+                if (vedesextraremi.Count() > 0)
+                {
+                    await grabardesextra(_context, codProforma, vedesextraremi);
                 }
             }
             catch (Exception)
             {
-
-                throw;
+                return ("Error al Guardar descuentos extras de Nota de Remision, por favor consulte con el administrador del sistema.", 0, 0);
             }
-
-
-
-            // grabar descto por deposito si hay descuentos
-
-            if (vedesextraprof.Count() > 0)
+            try
             {
-                await grabardesextra(_context, codProforma, vedesextraprof);
-            }
-
-            // grabar recargo si hay recargos
-            if (verecargoprof.Count > 0)
-            {
-                await grabarrecargo(_context, codProforma, verecargoprof);
-            }
-
-            // grabar iva
-
-            if (veproforma_iva.Count > 0)
-            {
-                await grabariva(_context, codProforma, veproforma_iva);
-            }
-
-            bool resultado = new bool();
-            // grabar descto por deposito
-            if (await ventas.Grabar_Descuento_Por_deposito_Pendiente(_context, codProforma, codempresa, veproforma.usuarioreg, vedesextraprof))
-            {
-                resultado = true;
-            }
-            else
-            {
-                resultado = false;
-            }
-
-            // ======================================================================================
-            // actualizar saldo restante de anticipos aplicados
-            // ======================================================================================
-            if (resultado)
-            {
-                foreach (var reg in dt_anticipo_pf)
+                // grabar recargo si hay recargos
+                if (verecargoremi.Count > 0)
                 {
-                    if (!await anticipos_vta_contado.ActualizarMontoRestAnticipo(_context, reg.id_anticipo, reg.nroid_anticipo, reg.codproforma ?? 0, reg.codanticipo ?? 0, reg.monto, codempresa))
-                    {
-                        resultado = false;
-                    }
+                    await grabarrecargo(_context, codProforma, verecargoremi);
                 }
             }
+            catch (Exception)
+            {
+                return ("Error al Guardar recargos de Nota de Remision, por favor consulte con el administrador del sistema.", 0, 0);
+            }
+            try
+            {
+                // grabar iva
+                if (veremision_iva.Count > 0)
+                {
+                    await grabariva(_context, codProforma, veremision_iva);
+                }
+            }
+            catch (Exception)
+            {
+                return ("Error al Guardar iva de Nota de Remision, por favor consulte con el administrador del sistema.", 0, 0);
+            }
+
+
+            // ACTUALIZAR CODGRUPOMER
 
 
 
-            return ("ok", codProforma, veproforma.numeroid);
+
+
+
+
+
+
+
+
+            return ("ok", codProforma, 0);
 
 
         }
 
 
-        */
+        private async Task grabardesextra(DBContext _context, int codRemi, List<vedesextraremi> vedesextraremi)
+        {
+            var descExtraAnt = await _context.vedesextraremi.Where(i => i.codremision == codRemi).ToListAsync();
+            if (descExtraAnt.Count() > 0)
+            {
+                _context.vedesextraremi.RemoveRange(descExtraAnt);
+                await _context.SaveChangesAsync();
+            }
+            vedesextraremi = vedesextraremi.Select(p => { p.codremision = codRemi; return p; }).ToList();
+            _context.vedesextraremi.AddRange(vedesextraremi);
+            await _context.SaveChangesAsync();
+        }
+
+
+        private async Task grabarrecargo(DBContext _context, int codRemi, List<verecargoremi> verecargoremi)
+        {
+            var recargosAnt = await _context.verecargoremi.Where(i => i.codremision == codRemi).ToListAsync();
+            if (recargosAnt.Count() > 0)
+            {
+                _context.verecargoremi.RemoveRange(recargosAnt);
+                await _context.SaveChangesAsync();
+            }
+            verecargoremi = verecargoremi.Select(p => { p.codremision = codRemi; return p; }).ToList();
+            _context.verecargoremi.AddRange(verecargoremi);
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task grabariva(DBContext _context, int codRemi, List<veremision_iva> veremision_iva)
+        {
+            var ivaAnt = await _context.veremision_iva.Where(i => i.codremision == codRemi).ToListAsync();
+            if (ivaAnt.Count() > 0)
+            {
+                _context.veremision_iva.RemoveRange(ivaAnt);
+                await _context.SaveChangesAsync();
+            }
+            veremision_iva = veremision_iva.Select(p => { p.codremision = codRemi; return p; }).ToList();
+            _context.veremision_iva.AddRange(veremision_iva);
+            await _context.SaveChangesAsync();
+        }
 
 
     }

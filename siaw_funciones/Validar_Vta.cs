@@ -2404,7 +2404,7 @@ namespace siaw_funciones
                     }
                     else
                     {
-                        cadena += "\n " + descuentos.coddesextra + "-" + descuentos.descrip;
+                        cadena += "\n " + descuentos.coddesextra + "-" + descuentos.descripcion;
                     }
                 }
                 else
@@ -2415,7 +2415,7 @@ namespace siaw_funciones
                     }
                     else
                     {
-                        cadena += "\n " + descuentos.coddesextra + "-" + descuentos.descrip;
+                        cadena += "\n " + descuentos.coddesextra + "-" + descuentos.descripcion;
                     }
                 }
             }
@@ -2605,11 +2605,11 @@ namespace siaw_funciones
                     {
                         if (cadena.Trim().Length == 0)
                         {
-                           cadena = "El descuento " + descuentos.descrip + " no cumple el peso minimo para su aplicacion.";
+                           cadena = "El descuento " + descuentos.descripcion + " no cumple el peso minimo para su aplicacion.";
                         }
                         else
                         {
-                            cadena += "\n El descuento " + descuentos.descrip + " no cumple el peso minimo para su aplicacion.";
+                            cadena += "\n El descuento " + descuentos.descripcion + " no cumple el peso minimo para su aplicacion.";
                         }
                     }
                 }
@@ -2686,7 +2686,7 @@ namespace siaw_funciones
                                 {
                                     cadena +=  "\n Esta proforma tiene complemento";
                                 }
-                                cadena +=  "\n El descuento: " + descuentos.coddesextra + "-" + descuentos.descrip + " no cumple el monto minimo para su aplicacion, el monto mínimo es: " + _montoMIN.ToString() + "(" + DVTA.codmoneda + ") y el subtotal de esta proforma: " + DVTA.subtotaldoc.ToString() + " mas su complemento de: " + _subtotal_pfcomplemento.ToString() + " es de:" + _total + "(" + DVTA.codmoneda + ")";
+                                cadena +=  "\n El descuento: " + descuentos.coddesextra + "-" + descuentos.descripcion + " no cumple el monto minimo para su aplicacion, el monto mínimo es: " + _montoMIN.ToString() + "(" + DVTA.codmoneda + ") y el subtotal de esta proforma: " + DVTA.subtotaldoc.ToString() + " mas su complemento de: " + _subtotal_pfcomplemento.ToString() + " es de:" + _total + "(" + DVTA.codmoneda + ")";
                             }
                         }
                     }
@@ -2716,7 +2716,7 @@ namespace siaw_funciones
                                 {
                                     cadena += "\n Esta proforma tiene complemento para cumplir monto minimo de descto extra";
                                 }
-                                cadena += "\n El descuento: " + descuentos.coddesextra + "-" + descuentos.descrip + " no cumple el monto minimo para su aplicacion, el monto mínimo es: " + _montoMIN.ToString() + "(" + DVTA.codmoneda + ") y el subtotal de esta proforma: " + DVTA.subtotaldoc.ToString() + " mas su complemento de: " + _subtotal_pfcomplemento.ToString() + " es de:" + _total + "(" + DVTA.codmoneda + ")";
+                                cadena += "\n El descuento: " + descuentos.coddesextra + "-" + descuentos.descripcion + " no cumple el monto minimo para su aplicacion, el monto mínimo es: " + _montoMIN.ToString() + "(" + DVTA.codmoneda + ") y el subtotal de esta proforma: " + DVTA.subtotaldoc.ToString() + " mas su complemento de: " + _subtotal_pfcomplemento.ToString() + " es de:" + _total + "(" + DVTA.codmoneda + ")";
                             }
                         }
                     }
@@ -6538,7 +6538,7 @@ namespace siaw_funciones
                 {
                     if (listado.Contains(descuentos.coddesextra.ToString()))
                     {
-                        cadena_repetidos += "\n" + descuentos.coddesextra + "-" + descuentos.descrip;
+                        cadena_repetidos += "\n" + descuentos.coddesextra + "-" + descuentos.descripcion;
                     }
                     else { listado.Add(descuentos.coddesextra.ToString()); }
                 }
@@ -6780,7 +6780,7 @@ namespace siaw_funciones
             {
                 if (!await restricciones.Validar_Contraentrega_Descuento(_context, _contra_entrega, descuentos.coddesextra))
                 {
-                    cadena0 += "\nNo se puede aplicar el descuento:" + descuentos.coddesextra + " -" + descuentos.descrip + " a una venta Contra Entrega.";
+                    cadena0 += "\nNo se puede aplicar el descuento:" + descuentos.coddesextra + " -" + descuentos.descripcion + " a una venta Contra Entrega.";
                     resultado = false;
                 }
             }
@@ -6800,7 +6800,7 @@ namespace siaw_funciones
                     {
                         cadena1 = "El cliente: " + DVTA.codcliente_real + " no tiene asignado DescExtra: ";
                     }
-                    cadena1 += "\n" + descuentos.coddesextra.ToString() + " - " + descuentos.descrip;
+                    cadena1 += "\n" + descuentos.coddesextra.ToString() + " - " + descuentos.descripcion;
                     resultado = false;
                 }
             }
@@ -6823,7 +6823,7 @@ namespace siaw_funciones
                         {
                             cadena1 = "El cliente Sin Nombre: " + DVTA.codcliente + " no tiene asignado DescExtra: ";
                         }
-                        cadena1 += "\n" + descuentos.coddesextra.ToString() + " - " + descuentos.descrip;
+                        cadena1 += "\n" + descuentos.coddesextra.ToString() + " - " + descuentos.descripcion;
                         resultado = false;
                     }
                 }
@@ -7492,14 +7492,14 @@ namespace siaw_funciones
                 //verificar si la fecha de la proforma es posterior a la habilitacion del descto
                 if (DVTA.fechadoc.Date < valido_desdeF.Date)
                 {
-                    cadena += Environment.NewLine + "El Desc: " + descuentos.coddesextra + "-" + descuentos.descrip + " es válido desde fecha: " + valido_desdeF.ToShortDateString();
+                    cadena += Environment.NewLine + "El Desc: " + descuentos.coddesextra + "-" + descuentos.descripcion + " es válido desde fecha: " + valido_desdeF.ToShortDateString();
                 }
 
                 valido_hastaF = await ventas.Descuento_Extra_Valido_Hasta_Fecha(_context, descuentos.coddesextra);
                 //verificar si la fecha de la proforma es posterior a la habilitacion del descto
                 if (DVTA.fechadoc.Date > valido_hastaF.Date)
                 {
-                    cadena += Environment.NewLine + "El Desc: " + descuentos.coddesextra + "-" + descuentos.descrip + " es válido hasta fecha: " + valido_hastaF.ToShortDateString();
+                    cadena += Environment.NewLine + "El Desc: " + descuentos.coddesextra + "-" + descuentos.descripcion + " es válido hasta fecha: " + valido_hastaF.ToShortDateString();
                 }
             }
             if (cadena.Trim().Length > 0)
@@ -7884,7 +7884,7 @@ namespace siaw_funciones
                     { }
                     else
                     {
-                        cadena = "El descuento: " + descuentos.coddesextra + "-" + descuentos.descrip + " requiere Credito Fijo valido o ser cliente pertec!!!";
+                        cadena = "El descuento: " + descuentos.coddesextra + "-" + descuentos.descripcion + " requiere Credito Fijo valido o ser cliente pertec!!!";
                     }
                 }
             }
@@ -7935,7 +7935,7 @@ namespace siaw_funciones
                 {
                     if (!(tipovta == DVTA.tipo_vta))
                     {
-                        cadena += "\r\n" + "La venta que esta realizando es tipo: " + DVTA.tipo_vta + " y el descuento aplicado: " + descuentos.coddesextra + "-" + descuentos.descrip + " es para venta tipo: " + tipovta;
+                        cadena += "\r\n" + "La venta que esta realizando es tipo: " + DVTA.tipo_vta + " y el descuento aplicado: " + descuentos.coddesextra + "-" + descuentos.descripcion + " es para venta tipo: " + tipovta;
                     }
 
                     if ((tipovta == DVTA.tipo_vta) && (DVTA.contra_entrega == "SI") && (descuentos.coddesextra == cod_desextra_contado))
