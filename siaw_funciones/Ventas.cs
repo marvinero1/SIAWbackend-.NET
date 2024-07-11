@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -1800,6 +1801,32 @@ namespace siaw_funciones
                 reg.peso = pesoItem * reg.cantidad;
             }
             return veproforma1;
+        }
+        public async Task<List<veremision1>> Remision_Cargar_Grupomer(DBContext _context, List<veremision1> veremision1)
+        {
+            foreach (var reg in veremision1)
+            {
+                reg.codgrupomer = await _context.inlinea
+                    .Join(
+                        _context.initem,
+                        l => l.codigo,
+                        i => i.codlinea,
+                        (l, i) => new { l, i }
+                    )
+                    .Where(li => li.i.codigo == reg.coditem)
+                    .Select(li => li.l.codgrupomer)
+                    .FirstOrDefaultAsync();
+            }
+            return veremision1;
+        }
+        public async Task<List<veremision1>> Actualizar_Peso_Detalle_Remision(DBContext _context, List<veremision1> veremision1)
+        {
+            foreach (var reg in veremision1)
+            {
+                var pesoItem = await _context.initem.Where(i => i.codigo == reg.coditem).Select(i => i.peso).FirstOrDefaultAsync() ?? 0;
+                reg.peso = pesoItem * reg.cantidad;
+            }
+            return veremision1;
         }
         public async Task<bool> Cliente_de_vendedor(DBContext _context, string codcliente, int codvendedor)
         {
@@ -3976,6 +4003,353 @@ namespace siaw_funciones
             }
         }
 
+
+
+
+        public async Task<bool> revertirstocksproforma(DBContext _context, int codigo, string codempresa)
+        {
+            bool resultado = true;
+            int codalmacen = new int();
+            if (await configuracion.emp_proforma_reserva(_context,codempresa))
+            {
+                var tabla_aux = await _context.veproforma.Where(i => i.codigo == codigo).Select(i => new
+                {
+                    i.codalmacen
+                }).FirstOrDefaultAsync();
+                if (tabla_aux != null)
+                {
+                    codalmacen = tabla_aux.codalmacen;
+                }
+                else
+                {
+                    resultado = false;
+                }
+                var tabla = await _context.veproforma1.Where(i => i.codproforma == codigo).Select(i => new
+                {
+                    i.coditem,
+                    i.cantaut
+                }).ToListAsync();
+                if (resultado)
+                {
+                    if (tabla.Count() == 0)
+                    {
+                        resultado = false; 
+                    }
+                }
+
+                if (resultado)
+                {
+                    try
+                    {
+                        var nulos = await _context.instoactual.Where(i => i.proformas == null).ToListAsync();
+                        if (nulos.Count() > 0)
+                        {
+                            foreach (var reg in nulos)
+                            {
+                                reg.proformas = 0;
+                            }
+                            await _context.SaveChangesAsync();
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        resultado = false;
+                    }
+
+                    foreach (var reg  in tabla)
+                    {
+                        if (await items.itemesconjunto(_context,reg.coditem))
+                        {
+                            var tablakit = await _context.inkit.Where(i => i.codigo == reg.coditem).Select(i => new
+                            {
+                                i.item,
+                                i.cantidad
+                            }).ToListAsync();
+                            foreach (var item in tablakit)
+                            {
+                                try
+                                {
+                                    var itemInstroactual = await _context.instoactual.Where(i => i.codalmacen == codalmacen && i.coditem == item.item).FirstOrDefaultAsync();
+                                    itemInstroactual.proformas = itemInstroactual.proformas - (reg.cantaut * item.cantidad);
+                                    _context.Entry(itemInstroactual).State = EntityState.Modified;
+                                    await _context.SaveChangesAsync();
+                                }
+                                catch (Exception)
+                                {
+                                    resultado = false;
+                                    break;
+                                }
+                            }
+                            if (!resultado)
+                            {
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            try
+                            {
+                                var itemInstroactual = await _context.instoactual.Where(i => i.codalmacen == codalmacen && i.coditem == reg.coditem).FirstOrDefaultAsync();
+                                itemInstroactual.proformas = itemInstroactual.proformas - (reg.cantaut);
+                                _context.Entry(itemInstroactual).State = EntityState.Modified;
+                                await _context.SaveChangesAsync();
+                            }
+                            catch (Exception)
+                            {
+                                resultado = false;
+                                break;
+                            }
+                        }
+                    }
+                }
+                // actualizar a 0 si hay negativos
+                try
+                {
+                    var negativos = await _context.instoactual.Where(i => i.proformas < 0).ToListAsync();
+                    if (negativos.Count() > 0)
+                    {
+                        foreach (var reg in negativos)
+                        {
+                            reg.proformas = 0;
+                        }
+                        await _context.SaveChangesAsync();
+                    }
+                }
+                catch (Exception)
+                {
+                    // throw;
+                }
+            }
+            return resultado;
+        }
+
+
+        public async Task<bool> ProformaTieneNRAnulada(DBContext _context, int codproforma)
+        {
+            bool resultado = false;
+            try
+            {
+                var c = await _context.veremision.Where(i => i.anulada == true && i.codproforma == codproforma).CountAsync();
+                if (c > 0)
+                {
+                    resultado = true;
+                }
+            }
+            catch (Exception)
+            {
+                resultado = false;
+            }
+            return resultado;
+        }
+        public async Task<DateTime> ProformaFechaMasAntiguaNR(DBContext _context, int codproforma)
+        {
+            DateTime resultado = new DateTime();
+            try
+            {
+                resultado = await _context.veremision
+                    .Where(v => v.codproforma == codproforma)
+                    .OrderBy(v => v.fecha)
+                    .Select(v => v.fecha)
+                    .FirstOrDefaultAsync();
+            }
+            catch (Exception)
+            {
+                resultado = await funciones.FechaDelServidor(_context);
+            }
+            return resultado;
+        }
+
+
+        public async Task<double> TotalNRconNC_ND(DBContext _context, int codigo)
+        {
+            double resultado = 0;
+
+            var dt_nota = await _context.veremision.Where(i => i.codigo == codigo).Select(i => new
+            {
+                i.id,
+                i.numeroid,
+                i.total,
+                i.codmoneda,
+                i.fecha
+            }).FirstOrDefaultAsync();
+            if (dt_nota != null)
+            {
+                resultado = (double)dt_nota.total;
+                // #####notas de credito
+                var dt_notas_credito = await _context.venotacredito
+                    .Where(n => n.anticipo == false && n.anulada == false)
+                    .Join(_context.vefactura,
+                          n => n.codfactura,
+                          f => f.codigo,
+                          (n, f) => new { NotaCredito = n, Factura = f })
+                    .Where(joined => joined.Factura.codremision == codigo)
+                    .Select(joined => new
+                    {
+                        total = joined.NotaCredito.subtotal,
+                        codmoneda = joined.NotaCredito.codmoneda,
+                        fecha = joined.NotaCredito.fecha
+                    })
+                    .ToListAsync();
+                foreach (var reg in dt_notas_credito)
+                {
+                    if (dt_nota.codmoneda == reg.codmoneda)
+                    {
+                        resultado = resultado - (double)(reg.total);
+                    }
+                    else
+                    {
+                        resultado = resultado - (double)(await tipocambio._conversion(_context, dt_nota.codmoneda, reg.codmoneda, dt_nota.fecha, reg.total));
+                    }
+                }
+
+                // #####notas de debito
+                var dt_notas_debito = await _context.vefactura
+                    .Where(f => f.anulada == false && f.notadebito == true && f.idfc == dt_nota.id && f.numeroidfc == dt_nota.numeroid)
+                    .Select(f => new
+                    {
+                        total = f.subtotal,
+                        f.codmoneda,
+                        f.fecha
+                    })
+                    .ToListAsync();
+                foreach (var reg in dt_notas_debito)
+                {
+                    if (dt_nota.codmoneda == reg.codmoneda)
+                    {
+                        resultado = resultado + (double)reg.total;
+                    }
+                    else
+                    {
+                        resultado = resultado + (double)(await tipocambio._conversion(_context, dt_nota.codmoneda, reg.codmoneda, dt_nota.fecha, reg.total));
+                    }
+                }
+            }
+            if (resultado < 0)
+            {
+                resultado = 0;
+            }
+            return Math.Round(resultado, 2, MidpointRounding.AwayFromZero);
+        }
+
+        public async Task<(string id, int numeroId)> id_nroid_remision2(DBContext _context, int codremision)
+        {
+            try
+            {
+                var tbl = await _context.veremision
+                    .Where(v => v.codigo == codremision)
+                    .Select(v => new
+                    {
+                        v.id,
+                        v.numeroid
+                    })
+                    .FirstOrDefaultAsync();
+                if (tbl != null)
+                {
+                    return (tbl.id, tbl.numeroid);
+                }
+                return ("NSE", 0);
+            }
+            catch (Exception)
+            {
+                return ("NSE", 0);
+            }
+        }
+
+
+        public async Task<string> Cliente_De_Remision(DBContext _context, int codigo)
+        {
+            string resultado = "";
+            try
+            {
+                resultado = await _context.veremision
+                    .Where(v => v.codigo == codigo)
+                    .Select(v => v.codcliente)
+                    .FirstOrDefaultAsync() ?? "";
+            }
+            catch (Exception)
+            {
+                resultado = "";
+            }
+            return resultado;
+        }
+
+
+
+        ///////////////////////////////////////////////////////////////////////////////
+        // funcion que genera cuotas de pago segun un cliente, monto, codigo de docuemtno y tipo de documento
+        ///////////////////////////////////////////////////////////////////////////////
+        public async Task<bool> generarcuotaspago(DBContext _context, int codigodoc, int tipo, double sobremonto, double montod, string moneda, string codcliente, DateTime fechaini, bool es_reversion, string codempresa)
+        {
+            double montodoc = montod;
+            string monedadoc = moneda;
+            string clientedoc = await Cliente_De_Remision(_context,codigodoc);
+            int nrocuotas = new int();
+            double[,] cuotas = new double[3, 1];
+
+            /// obtener la informacion
+            // si el total es igual a cero entonces buscar el monto del docuemto
+            if (montodoc == 0)
+            {
+                var tabla = await _context.veremision.Where(i => i.codigo == codigodoc).Select(i => new
+                {
+                    i.total,
+                    i.codmoneda,
+                    i.codcliente
+                }).FirstOrDefaultAsync();
+                if (tabla != null)
+                {
+                    montodoc = await TotalNRconNC_ND(_context, codigodoc);
+                    if (monedadoc == "")
+                    {
+                        monedadoc = tabla.codmoneda;
+                    }
+                    if (clientedoc == "")
+                    {
+                        clientedoc = tabla.codcliente;
+                    }
+                }
+            }
+
+
+            // si algo paso
+            if (montodoc == 0)
+            {
+                montodoc = montod;
+                monedadoc = moneda;
+            }
+
+            // Desde 04 / 10 / 2023 aqui convertir el total de la nota a $us si la moneda de la nota esta en bolivianos para q con ese monto elija correctamente el plan
+            // de pagos a generar sobremonto
+            string monedabase = await Empresa.monedabase(_context, codempresa);
+            string monedaus = await empresa.monedaext(_context,codempresa);
+            if (monedadoc == monedabase)
+            {
+                // si la moneda de la NR es igual a la moneda base BS, convertir el monto en $us
+                sobremonto = (double)await tipocambio._conversion(_context, monedaus, monedabase, DateTime.Today.Date, (decimal)sobremonto);
+                sobremonto = Math.Round(sobremonto, 2);
+            }
+            ///
+            if (montodoc == 0)
+            {
+                // su plan de pagos es igual a cero
+            }
+            else
+            {
+                if (await remision_es_PP(_context,codigodoc))
+                {
+                    nrocuotas = 1;
+                    // --nro de cuota
+                    cuotas[0, 0] = 1;
+                    // --porcentaje
+                    cuotas[1, 0] = 100;
+                    // --dias
+                    cuotas[2,0] = await ProntoPago.DiasDescuentoProntoPagoNota()
+                }
+            }
+
+
+
+        }
 
 
         public async Task<List<ProformasWF>> Detalle_Proformas_Aprobadas_WF(string userConnectionString, string codempresa, string usuario)

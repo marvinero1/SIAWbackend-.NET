@@ -57,6 +57,8 @@ namespace SIAW.Controllers.ventas.modificacion
         private readonly Depositos_Cliente depositos_cliente = new Depositos_Cliente();
         private readonly siaw_funciones.Validar_Vta validar_Vta = new siaw_funciones.Validar_Vta();
         private readonly siaw_funciones.Despachos despachos = new siaw_funciones.Despachos();
+        private readonly siaw_funciones.Cobranzas cobranzas = new siaw_funciones.Cobranzas();
+
         private readonly Log log = new Log();
 
 
@@ -994,12 +996,19 @@ namespace SIAW.Controllers.ventas.modificacion
 
 
 
+
+
+
+
+
+
         private async Task<(string resp, int codprof, int numeroId)> Grabar_Documento(DBContext _context, int codProforma, string codempresa, SaveProformaCompleta datosProforma)
         {
             veproforma veproforma = datosProforma.veproforma;
             List<veproforma1> veproforma1 = datosProforma.veproforma1;
             var veproforma_valida = datosProforma.veproforma_valida;
             var dt_anticipo_pf = datosProforma.dt_anticipo_pf;
+            List<tabla_veproformaAnticipo> dt_anticipo_pf_inicial = new List<tabla_veproformaAnticipo>();
             var vedesextraprof = datosProforma.vedesextraprof;
             var verecargoprof = datosProforma.verecargoprof;
             var veproforma_iva = datosProforma.veproforma_iva;
@@ -1038,15 +1047,17 @@ namespace SIAW.Controllers.ventas.modificacion
             // Actualizar cabecera (veproforma)
             try
             {
-                _context.Entry(veproforma).State = EntityState.Modified;
-                await _context.SaveChangesAsync();
+
             }
             catch (Exception)
             {
 
                 throw;
             }
-            
+            _context.Entry(veproforma).State = EntityState.Modified;
+            await _context.SaveChangesAsync();
+
+
 
             // guarda detalle (veproforma1)
             // actualizar codigoproforma para agregar
@@ -1077,19 +1088,10 @@ namespace SIAW.Controllers.ventas.modificacion
 
 
             // grabar descto por deposito si hay descuentos
-            try
-            {
-                if (vedesextraprof.Count() > 0)
-                {
-                    await grabardesextra(_context, codProforma, vedesextraprof);
-                }
 
-                
-            }
-            catch (Exception)
+            if (vedesextraprof.Count() > 0)
             {
-
-                throw;
+                await grabardesextra(_context, codProforma, vedesextraprof);
             }
 
             // grabar recargo si hay recargos
@@ -1105,12 +1107,39 @@ namespace SIAW.Controllers.ventas.modificacion
                 await grabariva(_context, codProforma, veproforma_iva);
             }
 
+
             //======================================================================================
             //grabar anticipos aplicados
             //======================================================================================
             try
             {
                 var anticiposprevios = await _context.veproforma_anticipo.Where(i => i.codproforma == codProforma).ToListAsync();
+                var dt_anticipo_pf_inicial1 = await _context.veproforma_anticipo.Where(i => i.codproforma == codProforma).ToListAsync();
+
+                var newDetalAnt = dt_anticipo_pf_inicial1
+                        .Select(i => new tabla_veproformaAnticipo
+                        {
+                            codproforma = i.codproforma,
+                            codanticipo = i.codanticipo,
+                            id_anticipo = "",
+                            nroid_anticipo = 0,
+                            monto = (double)i.monto,
+                            tdc = (double?)i.tdc,
+                            fechareg = (DateTime)i.fechareg,
+                            usuarioreg = i.usuarioreg,
+                            horareg = i.horareg
+                        }).ToList();
+
+                dt_anticipo_pf_inicial = newDetalAnt;
+
+                string[] doc_cbza = new string[2];
+                foreach (var reg in dt_anticipo_pf_inicial)
+                {
+                    doc_cbza = await cobranzas.Id_Nroid_Anticipo(_context, (int)reg.codanticipo);
+                    reg.id_anticipo = doc_cbza[0];
+                    reg.nroid_anticipo = int.Parse(doc_cbza[1]);
+                }
+
                 if (anticiposprevios.Count() > 0)
                 {
                     _context.veproforma_anticipo.RemoveRange(anticiposprevios);
@@ -1145,6 +1174,7 @@ namespace SIAW.Controllers.ventas.modificacion
             //======================================================================================
             //grabar diferencias de anticipos aplicados
             //======================================================================================
+
             try
             {
                 var diferencias_previos = await _context.veproforma_anticipo_diferencias.Where(i => i.codproforma == codProforma).ToListAsync();
@@ -1165,7 +1195,7 @@ namespace SIAW.Controllers.ventas.modificacion
                     {
                         ttl_anticipos_aplicados += Math.Round(Convert.ToDecimal(ant.monto), 2);
                     }
-                    ttl_pf = Math.Round(veproforma.total);
+                    ttl_pf = Math.Round(veproforma.total, 2);
                     diferencia_ant_pf = Math.Round(ttl_anticipos_aplicados - ttl_pf, 2);
                     if (ttl_anticipos_aplicados != ttl_pf)
                     {
@@ -1208,20 +1238,52 @@ namespace SIAW.Controllers.ventas.modificacion
             // ======================================================================================
             // actualizar saldo restante de anticipos aplicados
             // ======================================================================================
+            //if (resultado)
+            //{
+            //    foreach (var reg in dt_anticipo_pf)
+            //    {
+            //        if (!await anticipos_vta_contado.ActualizarMontoRestAnticipo(_context, reg.id_anticipo, reg.nroid_anticipo, reg.codproforma ?? 0, reg.codanticipo ?? 0, reg.monto, codempresa))
+            //        {
+            //            resultado = false;
+            //        }
+            //    }
+            //}
+            //    '//======================================================================================
+            //'//Desde 03/04/2024 actualizar saldo restante de anticipos aplicados INIALMENTE, YA QUE PUEDE SER QUE UNA PROFORMA LO QUITEN LOS ANTICIPOS
+            //'Y SE DEBE LIBERAR EL SALDOS DE LOS ANTICIPOS INICIALES
+            //'//======================================================================================
             if (resultado)
             {
-                foreach (var reg in dt_anticipo_pf)
+                // Desde 03/04/2024 al anular una proforma se debe actualizar los saldos de los anticipos que tuviera enlazada la proforma
+                if (!await Actualizar_saldos_anticipos(_context, codempresa, dt_anticipo_pf, dt_anticipo_pf_inicial))
                 {
-                    if (!await anticipos_vta_contado.ActualizarMontoRestAnticipo(_context, reg.id_anticipo, reg.nroid_anticipo, reg.codproforma ?? 0, reg.codanticipo ?? 0, reg.monto, codempresa))
-                    {
-                        resultado = false;
-                    }
+                    resultado = false;
                 }
             }
+
+
             return ("ok", codProforma, veproforma.numeroid);
 
 
         }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
         private async Task grabarDetalleProf(DBContext _context, int codProf, List<veproforma1> veproforma1)

@@ -47,5 +47,12 @@ namespace siaw_DBContext.Models
         public string complemento_ci { get; set; }
         public bool? en_linea { get; set; }
         public string leyenda { get; set; }
+        public bool? anticipo { get; set; }
+        public string cufd { get; set; }
+        public string cuf { get; set; }
+        public decimal? montoTotalDevuelto { get; set; }
+        public decimal? montoDescCreditoDebito { get; set; }
+        public decimal? montoEfectivoCreditoDebito { get; set; }
+        public decimal? montoTotalOriginal { get; set; }
     }
 }

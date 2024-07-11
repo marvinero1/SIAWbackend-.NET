@@ -20,6 +20,7 @@ namespace SIAW.Controllers.ventas.transaccion
         private readonly siaw_funciones.Nombres nombres = new siaw_funciones.Nombres();
         private readonly siaw_funciones.TipoCambio tipocambio = new siaw_funciones.TipoCambio();
         private readonly siaw_funciones.Configuracion configuracion = new siaw_funciones.Configuracion();
+        private readonly siaw_funciones.Saldos saldos = new siaw_funciones.Saldos();
 
         private readonly Documento documento = new Documento();
         private readonly Log log = new Log();
@@ -328,7 +329,7 @@ namespace SIAW.Controllers.ventas.transaccion
         
 
 
-        private async Task<(string resp, int codNRemision, int numeroId)> Grabar_Documento(DBContext _context, string id, string codempresa, bool desclinea_segun_solicitud, int codProforma, SaveNRemisionCompleta datosRemision)
+        private async Task<(string resp, int codNRemision, int numeroId)> Grabar_Documento(DBContext _context, string id, string usuario, bool desclinea_segun_solicitud, int codProforma, string codempresa, SaveNRemisionCompleta datosRemision)
         {
             veremision veremision = datosRemision.veremision;
             List<veremision1> veremision1 = datosRemision.veremision1;
@@ -380,8 +381,10 @@ namespace SIAW.Controllers.ventas.transaccion
             // guarda detalle (veremision1)
             // actualizar codigoproforma para agregar
             veremision1 = veremision1.Select(p => { p.codremision = codNRemision; return p; }).ToList();
+            // actualiza grupomer antes de guardado
+            veremision1 = await ventas.Remision_Cargar_Grupomer(_context, veremision1);
             // actualizar peso del detalle.
-            //veremision1 = await ventas.Actualizar_Peso_Detalle_Proforma(_context, veproforma1);
+            veremision1 = await ventas.Actualizar_Peso_Detalle_Remision(_context, veremision1);
 
             _context.veremision1.AddRange(veremision1);
             await _context.SaveChangesAsync();
@@ -449,12 +452,63 @@ namespace SIAW.Controllers.ventas.transaccion
             }
 
 
-            // ACTUALIZAR CODGRUPOMER
+            // actualizar stock actual si es que descarga mercaderia
+            try
+            {
+                if (descarga)
+                {
+                    // Desde 15/11/2023 registrar en el log si por alguna razon no actualiza en instoactual correctamente al disminuir el saldo de cantidad y la reserva en proforma
+                    if (await saldos.Veremision_ActualizarSaldo(_context,usuario,codNRemision, Saldos.ModoActualizacion.Crear)==false)
+                    {
+                        await log.RegistrarEvento(_context, usuario, Log.Entidades.Nota_Remision, codNRemision.ToString(), veremision.id, veremision.numeroid.ToString(), "veremisionController", "No actualizo stock al restar cantidad en NR.", Log.TipoLog.Creacion);
+                    }
+                    else
+                    {
+                        if (await ventas.revertirstocksproforma(_context,codProforma,codempresa) == false)
+                        {
+                            await log.RegistrarEvento(_context, usuario, Log.Entidades.Nota_Remision, codNRemision.ToString(), veremision.id, veremision.numeroid.ToString(), "veremisionController", "No actualizo stock al restar reserva en PF.", Log.TipoLog.Creacion);
+                        }
+                    }
+                }
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+
+
+            // ####################################
+            // generar plan de pagos si es que es a credito
+            // #################################
+            if (veremision.tipopago == 1)  // si el tipo pago es a credito == 1
+            {
+                // SI LA PROFORMA ES DE UNA NOTA ANTERIOR ANULADA SE DEBE HACER EL PLAN DE PAGOS SEGUN LA FECHA
+                // DE LA PRIMERA NOTA DE REMISION
+                if (await ventas.ProformaTieneNRAnulada(_context, codProforma))
+                {
+                    // con fecha de ntoa anulada
+                    DateTime fecha_antigua = await ventas.ProformaFechaMasAntiguaNR(_context, codProforma);
+
+                    // #si es PP genrarar con su monto y su fecha no importan las complementarias ni influye
+                    if (await ventas.remision_es_PP(_context,codNRemision))
+                    {
+                        if (await ventas.generarcuotaspago()
+                        {
+
+                        }
+                    }
+                }
+                else
+                {
+                    // procedimiento normal
+                    // #si es PP genrarar con su monto y su fecha no importan las complementarias ni influye
 
 
 
 
-
+                }
+            }
 
 
 

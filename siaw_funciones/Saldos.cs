@@ -32,6 +32,7 @@ namespace siaw_funciones
         private empaquesFunciones empaque_func = new empaquesFunciones();
         private Empresa empresa = new Empresa();
         private Items items = new Items();
+        private Log log = new Log();
         public async Task<decimal> SaldoItem_CrtlStock_Para_Ventas(string userConnectionString, string agencia, int codalmacen, string coditem, string codempresa, string usuario)
         {
             //List<sldosItemCompleto> saldos;
@@ -1781,5 +1782,189 @@ namespace siaw_funciones
         }
 
 
+
+
+
+        public async Task<bool> SaldoActual_Disminuir(DBContext _context, int codalmacen, string coditem, double cantidad)
+        {
+            bool resultado = true;
+            if (await items.itemesconjunto(_context,coditem))
+            {
+                var tabla_kit = await _context.inkit.Where(i => i.codigo == coditem)
+                    .Select(i=> new
+                    {
+                        i.item,
+                        i.cantidad
+                    }).ToListAsync();
+                foreach (var reg in tabla_kit)
+                {
+                    try
+                    {
+                        var instoActualItem = await _context.instoactual
+                            .Where(i => i.codalmacen == codalmacen && i.coditem == reg.item)
+                            .FirstOrDefaultAsync();
+                        instoActualItem.cantidad = instoActualItem.cantidad - (decimal?)(cantidad * (double)(reg.cantidad ?? 0));
+
+                        _context.Entry(instoActualItem).State = EntityState.Modified;
+                        await _context.SaveChangesAsync();
+                    }
+                    catch (Exception)
+                    {
+                        resultado = false;
+                    }
+                }
+            }
+            else
+            {
+                try
+                {
+                    var instoActualItem = await _context.instoactual
+                            .Where(i => i.codalmacen == codalmacen && i.coditem == coditem)
+                            .FirstOrDefaultAsync();
+                    instoActualItem.cantidad = instoActualItem.cantidad - (decimal?)(cantidad);
+
+                    _context.Entry(instoActualItem).State = EntityState.Modified;
+                    await _context.SaveChangesAsync();
+                }
+                catch (Exception)
+                {
+                    resultado = false;
+                }
+            }
+            return resultado;
+        }
+
+        public async Task<bool> SaldoActual_Aumentar(DBContext _context, int codalmacen, string coditem, double cantidad)
+        {
+            bool resultado = true;
+            if (await items.itemesconjunto(_context, coditem))
+            {
+                var tabla_kit = await _context.inkit.Where(i => i.codigo == coditem)
+                    .Select(i => new
+                    {
+                        i.item,
+                        i.cantidad
+                    }).ToListAsync();
+                foreach (var reg in tabla_kit)
+                {
+                    try
+                    {
+                        var instoActualItem = await _context.instoactual
+                            .Where(i => i.codalmacen == codalmacen && i.coditem == reg.item)
+                            .FirstOrDefaultAsync();
+                        instoActualItem.cantidad = instoActualItem.cantidad + (decimal?)(cantidad * (double)(reg.cantidad ?? 0));
+
+                        _context.Entry(instoActualItem).State = EntityState.Modified;
+                        await _context.SaveChangesAsync();
+                    }
+                    catch (Exception)
+                    {
+                        resultado = false;
+                    }
+                }
+            }
+            else
+            {
+                try
+                {
+                    var instoActualItem = await _context.instoactual
+                            .Where(i => i.codalmacen == codalmacen && i.coditem == coditem)
+                            .FirstOrDefaultAsync();
+                    instoActualItem.cantidad = instoActualItem.cantidad + (decimal?)(cantidad);
+
+                    _context.Entry(instoActualItem).State = EntityState.Modified;
+                    await _context.SaveChangesAsync();
+                }
+                catch (Exception)
+                {
+                    resultado = false;
+                }
+            }
+            return resultado;
+        }
+
+
+        public async Task<bool> Veremision_ActualizarSaldo(DBContext _context, string usuario, int codigo, ModoActualizacion modo)
+        {
+            try
+            {
+                bool resultado = true;
+                int codalmacen = new int();
+                bool descarga = new bool();
+
+                var tabla = await _context.veremision
+                    .Where(v => v.codigo == codigo)
+                    .Select(i => new
+                    {
+                        codalmacen = i.codalmacen_saldo,
+                        i.descarga
+                    })
+                   .FirstOrDefaultAsync();
+                if (tabla != null)
+                {
+                    codalmacen = tabla.codalmacen??0;
+                    descarga = tabla.descarga;
+                }
+                else
+                {
+                    resultado = false;
+                }
+
+                if (resultado)
+                {
+                    if (descarga)
+                    {
+                        var tabla2 = await _context.veremision1.Where(i => i.codremision == codigo)
+                            .Select(i => new
+                            {
+                                i.coditem,
+                                i.cantidad
+                            }).ToListAsync();
+                        if (tabla2.Count() > 0)
+                        {
+                            // anadirdetalle
+                            foreach (var reg in tabla2)
+                            {
+                                ////segun condiciones
+                                if (modo == ModoActualizacion.Crear)
+                                {
+                                    if (await SaldoActual_Disminuir(_context,codalmacen,reg.coditem, (double)reg.cantidad) == false)
+                                    {
+                                        await log.RegistrarEvento(_context, usuario, Log.Entidades.Nota_Remision, codigo.ToString(), reg.coditem, codigo.ToString(), "SaldoActual_Disminuir", "No disminuyo stock en cantidad en NR.", Log.TipoLog.Modificacion);
+                                    }
+                                }
+                                else // de modo="eliminar" 
+                                {
+                                    if (await SaldoActual_Aumentar(_context,codalmacen,reg.coditem, (double)reg.cantidad) == false)
+                                    {
+                                        await log.RegistrarEvento(_context, usuario, Log.Entidades.Nota_Remision, codigo.ToString(), reg.coditem, codigo.ToString(), "SaldoActual_Aumentar", "No aumento stock en cantidad en NR.", Log.TipoLog.Modificacion);
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            resultado = false;
+                        }
+                    }
+                }
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+
+
+        public enum ModoActualizacion
+        {
+            Crear,
+            CrearSoloModificados,
+            Eliminar,
+            EliminarSoloModificados
+        }
     }
+    
 }

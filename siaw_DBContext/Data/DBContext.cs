@@ -62172,6 +62172,10 @@ namespace siaw_DBContext.Data
 
                 entity.Property(e => e.credito).HasColumnType("decimal(20, 2)");
 
+                entity.Property(e => e.cuf).HasMaxLength(60);
+
+                entity.Property(e => e.cufd).HasMaxLength(100);
+
                 entity.Property(e => e.factorme).HasColumnType("decimal(18, 2)");
 
                 entity.Property(e => e.fecha).HasColumnType("smalldatetime");
@@ -62193,6 +62197,14 @@ namespace siaw_DBContext.Data
                     .HasMaxLength(5);
 
                 entity.Property(e => e.leyenda).HasMaxLength(400);
+
+                entity.Property(e => e.montoDescCreditoDebito).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.montoEfectivoCreditoDebito).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.montoTotalDevuelto).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.montoTotalOriginal).HasColumnType("decimal(18, 2)");
 
                 entity.Property(e => e.nit).HasMaxLength(15);
 
