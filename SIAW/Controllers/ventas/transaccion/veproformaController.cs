@@ -3034,6 +3034,7 @@ namespace SIAW.Controllers.ventas.transaccion
                                 {
                                     coditem = i.coditem,
                                     //descripcion = i.descripcion,
+                                    
                                     //medida = i.medida,
                                     udm = i.udm,
                                     porceniva = (double)i.porceniva,

@@ -493,10 +493,12 @@ namespace SIAW.Controllers.ventas.transaccion
                     // #si es PP genrarar con su monto y su fecha no importan las complementarias ni influye
                     if (await ventas.remision_es_PP(_context,codNRemision))
                     {
-                        if (await ventas.generarcuotaspago()
+                        /*
+                        if (await ventas.generarcuotaspago())
                         {
 
                         }
+                        */
                     }
                 }
                 else

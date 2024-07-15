@@ -726,6 +726,18 @@ namespace siaw_funciones
                 return 0;
             }
         }
+        public async Task<int> emp_codplanpago_reversion(DBContext _context, string codempresa)
+        {
+            var result = await _context.adparametros
+                    .Where(v => v.codempresa == codempresa)
+                    .Select(parametro => parametro.codplanpago_reversion)
+                    .FirstOrDefaultAsync();
+            if (result == null)
+            {
+                return 0;
+            }
+            return (int)result;
+        }
     }
 }
  

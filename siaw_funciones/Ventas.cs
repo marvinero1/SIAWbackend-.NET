@@ -4343,14 +4343,125 @@ namespace siaw_funciones
                     // --porcentaje
                     cuotas[1, 0] = 100;
                     // --dias
-                    cuotas[2,0] = await ProntoPago.DiasDescuentoProntoPagoNota()
+                     cuotas[2, 0] = await ProntoPago.DiasDescuentoProntoPagoNota(_context,codigodoc);
+                }
+                else
+                {
+                    if (es_reversion)
+                    {
+                        int codplanpago_reversion = await configuracion.emp_codplanpago_reversion(_context,codempresa);
+                        var resultado = _context.veplanpago
+                            .Join(_context.veplanpago1,
+                                  p => p.codigo,
+                                  p1 => p1.codplanpago,
+                                  (p, p1) => new { p, p1 })
+                            .Where(joined => sobremonto >= (double)joined.p1.montodel
+                                             && sobremonto <= (double)joined.p1.montoal
+                                             && joined.p.codigo == codplanpago_reversion)
+                            .Select(joined => new
+                            {
+                                joined.p1.codigo,
+                                joined.p1.nrocuotas
+                            });
+                    }
+                    else
+                    {
+                        int plan_especial = await PlanItemEspecial(_context,codigodoc);
+                        if (plan_especial > 0)
+                        {
+                            // #####Si en el documento hay items especiales usar ese plan de pagos
+                            var resultado = _context.veplanpago
+                            .Join(_context.veplanpago1,
+                                  p => p.codigo,
+                                  p1 => p1.codplanpago,
+                                  (p, p1) => new { p, p1 })
+                            .Where(joined => sobremonto >= (double)joined.p1.montodel
+                                             && sobremonto <= (double)joined.p1.montoal
+                                             && joined.p.codigo == plan_especial)
+                            .Select(joined => new
+                            {
+                                joined.p1.codigo,
+                                joined.p1.nrocuotas
+                            });
+                        }
+                        else
+                        {
+                            // ####3Si no usar el plan de pagos del cliente
+                            var resultado = _context.vecliente
+                                .Join(_context.veplanpago,
+                                      c => c.codplanpago,
+                                      p => p.codigo,
+                                      (c, p) => new { c, p })
+                                .Join(_context.veplanpago1,
+                                      cp => cp.p.codigo,
+                                      p1 => p1.codplanpago,
+                                      (cp, p1) => new { cp.c, cp.p, p1 })
+                                .Where(joined => sobremonto >= (double)joined.p1.montodel
+                                                 && sobremonto <= (double)joined.p1.montoal
+                                                 && joined.c.codigo == clientedoc)
+                                .Select(joined => new
+                                {
+                                    joined.p1.codigo,
+                                    joined.p1.nrocuotas
+                                }).ToList();
+                        }
+                    }
+
+
+
+
+
+
+
                 }
             }
-
-
+            ///////////////////////////// FALTAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+            return true;
 
         }
 
+        public async Task<int> PlanItemEspecial(DBContext _context, int cod_remision)
+        {
+            int resultado = 0;
+            try
+            {
+                var dt = await _context.veremision1.Where(i => i.codremision == cod_remision).Select(i => new
+                {
+                    i.coditem,
+                    i.codtarifa
+                }).OrderBy(i => i.coditem)
+                .ThenBy(i => i.codtarifa)
+                .ToListAsync();
+                foreach (var reg in dt)
+                {
+                    int plan = await EsItemEspecial(_context, reg.coditem, reg.codtarifa);
+                    if (plan > 0)
+                    {
+                        resultado = plan;
+                        break;
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                resultado = 0;
+            }
+            return resultado;
+        }
+        public async Task<int> EsItemEspecial(DBContext _context, string coditem, int codtarifa)
+        {
+            var result = await _context.veespeciales.Where(i => i.coditem == coditem && i.codtarifa == codtarifa).Select(i => new
+            {
+                i.codplanpago
+            }).OrderBy(i => i.codplanpago)
+            .FirstOrDefaultAsync();
+            if (result != null)
+            {
+                return result.codplanpago ?? 0;
+            }
+            return 0;
+
+        }
 
         public async Task<List<ProformasWF>> Detalle_Proformas_Aprobadas_WF(string userConnectionString, string codempresa, string usuario)
         {

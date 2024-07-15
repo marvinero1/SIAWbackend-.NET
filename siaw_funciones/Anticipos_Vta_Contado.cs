@@ -300,17 +300,17 @@ namespace siaw_funciones
                 .Where(x => x.p2.id == id && x.p2.numeroid == nroid)
                 .Select(x => new vedetalleanticipoProforma
                 {
-                    codproforma = x.p2.codigo,
-                    codanticipo = x.p3.codigo,
+                    codproforma = x.p1.codproforma ?? 0,
+                    codanticipo = x.p1.codanticipo ?? 0,
                     docanticipo = x.p3.id + "-" + x.p3.numeroid,
                     id_anticipo = x.p3.id,
                     nroid_anticipo = x.p3.numeroid,
-                    monto = (double)(x.p3.monto ?? 0),
-                    tdc = (double)(x.p3.tdc_cambio ?? 0),
+                    monto = (double)(x.p1.monto ?? 0),
+                    tdc = (double)(x.p1.tdc ?? 0),
                     codmoneda = x.p3.codmoneda,
-                    fechareg = x.p3.fechareg,
-                    usuarioreg = x.p3.usuarioreg,
-                    horareg = x.p3.horareg,
+                    fechareg = x.p1.fechareg ?? new DateTime(1900,1,1),
+                    usuarioreg = x.p1.usuarioreg,
+                    horareg = x.p1.horareg,
                     codvendedor = x.p3.codvendedor.ToString()
 
                     /*
