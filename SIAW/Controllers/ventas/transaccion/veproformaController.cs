@@ -1613,7 +1613,8 @@ namespace SIAW.Controllers.ventas.transaccion
                         preciodesc = (double)preciodesc,
                         precioneto = (double)precioneto,
                         total = (double)total,
-                        cumpleMin = reg.cumpleMin
+                        cumpleMin = reg.cumpleMin,
+                        nroitem = reg.orden_pedido
                     })
                     .FirstOrDefaultAsync();
 
@@ -5849,7 +5850,31 @@ namespace SIAW.Controllers.ventas.transaccion
 
         }
 
+        [HttpGet]
+        [Route("fechaHoraServidor/{userConn}")]
+        public async Task<ActionResult<List<ProformasWF>>> fechaHoraServidor(string userConn)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    DateTime fechaServidor = await funciones.FechaDelServidor(_context);
+                    string horaServidor = datos_proforma.getHoraActual();
+                    return Ok(new
+                    {
+                        fechaServidor,
+                        horaServidor
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                return Problem("Error en el servidor: " + ex.ToString());
+                throw;
+            }
 
+        }
 
     }
 
@@ -5947,6 +5972,7 @@ namespace SIAW.Controllers.ventas.transaccion
         public bool cumpleMin { get; set; } = true;
         public string ? descripcion { get; set; }
         public string ? medida { get; set; }
+        public int orden_pedido { get; set; }
     }
     public class getTarifaPrincipal_Rodrigo
     {

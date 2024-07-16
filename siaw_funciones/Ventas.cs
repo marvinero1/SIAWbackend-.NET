@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.ConstrainedExecution;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -1732,6 +1733,11 @@ namespace siaw_funciones
             }
             return (resultado, "", tabladescuentos);
         }
+
+
+
+        
+
 
 
 
@@ -4280,6 +4286,7 @@ namespace siaw_funciones
         ///////////////////////////////////////////////////////////////////////////////
         public async Task<bool> generarcuotaspago(DBContext _context, int codigodoc, int tipo, double sobremonto, double montod, string moneda, string codcliente, DateTime fechaini, bool es_reversion, string codempresa)
         {
+            bool resultado = true;
             double montodoc = montod;
             string monedadoc = moneda;
             string clientedoc = await Cliente_De_Remision(_context,codigodoc);
@@ -4347,10 +4354,11 @@ namespace siaw_funciones
                 }
                 else
                 {
+                    List<planPagosCliente> planPagos = new List<planPagosCliente>();
                     if (es_reversion)
                     {
                         int codplanpago_reversion = await configuracion.emp_codplanpago_reversion(_context,codempresa);
-                        var resultado = _context.veplanpago
+                        planPagos = await _context.veplanpago
                             .Join(_context.veplanpago1,
                                   p => p.codigo,
                                   p1 => p1.codplanpago,
@@ -4358,11 +4366,11 @@ namespace siaw_funciones
                             .Where(joined => sobremonto >= (double)joined.p1.montodel
                                              && sobremonto <= (double)joined.p1.montoal
                                              && joined.p.codigo == codplanpago_reversion)
-                            .Select(joined => new
+                            .Select(joined => new planPagosCliente
                             {
-                                joined.p1.codigo,
-                                joined.p1.nrocuotas
-                            });
+                                codigo = joined.p1.codigo,
+                                nrocuotas = joined.p1.nrocuotas
+                            }).ToListAsync();
                     }
                     else
                     {
@@ -4370,7 +4378,7 @@ namespace siaw_funciones
                         if (plan_especial > 0)
                         {
                             // #####Si en el documento hay items especiales usar ese plan de pagos
-                            var resultado = _context.veplanpago
+                            planPagos = await _context.veplanpago
                             .Join(_context.veplanpago1,
                                   p => p.codigo,
                                   p1 => p1.codplanpago,
@@ -4378,16 +4386,16 @@ namespace siaw_funciones
                             .Where(joined => sobremonto >= (double)joined.p1.montodel
                                              && sobremonto <= (double)joined.p1.montoal
                                              && joined.p.codigo == plan_especial)
-                            .Select(joined => new
+                            .Select(joined => new planPagosCliente
                             {
-                                joined.p1.codigo,
-                                joined.p1.nrocuotas
-                            });
+                                codigo = joined.p1.codigo,
+                                nrocuotas = joined.p1.nrocuotas
+                            }).ToListAsync();
                         }
                         else
                         {
                             // ####3Si no usar el plan de pagos del cliente
-                            var resultado = _context.vecliente
+                            planPagos = await _context.vecliente
                                 .Join(_context.veplanpago,
                                       c => c.codplanpago,
                                       p => p.codigo,
@@ -4399,25 +4407,147 @@ namespace siaw_funciones
                                 .Where(joined => sobremonto >= (double)joined.p1.montodel
                                                  && sobremonto <= (double)joined.p1.montoal
                                                  && joined.c.codigo == clientedoc)
-                                .Select(joined => new
+                                .Select(joined => new planPagosCliente
                                 {
-                                    joined.p1.codigo,
-                                    joined.p1.nrocuotas
-                                }).ToList();
+                                    codigo = joined.p1.codigo,
+                                    nrocuotas = joined.p1.nrocuotas
+                                }).ToListAsync();
                         }
                     }
+                    if (planPagos.Count() > 0)
+                    {
+                        // si hay plan de pagos adecuado ver si tiene especificacion de porcentajes por cuota
+                        int codigo_pp = planPagos[0].codigo;
+                        nrocuotas = planPagos[1].nrocuotas;
+
+                        var veplanpago2List = await _context.veplanpago2.Where(i => i.coddetplanpago == codigo_pp).Select(i => new
+                        {
+                            i.nrocuota,
+                            i.porcen,
+                            i.diaspago
+                        }).ToListAsync();
+                        if (veplanpago2List.Count() > 0)
+                        {
+                            // hay especificacion de porcentajes por cuota
+                            double[,] nuevaCuotas = new double[3, veplanpago2List.Count];
+
+                            for (int i = 0; i < veplanpago2List.Count(); i++)
+                            {
+                                nuevaCuotas[0, i] = (double)veplanpago2List[i].nrocuota;
+                                nuevaCuotas[1, i] = (double)veplanpago2List[i].porcen;
+                                nuevaCuotas[2, i] = (double)veplanpago2List[i].diaspago;
+                            }
+                            // Asignamos la nueva matriz a 'cuotas'
+                            cuotas = nuevaCuotas;
+                        }
+                        else
+                        {
+                            // no hay especificacion de porcentajes por cuota
+                            ///// crear cuotas iguales
+                            double acumulado_1 = 0;
+                            double porcencuota = Math.Floor((100.0 / nrocuotas) * 100) / 100;
+                            double primeracuota = 100 - (porcencuota * (nrocuotas - 1));
+
+                            double[,] nuevaCuotas = new double[3, nrocuotas +1];
+
+                            for (int i = 1; i <= nrocuotas; i++)  // todas menos la primera cuota
+                            {
+                                nuevaCuotas[0, i] = i + 1;
+                                nuevaCuotas[1, i] = primeracuota;
+                                nuevaCuotas[2, i] = 15;
+                                acumulado_1 = acumulado_1 + primeracuota;
+                            }
+
+                            porcencuota = 100 - acumulado_1;
+                            nuevaCuotas[0, 0] = 1;
+                            nuevaCuotas[1, 0] = porcencuota;
+                            nuevaCuotas[2, 0] = 15;
+                            // Asignamos la nueva matriz a 'cuotas'
+                            cuotas = nuevaCuotas;
+
+                            /////fin de crear cuotas iguales
+                        }
+                    }
+                    else
+                    {
+                        // no hay plan de pagos adecuado asi que una cuota 100% 0 dias
+                        nrocuotas = 1;
+                        cuotas[0, 0] = 1;
+                        cuotas[1, 0] = 100;
+                        cuotas[2, 0] = 0;
+                    }
+
+                    /////generar pagos
+                    // verificacion apra ver si el documento descarga mercaderia
+                    // borrar las anteriores cuotas
+                    try
+                    {
+                        var coplancuotasAnt = await _context.coplancuotas.Where(i => i.coddocumento == codigodoc).ToListAsync();
+                        if (coplancuotasAnt.Count() > 0)
+                        {
+                            _context.coplancuotas.RemoveRange(coplancuotasAnt);
+                            await _context.SaveChangesAsync();
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        resultado = false;
+                    }
+                    DateTime fecha = fechaini;
+                    double acumulado = 0;
+                    if (resultado)
+                    {
+                        List<coplancuotas> NewListCoPlanCuo = new List<coplancuotas>();
+                        for (int i = 0; i <= nrocuotas - 2; i++)
+                        {
+                            fecha = fecha.AddDays(cuotas[2, i]);
+                            // acumulado = acumulado + System.Math.Round((montodoc / 100) * (cuotas(1, i)), 2)
+                            acumulado = acumulado + Math.Floor((montodoc / 100) * (cuotas[1, i]));
+                            coplancuotas newReg = new coplancuotas();
+
+                            newReg.coddocumento = codigodoc;
+                            newReg.codtipodoc = (byte)tipo;
+                            newReg.cliente = clientedoc;
+                            newReg.nrocuota = (short)cuotas[0, i];
+                            newReg.monto = (decimal)Math.Floor((montodoc / 100) * (cuotas[1, i]));
+                            newReg.montopagado = 0;
+                            newReg.moneda = monedadoc;
+                            newReg.vencimiento = fecha.Date;
+
+                            NewListCoPlanCuo.Add(newReg);
+                        }
 
 
+                        fecha = fecha.AddDays(cuotas[2, nrocuotas - 1]);
+                        // ultima cuota que complete todo
+                        coplancuotas newReg_1 = new coplancuotas();
 
+                        newReg_1.coddocumento = codigodoc;
+                        newReg_1.codtipodoc = (byte)tipo;
+                        newReg_1.cliente = clientedoc;
+                        newReg_1.nrocuota = (short)cuotas[0, nrocuotas-1];
+                        newReg_1.monto = (decimal)(montodoc - acumulado);
+                        newReg_1.montopagado = 0;
+                        newReg_1.moneda = monedadoc;
+                        newReg_1.vencimiento = fecha.Date;
 
+                        NewListCoPlanCuo.Add(newReg_1);
 
-
-
+                        try
+                        {
+                            _context.coplancuotas.AddRange(NewListCoPlanCuo);
+                            await _context.SaveChangesAsync();
+                        }
+                        catch (Exception)
+                        {
+                            resultado = false;
+                        }
+                    }
+                    ///fin de crear cuotas
                 }
             }
             ///////////////////////////// FALTAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-            return true;
-
+            return resultado;
         }
 
         public async Task<int> PlanItemEspecial(DBContext _context, int cod_remision)
@@ -4462,6 +4592,177 @@ namespace siaw_funciones
             return 0;
 
         }
+
+
+        public async Task<List<list_PFNR_comp_noPP>> lista_PFNR_complementarias_noPP(DBContext _context, int codproforma)
+        {
+            bool bandera = true;
+            //##################################'
+            //# estructura de la lista         #
+            //##################################'
+            List<list_PFNR_comp_noPP> lista = new List<list_PFNR_comp_noPP> ();
+
+            //##################################'
+            //#obtener el codigo de la nota actual
+            //##################################'
+            int codigo = codproforma;
+            if (codigo > 0)
+            {
+                //##################################'
+                //#ir al primer codigo de las proformas
+                //##################################'
+                bandera = true;
+                while (bandera)
+                {
+                    var tabla = await _context.veproforma.Where(i => i.codcomplementaria == codigo).Select(i => new
+                    {
+                        i.codigo
+                    }).ToListAsync();
+                    if (tabla.Count() > 0)
+                    {
+                        codigo = tabla[0].codigo;
+                    }
+                    else
+                    {
+                        bandera = false;
+                    }
+                }
+                //##################################'
+                // #recorrer todos los codigos añadiendo a lista
+                //##################################'
+                bandera = true;
+                while (bandera)
+                {
+                    var tabla = await _context.veproforma.Where(i => i.codigo == codigo).Select(i => new
+                    {
+                        i.codigo,
+                        i.codcomplementaria
+                    }).ToListAsync();
+                    if (tabla.Count() > 0)
+                    {
+                        // añadir a la lista
+                        list_PFNR_comp_noPP registro = new list_PFNR_comp_noPP ();
+                        registro.codproforma = tabla[0].codigo;
+                        registro.codremision = 0;
+                        lista.Add(registro);
+                        // si tiene complementaria copiar codigo, si no terminar el loop
+                        if (tabla[0].codcomplementaria == null || tabla[0].codcomplementaria == 0)
+                        {
+                            bandera = false;
+                        }
+                        else
+                        {
+                            codigo = tabla[0].codcomplementaria;
+                        }
+                    }
+                    else
+                    {
+                        bandera = false;
+                    }
+                }
+                //'##################################'
+                //#   poner las notas de remision  #
+                //##################################'
+                foreach (var reg in lista)
+                {
+                    var tabla = await _context.veremision.Where(i => i.anulada == false && i.codproforma == reg.codproforma).Select(i => new
+                    {
+                        i.codigo,
+                        i.fecha
+                    }).FirstOrDefaultAsync();
+                    if (tabla != null)
+                    {
+                        reg.codremision = tabla.codigo;
+                        reg.fecharemision = tabla.fecha;
+                    }
+                    else
+                    {
+                        reg.codremision = 0;
+                        reg.fecharemision = await funciones.FechaDelServidor(_context);
+                    }
+                }
+
+                // ##################################'
+                // #  Borrar todas las que son PP  #
+                // ##################################'
+                List<list_PFNR_comp_noPP> filasAEliminar = new List<list_PFNR_comp_noPP>();
+                foreach (var reg in lista)
+                {
+                    if (await remision_es_PP(_context,reg.codremision))
+                    {
+                        filasAEliminar.Add(reg);
+                    }
+                }
+                // Ahora eliminar los elementos marcados para eliminación
+                foreach (var fila in filasAEliminar)
+                {
+                    lista.Remove(fila);
+                }
+            }
+            return lista;
+        }
+
+        public async Task<double> MontoTotalComplementarias(DBContext _context, List<list_PFNR_comp_noPP> lista)
+        {
+            double totalc = 0;
+            foreach (var reg in lista)
+            {
+                if (reg.codremision == 0)
+                {
+                    // nada
+                }
+                else
+                {
+                    try
+                    {
+                        // totalnota = Convert.ToDouble(sia_DAL.Datos.Instancia.EjecutarComandoEscalar("select total from veremision where codigo=" + CStr(lista.Rows(i)("codremision"))))
+                        double totalnota = await TotalNRconNC_ND(_context,reg.codremision);
+                        totalc = totalc + totalnota;
+                    }
+                    catch (Exception)
+                    {
+                        // nada
+                    }
+                }
+            }
+            return totalc;
+        }
+        public async Task<DateTime> FechaComplementariaDeMayorMonto(DBContext _context, List<list_PFNR_comp_noPP> lista)
+        {
+            double montomayor = 0;
+            DateTime fecha = DateTime.Now.Date;
+            foreach (var reg in lista)
+            {
+                if (reg.codremision == 0)
+                {
+                    // nada
+                }
+                else
+                {
+                    double monto = await RemisionMonto(_context, reg.codremision);
+                    if (monto >= montomayor)
+                    {
+                        montomayor = monto;
+                        fecha = reg.fecharemision.Date;
+                    }
+                }
+            }
+            return fecha;
+        }
+        public async Task<double> RemisionMonto(DBContext _context, int codigo)
+        {
+            double resultado = 0;
+            try
+            {
+                resultado = (double)await _context.veremision.Where(i => i.codigo == codigo).Select(i => i.total).FirstOrDefaultAsync();
+            }
+            catch (Exception)
+            {
+                resultado = 0;
+            }
+            return resultado;
+        }
+
 
         public async Task<List<ProformasWF>> Detalle_Proformas_Aprobadas_WF(string userConnectionString, string codempresa, string usuario)
         {
@@ -4585,5 +4886,16 @@ namespace siaw_funciones
         public string descorta { get; set; }
         public string desc_descto_completa { get; set; }
         public double montodoc { get; set; }
+    }
+    public class planPagosCliente
+    {
+        public int codigo { get; set; }
+        public int nrocuotas { get; set; }
+    }
+    public class list_PFNR_comp_noPP
+    {
+        public int codproforma { get; set; }
+        public int codremision { get; set; }
+        public DateTime fecharemision { get; set; }
     }
 }

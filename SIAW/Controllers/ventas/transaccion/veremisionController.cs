@@ -481,6 +481,7 @@ namespace SIAW.Controllers.ventas.transaccion
             // ####################################
             // generar plan de pagos si es que es a credito
             // #################################
+            bool mostrarModificarPlanCuotas = false;
             if (veremision.tipopago == 1)  // si el tipo pago es a credito == 1
             {
                 // SI LA PROFORMA ES DE UNA NOTA ANTERIOR ANULADA SE DEBE HACER EL PLAN DE PAGOS SEGUN LA FECHA
@@ -493,12 +494,60 @@ namespace SIAW.Controllers.ventas.transaccion
                     // #si es PP genrarar con su monto y su fecha no importan las complementarias ni influye
                     if (await ventas.remision_es_PP(_context,codNRemision))
                     {
-                        /*
-                        if (await ventas.generarcuotaspago())
+                        
+                        if (await ventas.generarcuotaspago(_context,codNRemision,4, (double)veremision.total, (double)veremision.total,veremision.codmoneda, veremision.codcliente, fecha_antigua,false,codempresa))
                         {
-
+                            // modificarplandepago()
+                            // ENVIAR BOOL PARA MOSTRAR PLAN DE CUOTAS
+                            mostrarModificarPlanCuotas = true;
                         }
-                        */
+
+                    }
+                    else
+                    {
+                        // #si no es PP perocomo es complementaria hacer todo el el chenko
+                        if (await ventas.proforma_es_complementaria(_context,codProforma) == false)
+                        {
+                            if (await ventas.generarcuotaspago(_context, codNRemision, 4, (double)veremision.total, (double)veremision.total, veremision.codmoneda, veremision.codcliente, fecha_antigua, false, codempresa))
+                            {
+                                // modificarplandepago()
+                                // ENVIAR BOOL PARA MOSTRAR PLAN DE CUOTAS
+                                mostrarModificarPlanCuotas = true;
+                            }
+                        }
+                        else
+                        {
+                            var lista = await ventas.lista_PFNR_complementarias_noPP(_context, codProforma);
+                            if (await ventas.generarcuotaspago(_context, codNRemision, 4, await ventas.MontoTotalComplementarias(_context,lista), (double)veremision.total, veremision.codmoneda, veremision.codcliente, await ventas.FechaComplementariaDeMayorMonto(_context,lista), false, codempresa))
+                            {
+                                // modificarplandepago(codigo.Text, codcliente.Text, codmoneda.Text, total.Text)
+                                mostrarModificarPlanCuotas = true;
+                            }
+                            // para cada nota complementaria revertir pagos y generar sus cuotas
+                            foreach (var reg in lista)
+                            {
+                                if (reg.codremision == 0)
+                                {
+                                    // nada
+                                }
+                                else
+                                {
+                                    if (reg.codremision == codNRemision)
+                                    {
+                                        // la actual no hacer pues ya fue hecha
+                                    }
+                                    else
+                                    {
+                                        if (await ventas.revertirpagos()
+                                        {
+
+                                        }
+                                    }
+                                }
+                            }
+
+                            // FALTAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+                        }
                     }
                 }
                 else
