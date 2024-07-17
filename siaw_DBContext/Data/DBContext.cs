@@ -60439,7 +60439,7 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<vedesextraremi>(entity =>
             {
-                entity.HasNoKey();
+                entity.HasKey(e => e.codigo);
 
                 entity.Property(e => e.montodoc).HasColumnType("numeric(18, 2)");
 
@@ -63626,7 +63626,7 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<verecargoremi>(entity =>
             {
-                entity.HasNoKey();
+                entity.HasKey(e => e.codigo);
 
                 entity.Property(e => e.moneda)
                     .IsRequired()
@@ -63797,7 +63797,7 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<veremision1>(entity =>
             {
-                entity.HasNoKey();
+                entity.HasKey(e => e.codigo);
 
                 entity.Property(e => e.cantidad).HasColumnType("decimal(18, 2)");
 
@@ -63831,7 +63831,7 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<veremision_chequerechazado>(entity =>
             {
-                entity.HasNoKey();
+                entity.HasKey(e => e.codigo);
 
                 entity.Property(e => e.id)
                     .HasMaxLength(10)
@@ -63867,7 +63867,7 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<veremision_iva>(entity =>
             {
-                entity.HasNoKey();
+                entity.HasKey(e => e.codigo);
 
                 entity.Property(e => e.br).HasColumnType("decimal(18, 2)");
 

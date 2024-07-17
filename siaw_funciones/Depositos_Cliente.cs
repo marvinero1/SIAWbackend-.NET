@@ -363,7 +363,7 @@ namespace siaw_funciones
                         var qry2 = from p1 in _context.coanticipo
                                    join p2 in _context.veproforma_anticipo on p1.codigo equals p2.codanticipo
                                    join p3 in _context.veproforma on p2.codproforma equals p3.codigo
-                                   where p1.id == anticipo.id && p1.numeroid == anticipo.numeroid && p3.anulada == false
+                                   where p1.id == anticipo.id && p1.numeroid == anticipo.numeroid && p3.anulada == false && p3.aprobada == true && p3.paraaprobar == true
                                    orderby p3.fecha
                                    select new { p1.id, p1.numeroid, p1.monto, MontoRever = p2.monto, IdPf = p3.id, NroidPf = p3.numeroid, p3.fecha, p3.total };
 

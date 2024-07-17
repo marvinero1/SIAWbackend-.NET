@@ -2441,7 +2441,7 @@ namespace siaw_funciones
                 {
                     foreach (var etiqueta in dt_etiqueta)
                     {
-                        if (await cliente.direccion_es_valida(_context, DVTA.codcliente, etiqueta.representante))
+                        if (await cliente.direccion_es_valida(_context, DVTA.codcliente_real, etiqueta.representante))
                         {
                             objres.resultado = true;
                             objres.observacion = "";
@@ -7908,6 +7908,7 @@ namespace siaw_funciones
             }
             return objres;
         }
+
         public async Task<ResultadoValidacion> Validar_Descuentos_Extra_Para_TipoVenta(DBContext _context, DatosDocVta DVTA, List<vedesextraDatos> tabladescuentos, List<vedetalleanticipoProforma> dt_anticipo_pf, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
@@ -7954,6 +7955,7 @@ namespace siaw_funciones
                             {
                                 string[] id_nroid_deposito = new string[2];
                                 id_nroid_deposito = await depositos_cliente.IdNroid_Deposito_Asignado_Anticipo(_context, anticipos.id_anticipo, anticipos.nroid_anticipo);
+                                cant_anticipos = cant_anticipos + 1;
                                 if (id_nroid_deposito[0] == "NSE")
                                 {
                                     cadena += "\r\n" + "El anticipo: " + anticipos.id_anticipo + "-" + anticipos.nroid_anticipo + " asignado a la proforma no esta enlazado a algun deposito de cliente!!!";
@@ -7972,7 +7974,7 @@ namespace siaw_funciones
                                     }
                                     if (cant_anticipos_usados == ttl_anticipos)
                                     {
-                                        cadena += cadena_aux;
+                                        cadena = cadena_aux;
                                         cadenaA = anticipos.id_anticipo + "-" + anticipos.nroid_anticipo;
                                         cadenaB = DVTA.codcliente;
                                         pedir_clave = false;

@@ -21,5 +21,6 @@ namespace siaw_DBContext.Models
         public decimal? porceniva { get; set; }
         public int? codgrupomer { get; set; }
         public decimal? peso { get; set; }
+        public int codigo { get; set; }
     }
 }

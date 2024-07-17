@@ -13,5 +13,6 @@ namespace siaw_DBContext.Models
         public decimal? porcenbr { get; set; }
         public decimal? br { get; set; }
         public decimal? iva { get; set; }
+        public int codigo { get; set; }
     }
 }

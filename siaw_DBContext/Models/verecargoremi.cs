@@ -14,5 +14,6 @@ namespace siaw_DBContext.Models
         public string moneda { get; set; }
         public decimal montodoc { get; set; }
         public int? codcobranza { get; set; }
+        public int codigo { get; set; }
     }
 }

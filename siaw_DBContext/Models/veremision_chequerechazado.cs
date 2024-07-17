@@ -10,5 +10,6 @@ namespace siaw_DBContext.Models
         public int? codremision { get; set; }
         public string id { get; set; }
         public int? numeroid { get; set; }
+        public int codigo { get; set; }
     }
 }

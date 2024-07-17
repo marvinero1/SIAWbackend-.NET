@@ -6,6 +6,7 @@ using siaw_DBContext.Data;
 using siaw_DBContext.Models;
 using siaw_DBContext.Models_Extra;
 using siaw_funciones;
+using System.Web.Http.Results;
 
 namespace SIAW.Controllers.ventas.transaccion
 {
@@ -21,6 +22,7 @@ namespace SIAW.Controllers.ventas.transaccion
         private readonly siaw_funciones.TipoCambio tipocambio = new siaw_funciones.TipoCambio();
         private readonly siaw_funciones.Configuracion configuracion = new siaw_funciones.Configuracion();
         private readonly siaw_funciones.Saldos saldos = new siaw_funciones.Saldos();
+        private readonly siaw_funciones.Creditos creditos = new siaw_funciones.Creditos();
 
         private readonly Documento documento = new Documento();
         private readonly Log log = new Log();
@@ -86,7 +88,7 @@ namespace SIAW.Controllers.ventas.transaccion
             }
         }
 
-            [HttpGet]
+        [HttpGet]
         [Route("validaTranferencia/{userConn}/{idProforma}/{nroidProforma}")]
         public async Task<object> validaTranferencia(string userConn, string idProforma, int nroidProforma)
         {
@@ -322,14 +324,130 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
+        //[Authorize]
+        [HttpPost]
+        [QueueFilter(1)] // Limitar a 1 solicitud concurrente
+        [Route("grabarNotaRemision/{userConn}/{id}/{usuario}/{desclinea_segun_solicitud}/{codProforma}/{codempresa}/{id_solurg}/{nroid_solurg}")]
+        public async Task<object> grabarNotaRemision(string userConn, string id, string usuario, bool desclinea_segun_solicitud, int codProforma, string codempresa, string id_solurg, int nroid_solurg, SaveNRemisionCompleta datosRemision)
+        {
+            // borrar los items con cantidad cero
+            datosRemision.veremision1.RemoveAll(i => i.cantidad <= 0);
+            if (datosRemision.veremision1.Count() <= 0)
+            {
+                return BadRequest(new { resp = "No hay ningun item en su documento." });
+            }
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                using (var dbContexTransaction = _context.Database.BeginTransaction())
+                {
+                    try
+                    {
+                        /*
+                        recalcularprecios()
+                        Me.versubtotal()
+                        Me.verdesextra()
+                        Me.verrecargos()
+                        Me.vertotal()
+                        */
+                        // El front debe llamar a las funciones de totalizar antes de mandar a grabar
+                        var doc_grabado = await Grabar_Documento(_context, id, usuario, desclinea_segun_solicitud, codProforma, codempresa, datosRemision);
+                        // si doc_grabado.mostrarModificarPlanCuotas  == true    Marvin debe desplegar ventana para modificar plan de cuotas, es ventana nueva aparte
+                        if (doc_grabado.resp != "ok")
+                        {
+                            return BadRequest(new {resp = doc_grabado.resp, msgAlert = "No se pudo Grabar la Nota de Remision con Exito." });
+                        }
+                        await log.RegistrarEvento(_context, usuario, Log.Entidades.Nota_Remision, doc_grabado.codNRemision.ToString(), datosRemision.veremision.id, doc_grabado.numeroId.ToString(), "veremisionController", "Grabar", Log.TipoLog.Creacion);
+                        // devolver
+                        string msgAlertGrabado = "Se grabo la Nota de Remision " + datosRemision.veremision.id + "-" + doc_grabado.numeroId + " con Exito.";
+
+                        //Actualizar Credito
+                        //sia_funciones.Creditos.Instancia.Actualizar_Credito_2020(codcliente.Text, sia_compartidos.temporales.Instancia.usuario, sia_compartidos.temporales.Instancia.codempresa, True, Me.Usar_Bd_Opcional)
+
+                        // Actualizar Credito
+                        await creditos.Actualizar_Credito_2023(_context, datosRemision.veremision.codcliente, usuario, codempresa, true);
+
+                        // enlazar a la solicitud urgente
+                        string msgSolUrg = "";
+                        if (id_solurg.Trim() != "" && nroid_solurg > 0)  // si no es sol urgente, Marvin debe mandar id en vacio "" y nroid en 0
+                        {
+                            try
+                            {
+                                var insolUrg = await _context.insolurgente.Where(i => i.id == id_solurg && i.numeroid == nroid_solurg).FirstOrDefaultAsync();
+                                insolUrg.fid = datosRemision.veremision.id;
+                                insolUrg.fnumeroid = doc_grabado.numeroId;
+                                await _context.SaveChangesAsync();
+                                msgSolUrg = "La nota de remision fue enlazada con la solicitud urgente: " + id_solurg + "-" + nroid_solurg;
+                            }
+                            catch (Exception)
+                            {
+                                msgSolUrg = "La nota de remision no pudo ser enlazada a la solicitud Urgente, contacte con el administrador de sistemas.";
+                                //throw;
+                            }
+                            
+                        }
+
+                        /*
+                        If tipopago.SelectedIndex = 1 Then
+                            '##### CONTABILIZAR
+                            If sia_funciones.Seguridad.Instancia.rol_contabiliza(sia_funciones.Seguridad.Instancia.usuario_rol(sia_compartidos.temporales.Instancia.usuario)) Then
+                                If sia_funciones.Configuracion.Instancia.emp_preg_cont_ventascredito(sia_compartidos.temporales.Instancia.codempresa) Then
+                                    If MessageBox.Show("Desea contabilizar este documento ?", "Confirmacion", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) = Windows.Forms.DialogResult.Yes Then
+                                        Dim frm As New sia_compartidos.prgDatosContabilizar
+                                        frm.ShowDialog()
+                                        If frm.eligio Then
+                                            If frm.nuevo Then
+                                                sia_funciones.Contabilidad.Instancia.Contabilizar_Venta_a_Credito(sia_compartidos.temporales.Instancia.codempresa, sia_funciones.Empresa.Instancia.monedabase(sia_compartidos.temporales.Instancia.codempresa), sia_funciones.Documento.Instancia.Codigo_Remision(id.Text, CInt(numeroid.Text)), frm.id_elegido, frm.tipo_elegido, 0, True, False) ', True, True, False, True)
+                                            Else
+                                                sia_funciones.Contabilidad.Instancia.Contabilizar_Venta_a_Credito(sia_compartidos.temporales.Instancia.codempresa, sia_funciones.Empresa.Instancia.monedabase(sia_compartidos.temporales.Instancia.codempresa), sia_funciones.Documento.Instancia.Codigo_Remision(id.Text, CInt(numeroid.Text)), "", "", frm.codigo_elegido, True, False) ', True, True, False, True)
+                                            End If
+                                        Else
+                                        End If
+                                        frm.Dispose()
+                                    End If
+                                End If
+                            End If
+                            '##### FIN CONTABILIZAR
+                        End If
+
+
+
+                        limpiardoc()
+                        mostrardatos("0")
+                        leerparametros()
+                        ponerpordefecto()
+                        id.Focus()
+
+                         */
+
+
+                        dbContexTransaction.Commit();
+                        return Ok(new 
+                        { 
+                            resp = msgAlertGrabado, 
+                            codNotRemision = doc_grabado.codNRemision, 
+                            nroIdRemision = doc_grabado.numeroId,
+                            mostrarVentanaModifPlanCuotas = doc_grabado.mostrarModificarPlanCuotas,
+                            msgSolUrg = msgSolUrg
+                        });
+                    }
+                    catch (Exception)
+                    {
+                        dbContexTransaction.Rollback();
+                        return Problem("Error en el servidor");
+                        throw;
+                    }
+                }
+            }
+        }
 
 
 
 
-        
 
 
-        private async Task<(string resp, int codNRemision, int numeroId)> Grabar_Documento(DBContext _context, string id, string usuario, bool desclinea_segun_solicitud, int codProforma, string codempresa, SaveNRemisionCompleta datosRemision)
+
+        private async Task<(string resp, int codNRemision, int numeroId, bool mostrarModificarPlanCuotas)> Grabar_Documento(DBContext _context, string id, string usuario, bool desclinea_segun_solicitud, int codProforma, string codempresa, SaveNRemisionCompleta datosRemision)
         {
             veremision veremision = datosRemision.veremision;
             List<veremision1> veremision1 = datosRemision.veremision1;
@@ -346,7 +464,7 @@ namespace SIAW.Controllers.ventas.transaccion
             int idnroactual = await documento.ventasnumeroid(_context, id);
             if (await documento.existe_notaremision(_context,id,idnroactual + 1))
             {
-                return ("Ese numero de documento, ya existe, por favor consulte con el administrador del sistema.", 0, 0);
+                return ("Ese numero de documento, ya existe, por favor consulte con el administrador del sistema.", 0, 0, false);
             }
             veremision.numeroid = idnroactual + 1;
             // fin de obtener id actual
@@ -405,12 +523,12 @@ namespace SIAW.Controllers.ventas.transaccion
                     }
                     else
                     {
-                        return ("No se pudo encontrar la proforma para transferirla, por favor consulte con el administrador del sistema.", 0, 0);
+                        return ("No se pudo encontrar la proforma para transferirla, por favor consulte con el administrador del sistema.", 0, 0, false);
                     }
                 }
                 catch (Exception)
                 {
-                    return ("Error al transferir la proforma, por favor consulte con el administrador del sistema.", 0, 0);
+                    return ("Error al transferir la proforma, por favor consulte con el administrador del sistema.", 0, 0, false);
                 }
             }
 
@@ -424,7 +542,7 @@ namespace SIAW.Controllers.ventas.transaccion
             }
             catch (Exception)
             {
-                return ("Error al Guardar descuentos extras de Nota de Remision, por favor consulte con el administrador del sistema.", 0, 0);
+                return ("Error al Guardar descuentos extras de Nota de Remision, por favor consulte con el administrador del sistema.", 0, 0, false);
             }
             try
             {
@@ -436,7 +554,7 @@ namespace SIAW.Controllers.ventas.transaccion
             }
             catch (Exception)
             {
-                return ("Error al Guardar recargos de Nota de Remision, por favor consulte con el administrador del sistema.", 0, 0);
+                return ("Error al Guardar recargos de Nota de Remision, por favor consulte con el administrador del sistema.", 0, 0, false);
             }
             try
             {
@@ -448,7 +566,7 @@ namespace SIAW.Controllers.ventas.transaccion
             }
             catch (Exception)
             {
-                return ("Error al Guardar iva de Nota de Remision, por favor consulte con el administrador del sistema.", 0, 0);
+                return ("Error al Guardar iva de Nota de Remision, por favor consulte con el administrador del sistema.", 0, 0, false);
             }
 
 
@@ -538,15 +656,14 @@ namespace SIAW.Controllers.ventas.transaccion
                                     }
                                     else
                                     {
-                                        if (await ventas.revertirpagos()
+                                        if (await ventas.revertirpagos(_context, reg.codremision,4))
                                         {
-
+                                            await ventas.generarcuotaspago(_context, reg.codremision, 4, await ventas.MontoTotalComplementarias(_context, lista), await ventas.TotalNRconNC_ND(_context, reg.codremision), veremision.codmoneda, veremision.codcliente, await ventas.FechaComplementariaDeMayorMonto(_context, lista), false, codempresa);
                                         }
                                     }
                                 }
                             }
 
-                            // FALTAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
                         }
                     }
                 }
@@ -554,19 +671,69 @@ namespace SIAW.Controllers.ventas.transaccion
                 {
                     // procedimiento normal
                     // #si es PP genrarar con su monto y su fecha no importan las complementarias ni influye
+                    if (await ventas.remision_es_PP(_context,codNRemision))
+                    {
+                        if (await ventas.generarcuotaspago(_context, codNRemision, 4, (double)veremision.total, (double)veremision.total, veremision.codmoneda, veremision.codcliente, veremision.fecha.Date, false, codempresa))
+                        {
+                            // modificarplandepago(codigo.Text, codcliente.Text, codmoneda.Text, total.Text)
+                            mostrarModificarPlanCuotas = true;
+                        }
+                    }
+                    else
+                    {
+                        // #si no es PP perocomo es complementaria hacer todo el el chenko
+                        if (await ventas.proforma_es_complementaria(_context,codProforma) == false)
+                        {
+                            if (await ventas.generarcuotaspago(_context, codNRemision, 4, (double)veremision.total, (double)veremision.total, veremision.codmoneda, veremision.codcliente, veremision.fecha.Date, false, codempresa))
+                            {
+                                // modificarplandepago(codigo.Text, codcliente.Text, codmoneda.Text, total.Text)
+                                mostrarModificarPlanCuotas = true;
+                            }
 
-
+                        }
+                        else
+                        {
+                            var lista = await ventas.lista_PFNR_complementarias_noPP(_context, codProforma);
+                            if (await ventas.generarcuotaspago(_context, codNRemision, 4, await ventas.MontoTotalComplementarias(_context, lista), (double)veremision.total, veremision.codmoneda, veremision.codcliente, await ventas.FechaComplementariaDeMayorMonto(_context, lista), false, codempresa))
+                            {
+                                // modificarplandepago(codigo.Text, codcliente.Text, codmoneda.Text, total.Text)
+                                mostrarModificarPlanCuotas = true;
+                            }
+                            // para cada nota complementaria revertir pagos y generar sus cuotas
+                            foreach (var reg in lista)
+                            {
+                                if (reg.codremision == 0)
+                                {
+                                    // nada
+                                }
+                                else
+                                {
+                                    if (reg.codremision == codNRemision)
+                                    {
+                                        // la actual no hacer pues ya fue hecha
+                                    }
+                                    else
+                                    {
+                                        if (await ventas.revertirpagos(_context, reg.codremision, 4))
+                                        {
+                                            await ventas.generarcuotaspago(_context, reg.codremision, 4, await ventas.MontoTotalComplementarias(_context, lista), await ventas.TotalNRconNC_ND(_context, reg.codremision), veremision.codmoneda, veremision.codcliente, await ventas.FechaComplementariaDeMayorMonto(_context, lista), false, codempresa);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
 
 
                 }
             }
 
+            //###################################
+            //  FIN
+            //###################################
 
 
-
-
-
-            return ("ok", codProforma, 0);
+            return ("ok", codNRemision, veremision.numeroid, mostrarModificarPlanCuotas);
 
 
         }

@@ -424,6 +424,7 @@ namespace SIAW.Controllers.ventas.modificacion
                 await cliente.ActualizarParametrosDePrincipal(_context, veproforma.codcliente);
                 // ###############################
                 datosProforma.veproforma.paraaprobar = paraAprobar;
+                datosProforma.veetiqueta_proforma.codigo = 0;
 
                 //###############################
                 // validacion 

@@ -4763,6 +4763,177 @@ namespace siaw_funciones
             return resultado;
         }
 
+        ///////////////////////////////////////////////////////////////////////////////
+        /// Esta funcion revierte los pagos realizados de un documento a sus cobranzas//
+        /// necesita el tipo de documento y su codigo, borra el plan de pagos         //
+        ///////////////////////////////////////////////////////////////////////////////
+        public async Task<bool> revertirpagos(DBContext _context, int codigo, int tipo)
+        {
+            bool resultado = true;
+            // primero obtener las cuotas pagadas del documento
+            var tabla = await _context.coplancuotas.Where(i => i.coddocumento == codigo && i.codtipodoc == tipo && i.montopagado > 0)
+                .Select(i => new
+                {
+                    codigo
+                }).ToListAsync();
+            if (tabla.Count() > 0)
+            {
+                // de cada cuota pagada buscar sus pagos 
+                foreach (var reg in tabla)
+                {
+                    var tablapagos = await _context.copagos.Where(i => i.codcuota == reg.codigo).Select(i => new
+                    {
+                        i.codigo,
+                        i.codcobranza,
+                        i.codcuota,
+                        i.monto,
+                        i.fecha,
+                        i.tdc
+                    }).ToListAsync();
+                    // de cada pago revertir a la cuota y buscar su cobranza y revertir ahi tambien
+                    // verificacion apra ver si el documento descarga mercaderia
+                    foreach (var reg2 in tablapagos)
+                    {
+                        //////////////
+                        // aumentar el monto en la cobranza
+                        if (resultado)
+                        {
+                            try
+                            {
+                                var cobranza = await _context.cocobranza.FirstOrDefaultAsync(c => c.codigo == reg2.codcobranza);
+
+                                if (cobranza != null)
+                                {
+                                    cobranza.montorest = (cobranza.montorest + reg2.monto) / reg2.tdc;
+                                    cobranza.estado = 0;
+
+                                    await _context.SaveChangesAsync();
+                                }
+                            }
+                            catch (Exception)
+                            {
+                                resultado = false;
+                            }
+                        }
+                        if (resultado)
+                        {
+                            try
+                            {
+                                var listCocobranza = await _context.cocobranza.Where(i => i.montorest > i.monto).ToListAsync();
+                                if (listCocobranza.Count() > 0)
+                                {
+                                    foreach (var item in listCocobranza)
+                                    {
+                                        item.montorest = item.monto;
+                                    }
+                                    await _context.SaveChangesAsync();
+                                }
+                            }
+                            catch (Exception)
+                            {
+                                resultado = false;
+                            }
+                        }
+                        // borrar el anterior plan de cuotas plan de cuotas
+                        if (resultado)
+                        {
+                            try
+                            {
+                                var coplancuotas = await _context.coplancuotas.FirstOrDefaultAsync(c => c.codigo == reg2.codcuota);
+
+                                if (coplancuotas != null)
+                                {
+                                    coplancuotas.montopagado = coplancuotas.montopagado - reg2.monto;
+
+                                    await _context.SaveChangesAsync();
+                                }
+                            }
+                            catch (Exception)
+                            {
+                                resultado = false;
+                            }
+                        }
+                        if (resultado)
+                        {
+                            try
+                            {
+                                var listCoPlanCuotas = await _context.coplancuotas.Where(i => i.montopagado < 0).ToListAsync();
+                                if (listCoPlanCuotas.Count() > 0)
+                                {
+                                    foreach (var item in listCoPlanCuotas)
+                                    {
+                                        item.montopagado = 0;
+                                    }
+                                    await _context.SaveChangesAsync();
+                                }
+                            }
+                            catch (Exception)
+                            {
+                                resultado = false;
+                            }
+                        }
+                        // eliminar pago
+                        if (resultado)
+                        {
+                            try
+                            {
+                                var copagosDelete = await _context.copagos.Where(i => i.codigo == reg2.codigo).ToListAsync();
+                                if (copagosDelete.Count() > 0)
+                                {
+                                    _context.copagos.RemoveRange(copagosDelete);
+                                    await _context.SaveChangesAsync();
+                                }
+                            }
+                            catch (Exception)
+                            {
+                                resultado = false;
+                            }
+                        }
+                    }
+                    // borrar el plan de pagos anterior
+                    if (resultado)
+                    {
+                        try
+                        {
+                            var coplancuotasDelete = await _context.coplancuotas.Where(i => i.coddocumento == codigo && i.codtipodoc == tipo).ToListAsync();
+                            if (coplancuotasDelete.Count() > 0)
+                            {
+                                _context.coplancuotas.RemoveRange(coplancuotasDelete);
+                                await _context.SaveChangesAsync();
+                            }
+                        }
+                        catch (Exception)
+                        {
+                            resultado = false;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // no habia nada pagado
+                // borrar el plan de pagos anterior
+                if (resultado)
+                {
+                    try
+                    {
+                        var coplancuotasDelete = await _context.coplancuotas.Where(i => i.coddocumento == codigo && i.codtipodoc == tipo).ToListAsync();
+                        if (coplancuotasDelete.Count() > 0)
+                        {
+                            _context.coplancuotas.RemoveRange(coplancuotasDelete);
+                            await _context.SaveChangesAsync();
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        resultado = false;
+                    }
+                }
+            }
+
+            return resultado;
+        }
+
 
         public async Task<List<ProformasWF>> Detalle_Proformas_Aprobadas_WF(string userConnectionString, string codempresa, string usuario)
         {
