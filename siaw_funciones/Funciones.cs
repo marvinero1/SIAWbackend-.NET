@@ -11,6 +11,8 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using siaw_DBContext.Data;
+using Humanizer;
+using System.Globalization;
 
 namespace siaw_funciones
 {
@@ -131,6 +133,30 @@ namespace siaw_funciones
             }
 
             return cadena2;
+        }
+        public string CentrarCadena(string cadena, int ancho, string relleno)
+        {
+            string resultado = "";
+            int restante, adelante, atras;
+
+            if (cadena.Length > ancho)
+            {
+                resultado = cadena.Substring(0, ancho - 1);
+            }
+            else if (cadena.Length == ancho)
+            {
+                resultado = cadena;
+            }
+            else
+            {
+                restante = ancho - cadena.Length;
+                adelante = (int)Math.Floor((double)restante / 2);
+                atras = restante - adelante;
+                resultado = Rellenar(cadena, adelante + cadena.Length, relleno);
+                resultado = Rellenar(resultado, resultado.Length + atras, relleno, false);
+            }
+
+            return resultado;
         }
         public double LimpiarDoble(object valor)
         {
@@ -388,7 +414,16 @@ namespace siaw_funciones
             }
         }
 
+        public string ConvertDecimalToWords(decimal number)
+        {
+            int integerPart = (int)Math.Truncate(number);
+            int decimalPart = (int)((number - integerPart) * 100);
 
+            string integerPartInWords = integerPart.ToWords(new CultureInfo("es")).ToUpper();
+            string decimalPartInWords = $"{decimalPart}/100";
+
+            return $"{integerPartInWords} {decimalPartInWords}";
+        }
 
         ///////////////////////////// ENVIAR EMAILS
         public bool EnviarEmail(string emailOrigen, string emailDestino, List<string>? emailsCC, string emailOrigenCredencial, string pwdEmailCredencialOrigen, string tituloMail, string cuerpoMail, byte[] pdfBytes, string nombreArchivo)

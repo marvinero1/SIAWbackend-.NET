@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using LibSIAVB;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SIAW.Controllers.ventas.modificacion;
@@ -6,7 +7,9 @@ using siaw_DBContext.Data;
 using siaw_DBContext.Models;
 using siaw_DBContext.Models_Extra;
 using siaw_funciones;
+using System.Data;
 using System.Web.Http.Results;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace SIAW.Controllers.ventas.transaccion
 {
@@ -23,6 +26,10 @@ namespace SIAW.Controllers.ventas.transaccion
         private readonly siaw_funciones.Configuracion configuracion = new siaw_funciones.Configuracion();
         private readonly siaw_funciones.Saldos saldos = new siaw_funciones.Saldos();
         private readonly siaw_funciones.Creditos creditos = new siaw_funciones.Creditos();
+        private readonly siaw_funciones.Empresa empresa = new siaw_funciones.Empresa();
+        private readonly siaw_funciones.Almacen almacen = new siaw_funciones.Almacen();
+        private readonly siaw_funciones.Funciones funciones = new Funciones();
+        private readonly siaw_funciones.Cobranzas cobranzas = new siaw_funciones.Cobranzas();
 
         private readonly Documento documento = new Documento();
         private readonly Log log = new Log();
@@ -777,6 +784,625 @@ namespace SIAW.Controllers.ventas.transaccion
             veremision_iva = veremision_iva.Select(p => { p.codremision = codRemi; return p; }).ToList();
             _context.veremision_iva.AddRange(veremision_iva);
             await _context.SaveChangesAsync();
+        }
+
+
+        [HttpGet]
+        [Route("impresionNotaRemision/{userConn}/{codClienteReal}/{codEmpresa}/{codclientedescripcion}/{preparacion}/{codigoNR}")]
+        public async Task<ActionResult<List<object>>> impresionNotaRemision(string userConn, string codClienteReal, string codEmpresa, string codclientedescripcion, string preparacion, int codigoNR)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var veremision = await _context.veremision.Where(i => i.codigo == codigoNR).FirstOrDefaultAsync();
+                    if (veremision != null)
+                    {
+                        string resp = await mostrardocumento_directo(_context, codClienteReal, codEmpresa, codclientedescripcion, preparacion, veremision);
+                        return Ok(new { resp });
+                    }
+                    return BadRequest(new { resp = "No se encontro la nota de remision" });
+                }
+
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+        }
+
+
+
+
+
+        private async Task<string> mostrardocumento_directo(DBContext _context, string codClienteReal, string codEmpresa, string codclientedescripcion, string preparacion, veremision veremision)
+        {
+            // If validarimp() Then
+
+            //#################################################
+            //mandar impresion
+            impresion imp = new impresion();
+            //parametros
+            string imp_titulo;
+            string imp_empresa;
+            string imp_usuario;
+            string imp_nit;
+            string imp_codvendedor;
+            string imp_tdc;
+            string imp_monedabase;
+            string imp_codalmacen;
+            string imp_fecha;
+            string imp_telefono;
+            string imp_ptoventa;
+            string imp_codcliente;
+            string imp_cliente;
+            string imp_direccion;
+            string imp_aclaracion_direccion;
+            string imp_tipopago;
+            string imp_subtotal;
+            string imp_descuentos;
+            string imp_recargos;
+            string imp_totalimp;
+            string imp_totalliteral;
+            string imp_proforma;
+            string imp_pesototal;
+            string imp_dsctosdescrip;
+            string imp_planpagos = "";
+            string imp_flete;
+            string imp_transporte;
+            string imp_obs;
+            string imp_iva;
+            string imp_facturacion;
+            string imp_nota_plan_pagos;
+            string imp_codcliente_real;
+            string imp_nit_cliente;
+            string imp_complemento_nit_cliente;
+            string imp_razonsocial;
+
+            bool es_casual = false;
+            if (veremision.codcliente != codClienteReal)
+            {
+                es_casual = true;
+            }
+
+            // Modificaicon del titulo desde fecha: 04-10-2019 se decidio en reunion con JRA Mareln Cinthya V y Emilio
+            if (veremision.tipopago == 1 && veremision.contra_entrega == false)
+            {
+                // CREDITO
+                imp_titulo = "NOTA DE REMISION " + veremision.id + "-" + veremision.numeroid + " - PAGARE";
+            }
+            else
+            {
+                //TODO LO QUE ES PAGO INMEDIATO NO DEBE DECIR PAGARE: ESTO ES:
+                //CONTADO CONTRA ENTREGA
+                //CONTADO NO CONTRA ENTREGA
+                //CREDITO CONTRA ENTREGA
+                imp_titulo = "NOTA DE REMISION " + veremision.id + "-" + veremision.numeroid;
+            }
+            imp_empresa = await nombres.nombreempresa(_context, codEmpresa);
+            imp_usuario = veremision.usuarioreg;
+
+            imp_nit = "N.I.T.: " + await empresa.NITempresa(_context, codEmpresa);
+
+            imp_codvendedor = veremision.codvendedor.ToString();
+            imp_tdc = veremision.tdc.ToString();
+            imp_monedabase = await Empresa.monedabase(_context, codEmpresa);
+            imp_codalmacen = veremision.codalmacen.ToString();
+            imp_fecha = veremision.fecha.ToShortDateString();
+            imp_aclaracion_direccion = await ventas.aclaracion_direccion_direccion(_context, codClienteReal, veremision.direccion);
+
+            imp_codcliente_real = codClienteReal;
+
+            // recortar de la direccion el punto de venta
+            string _direcc = "";
+            if (veremision.direccion.Contains("(") && veremision.direccion.Contains(")"))
+            {
+                // Dim x As Integer = direccion.Text.IndexOf("(")
+                if (es_casual)
+                {
+                    /*
+                     
+                    'si el cliente es casual, poner la direccion del cliente casual y no del cliente referencia por instruccion Gerencia dsd 05-07-2022
+                    'rdireccion.Text = Chr(34) & direccion.Text & Chr(34)
+                    '_direcc = sia_funciones.Cliente.Instancia.direccioncliente(codcliente.Text, Me.Usar_Bd_Opcional)
+                    '_direcc &= " (" & sia_funciones.Cliente.Instancia.PuntoDeVentaCliente_Segun_Direccion(codcliente.Text, _direcc) & ")"
+                    '_direcc = _direcc.Substring(0, _direcc.IndexOf("(") - 1)
+                     
+                     */
+
+                    // Desde 10-10-2022 si la venta es casual la direccion se pondra la del almacen
+                    _direcc = await almacen.direccionalmacen(_context, veremision.codalmacen);
+                    // definir con que punto de venta se creara el cliente
+                    var dt1_linq = await _context.inalmacen
+                        .Where(p1 => p1.codigo == veremision.codalmacen)
+                        .Join(_context.adarea,
+                              p1 => p1.codarea,
+                              p2 => p2.codigo,
+                              (p1, p2) => new
+                              {
+                                  codarea = p2.codigo,
+                                  descripcion = p2.descripcion,
+                              })
+                        .FirstOrDefaultAsync();
+                    int codpto_vta = 0;
+                    if (dt1_linq != null)
+                    {
+                        if (dt1_linq.codarea == 300)
+                        {
+                            codpto_vta = 300;
+                        }else if(dt1_linq.codarea == 400)
+                        {
+                            codpto_vta = 400;
+                        }
+                        else
+                        {
+                            codpto_vta = 800;
+                        }
+                    }
+                    _direcc = _direcc + " (" + await cliente.PuntoDeVenta_Casual(_context, codpto_vta) + ")";
+                    _direcc = _direcc.Substring(0, _direcc.IndexOf("(") - 1);
+                }
+                else
+                {
+                    _direcc = veremision.direccion.Substring(0, veremision.direccion.IndexOf("(") - 1);
+                }
+            }
+            else
+            {
+                if (es_casual)
+                {
+                    // _direcc = sia_funciones.Cliente.Instancia.direccioncliente(codcliente.Text, Me.Usar_Bd_Opcional)
+                    _direcc = await almacen.direccionalmacen(_context, veremision.codalmacen);
+                }
+                else
+                {
+                    _direcc = veremision.direccion;
+                }
+            }
+
+            if (await cliente.EsClienteSinNombre(_context,veremision.codcliente))
+            {
+                // PONE EL NOMBRE AL CUAL SE HIZO EL PEDIDO
+                imp_codcliente = veremision.nomcliente;
+                imp_cliente = veremision.nomcliente;
+                imp_direccion = veremision.direccion;
+                imp_ptoventa = veremision.direccion;
+                imp_telefono = "";
+                // estos datos son para la impresion de la parte del contrato que esta en la nota de remision
+                imp_razonsocial = veremision.nomcliente;
+                imp_nit_cliente = veremision.nit;
+                imp_complemento_nit_cliente = veremision.complemento_ci;
+            }
+            else
+            {
+                imp_codcliente = veremision.codcliente;
+                imp_cliente = codclientedescripcion;
+                imp_telefono = await ventas.telefonocliente_direccion(_context, codClienteReal, _direcc);
+                imp_ptoventa = await ventas.ptoventacliente_direccion(_context, codClienteReal, _direcc);
+
+                // estos datos son para la impresion de la parte del contrato que esta en la nota de remision
+                imp_razonsocial = await cliente.Razonsocial(_context, codClienteReal);
+                imp_nit_cliente = await cliente.NIT(_context, codClienteReal);
+                imp_complemento_nit_cliente = veremision.complemento_ci;
+
+                if (await ventas.DireccionNotaRemisionEsCentral(_context,veremision.id, veremision.numeroid))
+                {
+                    // imp_direccion = "CENTRAL -" & direccion.Text
+                    if (es_casual)
+                    {
+                        /*
+                         
+                        '_direcc = sia_funciones.Cliente.Instancia.direccioncliente(codcliente.Text, Me.Usar_Bd_Opcional)
+                        '_direcc &= " (" & sia_funciones.Cliente.Instancia.PuntoDeVentaCliente_Segun_Direccion(codcliente.Text, _direcc) & ")"
+                        'imp_direccion = "CENTRAL -" & _direcc
+                         
+                         */
+                        // Desde 10-10-2022 si la venta es casual la direccion se pondra la del almacen
+                        _direcc = await almacen.direccionalmacen(_context, veremision.codalmacen);
+                        // definir con que punto de venta se creara el cliente
+                        var dt1_linq = await _context.inalmacen
+                        .Where(p1 => p1.codigo == veremision.codalmacen)
+                        .Join(_context.adarea,
+                              p1 => p1.codarea,
+                              p2 => p2.codigo,
+                              (p1, p2) => new
+                              {
+                                  codarea = p2.codigo,
+                                  descripcion = p2.descripcion,
+                              })
+                        .FirstOrDefaultAsync();
+                        int codpto_vta = 0;
+                        if (dt1_linq != null)
+                        {
+                            if (dt1_linq.codarea == 300)
+                            {
+                                codpto_vta = 300;
+                            }
+                            else if (dt1_linq.codarea == 400)
+                            {
+                                codpto_vta = 400;
+                            }
+                            else
+                            {
+                                codpto_vta = 800;
+                            }
+                        }
+                        _direcc = _direcc + " (" + await cliente.PuntoDeVenta_Casual(_context, codpto_vta) + ")";
+                        imp_direccion = "CENTRAL -" + _direcc;
+                    }
+                    else
+                    {
+                        imp_direccion = "CENTRAL -" + veremision.direccion;
+                    }
+                }
+                else
+                {
+                    // imp_direccion = "SUC -" & direccion.Text
+                    if (es_casual)
+                    {
+                        /*
+                        
+                        '_direcc = sia_funciones.Cliente.Instancia.direccioncliente(codcliente.Text, Me.Usar_Bd_Opcional)
+                        '_direcc &= " (" & sia_funciones.Cliente.Instancia.PuntoDeVentaCliente_Segun_Direccion(codcliente.Text, _direcc) & ")"
+                        'imp_direccion = "SUC -" & _direcc
+
+                         */
+
+                        // Desde 10-10-2022 si la venta es casual la direccion se pondra la del almacen
+                        _direcc = await almacen.direccionalmacen(_context, veremision.codalmacen);
+                        // definir con que punto de venta se creara el cliente
+                        var dt1_linq = await _context.inalmacen
+                        .Where(p1 => p1.codigo == veremision.codalmacen)
+                        .Join(_context.adarea,
+                              p1 => p1.codarea,
+                              p2 => p2.codigo,
+                              (p1, p2) => new
+                              {
+                                  codarea = p2.codigo,
+                                  descripcion = p2.descripcion,
+                              })
+                        .FirstOrDefaultAsync();
+                        int codpto_vta = 0;
+                        if (dt1_linq != null)
+                        {
+                            if (dt1_linq.codarea == 300)
+                            {
+                                codpto_vta = 300;
+                            }
+                            else if (dt1_linq.codarea == 400)
+                            {
+                                codpto_vta = 400;
+                            }
+                            else
+                            {
+                                codpto_vta = 800;
+                            }
+                        }
+                        _direcc = _direcc + " (" + await cliente.PuntoDeVenta_Casual(_context, codpto_vta) + ")";
+                        imp_direccion = "SUC -" + _direcc;
+                    }
+                    else
+                    {
+                        imp_direccion = "SUC -" + veremision.direccion;
+                    }
+                }
+            }
+
+            imp_tipopago = veremision.tipopago == 0 ? "CONTADO" : "CREDITO";
+            imp_subtotal = veremision.subtotal.ToString();
+            imp_descuentos = veremision.descuentos.ToString();
+            imp_recargos = veremision.recargos.ToString();
+            imp_totalimp = veremision.total.ToString();
+
+            imp_totalliteral = "SON: " + funciones.ConvertDecimalToWords(veremision.total).ToUpper() + " " + await nombres.nombremoneda(_context, veremision.codmoneda);
+
+            imp_proforma = "PROF: " + await datosproforma(_context, veremision.codproforma ?? 0);
+            imp_flete = veremision.fletepor;
+            imp_transporte = veremision.transporte + "  NOMB. TRANSPORTE: " + veremision.nombre_transporte;
+            imp_pesototal = (veremision.peso ?? 0).ToString();
+            // imp_proforma = "PROF: " & sia_funciones.Ventas.Instancia.proforma_de_remision(tabla.Rows(0)("codigo"))
+            imp_dsctosdescrip = await ventas.descuentosstr(_context, veremision.codigo, "NR", "Descripcion Completa");
+
+            //###########################################################################################
+            // verificar si la proforma esta cancelada con anticipo
+            //###########################################################################################
+            string cadena_anticipos = "";
+            bool Pagado_Con_Anticipo = false;
+
+            var tblanticipos = await _context.veproforma_anticipo.Where(i => i.codproforma == veremision.codproforma).ToListAsync();
+            if (tblanticipos.Count() > 0)
+            {
+                Pagado_Con_Anticipo = true;
+                foreach (var reg in tblanticipos)
+                {
+                    string docanticipo = await cobranzas.IdNroid_Anticipo(_context, reg.codanticipo ?? 0);
+                    cadena_anticipos = cadena_anticipos + "(" + docanticipo + ")";
+                }
+            }
+            else
+            {
+                cadena_anticipos = "";
+            }
+            /*
+             
+            '###########################################################################################
+            'Desde 07/02/2024 por intruccion Sup de Stock se cambiara el detalle de impresion de la observacion de una NR
+            'imp_obs = IIf(venta.Checked, "Venta -", "No es venta -") & tipoentrega.Text & " - "
+            'If tipopago.SelectedIndex = 0 Then
+            '    '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            '    '%%   ES CONTADO
+            '    '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            '    If contra_entrega.Checked = True Then
+            '        imp_obs &= "-" & "VENTA CONTADO - CONTRA ENTREGA" & cmbestado_contra_entrega.Text
+            '    Else
+            '        If Pagado_Con_Anticipo Then
+            '            imp_obs &= "-" & "VENTA CONTADO - YA FUE CANCELADO CON ANTIPO: " & cadena_anticipos
+            '        Else
+            '            imp_obs &= "-" & "VENTA CONTADO - NO CANCELADO" & cmbestado_contra_entrega.Text
+            '        End If
+            '    End If
+            'Else
+            '    '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            '    '%%   ES CREDITO
+            '    '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            '    If contra_entrega.Checked = True Then
+            '        imp_obs &= "-" & "VENTA CREDITO - CONTRA ENTREGA" & " " & cmbestado_contra_entrega.Text
+            '    Else
+            '        imp_obs &= "-" & "VENTA ENTREGA CREDITO"
+            '    End If
+            'End If
+            'imp_obs = imp_obs & obs.Text
+             
+             
+             
+             
+            'Desde 7 / 2 / 2024 por intruccion Sup de Stock se cambiara el detalle de impresion de la observacion de una NR
+            'imp_obs = IIf(venta.Checked, "Venta -", "No es venta -") & tipoentrega.Text & " - "
+             */
+            if (veremision.tipopago == 0)
+            {
+                //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                //%%   ES CONTADO
+                //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                if (veremision.contra_entrega == true)
+                {
+                    imp_obs = "CONTADO - CONTRA ENTREGA " + veremision.estado_contra_entrega;
+                }
+                else
+                {
+                    if (Pagado_Con_Anticipo)
+                    {
+                        imp_obs = "CONTADO - CANCELADO CON ANTIPO: " + cadena_anticipos;
+                    }
+                    else
+                    {
+                        imp_obs = "CONTADO - NO CANCELADO " + veremision.estado_contra_entrega;
+                    }
+                }
+            }
+            else
+            {
+                //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                //%%   ES CREDITO
+                //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                if (veremision.contra_entrega == true)
+                {
+                    imp_obs = "CREDITO - CONTRA ENTREGA " + veremision.estado_contra_entrega;
+                }
+                else
+                {
+                    imp_obs = "CREDITO";
+                }
+            }
+            imp_obs = imp_obs + veremision.obs;
+
+            imp_facturacion = veremision.nomcliente + " - " + veremision.nit;
+            if (veremision.tipopago == 1)
+            {
+                if (await ventas.proforma_es_complementaria(_context,veremision.codproforma ?? 0))
+                {
+                    var lista = await ventas.lista_PFNR_complementarias(_context, veremision.codproforma ?? 0);
+                    string plan = "";
+                    foreach (var reg in lista)
+                    {
+                        if (reg.codremision == 0)
+                        {
+                            // nada
+                        }
+                        else
+                        {
+                            if (plan == "")
+                            {
+                                plan = await ventas.remision_id_nro(_context, veremision.codigo) + " " + await ventas.planpagosstr(_context, reg.codremision);
+                            }
+                            else
+                            {
+                                plan = plan + "\n\r" + await ventas.remision_id_nro(_context, reg.codremision) + " " + await ventas.planpagosstr(_context, reg.codremision);
+                            }
+                        }
+                    }
+                    if (await ventas.EsRemisionEspecial(_context,veremision.codigo))
+                    {
+                        plan = plan + " NOTA: Pasado el plazo de cancelacion los precios se recalcularan automaticamente a precios sin descuento.";
+                    }
+                    imp_planpagos = plan;
+                }
+                else
+                {
+                    string plan = await ventas.planpagosstr(_context,veremision.codigo);
+                    if (await ventas.EsRemisionEspecial(_context,veremision.codigo))
+                    {
+                        plan = plan + " NOTA: Pasado el plazo de cancelacion los precios se recalcularan automaticamente a precios sin descuento.";
+                    }
+                    imp_planpagos = plan;
+                }
+            }
+            // mostrardetalle(codigo.Text)
+            /*
+            
+            Dim dt As New DataTable
+            dt = midatasetdetalle.Tables(0)
+            '##poner peso
+            For i As Integer = 0 To dt.Rows.Count - 1
+                dt.Rows(i)("preciodesc") = CDbl(dt.Rows(i)("cantidad")) * sia_funciones.Items.Instancia.itempeso(CStr(dt.Rows(i)("coditem")))
+            Next
+            '##fin poner peso
+
+             */
+            imp_iva = (veremision.iva ?? 0).ToString();
+
+            if ((double)await tipocambio._conversion(_context,await Empresa.monedabase(_context,codEmpresa), veremision.codmoneda, veremision.fecha.Date,veremision.total) >= await configuracion.emp_monto_rnd100011(_context, codEmpresa))
+            {
+                imp_nota_plan_pagos = "DEBE PAGAR ESTE DOCUMENTO POR MEDIO DE UNA ENTIDAD BANCARIA (RND 10.00.1.11)";
+            }
+            else
+            {
+                imp_nota_plan_pagos = "";
+            }
+
+            // cambiar el codigo de cliente_real al codigo de cliente casual 
+            string codcliente_real = "";
+            if (es_casual)
+            {
+                codcliente_real = veremision.codcliente;
+            }
+            else
+            {
+                codcliente_real = codClienteReal;
+            }
+            /*
+             
+            If sia_funciones.Empresa.Instancia.HojaReportes(sia_compartidos.temporales.Instancia.codempresa) = 0 Then
+                If sia_funciones.Empresa.Instancia.EsArgentina(sia_compartidos.temporales.Instancia.codempresa) Then
+                    imp.imprimir_veremision(Application.StartupPath, dt, imp_titulo, imp_empresa, imp_usuario, imp_nit, imp_codvendedor, imp_tdc, imp_monedabase, imp_codalmacen, imp_fecha, imp_telefono, imp_ptoventa, imp_codcliente, imp_cliente, imp_direccion, imp_tipopago, imp_subtotal, imp_descuentos, imp_recargos, imp_totalimp, imp_totalliteral, imp_proforma, imp_pesototal, imp_dsctosdescrip, imp_planpagos, imp_flete, imp_transporte, imp_obs, preparacion.Text, imp_iva, imp_facturacion, True, imp_nota_plan_pagos, imp_aclaracion_direccion, sia_funciones.Cliente.Instancia.NombreComercial(imp_codcliente), codcliente_real, imp_razonsocial, imp_nit_cliente, imp_complemento_nit_cliente, Me.Usar_Bd_Opcional, IIf(contra_entrega.Checked = True, True, False))
+                Else
+                    '//si es cliente sin nombre
+                    If sia_funciones.Cliente.Instancia.EsClienteSinNombre(codcliente.Text, False) Then
+                        imp.imprimir_veremision(Application.StartupPath, dt, imp_titulo, imp_empresa, imp_usuario, imp_nit, imp_codvendedor, imp_tdc, imp_monedabase, imp_codalmacen, imp_fecha, imp_telefono, imp_ptoventa, imp_codcliente, imp_cliente, imp_direccion, imp_tipopago, imp_subtotal, imp_descuentos, imp_recargos, imp_totalimp, imp_totalliteral, imp_proforma, imp_pesototal, imp_dsctosdescrip, imp_planpagos, imp_flete, imp_transporte, imp_obs, preparacion.Text, imp_iva, imp_facturacion, False, imp_nota_plan_pagos, imp_aclaracion_direccion, imp_codcliente, codcliente_real, imp_razonsocial, imp_nit_cliente, imp_complemento_nit_cliente, Me.Usar_Bd_Opcional, IIf(contra_entrega.Checked = True, True, False))
+                    Else
+                        imp.imprimir_veremision(Application.StartupPath, dt, imp_titulo, imp_empresa, imp_usuario, imp_nit, imp_codvendedor, imp_tdc, imp_monedabase, imp_codalmacen, imp_fecha, imp_telefono, imp_ptoventa, imp_codcliente, imp_cliente, imp_direccion, imp_tipopago, imp_subtotal, imp_descuentos, imp_recargos, imp_totalimp, imp_totalliteral, imp_proforma, imp_pesototal, imp_dsctosdescrip, imp_planpagos, imp_flete, imp_transporte, imp_obs, preparacion.Text, imp_iva, imp_facturacion, False, imp_nota_plan_pagos, imp_aclaracion_direccion, sia_funciones.Cliente.Instancia.NombreComercial(codcliente_real), imp_codcliente_real, imp_razonsocial, imp_nit_cliente, imp_complemento_nit_cliente, Me.Usar_Bd_Opcional, IIf(contra_entrega.Checked = True, True, False))
+                    End If
+
+                End If
+            Else
+                If sia_funciones.Empresa.Instancia.EsArgentina(sia_compartidos.temporales.Instancia.codempresa) Then
+                    imp.imprimir_veremision_1225(Application.StartupPath, dt, imp_titulo, imp_empresa, imp_usuario, imp_nit, imp_codvendedor, imp_tdc, imp_monedabase, imp_codalmacen, imp_fecha, imp_telefono, imp_ptoventa, imp_codcliente, imp_cliente, imp_direccion, imp_tipopago, imp_subtotal, imp_descuentos, imp_recargos, imp_totalimp, imp_totalliteral, imp_proforma, imp_pesototal, imp_dsctosdescrip, imp_planpagos, imp_flete, imp_transporte, imp_obs, preparacion.Text, imp_iva, imp_facturacion, True, imp_nota_plan_pagos)
+                Else
+                    imp.imprimir_veremision_1225(Application.StartupPath, dt, imp_titulo, imp_empresa, imp_usuario, imp_nit, imp_codvendedor, imp_tdc, imp_monedabase, imp_codalmacen, imp_fecha, imp_telefono, imp_ptoventa, imp_codcliente, imp_cliente, imp_direccion, imp_tipopago, imp_subtotal, imp_descuentos, imp_recargos, imp_totalimp, imp_totalliteral, imp_proforma, imp_pesototal, imp_dsctosdescrip, imp_planpagos, imp_flete, imp_transporte, imp_obs, preparacion.Text, imp_iva, imp_facturacion, False, imp_nota_plan_pagos)
+                End If
+            End If
+
+             
+             */
+
+            // obtener detalle en data Table
+            DataTable dt = await obtenerDetalleDataTable(_context, veremision.codigo);
+
+            // directorio
+
+            string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            string outputDirectory = Path.Combine(currentDirectory, "OutputFiles");
+            // si es cliente sin nombre
+            string ruta = "";
+            if (await cliente.EsClienteSinNombre(_context,veremision.codcliente))
+            {
+                //imp.imprimir_veremision()
+                ruta = imp.imprimir_veremision(outputDirectory, dt, imp_titulo, imp_empresa, imp_usuario, imp_nit, imp_codvendedor, imp_tdc, imp_monedabase, imp_codalmacen, imp_fecha, imp_telefono, imp_ptoventa, imp_codcliente, imp_cliente, imp_direccion, imp_tipopago, imp_subtotal, imp_descuentos, imp_recargos, imp_totalimp, imp_totalliteral, imp_proforma, imp_pesototal, imp_dsctosdescrip, imp_planpagos, imp_flete, imp_transporte, imp_obs, preparacion, imp_iva, imp_facturacion, false, imp_nota_plan_pagos, imp_aclaracion_direccion, imp_codcliente, codcliente_real, imp_razonsocial, imp_nit_cliente, imp_complemento_nit_cliente, false, veremision.contra_entrega == true ? true : false);
+
+            }
+            else
+            {
+                ruta = imp.imprimir_veremision(outputDirectory, dt, imp_titulo, imp_empresa, imp_usuario, imp_nit, imp_codvendedor, imp_tdc, imp_monedabase, imp_codalmacen, imp_fecha, imp_telefono, imp_ptoventa, imp_codcliente, imp_cliente, imp_direccion, imp_tipopago, imp_subtotal, imp_descuentos, imp_recargos, imp_totalimp, imp_totalliteral, imp_proforma, imp_pesototal, imp_dsctosdescrip, imp_planpagos, imp_flete, imp_transporte, imp_obs, preparacion, imp_iva, imp_facturacion, false, imp_nota_plan_pagos, imp_aclaracion_direccion, await cliente.NombreComercial(_context,codcliente_real), imp_codcliente_real, imp_razonsocial, imp_nit_cliente, imp_complemento_nit_cliente, false, veremision.contra_entrega == true ? true : false);
+            }
+            return ruta;
+        }
+
+
+
+
+
+
+        private async Task<DataTable> obtenerDetalleDataTable(DBContext _context, int codigo)
+        {
+            var detalleRemision = await _context.veremision1.Where(i => i.codremision == codigo)
+                .Join(_context.initem,
+                    r => r.coditem,
+                    i => i.codigo,
+                    (r, i) => new
+                    {
+                        coditem = r.coditem,
+                        descipcion = i.descripcion,
+                        medida = i.medida,
+                        udm = r.udm,
+                        porceniva = r.porceniva ?? 0,
+                        niveldesc = r.niveldesc,
+                        cantidad = r.cantidad,
+                        codtarifa = r.codtarifa,
+                        coddescuento = r.coddescuento,
+                        precioneto = r.precioneto,
+                        preciodesc = r.preciodesc ?? 0,
+                        preciolista = r.preciolista,
+                        total = r.total,
+                        cumple = 1,
+                        peso = r.peso
+                    }).ToListAsync();
+
+            // convertir a dataTable
+            // Crear un DataTable y definir sus columnas
+            DataTable dataTable = new DataTable();
+            dataTable.Columns.Add("coditem", typeof(string));
+            dataTable.Columns.Add("descripcion", typeof(string));
+            dataTable.Columns.Add("medida", typeof(string));
+            dataTable.Columns.Add("udm", typeof(string));
+            dataTable.Columns.Add("porceniva", typeof(decimal));
+            dataTable.Columns.Add("niveldesc", typeof(string));
+            dataTable.Columns.Add("cantidad", typeof(decimal));
+            dataTable.Columns.Add("codtarifa", typeof(string));
+            dataTable.Columns.Add("coddescuento", typeof(string));
+            dataTable.Columns.Add("precioneto", typeof(decimal));
+            dataTable.Columns.Add("preciodesc", typeof(decimal));
+            dataTable.Columns.Add("preciolista", typeof(decimal));
+            dataTable.Columns.Add("total", typeof(decimal));
+            dataTable.Columns.Add("cumple", typeof(int));
+            dataTable.Columns.Add("peso", typeof(decimal));
+
+            // Rellenar el DataTable con los resultados de la consulta
+            foreach (var item in detalleRemision)
+            {
+                dataTable.Rows.Add(
+                    item.coditem,
+                    item.descipcion,
+                    item.medida,
+                    item.udm,
+                    item.porceniva,
+                    item.niveldesc,
+                    item.cantidad,
+                    item.codtarifa,
+                    item.coddescuento,
+                    item.precioneto,
+                    item.preciodesc,
+                    item.preciolista,
+                    item.total,
+                    item.cumple,
+                    item.peso
+                );
+            }
+            return dataTable;
+        }
+        private async Task<string> datosproforma(DBContext _context, int codigo)
+        {
+            var data = await _context.veproforma.Where(i => i.codigo == codigo).Select(i => new
+            {
+                i.id,
+                i.numeroid
+            }).FirstOrDefaultAsync();
+            if (data != null)
+            {
+                return data.id + "-" + data.numeroid;
+            }
+            return "";
         }
 
 

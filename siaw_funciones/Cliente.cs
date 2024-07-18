@@ -2514,5 +2514,32 @@ namespace siaw_funciones
                 return "";
             }
         }
+
+        ///////////////////////////////////////////////////////////////////////////////
+        // esta funcion devuelve los dias asignados para el desto pp de un cliente
+        ///////////////////////////////////////////////////////////////////////////////
+        public async Task<int> dias_pronto_pago(DBContext _context, string codcliente)
+        {
+            try
+            {
+                int resultado = await _context.vecliente_desextra
+                    .Join(
+                        _context.vedesextra,
+                        p1 => p1.coddesextra,
+                        p2 => p2.codigo,
+                        (p1, p2) => new { p1, p2 }
+                    )
+                    .Where(joined => joined.p1.codcliente == codcliente && joined.p2.prontopago == true)
+                    .OrderBy(joined => joined.p1.coddesextra)
+                    .Select(joined => joined.p1.dias)
+                    .FirstOrDefaultAsync() ?? 0;
+
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
     }
 }

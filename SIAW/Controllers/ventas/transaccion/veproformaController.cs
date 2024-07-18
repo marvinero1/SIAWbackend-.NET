@@ -5403,7 +5403,7 @@ namespace SIAW.Controllers.ventas.transaccion
                             rdescuentos = i.descuentos.ToString(),
                             riva = (i.iva ?? 0).ToString(),
                             rtotalimp = i.total.ToString(),
-                            rtotalliteral = "SON: " + veproformaController.ConvertDecimalToWords(i.total),    // AÑADE LUEGO LA DESCRIPCION DE MONEDA
+                            rtotalliteral = "SON: " + funciones.ConvertDecimalToWords(i.total),    // AÑADE LUEGO LA DESCRIPCION DE MONEDA
                             rdsctosdescrip = dsctosdescrip,
                             rtransporte = "",                       // ACA FALTA REVISAR Y UNA VALIDACION CON PRTOF COMPLEMENTARIA
                             rfletepor = i.fletepor,
@@ -5717,7 +5717,7 @@ namespace SIAW.Controllers.ventas.transaccion
             }
         }
 
-
+        /*
         private static string ConvertDecimalToWords(decimal number)
         {
             int integerPart = (int)Math.Truncate(number);
@@ -5729,7 +5729,7 @@ namespace SIAW.Controllers.ventas.transaccion
             return $"{integerPartInWords} {decimalPartInWords}";
         }
 
-
+        */
    
         [HttpGet]
         [Route("getConsultEtiquetasImpresas/{userConn}/{codProforma}")]

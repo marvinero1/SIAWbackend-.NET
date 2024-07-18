@@ -4593,14 +4593,288 @@ namespace siaw_funciones
 
         }
 
+        public async Task<string> aclaracion_direccion_direccion(DBContext _context, string codcliente, string direccion)
+        {
+            string resultado = "---";
+            try
+            {
+                resultado = await _context.vetienda.Where(i => i.codcliente == codcliente && i.direccion.StartsWith(direccion)).Select(i => i.aclaracion_direccion).FirstOrDefaultAsync() ?? "";
+            }
+            catch (Exception)
+            {
+                resultado = await telefonocliente(_context,codcliente);
+            }
+            if (resultado.Trim() == "")
+            {
+                resultado = "---";
+            }
+            return resultado;
 
-        public async Task<List<list_PFNR_comp_noPP>> lista_PFNR_complementarias_noPP(DBContext _context, int codproforma)
+        }
+
+        public async Task<bool> DireccionNotaRemisionEsCentral(DBContext _context, string id, int numeroid)
+        {
+            bool resultado = false;
+            try
+            {
+                var dt = await _context.veremision.Where(i => i.id == id && i.numeroid == numeroid).Select(i => new
+                {
+                    i.codcliente,
+                    i.direccion
+                }).FirstOrDefaultAsync();
+                if (dt != null)
+                {
+                    resultado = await _context.vetienda.Where(i => i.direccion.StartsWith(dt.direccion.Trim()) && i.codcliente == dt.codcliente).Select(i => i.central).FirstOrDefaultAsync();
+                }
+                else
+                {
+                    resultado = false;
+                }
+            }
+            catch (Exception)
+            {
+                resultado = false;
+            }
+            return resultado;
+
+        }
+
+        public async Task<bool> Remision_Tiene_DescuentoExtra(DBContext _context, int codremision, int coddesextra)
+        {
+            bool resultado = false;
+            try
+            {
+                int dt = await _context.vedesextraremi.Where(i => i.codremision == codremision && i.coddesextra == coddesextra).CountAsync();
+                if (dt > 0)
+                {
+                    resultado = true;
+                }
+                else
+                {
+                    resultado = false;
+                }
+            }
+            catch (Exception)
+            {
+                resultado = false;
+            }
+            return resultado;
+        }
+
+        public async Task<bool> EsRemisionEspecial(DBContext _context, int cod_remision)
+        {
+            bool resultado = false;
+            try
+            {
+                var dt = await _context.veremision1.Where(i => i.codremision == cod_remision).Select(i => new
+                {
+                    i.coditem,
+                    i.codtarifa
+                }).Distinct().ToListAsync();
+                foreach (var reg in dt)
+                {
+                    if (await EsItemEspecial(_context,reg.coditem, reg.codtarifa) != 0)
+                    {
+                        resultado = true;
+                        break;
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                resultado = false;
+            }
+            return resultado;
+        }
+
+        ///////////////////////////////////////////////////////////////////////////////
+        // Esta funcion devuelve en una cadena el detalle de plan de pagos de un documento
+        ///////////////////////////////////////////////////////////////////////////////
+        public async Task<string> planpagosstr(DBContext _context, int codigo)
+        {
+            string resultado = "";
+            var tabla = await _context.coplancuotas.Where(i=> i.coddocumento == codigo).ToListAsync();
+
+            int dias_pp_cliente = 0;
+            if (tabla.Count() > 0)
+            {
+                dias_pp_cliente = await cliente.dias_pronto_pago(_context, tabla[0].cliente);
+            }
+
+            var dt_modifica_dias = await _context.vedesextra_modifica_dias.ToListAsync();
+
+            /*
+             
+            ''LARGO 100
+            ''resultado = "  No  VENCTO      IMPORTE  No  VENCTO      IMPORTE  No  VENCTO      IMPORTE  No  VENCTO      IMPORTE"
+            'If tabla.Rows.Count > 0 Then
+            '    Dim i As Integer
+            '    For i = 0 To tabla.Rows.Count - 1
+            '        '  NN XX/XX/XXXX 99,999.99  NN XX/XX/XXXX 99,999.99  NN XX/XX/XXXX 99,999.99  NN XX/XX/XXXX 99,999.99
+            '        resultado = resultado & "  " & CInt(tabla.Rows(i)("nrocuota")).ToString("00") & " " & CDate(tabla.Rows(i)("vencimiento")).ToString("dd/MM/yyyy") & " " & sia_funciones.Funciones.Instancia.rellenar(CDbl(tabla.Rows(i)("monto")).ToString("##,##0.00"), 9, " ")
+            '    Next
+            'End If
+            'resumido
+             
+             */
+            int dias_disminuye = 0;
+            foreach (var reg in dt_modifica_dias)
+            {
+                // la nota tiene el descuento extra para el cual esta configurado se debe descotar los dias de vencimiento  de impresion???
+                if (await Remision_Tiene_DescuentoExtra(_context,codigo, reg.coddesextra ?? 0))
+                {
+                    dias_disminuye += (reg.dias_disminuye ?? 0);
+                    break;
+                }
+            }
+            dias_disminuye *= -1;
+            if (dias_disminuye == 0)
+            {
+                resultado = " [Nro VENCTO IMPORTE]: ";
+            }
+            else
+            {
+                // esto es para que en la impresion se pueda tener una señal que permite
+                // al funcionario de Pertec dterminar que la fecha de vencimiento
+                // esta disminuida
+                resultado = " *[Nro VENCTO IMPORTE]: ";
+            }
+            if (tabla.Count() > 0)
+            {
+                DateTime fecha_vence = new DateTime();
+                foreach (var reg in tabla)
+                {
+                    fecha_vence = reg.vencimiento.AddDays(dias_disminuye);
+                    //   NN XX/XX/XXXX 99,999.99  NN XX/XX/XXXX 99,999.99  NN XX/XX/XXXX 99,999.99  NN XX/XX/XXXX 99,999.99
+                    // resultado = resultado & " [" & CInt(tabla.Rows(i)("nrocuota")).ToString("00") & " " & CDate(tabla.Rows(i)("vencimiento")).ToString("dd/MM/yyyy") & "  " & CDbl(tabla.Rows(i)("monto")).ToString("##,##0.00") & "]  "
+                    resultado = resultado + " [" + reg.nrocuota.ToString("00") + " " + fecha_vence.ToString("dd/MM/yyyy") + " " + reg.monto.ToString("##,##0.00") + "]  ";
+                }
+            }
+
+            return resultado;
+        }
+
+
+
+
+
+
+        public async Task<string> remision_id_nro(DBContext _context, int codigo)
+        {
+            try
+            {
+                string resultado = await _context.veremision.Where(i => i.codigo == codigo).Select(i => i.id + "-" + i.numeroid).FirstOrDefaultAsync() ?? "";
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
+
+
+        public async Task<List<list_PFNR_comp_>> lista_PFNR_complementarias(DBContext _context, int codproforma)
         {
             bool bandera = true;
             //##################################'
             //# estructura de la lista         #
             //##################################'
-            List<list_PFNR_comp_noPP> lista = new List<list_PFNR_comp_noPP> ();
+            List<list_PFNR_comp_> lista = new List<list_PFNR_comp_>();
+
+            //##################################'
+            //#obtener el codigo de la nota actual
+            //##################################'
+            int codigo = codproforma;
+
+            if (codigo > 0)
+            {
+                //##################################'
+                //#ir al primer codigo de las proformas
+                //##################################'
+                bandera = true;
+                while (bandera)
+                {
+                    var tabla = await _context.veproforma.Where(i => i.codcomplementaria == codigo).Select(i => new
+                    {
+                        i.codigo
+                    }).ToListAsync();
+                    if (tabla.Count() > 0)
+                    {
+                        codigo = tabla[0].codigo;
+                    }
+                    else
+                    {
+                        bandera = false;
+                    }
+                }
+
+                //##################################'
+                // #recorrer todos los codigos añadiendo a lista
+                //##################################'
+                bandera = true;
+                while (bandera)
+                {
+                    var tabla = await _context.veproforma.Where(i => i.codigo == codigo).Select(i => new
+                    {
+                        i.codigo,
+                        i.codcomplementaria
+                    }).ToListAsync();
+                    if (tabla.Count() > 0)
+                    {
+                        // añadir a la lista
+                        list_PFNR_comp_ registro = new list_PFNR_comp_();
+                        registro.codproforma = tabla[0].codigo;
+                        registro.codremision = 0;
+                        lista.Add(registro);
+                        // si tiene complementaria copiar codigo, si no terminar el loop
+                        if (tabla[0].codcomplementaria == null || tabla[0].codcomplementaria == 0)
+                        {
+                            bandera = false;
+                        }
+                        else
+                        {
+                            codigo = tabla[0].codcomplementaria;
+                        }
+                    }
+                    else
+                    {
+                        bandera = false;
+                    }
+                }
+                //'##################################'
+                //#   poner las notas de remision  #
+                //##################################'
+                foreach (var reg in lista)
+                {
+                    var tabla = await _context.veremision.Where(i => i.anulada == false && i.codproforma == reg.codproforma).Select(i => new
+                    {
+                        i.codigo,
+                        i.fecha
+                    }).FirstOrDefaultAsync();
+                    if (tabla != null)
+                    {
+                        reg.codremision = tabla.codigo;
+                        reg.fecharemision = tabla.fecha;
+                    }
+                    else
+                    {
+                        reg.codremision = 0;
+                        reg.fecharemision = await funciones.FechaDelServidor(_context);
+                    }
+                }
+            }
+            return lista;
+        }
+
+
+
+        public async Task<List<list_PFNR_comp_>> lista_PFNR_complementarias_noPP(DBContext _context, int codproforma)
+        {
+            bool bandera = true;
+            //##################################'
+            //# estructura de la lista         #
+            //##################################'
+            List<list_PFNR_comp_> lista = new List<list_PFNR_comp_> ();
 
             //##################################'
             //#obtener el codigo de la nota actual
@@ -4641,7 +4915,7 @@ namespace siaw_funciones
                     if (tabla.Count() > 0)
                     {
                         // añadir a la lista
-                        list_PFNR_comp_noPP registro = new list_PFNR_comp_noPP ();
+                        list_PFNR_comp_ registro = new list_PFNR_comp_();
                         registro.codproforma = tabla[0].codigo;
                         registro.codremision = 0;
                         lista.Add(registro);
@@ -4685,7 +4959,7 @@ namespace siaw_funciones
                 // ##################################'
                 // #  Borrar todas las que son PP  #
                 // ##################################'
-                List<list_PFNR_comp_noPP> filasAEliminar = new List<list_PFNR_comp_noPP>();
+                List<list_PFNR_comp_> filasAEliminar = new List<list_PFNR_comp_>();
                 foreach (var reg in lista)
                 {
                     if (await remision_es_PP(_context,reg.codremision))
@@ -4702,7 +4976,7 @@ namespace siaw_funciones
             return lista;
         }
 
-        public async Task<double> MontoTotalComplementarias(DBContext _context, List<list_PFNR_comp_noPP> lista)
+        public async Task<double> MontoTotalComplementarias(DBContext _context, List<list_PFNR_comp_> lista)
         {
             double totalc = 0;
             foreach (var reg in lista)
@@ -4727,7 +5001,7 @@ namespace siaw_funciones
             }
             return totalc;
         }
-        public async Task<DateTime> FechaComplementariaDeMayorMonto(DBContext _context, List<list_PFNR_comp_noPP> lista)
+        public async Task<DateTime> FechaComplementariaDeMayorMonto(DBContext _context, List<list_PFNR_comp_> lista)
         {
             double montomayor = 0;
             DateTime fecha = DateTime.Now.Date;
@@ -5063,7 +5337,7 @@ namespace siaw_funciones
         public int codigo { get; set; }
         public int nrocuotas { get; set; }
     }
-    public class list_PFNR_comp_noPP
+    public class list_PFNR_comp_
     {
         public int codproforma { get; set; }
         public int codremision { get; set; }
