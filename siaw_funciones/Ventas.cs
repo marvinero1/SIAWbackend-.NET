@@ -970,6 +970,40 @@ namespace siaw_funciones
             return false;
         }
 
+        public async Task<string> VersionTarifa(DBContext _context, int codtarifa)
+        {
+            try
+            {
+                var resultado = await _context.intarifa.Where(i => i.codigo == codtarifa).Select(i => new { i.version, i.codigo }).FirstOrDefaultAsync();
+                if (resultado != null)
+                {
+                    return resultado.version;
+                }
+                return "";
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
+
+        public async Task<string> VersionTarifaActual(DBContext _context)
+        {
+            try
+            {
+                var codigo = await _context.intarifa.OrderBy(i => i.codigo).Select(i => new {i.codigo}).FirstOrDefaultAsync();
+                if (codigo != null)
+                {
+                    var resultado = await VersionTarifa(_context, codigo.codigo);
+                    return resultado;
+                }
+                return "";
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
 
         public async Task<(bool bandera, string mensaje, List<tabladescuentos> tabladescuentos)> AdicionarDescuentoPorDeposito(DBContext _context, double subtotal_proforma, string codmoneda_prof, List<tabladescuentos> tabladescuentos, List<dtdepositos_pendientes> dt_depositos_pendientes, List<tblcbza_deposito> tblcbza_deposito, int codproforma, string codcliente, string codempresa)
         {

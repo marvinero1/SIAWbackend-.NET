@@ -87,7 +87,7 @@ namespace siaw_funciones
                 Console.WriteLine($"Error: {ex.Message}");
             }
 
-            return resultado;
+            return resultado.Date;
         }
         public string Rellenar(string cadena, int ancho, string relleno, bool ElRellenoALaIzquierda = true)
         {

@@ -2591,6 +2591,9 @@
         }
       },
       "LibSIAVB/1.0.0": {
+        "dependencies": {
+          "siaw_funciones": "1.0.0"
+        },
         "runtime": {
           "LibSIAVB.dll": {}
         }

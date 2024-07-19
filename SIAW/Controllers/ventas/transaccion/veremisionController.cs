@@ -124,7 +124,6 @@ namespace SIAW.Controllers.ventas.transaccion
                         codProforma = codProforma.codigo
                     });
                 }
-
             }
             catch (Exception)
             {
@@ -314,7 +313,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
             return (new
             {
-                _codcliente_real,
+                codcliente_real = _codcliente_real,
                 codclientedescripcion,
                 tipo_cliente,
                 lblhabilitado,
@@ -473,6 +472,9 @@ namespace SIAW.Controllers.ventas.transaccion
             {
                 return ("Ese numero de documento, ya existe, por favor consulte con el administrador del sistema.", 0, 0, false);
             }
+            veremision.fecha_anulacion = await funciones.FechaDelServidor(_context);
+            veremision.version_tarifa = await ventas.VersionTarifaActual(_context);
+            veremision.descarga = true;
             veremision.numeroid = idnroactual + 1;
             // fin de obtener id actual
 
@@ -544,7 +546,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 // grabar descto si hay descuentos
                 if (vedesextraremi.Count() > 0)
                 {
-                    await grabardesextra(_context, codProforma, vedesextraremi);
+                    await grabardesextra(_context, codNRemision, vedesextraremi);
                 }
             }
             catch (Exception)
@@ -556,7 +558,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 // grabar recargo si hay recargos
                 if (verecargoremi.Count > 0)
                 {
-                    await grabarrecargo(_context, codProforma, verecargoremi);
+                    await grabarrecargo(_context, codNRemision, verecargoremi);
                 }
             }
             catch (Exception)
@@ -568,7 +570,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 // grabar iva
                 if (veremision_iva.Count > 0)
                 {
-                    await grabariva(_context, codProforma, veremision_iva);
+                    await grabariva(_context, codNRemision, veremision_iva);
                 }
             }
             catch (Exception)
