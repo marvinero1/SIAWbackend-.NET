@@ -12,7 +12,6 @@ namespace siaw_funciones
 {
     public class Log
     {
-
         datosProforma datosProforma = new datosProforma();
         public async Task<bool> RegistrarEvento(DBContext _context, string usuario, Entidades entidad, string codigo, string id_doc, string numeroid_doc, string ventana, string detalle, TipoLog tipo)
         {

@@ -6,7 +6,12 @@ using siaw_DBContext.Data;
 using siaw_DBContext.Models;
 using siaw_DBContext.Models_Extra;
 using siaw_funciones;
+
+using System;
+using System.Drawing;
+using System.Drawing.Printing;
 using System.IO;
+
 using System.Web.Http.Results;
 
 namespace SIAW.Controllers.z_pruebas
@@ -490,5 +495,238 @@ namespace SIAW.Controllers.z_pruebas
             return Ok(RequestValidacion);
            
         }
+
+
+
+        [HttpGet]
+        [Route("imprimirLX350/{userConn}")]
+        public async Task<ActionResult<acaseguradora>> imprimirLX350(string userConn)
+        {
+            /*
+             
+            Try
+                If sia_funciones.Funciones.Instancia.GetOSVersion = "WinXP" Then
+                    Dim impresoradestino As String
+
+                    '//verificar si hay impresoras instaladas en el equipo
+                    Dim prtdoc As New System.Drawing.Printing.PrintDocument
+                    If Drawing.Printing.PrinterSettings.InstalledPrinters.Count = 0 Then
+                        Throw New System.Exception("No hay impresoras instaladas.")
+                    End If
+                    prtdoc.Dispose()
+
+                    If impresora = "" Then
+                        '//Mostrar dialogo para elegir impresora
+                        Dim prgelijeimpresora As New sia_funciones.prgelijeimpresora
+                        prgelijeimpresora.ShowDialog()
+
+                        If prgelijeimpresora.eligio Then
+                            impresoradestino = Trim(prgelijeimpresora.impresora)
+                        Else
+                            impresoradestino = ""
+                        End If
+                        prgelijeimpresora.Dispose()
+                        '//fin mostrar dialogo
+                    Else
+                        impresoradestino = impresora
+                    End If
+
+                    If impresoradestino = "" Then
+                    Else
+                        Dim config As New System.Drawing.Printing.PrinterSettings
+                        config.PrinterName = impresoradestino
+                        'config.DefaultPageSettings.PaperSize = New System.Drawing.Printing.PaperSize("banda", 300, (21 * 12.59) + (12.59 * 2 * tabladetalle.Rows.Count) + 25)
+                        'config.DefaultPageSettings.Margins = New System.Drawing.Printing.Margins(5, 5, 5, 5)
+                        RawPrinterHelper.SendFileToPrinter(config.PrinterName, path & nombarch)
+                        config = Nothing
+                    End If
+
+                Else
+                    If System.IO.Directory.Exists("c:\puente\temp") Then
+                    Else
+                        System.IO.Directory.CreateDirectory("c:\puente\temp")
+                    End If
+                    System.IO.File.Copy(path & nombarch, "c:\puente\temp\" & nombarch, True)
+                    Shell("c:\command.com /c copy c:\puente\temp\" & nombarch & " lpt1 > NULL")
+                End If
+            Catch ex As Exception
+                System.Windows.Forms.MessageBox.Show("Ocurrio un error al imprimir " & ex.Message, "Impresion", Windows.Forms.MessageBoxButtons.OK, Windows.Forms.MessageBoxIcon.Exclamation)
+            End Try
+
+             */
+            try
+            {
+                string path_file = "C:\\laragon\\www\\siawbackend-.net\\SIAW\\bin\\Debug\\net6.0\\OutputFiles\\temp\\r31446.txt";
+                ImprimirArchivo(path_file, "");
+                //imprimirDatos.SendFileToPrinter("EPSON LX-350", path_file);
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+
+            return Ok("funciona");
+
+        }
+        private string filePath;
+
+
+        public void ImprimirArchivo(string path, string impresora = "")
+        {
+            try
+            {
+                string impresoradestino;
+
+                // Verificar si hay impresoras instaladas en el equipo
+                PrintDocument prtdoc = new PrintDocument();
+                if (PrinterSettings.InstalledPrinters.Count == 0)
+                {
+                    throw new Exception("No hay impresoras instaladas.");
+                }
+                prtdoc.Dispose();
+
+                if (string.IsNullOrEmpty(impresora))
+                {
+                    impresoradestino = "EPSON LX-350";
+                    // Mostrar dialogo para elegir impresora (Implementar tu lógica para elegir impresora)
+                    // impresoradestino = ElegirImpresora();
+                }
+                else
+                {
+                    impresoradestino = impresora;
+                }
+
+                if (!string.IsNullOrEmpty(impresoradestino))
+                {
+                    this.filePath = path;
+                    PrintDocument printDoc = new PrintDocument();
+                    printDoc.PrinterSettings.PrinterName = impresoradestino;
+                    printDoc.PrintPage += new PrintPageEventHandler(PrintPage);
+
+                    // Configurar el tamaño de la hoja y márgenes en 0
+                    printDoc.DefaultPageSettings.PaperSize = new PaperSize("Custom", 816, 1056); // Carta en píxeles, ajusta según necesidad
+                    printDoc.DefaultPageSettings.Margins = new Margins(0, 0, 0, 0);
+
+                    try
+                    {
+                        printDoc.Print();
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("Error al imprimir: " + ex.Message);
+                    }
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine( ex.Message);
+            }
+        }
+
+        private int currentLine = 0; // Keeps track of the current line to print
+        private void PrintPage(object sender, PrintPageEventArgs ev)
+        {
+            float linesPerPage = 0;
+            float yPos = 0;
+            int count = 0;
+            float leftMargin = ev.MarginBounds.Left;
+            float topMargin = ev.MarginBounds.Top;
+            string line = null;
+            Font printFont = new Font("Draft", 10);
+            SolidBrush printBrush = new SolidBrush(Color.Black);
+
+            // Calculate the number of lines per page.
+            linesPerPage = ev.MarginBounds.Height / printFont.GetHeight(ev.Graphics);
+
+            // Open the file and create a StreamReader.
+            using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+            using (StreamReader sr = new StreamReader(fs))
+            {
+                // Skip to the current line to print (for subsequent pages).
+                for (int i = 0; i < currentLine && sr.ReadLine() != null; i++) { }
+
+                while ((line = sr.ReadLine()) != null)
+                {
+                    yPos = topMargin + (count * printFont.GetHeight(ev.Graphics));
+                    ev.Graphics.DrawString(line, printFont, printBrush, leftMargin, yPos, new StringFormat());
+                    count++;
+
+                    // Check if we've reached the bottom of the page.
+                    if (count >= linesPerPage)
+                    {
+                        // More lines to print, so set HasMorePages to true
+                        ev.HasMorePages = true;
+                        currentLine += count; // Update the line counter for the next page
+                        return;
+                    }
+                }
+            }
+
+            // No more lines to print
+            ev.HasMorePages = false;
+            currentLine = 0; // Reset for future print jobs
+        }
+
+
+        private void PrintPage_1(object sender, PrintPageEventArgs ev)
+        {
+            float linesPerPage = 0;
+            float yPos = 0;
+            int count = 0;
+            float leftMargin = 0;
+            float topMargin = 0;
+            string line = null;
+            Font printFont = new Font("Draft", 10);
+
+            // Calculate the number of lines per page.
+            linesPerPage = ev.MarginBounds.Height / printFont.GetHeight(ev.Graphics);
+
+            // Read the file and print it line by line.
+            using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+            using (StreamReader sr = new StreamReader(fs))
+            {
+                while ((line = sr.ReadLine()) != null)
+                {
+                    yPos = topMargin + (count * printFont.GetHeight(ev.Graphics));
+                    ev.Graphics.DrawString(line, printFont, Brushes.Black, leftMargin, yPos, new StringFormat());
+                    count++;
+
+                    if (count >= linesPerPage)
+                    {
+                        ev.HasMorePages = true;
+                        return;
+                    }
+                }
+            }
+
+            ev.HasMorePages = false;
+        }  
+
+
+
+        private string ElegirImpresora()
+        {
+            Console.WriteLine("Impresoras instaladas:");
+
+            foreach (string printer in PrinterSettings.InstalledPrinters)
+            {
+                Console.WriteLine(printer);
+            }
+
+            Console.WriteLine("Presiona cualquier tecla para salir.");
+            Console.ReadKey();
+            return "";
+        }
+
+        /*
+        private void RegistrarError(string mensaje)
+        {
+            // Implementa tu lógica para registrar errores aquí
+            // Por ejemplo, podrías escribir el error en un archivo de log
+            File.AppendAllText("log_errores.txt", $"{DateTime.Now}: {mensaje}{Environment.NewLine}");
+        }
+        */
     }
 }

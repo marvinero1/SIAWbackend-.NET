@@ -64,9 +64,7 @@ namespace siaw_funciones
         public string getHoraActual()
         {
             DateTime horaActual = DateTime.Now;
-            int hora = horaActual.Hour; // Obtiene la hora actual en formato de 24 horas
-            int minutos = horaActual.Minute; // Obtiene los minutos actuales
-            string horaAct = hora.ToString() + ":" + minutos.ToString();
+            string horaAct = horaActual.ToString("HH:mm"); // Formato de 24 horas
             return horaAct;
         }
 

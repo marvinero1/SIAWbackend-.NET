@@ -112,7 +112,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         }).FirstOrDefaultAsync();
                     if (codProforma == null)
                     {
-                        return BadRequest(new { resp = "Esta proforma no fue encontrada. No se puede Transferir." });
+                        return BadRequest(new { resp = "La proforma que intenta buscar no se encuentra aprobada. No se puede Transferir." });
                     }
                     if(await yahayproforma(_context, codProforma.codigo))
                     {
@@ -141,7 +141,10 @@ namespace SIAW.Controllers.ventas.transaccion
                 {
                     i.codigo
                 }).FirstOrDefaultAsync();
-            if (transferida != null)
+            int profTransferida = await _context.veproforma.Where(i => i.codigo == codproforma && i.transferida == true).CountAsync();
+
+
+            if (transferida != null || profTransferida>0)
             {
                 yahayproforma = true;
             }
