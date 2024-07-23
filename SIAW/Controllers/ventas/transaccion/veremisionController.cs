@@ -30,6 +30,7 @@ namespace SIAW.Controllers.ventas.transaccion
         private readonly siaw_funciones.Almacen almacen = new siaw_funciones.Almacen();
         private readonly siaw_funciones.Funciones funciones = new Funciones();
         private readonly siaw_funciones.Cobranzas cobranzas = new siaw_funciones.Cobranzas();
+        private readonly siaw_funciones.datosProforma datos_proforma = new siaw_funciones.datosProforma();
 
         private readonly Documento documento = new Documento();
         private readonly Log log = new Log();
@@ -475,7 +476,9 @@ namespace SIAW.Controllers.ventas.transaccion
             {
                 return ("Ese numero de documento, ya existe, por favor consulte con el administrador del sistema.", 0, 0, false);
             }
-            veremision.fecha_anulacion = await funciones.FechaDelServidor(_context);
+            veremision.fechareg = await funciones.FechaDelServidor(_context);
+            veremision.horareg = datos_proforma.getHoraActual();
+            veremision.fecha_anulacion = veremision.fecha.Date;
             veremision.version_tarifa = await ventas.VersionTarifaActual(_context);
             veremision.descarga = true;
             veremision.numeroid = idnroactual + 1;
@@ -796,6 +799,13 @@ namespace SIAW.Controllers.ventas.transaccion
         [Route("impresionNotaRemision/{userConn}/{codClienteReal}/{codEmpresa}/{codclientedescripcion}/{preparacion}/{codigoNR}")]
         public async Task<ActionResult<List<object>>> impresionNotaRemision(string userConn, string codClienteReal, string codEmpresa, string codclientedescripcion, string preparacion, int codigoNR)
         {
+            // lista de impresoras disponibles, aca deben ir de momento las impresoras matriciales de notas de remision, nombre que tienen.
+            var impresorasDisponibles = new Dictionary<int, string>
+            {
+                { 311, "EPSON LX-350" },  
+                { 411, "EPSON LX-350" },
+                { 811, "EPSON LX-350" }
+            };
             try
             {
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
@@ -804,8 +814,44 @@ namespace SIAW.Controllers.ventas.transaccion
                     var veremision = await _context.veremision.Where(i => i.codigo == codigoNR).FirstOrDefaultAsync();
                     if (veremision != null)
                     {
-                        string resp = await mostrardocumento_directo(_context, codClienteReal, codEmpresa, codclientedescripcion, preparacion, veremision);
-                        return Ok(new { resp });
+                        
+
+                        System.Drawing.Printing.PrinterSettings config = new System.Drawing.Printing.PrinterSettings();
+
+                        // Asignar el nombre de la impresora
+                        config.PrinterName = impresorasDisponibles[veremision.codalmacen];
+
+                        // Comprobar si la impresora está instalada
+                        if (config.IsValid)
+                        {
+                            // generamos el archivo .txt y regresamos la ruta
+                            string pathFile = await mostrardocumento_directo(_context, codClienteReal, codEmpresa, codclientedescripcion, preparacion, veremision);
+                            // Configurar e iniciar el trabajo de impresión
+                            // Aquí iría el código para configurar el documento a imprimir y lanzar la impresión
+                            bool impremiendo = await RawPrinterHelper.SendFileToPrinterAsync(config.PrinterName, pathFile);
+                            // luego de mandar a imprimir eliminamos el archivo
+                            if (System.IO.File.Exists(pathFile))
+                            {
+                                System.IO.File.Delete(pathFile);
+                                Console.WriteLine("File deleted successfully.");
+                            }
+                            else
+                            {
+                                Console.WriteLine("File not found.");
+                            }
+                            if (impremiendo)
+                            {
+                                return Ok(new { resp = "Imprimiendo Documento ...." });
+                            }
+                            else
+                            {
+                                return BadRequest(new { resp = "No se puedo realizar la impresion, comuniquese con el Administrador de Sistemas." });
+                            }
+                        }
+                        else
+                        {
+                            return BadRequest(new { resp = "La impresora no está disponible." });
+                        }
                     }
                     return BadRequest(new { resp = "No se encontro la nota de remision" });
                 }

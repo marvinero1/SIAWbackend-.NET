@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using LibSIAVB;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -554,10 +555,32 @@ namespace SIAW.Controllers.z_pruebas
             End Try
 
              */
+            
             try
             {
                 string path_file = "C:\\laragon\\www\\siawbackend-.net\\SIAW\\bin\\Debug\\net6.0\\OutputFiles\\temp\\r31446.txt";
-                ImprimirArchivo(path_file, "");
+                string impresoradestino = "EPSON LX-350";
+                // ImprimirArchivo(path_file, "");
+
+                // Crear un nuevo objeto PrinterSettings
+                System.Drawing.Printing.PrinterSettings config = new System.Drawing.Printing.PrinterSettings();
+
+                // Asignar el nombre de la impresora
+                config.PrinterName = impresoradestino;
+
+                // Comprobar si la impresora está instalada
+                if (config.IsValid)
+                {
+                    // Configurar e iniciar el trabajo de impresión
+                    // Aquí iría el código para configurar el documento a imprimir y lanzar la impresión
+                    RawPrinterHelper.SendFileToPrinter(config.PrinterName, path_file);
+                    //imprimirDatos.SendFileToPrinter(config.PrinterName, path_file);
+                }
+                else
+                {
+                    return BadRequest("La impresora no está disponible.");
+                }
+
                 //imprimirDatos.SendFileToPrinter("EPSON LX-350", path_file);
             }
             catch (Exception)
@@ -572,7 +595,7 @@ namespace SIAW.Controllers.z_pruebas
         private string filePath;
 
 
-        public void ImprimirArchivo(string path, string impresora = "")
+        private void ImprimirArchivo(string path, string impresora = "")
         {
             try
             {

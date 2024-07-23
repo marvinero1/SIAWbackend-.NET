@@ -37,6 +37,7 @@ using NuGet.Packaging;
 using System.Xml.Linq;
 using Humanizer;
 using System.Globalization;
+using ICSharpCode.SharpZipLib.Core;
 
 namespace SIAW.Controllers.ventas.transaccion
 {
@@ -5067,6 +5068,10 @@ namespace SIAW.Controllers.ventas.transaccion
                 return Problem("Error en el servidor");
                 throw;
             }
+            finally
+            {
+                System.IO.File.Delete(filePath);
+            }
 
         }
 
@@ -5099,9 +5104,21 @@ namespace SIAW.Controllers.ventas.transaccion
                             {
                                 byte[] fileBytes = System.IO.File.ReadAllBytes(zipFilePath);
                                 string fileName = Path.GetFileName(zipFilePath);
-
-                                // Devuelve el archivo ZIP para descargar
-                                return File(fileBytes, "application/zip", fileName);
+                                try
+                                {
+                                    // Devuelve el archivo ZIP para descargar
+                                    return File(fileBytes, "application/zip", fileName);
+                                }
+                                catch (Exception)
+                                {
+                                    return Problem("Error en el servidor");
+                                    throw;
+                                }
+                                finally
+                                {
+                                    System.IO.File.Delete(zipFilePath);
+                                }
+                                
                             }
                             else
                             {
@@ -5332,8 +5349,8 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
         [HttpGet]
-        [Route("getDataPDF/{userConn}/{codProforma}/{codcliente}/{codcliente_real}/{codempresa}/{cmbestado_contra_entrega}")]
-        public async Task<IActionResult> getDataPDF(string userConn, int codProforma, string codcliente, string codcliente_real, string codempresa, string cmbestado_contra_entrega)
+        [Route("getDataPDF/{userConn}/{codProforma}/{codcliente}/{codcliente_real}/{codempresa}/{cmbestado_contra_entrega}/{paraAprobar}")]
+        public async Task<IActionResult> getDataPDF(string userConn, int codProforma, string codcliente, string codcliente_real, string codempresa, string cmbestado_contra_entrega, bool paraAprobar)
         {
             try
             {
@@ -5701,11 +5718,36 @@ namespace SIAW.Controllers.ventas.transaccion
                         dt_etiqueta = null;
                     }
                     */
+
+                    List<vetuercas> ds_tuercas_lista = new List<vetuercas>();
+                    if (paraAprobar) // si es para aprobar la proforma, solo ahi se genera el detalle de etiqueta tuercas
+                    {
+                        List<itemDataMatriz> tabladetalle = dtveproforma1.Select(i => new itemDataMatriz
+                        {
+                            coditem = i.coditem,
+                            cantidad = (double)i.cantidad
+                        }).ToList();
+                        var tabladetalle_tuercas = await ventas.Detalle_tuercas_PF(_context, tabladetalle);
+                        if (tabladetalle_tuercas.Count() > 0)
+                        {
+                            foreach (var reg in tabladetalle_tuercas)
+                            {
+                                vetuercas drow = new vetuercas();
+                                drow.coditem = reg.coditem;
+                                drow.descripcion = reg.descripcion;
+                                drow.medida = reg.medida;
+                                drow.udm = reg.udm;
+                                drow.cantidad = reg.cantidad;
+                                ds_tuercas_lista.Add(drow);
+                            }
+                        }
+                    }
                     return Ok(new
                     {
                         docveprofCab = docveprofCab,
                         dtveproforma1 = dtveproforma1,
-                        dt_etiqueta = dt_etiqueta
+                        dt_etiqueta = dt_etiqueta,
+                        ds_tuercas_lista = ds_tuercas_lista
                     });
                 }
 

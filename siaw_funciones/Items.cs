@@ -385,5 +385,38 @@ namespace siaw_funciones
                 return "";
             }
         }
+        public async Task<string> itemudm(DBContext _context, string codigo)
+        {
+            try
+            {
+                var resultado = await _context.initem
+                .Where(i => i.codigo == codigo)
+                .Select(i => i.unidad)
+                .FirstOrDefaultAsync() ?? "";
+
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
+        public async Task<List<string>> Partes_De_Conjunto(DBContext _context, string kit)
+        {
+            try
+            {
+                var resultado = await _context.inkit
+                .Where(i => i.codigo == kit)
+                .Select(i => i.item)
+                .ToListAsync();
+
+                return resultado;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                throw;
+            }
+        }
     }
 }

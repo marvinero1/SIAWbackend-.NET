@@ -1,5 +1,6 @@
 ﻿using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Win32;
 using siaw_DBContext.Data;
 using siaw_DBContext.Models;
 using siaw_DBContext.Models_Extra;
@@ -3971,9 +3972,9 @@ namespace siaw_funciones
             }
         }
 
-        public async Task Detalle_tuercas_PF(DBContext _context, List<itemDataMatriz> tabladetalle)
+        public async Task<List<detalle_tuercas>> Detalle_tuercas_PF(DBContext _context, List<itemDataMatriz> tabladetalle)
         {
-
+            List<detalle_tuercas> resultado = new List<detalle_tuercas>();
             var dt_inlinea_tuercas = await items.inlinea_tuercas(_context, true);
             foreach (var reg in tabladetalle)
             {
@@ -3981,9 +3982,39 @@ namespace siaw_funciones
                 if (await items.itemesconjunto(_context,reg.coditem) == true && (item_linea_pf != "05CT0" && item_linea_pf != "05CT1"))
                 {
                     // es cjto
-
+                    List<string> lista_items_cjto = await items.Partes_De_Conjunto(_context, reg.coditem);
+                    foreach (var reg2 in lista_items_cjto)
+                    {
+                        // recorrer los items q forman el conjunto y verificar si uno de ellos es tuerca y añadir o sumar al resultado
+                        string item_linea = await items.itemlinea(_context, reg2);
+                        var registros_inlinea = dt_inlinea_tuercas.Where(i => i.codigo == item_linea).ToList();
+                        if (registros_inlinea.Count() > 0)
+                        {
+                            var registros_item_tuercas = resultado.Where(i => i.coditem == reg2);
+                            if (registros_item_tuercas.Count() > 0)
+                            {
+                                // si el item ya esta en resultado solo sumar al registro
+                                foreach (var reg3 in registros_item_tuercas)
+                                {
+                                    reg3.cantidad = (decimal)reg.cantidad + reg3.cantidad;
+                                }
+                            }
+                            else
+                            {
+                                // si el item NO esta en resultado añadir al resutlado
+                                detalle_tuercas registro = new detalle_tuercas();
+                                registro.coditem = reg2;
+                                registro.descripcion = await items.itemdescripcion(_context, reg2);
+                                registro.medida = await items.itemmedida(_context, reg2);
+                                registro.udm = await items.itemudm(_context, reg2);
+                                registro.cantidad = (decimal)reg.cantidad;
+                                resultado.Add(registro);
+                            }
+                        }
+                    }
                 }
             }
+            return resultado;
         }
 
 
@@ -5376,5 +5407,13 @@ namespace siaw_funciones
         public int codproforma { get; set; }
         public int codremision { get; set; }
         public DateTime fecharemision { get; set; }
+    }
+    public class detalle_tuercas
+    {
+        public string coditem { get; set; }
+        public string descripcion { get; set; }
+        public string medida { get; set; }
+        public string udm { get; set; }
+        public decimal cantidad { get; set; }
     }
 }
