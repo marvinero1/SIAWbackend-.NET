@@ -436,19 +436,32 @@ namespace siaw_funciones
 
                 smtpServer.UseDefaultCredentials = false;
                 smtpServer.Credentials = new NetworkCredential(emailOrigenCredencial, pwdEmailCredencialOrigen);
-                smtpServer.Port = 587;
-                smtpServer.EnableSsl = true;
-                smtpServer.Host = "smtp.gmail.com";
 
-                email = new MailMessage();
+                // Configurar el servidor SMTP según el dominio del correo electrónico de origen
+                if (emailOrigen.EndsWith("@pertec.com.bo", StringComparison.OrdinalIgnoreCase))  // para que envie por Gmail
+                {
+                    smtpServer.Host = "smtp.gmail.com";
+                    smtpServer.Port = 587;
+                    smtpServer.EnableSsl = true;
+                }
+                else if (emailOrigen.EndsWith("@int.pertec.com.bo", StringComparison.OrdinalIgnoreCase))  // para que envie por titan de hostinger
+                {
+                    smtpServer.Host = "smtp.titan.email";
+                    smtpServer.Port = 587; 
+                    smtpServer.EnableSsl = true;
+                }
+                else
+                {
+                    throw new Exception("Provedor de correo no soportado.");
+                }
+
                 email.From = new MailAddress(emailOrigen);
                 //email.To.Add(emailDestino);
                 email.Subject = tituloMail;
                 email.IsBodyHtml = true;  // Permitir HTML en el cuerpo del correo
                 email.Body = cuerpoMail;
 
-
-                // Agregar destinatarios con copias incluido
+                // Agregar destinatarios con copias incluidos
                 if (emailsCC != null)
                 {
                     foreach (var emailCC in emailsCC)
@@ -457,7 +470,6 @@ namespace siaw_funciones
                     }
                 }
 
-
                 // Adjuntar archivo PDF
                 if (pdfBytes != null && pdfBytes.Length > 0)
                 {
@@ -465,23 +477,19 @@ namespace siaw_funciones
                     {
                         var attachment = new Attachment(pdfStream, nombreArchivo, "application/pdf");
                         email.Attachments.Add(attachment);
-
                         // Enviar correo
                         smtpServer.Send(email);
                     }
                 }
-
                 resultado = true;
             }
             catch (Exception error_t)
             {
+                // Aquí puedes registrar el error para mayor detalle
+                Console.WriteLine($"Error al enviar el correo: {error_t.Message}");
                 resultado = false;
             }
-
             return resultado;
         }
-
-
-
     }
 }
