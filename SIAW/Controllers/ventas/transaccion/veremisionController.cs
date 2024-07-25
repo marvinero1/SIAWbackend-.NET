@@ -87,7 +87,6 @@ namespace SIAW.Controllers.ventas.transaccion
                         coddescuentodefect
                     });
                 }
-
             }
             catch (Exception)
             {
@@ -438,6 +437,7 @@ namespace SIAW.Controllers.ventas.transaccion
                             codNotRemision = doc_grabado.codNRemision, 
                             nroIdRemision = doc_grabado.numeroId,
                             mostrarVentanaModifPlanCuotas = doc_grabado.mostrarModificarPlanCuotas,
+                            planCuotas = doc_grabado.plandeCuotas,
                             msgSolUrg = msgSolUrg
                         });
                     }
@@ -457,7 +457,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
-        private async Task<(string resp, int codNRemision, int numeroId, bool mostrarModificarPlanCuotas)> Grabar_Documento(DBContext _context, string id, string usuario, bool desclinea_segun_solicitud, int codProforma, string codempresa, SaveNRemisionCompleta datosRemision)
+        private async Task<(string resp, int codNRemision, int numeroId, bool mostrarModificarPlanCuotas, List<object>? plandeCuotas)> Grabar_Documento(DBContext _context, string id, string usuario, bool desclinea_segun_solicitud, int codProforma, string codempresa, SaveNRemisionCompleta datosRemision)
         {
             veremision veremision = datosRemision.veremision;
             List<veremision1> veremision1 = datosRemision.veremision1;
@@ -474,7 +474,7 @@ namespace SIAW.Controllers.ventas.transaccion
             int idnroactual = await documento.ventasnumeroid(_context, id);
             if (await documento.existe_notaremision(_context,id,idnroactual + 1))
             {
-                return ("Ese numero de documento, ya existe, por favor consulte con el administrador del sistema.", 0, 0, false);
+                return ("Ese numero de documento, ya existe, por favor consulte con el administrador del sistema.", 0, 0, false,null);
             }
             veremision.fechareg = await funciones.FechaDelServidor(_context);
             veremision.horareg = datos_proforma.getHoraActual();
@@ -538,12 +538,12 @@ namespace SIAW.Controllers.ventas.transaccion
                     }
                     else
                     {
-                        return ("No se pudo encontrar la proforma para transferirla, por favor consulte con el administrador del sistema.", 0, 0, false);
+                        return ("No se pudo encontrar la proforma para transferirla, por favor consulte con el administrador del sistema.", 0, 0, false, null);
                     }
                 }
                 catch (Exception)
                 {
-                    return ("Error al transferir la proforma, por favor consulte con el administrador del sistema.", 0, 0, false);
+                    return ("Error al transferir la proforma, por favor consulte con el administrador del sistema.", 0, 0, false, null);
                 }
             }
 
@@ -557,7 +557,7 @@ namespace SIAW.Controllers.ventas.transaccion
             }
             catch (Exception)
             {
-                return ("Error al Guardar descuentos extras de Nota de Remision, por favor consulte con el administrador del sistema.", 0, 0, false);
+                return ("Error al Guardar descuentos extras de Nota de Remision, por favor consulte con el administrador del sistema.", 0, 0, false, null);
             }
             try
             {
@@ -569,7 +569,7 @@ namespace SIAW.Controllers.ventas.transaccion
             }
             catch (Exception)
             {
-                return ("Error al Guardar recargos de Nota de Remision, por favor consulte con el administrador del sistema.", 0, 0, false);
+                return ("Error al Guardar recargos de Nota de Remision, por favor consulte con el administrador del sistema.", 0, 0, false, null);
             }
             try
             {
@@ -581,7 +581,7 @@ namespace SIAW.Controllers.ventas.transaccion
             }
             catch (Exception)
             {
-                return ("Error al Guardar iva de Nota de Remision, por favor consulte con el administrador del sistema.", 0, 0, false);
+                return ("Error al Guardar iva de Nota de Remision, por favor consulte con el administrador del sistema.", 0, 0, false, null);
             }
 
 
@@ -614,6 +614,7 @@ namespace SIAW.Controllers.ventas.transaccion
             // ####################################
             // generar plan de pagos si es que es a credito
             // #################################
+            List<object> planCuotasGenerada = new List<object>();
             bool mostrarModificarPlanCuotas = false;
             if (veremision.tipopago == 1)  // si el tipo pago es a credito == 1
             {
@@ -633,6 +634,7 @@ namespace SIAW.Controllers.ventas.transaccion
                             // modificarplandepago()
                             // ENVIAR BOOL PARA MOSTRAR PLAN DE CUOTAS
                             mostrarModificarPlanCuotas = true;
+                            planCuotasGenerada = (List<object>)await verPlandePago(_context, codNRemision, veremision.usuarioreg);
                         }
 
                     }
@@ -646,6 +648,7 @@ namespace SIAW.Controllers.ventas.transaccion
                                 // modificarplandepago()
                                 // ENVIAR BOOL PARA MOSTRAR PLAN DE CUOTAS
                                 mostrarModificarPlanCuotas = true;
+                                planCuotasGenerada = (List<object>)await verPlandePago(_context, codNRemision, veremision.usuarioreg);
                             }
                         }
                         else
@@ -655,6 +658,7 @@ namespace SIAW.Controllers.ventas.transaccion
                             {
                                 // modificarplandepago(codigo.Text, codcliente.Text, codmoneda.Text, total.Text)
                                 mostrarModificarPlanCuotas = true;
+                                planCuotasGenerada = (List<object>)await verPlandePago(_context, codNRemision, veremision.usuarioreg);
                             }
                             // para cada nota complementaria revertir pagos y generar sus cuotas
                             foreach (var reg in lista)
@@ -692,6 +696,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         {
                             // modificarplandepago(codigo.Text, codcliente.Text, codmoneda.Text, total.Text)
                             mostrarModificarPlanCuotas = true;
+                            planCuotasGenerada = (List<object>)await verPlandePago(_context, codNRemision, veremision.usuarioreg);
                         }
                     }
                     else
@@ -703,6 +708,7 @@ namespace SIAW.Controllers.ventas.transaccion
                             {
                                 // modificarplandepago(codigo.Text, codcliente.Text, codmoneda.Text, total.Text)
                                 mostrarModificarPlanCuotas = true;
+                                planCuotasGenerada = (List<object>)await verPlandePago(_context, codNRemision, veremision.usuarioreg);
                             }
 
                         }
@@ -713,6 +719,7 @@ namespace SIAW.Controllers.ventas.transaccion
                             {
                                 // modificarplandepago(codigo.Text, codcliente.Text, codmoneda.Text, total.Text)
                                 mostrarModificarPlanCuotas = true;
+                                planCuotasGenerada = (List<object>)await verPlandePago(_context, codNRemision, veremision.usuarioreg);
                             }
                             // para cada nota complementaria revertir pagos y generar sus cuotas
                             foreach (var reg in lista)
@@ -748,7 +755,7 @@ namespace SIAW.Controllers.ventas.transaccion
             //###################################
 
 
-            return ("ok", codNRemision, veremision.numeroid, mostrarModificarPlanCuotas);
+            return ("ok", codNRemision, veremision.numeroid, mostrarModificarPlanCuotas, planCuotasGenerada);
 
 
         }
@@ -793,7 +800,22 @@ namespace SIAW.Controllers.ventas.transaccion
             _context.veremision_iva.AddRange(veremision_iva);
             await _context.SaveChangesAsync();
         }
+        private async Task<object> verPlandePago(DBContext _context, int codRemision, string usuario)
+        {
+            // log de ingreso
+            // prgmodifplanpago_Load
+            var planPagos = await _context.coplancuotas.Where(i => i.coddocumento == codRemision && i.codtipodoc==4)
+                .Select(i => new
+                {
+                    i.nrocuota,
+                    i.vencimiento,
+                    i.monto,
+                    i.moneda
+                })
+                .ToListAsync();
 
+            return planPagos;
+        }
 
         [HttpGet]
         [Route("impresionNotaRemision/{userConn}/{codClienteReal}/{codEmpresa}/{codclientedescripcion}/{preparacion}/{codigoNR}")]

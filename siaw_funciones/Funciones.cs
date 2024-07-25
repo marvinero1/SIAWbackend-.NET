@@ -435,6 +435,7 @@ namespace siaw_funciones
                 MailMessage email = new MailMessage();
 
                 smtpServer.UseDefaultCredentials = false;
+                pwdEmailCredencialOrigen = EncryptionHelper.DecryptString(pwdEmailCredencialOrigen);
                 smtpServer.Credentials = new NetworkCredential(emailOrigenCredencial, pwdEmailCredencialOrigen);
 
                 // Configurar el servidor SMTP según el dominio del correo electrónico de origen

@@ -4541,75 +4541,74 @@ namespace siaw_funciones
                         cuotas[1, 0] = 100;
                         cuotas[2, 0] = 0;
                     }
+                }
+                /////generar pagos
+                // verificacion apra ver si el documento descarga mercaderia
+                // borrar las anteriores cuotas
+                try
+                {
+                    var coplancuotasAnt = await _context.coplancuotas.Where(i => i.coddocumento == codigodoc).ToListAsync();
+                    if (coplancuotasAnt.Count() > 0)
+                    {
+                        _context.coplancuotas.RemoveRange(coplancuotasAnt);
+                        await _context.SaveChangesAsync();
+                    }
+                }
+                catch (Exception)
+                {
+                    resultado = false;
+                }
+                DateTime fecha = fechaini;
+                double acumulado = 0;
+                if (resultado)
+                {
+                    List<coplancuotas> NewListCoPlanCuo = new List<coplancuotas>();
+                    for (int i = 0; i <= nrocuotas - 2; i++)
+                    {
+                        fecha = fecha.AddDays(cuotas[2, i]);
+                        // acumulado = acumulado + System.Math.Round((montodoc / 100) * (cuotas(1, i)), 2)
+                        acumulado = acumulado + Math.Floor((montodoc / 100) * (cuotas[1, i]));
+                        coplancuotas newReg = new coplancuotas();
 
-                    /////generar pagos
-                    // verificacion apra ver si el documento descarga mercaderia
-                    // borrar las anteriores cuotas
+                        newReg.coddocumento = codigodoc;
+                        newReg.codtipodoc = (byte)tipo;
+                        newReg.cliente = clientedoc;
+                        newReg.nrocuota = (short)cuotas[0, i];
+                        newReg.monto = (decimal)Math.Floor((montodoc / 100) * (cuotas[1, i]));
+                        newReg.montopagado = 0;
+                        newReg.moneda = monedadoc;
+                        newReg.vencimiento = fecha.Date;
+
+                        NewListCoPlanCuo.Add(newReg);
+                    }
+
+
+                    fecha = fecha.AddDays(cuotas[2, nrocuotas - 1]);
+                    // ultima cuota que complete todo
+                    coplancuotas newReg_1 = new coplancuotas();
+
+                    newReg_1.coddocumento = codigodoc;
+                    newReg_1.codtipodoc = (byte)tipo;
+                    newReg_1.cliente = clientedoc;
+                    newReg_1.nrocuota = (short)cuotas[0, nrocuotas - 1];
+                    newReg_1.monto = (decimal)(montodoc - acumulado);
+                    newReg_1.montopagado = 0;
+                    newReg_1.moneda = monedadoc;
+                    newReg_1.vencimiento = fecha.Date;
+
+                    NewListCoPlanCuo.Add(newReg_1);
+
                     try
                     {
-                        var coplancuotasAnt = await _context.coplancuotas.Where(i => i.coddocumento == codigodoc).ToListAsync();
-                        if (coplancuotasAnt.Count() > 0)
-                        {
-                            _context.coplancuotas.RemoveRange(coplancuotasAnt);
-                            await _context.SaveChangesAsync();
-                        }
+                        _context.coplancuotas.AddRange(NewListCoPlanCuo);
+                        await _context.SaveChangesAsync();
                     }
                     catch (Exception)
                     {
                         resultado = false;
                     }
-                    DateTime fecha = fechaini;
-                    double acumulado = 0;
-                    if (resultado)
-                    {
-                        List<coplancuotas> NewListCoPlanCuo = new List<coplancuotas>();
-                        for (int i = 0; i <= nrocuotas - 2; i++)
-                        {
-                            fecha = fecha.AddDays(cuotas[2, i]);
-                            // acumulado = acumulado + System.Math.Round((montodoc / 100) * (cuotas(1, i)), 2)
-                            acumulado = acumulado + Math.Floor((montodoc / 100) * (cuotas[1, i]));
-                            coplancuotas newReg = new coplancuotas();
-
-                            newReg.coddocumento = codigodoc;
-                            newReg.codtipodoc = (byte)tipo;
-                            newReg.cliente = clientedoc;
-                            newReg.nrocuota = (short)cuotas[0, i];
-                            newReg.monto = (decimal)Math.Floor((montodoc / 100) * (cuotas[1, i]));
-                            newReg.montopagado = 0;
-                            newReg.moneda = monedadoc;
-                            newReg.vencimiento = fecha.Date;
-
-                            NewListCoPlanCuo.Add(newReg);
-                        }
-
-
-                        fecha = fecha.AddDays(cuotas[2, nrocuotas - 1]);
-                        // ultima cuota que complete todo
-                        coplancuotas newReg_1 = new coplancuotas();
-
-                        newReg_1.coddocumento = codigodoc;
-                        newReg_1.codtipodoc = (byte)tipo;
-                        newReg_1.cliente = clientedoc;
-                        newReg_1.nrocuota = (short)cuotas[0, nrocuotas-1];
-                        newReg_1.monto = (decimal)(montodoc - acumulado);
-                        newReg_1.montopagado = 0;
-                        newReg_1.moneda = monedadoc;
-                        newReg_1.vencimiento = fecha.Date;
-
-                        NewListCoPlanCuo.Add(newReg_1);
-
-                        try
-                        {
-                            _context.coplancuotas.AddRange(NewListCoPlanCuo);
-                            await _context.SaveChangesAsync();
-                        }
-                        catch (Exception)
-                        {
-                            resultado = false;
-                        }
-                    }
-                    ///fin de crear cuotas
                 }
+                ///fin de crear cuotas
             }
             ///////////////////////////// FALTAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
             return resultado;

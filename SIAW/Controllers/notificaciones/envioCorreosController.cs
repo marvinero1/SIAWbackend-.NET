@@ -25,7 +25,7 @@ namespace SIAW.Controllers.notificaciones
         {
             if (pdfFile == null || pdfFile.Length == 0)
             {
-                return BadRequest("No se ha proporcionado un archivo PDF válido.");
+                return BadRequest(new { resp = "No se ha proporcionado un archivo PDF válido." });
             }
 
             // Obtener el contexto de base de datos correspondiente al usuario
@@ -49,12 +49,19 @@ namespace SIAW.Controllers.notificaciones
                              i.celcorporativo,
                              i.persona
                          }).FirstOrDefaultAsync();
-
+                    if (credenciales == null)
+                    {
+                        return BadRequest(new { resp = "No se encontraron datos con el usuario proporcionado." });
+                    }
                     var nombreVendedor = await _context.pepersona.Where(i => i.codigo == (credenciales.persona))
                         .Select(i => i.nombre1 + " " + i.nombre2 + " " + i.apellido1 + " " + i.apellido2).FirstOrDefaultAsync();
 
                     var emailsCc = await _context.adusuario_destinatarios.Where(i => i.codvendedor == codvendedor)
                         .Select(i => i.destinatarios).ToListAsync();
+                    if (emailsCc.Count() == 0)
+                    {
+                        return BadRequest(new { resp = "No se encontraron destinatarios relacionados a su codigo de vendedor" });
+                    }
 
                     var dataProf = await _context.veproforma.Where(i => i.codigo == codproforma)
                         .Select(i => new
@@ -69,7 +76,10 @@ namespace SIAW.Controllers.notificaciones
                             i.descuentos,
                             i.total
                         }).FirstOrDefaultAsync();
-
+                    if (dataProf == null)
+                    {
+                        return BadRequest(new { resp = "No se encontraron datos con el código de proforma." });
+                    }
                     //string direcc_mail_cliente = "analista.nal.informatica2@pertec.com.bo";
                     string titulo = "Solicitud Recepción de Proforma " + dataProf.id + "-" + dataProf.numeroid;
                     string detalle = @"
@@ -377,11 +387,11 @@ namespace SIAW.Controllers.notificaciones
                     bool envio = funciones.EnviarEmail(credenciales.correo, "", emailsCc, credenciales.correo, credenciales.passwordcorreo, titulo, detalle, pdfBytes, pdfFile.FileName);
                     if (envio)
                     {
-                        return Ok("Correo enviado con éxito.");
+                        return Ok(new { resp = "Correo enviado con éxito." });
                     }
                     else
                     {
-                        return StatusCode(500, "Error al enviar el correo.");
+                        return BadRequest(new { resp = "Error al enviar el correo." });
                     }
                 }
                 catch (DbUpdateException)
