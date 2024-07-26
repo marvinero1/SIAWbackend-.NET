@@ -157,6 +157,47 @@ namespace siaw_funciones
             return true;
         }
 
+        public async Task<bool> PermitirNegativos(DBContext _context, string codempresa)
+        {
+            try
+            {
+                bool resultado = false;
+                var query = await _context.adparametros
+                    .Where(i => i.codempresa == codempresa)
+                        .Select(i => new
+                        {
+                            i.negativos
+                        })
+                    .FirstOrDefaultAsync();
+                if (query != null)
+                {
+                    resultado = (bool)query.negativos;
+                }
+                else
+                {
+                    resultado = false;
+                }
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
 
+        }
+        public async Task<DateTime> FechaUltimoInventarioFisico(DBContext _context, int codalmacen)
+        {
+            var infisico = await _context.ininvconsol
+                .Where(i => i.codalmacen == codalmacen)
+                .OrderByDescending(i => i.fechafin)
+                .Select(i => (DateTime?)i.fechafin)
+                .FirstOrDefaultAsync();
+            if (infisico == null)
+            {
+                return new DateTime(1900, 1, 1);
+            }
+
+            return infisico.Value.Date;
+        }
     }
 }

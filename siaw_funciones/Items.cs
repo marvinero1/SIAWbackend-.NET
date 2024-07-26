@@ -418,5 +418,42 @@ namespace siaw_funciones
                 throw;
             }
         }
+
+        public async Task<bool> itemventa_context(DBContext _context, string coditem)
+        {
+            try
+            {
+                bool resultado = false;
+                //using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                string estado = "4";
+                var query = await _context.initem
+                    .Where(i => i.codigo == coditem)
+                        .Select(i => new
+                        {
+                            i.estadocv
+                        })
+                    .FirstOrDefaultAsync();
+                if (query != null)
+                {
+                    estado = query.estadocv;
+                }
+                if (estado == "1" || estado == "2")
+                {
+                    resultado = true;
+                }
+                else
+                {
+                    resultado = false;
+                }
+                //}
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+
+        }
     }
 }

@@ -5273,6 +5273,456 @@ namespace siaw_funciones
         }
 
 
+        public async Task<bool> ValidarTarifa(DBContext _context, string codcliente, string coditem, int codtarifa_b)
+        {
+            bool resultado = true;
+            List<int> dt = new List<int>();
+            try
+            {
+                if (await Controla_precios(_context, codcliente))
+                {
+                    if (await EstaControlado(_context, coditem, codtarifa_b))
+                    {
+                        dt = await ControlTarifa(_context, coditem, codtarifa_b);
+                        foreach (var i in dt)
+                        {
+                            if (await BuscarCompra(_context, codcliente, coditem, i))
+                            {
+                                resultado = false;
+                                break;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        resultado = true;
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+            return resultado;
+        }
+
+        public async Task<bool> ValidarTarifa_Descuento(DBContext _context, int coddescuento, int codtarifa)
+        {
+            bool resultado = false;
+
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                if (coddescuento > 0)
+                {
+                    var cont = await _context.vedescuento_tarifa
+                             .CountAsync(t => t.coddescuento == coddescuento && t.codtarifa == codtarifa);
+                    if (cont > 0)
+                    {
+                        resultado = true;
+                    }
+                }
+                else
+                {
+                    resultado = true;
+                }
+
+                //}
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+            return resultado;
+        }
+
+        public async Task<bool> UnidadSoloEnteros(DBContext _context, string codudemed)
+        {
+            bool resultado = false;
+
+            try
+            {
+                var entera = await _context.inudemed
+                            .Where(v => v.Codigo == codudemed)
+                            .Select(v => new { v.entera })
+                            .FirstOrDefaultAsync();
+                if (entera != null)
+                {
+                    if (entera.entera.HasValue)
+                    {
+                        resultado = entera.entera.Value;
+                    }
+                    else
+                    {
+                        resultado = false;
+                    }
+                }
+                else
+                {
+                    resultado = true;
+                }
+            }
+            catch (Exception)
+            {
+                return true;
+            }
+            return resultado;
+        }
+
+        public async Task<bool> cliente_ventacontado(DBContext _context, string codcliente)
+        {
+            try
+            {
+                bool resultado = false;
+                //using (_context)
+                //{
+                int count = _context.vecliente
+                    .Where(vc => vc.codigo == codcliente && vc.tipoventa == 2 || vc.tipoventa == 0)
+                    .Count();
+                resultado = count > 0;
+                return resultado;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<bool> cliente_ventacredito(DBContext _context, string codcliente)
+        {
+            try
+            {
+                bool resultado = false;
+                //using (_context)
+                //{
+                int count = _context.vecliente
+                    .Where(vc => vc.codigo == codcliente && vc.tipoventa == 2 || vc.tipoventa == 1)
+                    .Count();
+                resultado = count > 0;
+                return resultado;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<bool> yahayproforma(DBContext _context, int codproforma)
+        {
+            try
+            {
+                var resultado = await _context.veremision.Where(i => i.codproforma == codproforma && i.anulada == false).Select(i => i.codigo).CountAsync();
+
+                if (resultado > 0)
+                {
+                    return true;
+                }
+                else { return false; }
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        public async Task<DataTable> lista_PFNR_complementarias_Table(DBContext _context, int codproforma)
+        {
+            DataTable lista = new DataTable();
+            int codigo = 0;
+            DataTable tabla = new DataTable();
+            bool bandera = true;
+            DataRow registro;
+            int i = 0;
+
+            //'##################################'
+            //'# estructura de la lista         #
+            //'##################################'
+            lista.Columns.Add("codproforma", typeof(int));
+            lista.Columns.Add("codremision", typeof(int));
+            lista.Columns.Add("fecharemision", typeof(DateTime));
+            codigo = Convert.ToInt32(codproforma);
+            if (codigo > 0)
+            {
+                //##################################
+                //#ir al primer codigo de las proformas
+                //##################################
+                tabla.Clear();
+                tabla.Columns.Clear();
+                bandera = true;
+                while (bandera)
+                {
+                    tabla.Clear();
+                    //llenar precios permitidos
+                    var sql = await _context.veproforma
+                                           .Where(pf => pf.codcomplementaria == codigo)
+                                           .Select(pf => pf.codigo)
+                                           .ToListAsync();
+                    var result = sql.Distinct().ToList();
+                    tabla = funciones.ToDataTable(result);
+
+                    if (tabla.Rows.Count > 0)
+                    {
+                        codigo = Convert.ToInt32(tabla.Rows[0]["codigo"]);
+                    }
+                    else
+                    {
+                        bandera = false;
+                    }
+                }
+
+                //##################################
+                //#recorrer todos los codigos añadiendo a lista
+                //##################################
+                tabla.Clear();
+                tabla.Columns.Clear();
+                bandera = true;
+                while (bandera)
+                {
+                    tabla.Clear();
+                    var sql = await _context.veproforma
+                                           .Where(pf1 => pf1.codigo == codigo)
+                                           .Select(pf1 => new { pf1.codigo, pf1.codcomplementaria })
+                                           .ToListAsync();
+                    var result = sql.Distinct().ToList();
+                    tabla = funciones.ToDataTable(result);
+
+                    // añadir a la lista
+                    registro = lista.NewRow();
+                    registro["codproforma"] = Convert.ToInt32(tabla.Rows[0]["codigo"]);
+                    registro["codremision"] = 0;
+                    lista.Rows.Add(registro);
+                    // si tiene complementaria copiar codigo, si no terminar el loop
+                    if (tabla.Rows.Count > 0)
+                    {
+                        if (tabla.Rows[0]["codcomplementaria"] == DBNull.Value || Convert.ToInt32(tabla.Rows[0]["codcomplementaria"]) == 0)
+                        {
+                            bandera = false;
+                        }
+                        else
+                        {
+                            codigo = Convert.ToInt32(tabla.Rows[0]["codcomplementaria"]);
+                        }
+                    }
+                }
+                tabla.Reset();
+                lista.AcceptChanges();
+
+                //##################################
+                //#   poner las notas de remision  #
+                //##################################
+                for (i = 0; i < lista.Rows.Count; i++)
+                {
+                    int codProforma = (int)lista.Rows[i]["codproforma"];
+                    //tabla = sia_DAL.Datos.Instancia.ObtenerDataTable("select codigo,fecha from veremision where anulada=0 and codproforma=" + lista.Rows[i]["codproforma"].ToString());
+                    var sql = await _context.veremision
+                                          .Where(vr => vr.codproforma == codProforma)
+                                          .Select(vr => new { vr.codigo, vr.fecha })
+                                          .ToListAsync();
+                    var result = sql.Distinct().ToList();
+                    tabla = funciones.ToDataTable(result);
+
+                    if (tabla.Rows.Count > 0)
+                    {
+                        lista.Rows[i]["codremision"] = Convert.ToInt32(tabla.Rows[0]["codigo"]);
+                        lista.Rows[i]["fecharemision"] = Convert.ToDateTime(tabla.Rows[0]["fecha"]);
+                    }
+                    else
+                    {
+                        lista.Rows[i]["codremision"] = 0;
+                        lista.Rows[i]["fecharemision"] = DateTime.Now.Date;
+                    }
+                }
+                lista.AcceptChanges();
+                tabla.Dispose();
+            }
+            return lista;
+        }
+
+        public async Task<decimal> Descuentos_Proforma(DBContext _context, int codproforma)
+        {
+            decimal resultado = 0;
+            try
+            {
+                //using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var result = await _context.veproforma
+                .Where(v => v.codigo == codproforma)
+                .Select(parametro => new
+                {
+                    parametro.descuentos
+                })
+                .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = result.descuentos;
+                }
+
+                // }
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+            return resultado;
+        }
+
+        public async Task<bool> Controla_precios(DBContext _context, string codcliente)
+        {
+            bool resultado = false;
+
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var controla_precios = await _context.vecliente
+                                .Where(v => v.codigo == codcliente)
+                                .Select(v => new { v.codigo, v.controla_precios })
+                                .FirstOrDefaultAsync();
+
+                if (controla_precios != null)
+                {
+                    if (controla_precios.controla_precios.HasValue)
+                    {
+                        resultado = controla_precios.controla_precios.Value;
+                    }
+                    else
+                    {
+                        resultado = false;
+                    }
+                }
+                else
+                {
+                    resultado = true;
+                }
+                //}
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+            return resultado;
+        }
+
+        public async Task<bool> EstaControlado(DBContext _context, string coditem, int codtarifa_b)
+        {
+            bool resultado = false;
+
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var controla = await _context.initem_controltarifa
+                             .CountAsync(t => t.coditem == coditem && t.codtarifa_b == codtarifa_b);
+                if (controla > 0)
+                {
+                    resultado = true;
+                }
+                else
+                {
+                    resultado = false;
+                }
+                //}
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+            return resultado;
+        }
+
+        public async Task<List<int>> ControlTarifa(DBContext _context, string coditem, int codtarifa_b)
+        {
+            List<int> resultado = new List<int>();
+
+            try
+            {
+                var detalle = await _context.initem_controltarifa
+                                .Where(v => v.coditem == coditem && v.codtarifa_b == codtarifa_b)
+                                .Select(v => new { v.codtarifa_a })
+                                .ToListAsync();
+                foreach (var codtarifab in detalle)
+                {
+                    if (!resultado.Contains(Convert.ToInt32(codtarifab)))
+                    {
+                        resultado.Add(Convert.ToInt32(codtarifab));
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                // Manejar la excepción según tus necesidades.
+                throw;
+            }
+            return resultado;
+        }
+
+        public async Task<bool> BuscarCompra(DBContext _context, string codcliente, string coditem, int codtarifa_a)
+        {
+            bool resultado = false;
+
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var cant = await _context.vefactura1
+                .Join(_context.vefactura,
+                e => e.codfactura,
+                t => t.codigo,
+                (e, t) => new { E = e, T = t })
+                .Where(x => x.E.coditem == coditem && x.E.codtarifa == codtarifa_a && x.T.codcliente == codcliente)
+                 .CountAsync();
+
+                if (cant > 0)
+                {
+                    resultado = true;
+                }
+                else
+                {
+                    resultado = false;
+                }
+                //}
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+            return resultado;
+        }
+
+
+        public async Task<int> Vendedor_de_Cliente_De_Proforma(DBContext _context, string id, int numeroid)
+        {
+            try
+            {
+                var resultado = await _context.veproforma
+                    .Where(p => p.id == id && p.numeroid == numeroid)
+                    .Join(_context.vecliente,
+                          p => p.codcliente,
+                          c => c.codigo,
+                          (p, c) => new { c.codvendedor })
+                    .FirstOrDefaultAsync();
+                if (resultado != null)
+                {
+                    return resultado.codvendedor;
+                }
+                return 0;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
+
+
+
         public async Task<List<ProformasWF>> Detalle_Proformas_Aprobadas_WF(string userConnectionString, string codempresa, string usuario)
         {
             List<ProformasWF> resultado = new List<ProformasWF>();

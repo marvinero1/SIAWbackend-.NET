@@ -55,6 +55,7 @@ namespace SIAW.Controllers.ventas.modificacion
         private readonly siaw_funciones.datosProforma datos_proforma = new siaw_funciones.datosProforma();
         private readonly siaw_funciones.Ventas ventas = new siaw_funciones.Ventas();
         private readonly Depositos_Cliente depositos_cliente = new Depositos_Cliente();
+        private readonly Seguridad seguridad = new Seguridad();
         private readonly siaw_funciones.Validar_Vta validar_Vta = new siaw_funciones.Validar_Vta();
         private readonly siaw_funciones.Despachos despachos = new siaw_funciones.Despachos();
         private readonly siaw_funciones.Cobranzas cobranzas = new siaw_funciones.Cobranzas();
@@ -69,6 +70,49 @@ namespace SIAW.Controllers.ventas.modificacion
         }
 
         [HttpGet]
+        [Route("getUltiProfId_2/{userConn}/{usuario}")]
+        public async Task<object> getUltiProfId_2(string userConn, string usuario)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    int codvendedor = await seguridad.usuario_es_vendedor(_context,usuario);
+                    if (codvendedor > 0)
+                    {
+                        var ultimoRegistro = await _context.veproforma.Where(v => v.codvendedor == codvendedor)
+                            .OrderByDescending(i => i.codigo)
+                            .Select(i => new
+                            {
+                                i.codigo,
+                                i.id,
+                                i.numeroid
+                            }).FirstOrDefaultAsync();
+                        return Ok(ultimoRegistro);
+                    }
+                    else
+                    {
+                        var ultimoRegistro = await _context.veproforma.OrderByDescending(i => i.codigo)
+                        .Select(i => new
+                        {
+                            i.codigo,
+                            i.id,
+                            i.numeroid
+                        }).FirstOrDefaultAsync();
+                        return Ok(ultimoRegistro);
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+        }
+
+        [HttpGet]
         [Route("getUltiProfId/{userConn}")]
         public async Task<object> getUltiProfId(string userConn)
         {
@@ -78,14 +122,14 @@ namespace SIAW.Controllers.ventas.modificacion
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
-                    var result = await _context.veproforma.OrderByDescending(i => i.codigo)
+                    var ultimoRegistro = await _context.veproforma.OrderByDescending(i => i.codigo)
                         .Select(i => new
                         {
                             i.codigo,
                             i.id,
                             i.numeroid
                         }).FirstOrDefaultAsync();
-                    return Ok(result);
+                    return Ok(ultimoRegistro);
                 }
             }
             catch (Exception)
@@ -93,6 +137,12 @@ namespace SIAW.Controllers.ventas.modificacion
                 return Problem("Error en el servidor");
                 throw;
             }
+        }
+
+        private async Task<bool> validaTransferencia(DBContext _context, string idProforma, int nroidProforma)
+        {
+
+            return false;
         }
 
         [HttpGet]
@@ -115,6 +165,15 @@ namespace SIAW.Controllers.ventas.modificacion
                         return BadRequest(new { resp = "No se encontró una proforma con los datos proporcionados, revise los datos" });
                     }
 
+                    // recibir desde front colocar cuando regrese marvin:        string usuario
+
+                    /*
+                    int codvendedorClienteProf = await ventas.Vendedor_de_Cliente_De_Proforma(_context, idProforma, nroidProforma);
+                    if (! await seguridad.autorizado_vendedores(_context, usuario, codvendedorClienteProf, codvendedorClienteProf))
+                    {
+                        return BadRequest(new { resp = "No esta autorizado para ver esta información." });
+                    }
+                    */
 
                     // obtener razon social de cliente
                     var codclientedescripcion = await cliente.Razonsocial(_context, cabecera.codcliente);
@@ -588,6 +647,15 @@ namespace SIAW.Controllers.ventas.modificacion
 
                         // Desde 10-10-2022 se definira si una venta es casual o no si el codigo de cliente y el codigo de cliente real son diferentes entonces es una venta casual
                         string msgAlert2 = "";
+
+                        // ELIMINAR PRIMERO LA ETIQUETA SI O SI PARA LUEGO VERIFICAR SI SE PUEDE HACER LA ETIQUETA DE CLIENTES CASUALES
+                        var profEtiqueta = await _context.veproforma_etiqueta.Where(i => i.id_proforma == veproforma.id && i.nroid_proforma == result.numeroId).FirstOrDefaultAsync();
+                        if (profEtiqueta != null)
+                        {
+                            _context.veproforma_etiqueta.Remove(profEtiqueta);
+                            await _context.SaveChangesAsync();
+                        }
+
                         if (veproforma.codcliente != codcliente_real)
                         {
                             if (!await Grabar_Proforma_Etiqueta(_context, veproforma.id, result.numeroId, check_desclinea_segun_solicitud, codcliente_real, veproforma))
@@ -904,12 +972,6 @@ namespace SIAW.Controllers.ventas.modificacion
                 datospfe.usuarioreg = dtpf.usuarioreg;
 
                 // insertar proforma_etiqueta (datospfe)
-                var profEtiqueta = await _context.veproforma_etiqueta.Where(i => i.id_proforma == datospfe.id_proforma && i.nroid_proforma == datospfe.nroid_proforma).FirstOrDefaultAsync();
-                if (profEtiqueta != null)
-                {
-                    _context.veproforma_etiqueta.Remove(profEtiqueta);
-                    await _context.SaveChangesAsync();
-                }
                 _context.veproforma_etiqueta.Add(datospfe);
                 await _context.SaveChangesAsync();
                 return true;

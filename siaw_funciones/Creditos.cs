@@ -2165,6 +2165,79 @@ namespace siaw_funciones
             return true;
 
         }
+
+        public async Task<decimal> CreditoDisponibleParaVentaNuevaRemision(DBContext _context, string codcliente, string moneda, int codproforma, string usuario, string codempresa, string moneda_credito)
+        {
+            decimal resultado = 0;
+            //actualizar el credito
+            var resultAct = await Actualizar_Credito_2023(_context, codcliente, usuario, codempresa, false);
+            if (resultAct.value == false)
+            {
+                resultado = 0;
+                return resultado;
+            }
+            string cliente_principal = "";
+            string codigoPrincipal = await cliente.CodigoPrincipal(_context, codcliente);
+            // Solo considerarlo el principal si Tiene el mismo NIT, caso contrario usar solo el codigo individual de cliente
+            string CodigosIguales = "";
+
+            if (await cliente.NIT(_context, codigoPrincipal) == await cliente.NIT(_context, codcliente))
+            {
+                cliente_principal = codigoPrincipal;
+                CodigosIguales = await cliente.CodigosIgualesMismoNIT(_context, codcliente);
+            }
+            else
+            {
+                cliente_principal = codcliente;
+                CodigosIguales = "'" + codcliente + "'";
+            }
+            try
+            {
+                moneda_credito = await Credito_Fijo_Asignado_Vigente_Moneda(_context, cliente_principal);
+                //sacar su credito disponible
+                decimal creditodisp = await _context.vecliente.Where(i => i.codigo == cliente_principal).Select(i => i.creditodisp).FirstOrDefaultAsync() ?? 0;
+                resultado = await tipocambio._conversion(_context, moneda, moneda_credito, DateTime.Now, creditodisp);
+                //obtener anticipos
+                var anticipos = _context.coanticipo
+                .Where(c => c.anulado == false && c.montorest > 0 && CodigosIguales.Contains(c.codcliente))
+                .GroupBy(c => c.codmoneda)
+                .Select(g => new
+                {
+                    total = g.Sum(x => x.montorest),
+                    codmoneda = g.Key
+                })
+                .ToList();
+
+                foreach (var dt_anticipos in anticipos)
+                {
+                    resultado = resultado + await tipocambio._conversion(_context, moneda, dt_anticipos.codmoneda, DateTime.Now, (decimal)dt_anticipos.total);
+                }
+                //'obtener notas de credito
+                //'no por que se convierten en anticipos.
+                //'obtener proformas aprobadas
+                var proformas = _context.veproforma
+                .Where(c => c.codigo != codproforma && c.aprobada == true && c.tipopago == 1 && c.transferida == false && c.anulada == false && c.contra_entrega == false && CodigosIguales.Contains(c.codcliente))
+                .GroupBy(c => c.codmoneda)
+                .Select(g => new
+                {
+                    total = g.Sum(x => x.total),
+                    codmoneda = g.Key
+                })
+                .ToList();
+
+                foreach (var dt_proformas in proformas)
+                {
+                    resultado = resultado - await tipocambio._conversion(_context, moneda, dt_proformas.codmoneda, DateTime.Now, (decimal)dt_proformas.total);
+                }
+
+            }
+            catch (Exception)
+            {
+                resultado = 0;
+            }
+            return resultado;
+        }
+
     }
 
     public class Datos_Credito

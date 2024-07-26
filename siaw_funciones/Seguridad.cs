@@ -158,6 +158,24 @@ namespace siaw_funciones
             }
                 
         }
+        public async Task<int> usuario_es_vendedor(DBContext _context, string usuario)
+        {
+            try
+            {
+                int codPersona = await _context.adusuario.Where(i => i.login == usuario).Select(i => i.persona).FirstOrDefaultAsync();
+                var res = await _context.vevendedor.Where(i => i.comisionista == true && i.codpersona == codPersona).Select(i => new { i.codigo }).FirstOrDefaultAsync();
+                if (res != null)
+                {
+                    return res.codigo;
+                }
+                return 0;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+            
+        }
 
 
         public string Getad_conexion_vpnFromDatabase(string contrasena_sql, string servidor_sql, string usuario_sql, string bd_sql)

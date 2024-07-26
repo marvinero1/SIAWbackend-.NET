@@ -30,6 +30,7 @@ namespace siaw_funciones
         private Items items = new Items();
         private Saldos saldos = new Saldos();
         private Ventas ventas = new Ventas();
+        private Inventario inventario = new Inventario();
         public async Task<double> empaqueminimo(DBContext _context, string codigo, int codtarifa, int coddescuento)
         {
             // sacar el empaque de tarifa
@@ -477,6 +478,21 @@ namespace siaw_funciones
             return resultado;
         }
 
+        public async Task<bool> ValidarModifDocAntesInventario(DBContext _context, int codalmacen, DateTime fecha)
+        {
+            bool resultado = true;
+            DateTime ultimo_inventario = new DateTime();
+            ultimo_inventario = await inventario.FechaUltimoInventarioFisico(_context, codalmacen);
+            if (fecha <= ultimo_inventario)
+            {
+                resultado = false;
+            }
+            else
+            {
+                resultado = true;
+            }
+            return resultado;
+        }
 
     }
 }

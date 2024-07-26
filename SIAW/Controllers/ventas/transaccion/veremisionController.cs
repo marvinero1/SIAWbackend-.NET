@@ -9,6 +9,7 @@ using siaw_DBContext.Models_Extra;
 using siaw_funciones;
 using System.Data;
 using System.Web.Http.Results;
+using static siaw_funciones.Validar_Vta;
 using static System.Net.Mime.MediaTypeNames;
 
 namespace SIAW.Controllers.ventas.transaccion
@@ -31,8 +32,16 @@ namespace SIAW.Controllers.ventas.transaccion
         private readonly siaw_funciones.Funciones funciones = new Funciones();
         private readonly siaw_funciones.Cobranzas cobranzas = new siaw_funciones.Cobranzas();
         private readonly siaw_funciones.datosProforma datos_proforma = new siaw_funciones.datosProforma();
+        private readonly siaw_funciones.Items items = new siaw_funciones.Items();
+        private readonly siaw_funciones.Validar_Vta validar_Vta = new siaw_funciones.Validar_Vta();
+        private readonly siaw_funciones.Seguridad seguridad = new siaw_funciones.Seguridad();
 
         private readonly Documento documento = new Documento();
+        private readonly Depositos_Cliente depositos_Cliente = new Depositos_Cliente();
+        private readonly Inventario inventario = new Inventario();
+        private readonly Restricciones restricciones = new Restricciones();
+        private readonly HardCoded hardCoded = new HardCoded();
+
         private readonly Log log = new Log();
 
         public veremisionController(UserConnectionManager userConnectionManager)
@@ -336,8 +345,8 @@ namespace SIAW.Controllers.ventas.transaccion
         //[Authorize]
         [HttpPost]
         [QueueFilter(1)] // Limitar a 1 solicitud concurrente
-        [Route("grabarNotaRemision/{userConn}/{id}/{usuario}/{desclinea_segun_solicitud}/{codProforma}/{codempresa}/{id_solurg}/{nroid_solurg}")]
-        public async Task<object> grabarNotaRemision(string userConn, string id, string usuario, bool desclinea_segun_solicitud, int codProforma, string codempresa, string id_solurg, int nroid_solurg, SaveNRemisionCompleta datosRemision)
+        [Route("grabarNotaRemision/{userConn}/{id}/{usuario}/{desclinea_segun_solicitud}/{codProforma}/{id_pf}/{nroid_pf}/{codempresa}/{id_solurg}/{nroid_solurg}/{sin_validar}/{sin_validar_empaques}/{sin_validar_negativos}/{sin_validar_monto_min_desc}/{sin_validar_monto_total}/{sin_validar_doc_ant_inv}")]
+        public async Task<object> grabarNotaRemision(string userConn, string id, string usuario, bool desclinea_segun_solicitud, int codProforma, string id_pf, int nroid_pf, string codempresa, string id_solurg, int nroid_solurg, bool sin_validar, bool sin_validar_empaques, bool sin_validar_negativos, bool sin_validar_monto_min_desc, bool sin_validar_monto_total, bool sin_validar_doc_ant_inv, SaveNRemisionCompleta datosRemision)
         {
             // borrar los items con cantidad cero
             datosRemision.veremision1.RemoveAll(i => i.cantidad <= 0);
@@ -359,12 +368,23 @@ namespace SIAW.Controllers.ventas.transaccion
                         Me.verrecargos()
                         Me.vertotal()
                         */
+                        /////**************************VALIDAR DATOS PARA GRABAR UNA NOTA DE REMISION
+                        var validacion = await Validar_Grabar_Nota_Remision(_context, sin_validar, sin_validar_empaques, sin_validar_negativos, sin_validar_monto_min_desc, sin_validar_monto_total, sin_validar_doc_ant_inv, id_pf, nroid_pf, codProforma, codempresa, usuario, datosRemision);
+                        if (validacion.resp == false)
+                        {
+                            //return BadRequest(new { resp = validacion.resp, validacion.msgAlert, validacion.dtnegativos_result, validacion.codigo_control });
+                            return BadRequest(new { resp = validacion.resp, validacion.msgsAlert, validacion.dtnegativos_result, validacion.codigo_control });
+                        }
+                        /////**************************
+
+
+
                         // El front debe llamar a las funciones de totalizar antes de mandar a grabar
                         var doc_grabado = await Grabar_Documento(_context, id, usuario, desclinea_segun_solicitud, codProforma, codempresa, datosRemision);
                         // si doc_grabado.mostrarModificarPlanCuotas  == true    Marvin debe desplegar ventana para modificar plan de cuotas, es ventana nueva aparte
                         if (doc_grabado.resp != "ok")
                         {
-                            return BadRequest(new {resp = doc_grabado.resp, msgAlert = "No se pudo Grabar la Nota de Remision con Exito." });
+                            return BadRequest(new { resp = doc_grabado.resp, msgAlert = "No se pudo Grabar la Nota de Remision con Exito." });
                         }
                         await log.RegistrarEvento(_context, usuario, Log.Entidades.Nota_Remision, doc_grabado.codNRemision.ToString(), datosRemision.veremision.id, doc_grabado.numeroId.ToString(), "veremisionController", "Grabar", Log.TipoLog.Creacion);
                         // devolver
@@ -393,7 +413,7 @@ namespace SIAW.Controllers.ventas.transaccion
                                 msgSolUrg = "La nota de remision no pudo ser enlazada a la solicitud Urgente, contacte con el administrador de sistemas.";
                                 //throw;
                             }
-                            
+
                         }
 
                         /*
@@ -431,13 +451,12 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
                         dbContexTransaction.Commit();
-                        return Ok(new 
-                        { 
-                            resp = msgAlertGrabado, 
-                            codNotRemision = doc_grabado.codNRemision, 
+                        return Ok(new
+                        {
+                            resp = msgAlertGrabado,
+                            codNotRemision = doc_grabado.codNRemision,
                             nroIdRemision = doc_grabado.numeroId,
                             mostrarVentanaModifPlanCuotas = doc_grabado.mostrarModificarPlanCuotas,
-                            planCuotas = doc_grabado.plandeCuotas,
                             msgSolUrg = msgSolUrg
                         });
                     }
@@ -450,6 +469,2502 @@ namespace SIAW.Controllers.ventas.transaccion
                 }
             }
         }
+
+
+
+        private async Task<(bool resp, List<string> msgsAlert, List<Dtnegativos> dtnegativos_result, int codigo_control)> Validar_Grabar_Nota_Remision(DBContext _context, bool sin_validar, bool sin_validar_empaques, bool sin_validar_negativos, bool sin_validar_monto_min_desc, bool sin_validar_monto_total, bool sin_validar_doc_ant_inv, string id_pf, int nroid_pf, int cod_proforma, string codempresa, string usuario, SaveNRemisionCompleta datosRemision)
+        {
+            bool resultado = true;
+            List<string> msgsAlert = new List<string>();
+            //var dt_pf = await _context.veproforma.Where(i => i.codigo == cod_proforma).FirstOrDefaultAsync();
+            string codcliente_real = "";
+            string codmoneda_pf = "";
+            //
+            veremision veremision = datosRemision.veremision;
+            List<veremision1> veremision1 = datosRemision.veremision1;
+            var vedesextraremi = datosRemision.vedesextraremi;
+            var verecargoremi = datosRemision.verecargoremi;
+            var veremision_iva = datosRemision.veremision_iva;
+            var veremision_chequerechazado = datosRemision.veremision_chequerechazado;
+            //CONVERTIR
+            //aqui convertir veremision a DatosDocVta
+            DatosDocVta DVTA = await ConvertirVeremisionADatosDocVta(veremision);
+            //aqui convertir List<vedesextraremi> a List<vedesextraDatos>
+            List<vedesextraDatos> tabladescuentos = await ConvertirVedesextraRemiADatos(vedesextraremi);
+            //aqui convertir List<verecargoremi> a List<verecargosDatos>
+            List<verecargosDatos> tablarecargos = await ConvertirListaVerecargoremiAListaVerecargosDatos(verecargoremi);
+            //aqui convertir List<veremision1> a List<itemDataMatriz>
+            List<itemDataMatriz> tabladetalle = await ConvertirListaVeremision1AListaItemDataMatriz(veremision1);
+
+            codcliente_real = await ventas.Cliente_Referencia_Proforma_Etiqueta(_context, id_pf, nroid_pf);
+            if (codcliente_real == "")
+            {
+                codcliente_real = DVTA.codcliente;
+            }
+            codmoneda_pf = await ventas.MonedaPF(_context, cod_proforma);
+
+            if (id_pf != null && nroid_pf != 0)
+            {
+                //valida los descuentos por depositos de credito
+                var respdepCoCred = await depositos_Cliente.Validar_Desctos_x_Deposito_Otorgados_De_Cobranzas_Credito(_context, id_pf, nroid_pf, codempresa);
+                if (!respdepCoCred.result)
+                {
+                    resultado = false;
+                    msgsAlert.Add("No se puede emitir la nota de remision de esta proforma, debido a que tiene descuentos por depositos de cobranzas credito en montos no validos!!!");
+                    //if (respdepCoCred.msgAlert != "")
+                    //{
+                    //    msgsAlert.Add(respdepCoCred.msgAlert);
+                    //}
+                }
+                //valida los descuentos por depositos de contado
+                var respdepCoCont = await depositos_Cliente.Validar_Desctos_x_Deposito_Otorgados_De_Cbzas_Contado_CE(_context, id_pf, nroid_pf, codempresa);
+                if (!respdepCoCont.result)
+                {
+                    resultado = false;
+                    msgsAlert.Add("No se puede emitir la nota de remision de esta proforma, debido a que tiene descuentos por deposito de cobranzas contado en montos no validos!!!");
+                    //if (respdepCoCont.msgAlert != "")
+                    //{
+                    //    msgsAlert.Add(respdepCoCont.msgAlert);
+                    //}
+                }
+                //valida los descuentos por depositos de contado
+                var respdepAntProfCont = await depositos_Cliente.Validar_Desctos_x_Deposito_Otorgados_De_Anticipos_Que_Pagaron_Proformas_Contado(_context, id_pf, nroid_pf, codempresa);
+                if (!respdepAntProfCont.result)
+                {
+                    resultado = false;
+                    msgsAlert.Add("No se puede emitir la nota de remision de esta proforma, debido a que tiene descuentos por deposito de anticipo contado en montos no validos!!!");
+                    //if (respdepAntProfCont.msgAlert != "")
+                    //{
+                    //    msgsAlert.Add(respdepAntProfCont.msgAlert);
+                    //}
+                }
+
+                if (resultado == false)
+                {
+                    msgsAlert.Add("No se puede Grabar la Nota de Remision, porque tiene descuentos por deposito en montos no validos!!!");
+                    return (false, msgsAlert, dtnegativos, 0);
+                }
+                //======================================================================================
+                /////////////////VALIDAR DESCTOS POR DEPOSITO APLICADOS
+                //======================================================================================
+
+                var validDescDepApli = await Validar_Descuentos_Por_Deposito_Excedente(_context, codempresa, tabladescuentos, DVTA);
+                if (!validDescDepApli.result)
+                {
+                    resultado = false;
+                    msgsAlert.Add(validDescDepApli.msgAlert);
+                    msgsAlert.Add("No se puede emitir la nota de remision de la proforma: " + id_pf + "-" + nroid_pf + " debido a que tiene descuentos por deposito en montos no validos!!!");
+                    return (false, msgsAlert, dtnegativos, 0);
+                }
+                //======================================================================================
+                ///////////////VALIDAR RECARGOS POR DEPOSITO APLICADOS
+                //======================================================================================
+                var validRecargoDepExcedente = await Validar_Recargos_Por_Deposito_Excedente(_context, codempresa, tablarecargos, DVTA);
+                if (!validRecargoDepExcedente.result)
+                {
+                    resultado = false;
+                    msgsAlert.Add(validDescDepApli.msgAlert);
+                    msgsAlert.Add("No se puede emitir la nota de remision de la proforma: " + id_pf + "-" + nroid_pf + " debido a que tiene recargos por descuentos por deposito excedentes en montos no validos!!!");
+                    return (false, msgsAlert, dtnegativos, 0);
+                }
+            }
+            ////////////////////////////////////////////////////////////////////////////////
+            /////VALIDAR DETALLE DE ITEMS
+            ///////////////////////////////////////////////////////////////////////////////////
+            var validacion_detalle = await Validar_Detalle(_context, sin_validar, sin_validar_empaques, sin_validar_negativos, codempresa, usuario, codcliente_real, DVTA, tabladetalle, tabladescuentos);
+            if (!validacion_detalle.bandera)
+            {
+                resultado = false;
+                msgsAlert.Add("No se puede emitir la nota de remision de la proforma: " + id_pf + "-" + nroid_pf + " debido a que no cumple con los datos del detalle!!!");
+                msgsAlert.Add(validacion_detalle.msg);
+                return (false, msgsAlert, dtnegativos, validacion_detalle.codigo_control);
+            }
+
+            ////////////////////////////////////////////////////////////////////////////////
+            /////VALIDAR CABECERA
+            ///////////////////////////////////////////////////////////////////////////////////
+            var validacion_cabecera = await Validar_Datos_Cabecera_Remision(_context, sin_validar, sin_validar_monto_min_desc, sin_validar_monto_total, sin_validar_doc_ant_inv, codempresa, usuario, cod_proforma, id_pf, nroid_pf, codmoneda_pf, DVTA.codcliente_real, DVTA, tabladetalle, tabladescuentos);
+            if (!validacion_cabecera.bandera)
+            {
+                resultado = false;
+                msgsAlert.Add("No se puede emitir la nota de remision de la proforma: " + id_pf + "-" + nroid_pf + " debido a que no cumple con los datos de la cabecera!!!");
+                msgsAlert.Add(validacion_cabecera.msg);
+                return (false, msgsAlert, dtnegativos, validacion_cabecera.codigo_control);
+            }
+        //////////////////////////////////////////////
+
+        // mostrar mensaje de credito disponible
+        /*
+
+        If IsDBNull(reg("contra_entrega")) Then
+            qry = "update veproforma set contra_entrega=0 where id='" & id_pf & "' and numeroid='" & nroid_pf & "'"
+            sia_DAL.Datos.Instancia.EjecutarComando(qry)
+        End If
+
+         */
+
+        // tipo pago CONTADO
+        //if (DVTA.tipo_vta == "CONTADO")
+        //{
+        //    ////////////////////////////////////////////////////////////////////////////////////////////
+        //    // se añadio en fecha 15-3-2016
+        //    // es venta al contado y no necesita validar el credito
+        //    // TODA VENTA AL CONTADO DEBE TENER ASIGNADO ID-NROID DE ANTICIPO SI ES PAGO ANTICIPADO
+        //    // SI SE HABILITO LA OPCION DE PAGO ANTICIPADO
+        //    ////////////////////////////////////////////////////////////////////////////////////////////
+        //    var dt_anticipos = await anticipos_Vta_Contado.Anticipos_Aplicados_a_Proforma(_context, id_pf, nroid_pf);
+        //    if (dt_anticipos.Count > 0)
+        //    {
+        //        ResultadoValidacion objres = new ResultadoValidacion();
+        //        objres = await anticipos_Vta_Contado.Validar_Anticipo_Asignado_2(_context, true, DVTA, dt_anticipos, codempresa);
+        //        if (objres.resultado)
+        //        {
+        //            // Desde 15/01/2024 se cambio esta funcion porque no estaba validando correctamente la transformacion de moneda de los anticipos a aplicarse ya se en $us o BS
+        //            // If sia_funciones.Anticipos_Vta_Contado.Instancia.Validar_Anticipo_Asignado(True, dt_anticipos, reg("codcliente"), reg("nomcliente"), reg("total")) = True Then
+        //            goto finalizar_ok;
+        //        }
+        //        else
+        //        {
+        //            if (dt_anticipos != null)
+        //            {
+        //                return (false, msgsAlert, dtnegativos, 0);
+        //            }
+        //        }
+        //    }
+        //    goto finalizar_ok;
+
+        //}
+
+        finalizar_ok:
+            return (true, msgsAlert, dtnegativos, 0);
+
+        }
+
+
+        public List<Dtnegativos> dtnegativos = new List<Dtnegativos>();
+        private async Task<(bool bandera, string msg, int codigo_control, List<Dtnegativos> dtnegativos_result)> Validar_Detalle(DBContext _context, bool sin_validar, bool sin_validar_empaques, bool sin_validar_negativos, string codempresa, string usuario, string codcliente_real, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos)
+        {
+            bool resultado = true;
+            int i = 0;
+            ResultadoValidacion objres = new ResultadoValidacion();
+
+            foreach (var row in tabladetalle)
+            {
+
+                if (Convert.IsDBNull(row.coddescuento))
+                {
+                    row.coddescuento = 0;
+                }
+                if (string.IsNullOrEmpty(Convert.ToString(row.coddescuento)))
+                {
+                    row.coddescuento = 0;
+                }
+                if (Convert.IsDBNull(row.coditem))
+                {
+                    resultado = false;
+                    return (false, "No eligio El Item en la Linea " + (i + 1) + " .", 0, dtnegativos);
+                }
+                else if (Convert.ToString(row.coditem).Length < 1)
+                {
+                    resultado = false;
+                    return (false, "No eligio El Item en la Linea " + (i + 1) + " .", 0, dtnegativos);
+                }
+                else if (!await items.itemventa_context(_context, Convert.ToString(row.coditem)))
+                {
+                    resultado = false;
+                    return (false, "El Item en la Linea " + (i + 1) + " " + Convert.ToString(row.coditem) + " No esta a la venta.", 0, dtnegativos);
+                }
+                else if (Convert.IsDBNull(row.udm))
+                {
+                    resultado = false;
+                    return (false, "No puso la Unidad de Medida en la Linea " + (i + 1) + " " + Convert.ToString(row.coditem) + " .", 0, dtnegativos);
+                }
+                else if (Convert.ToString(row.udm).Length < 1)
+                {
+                    resultado = false;
+                    return (false, "No puso la Unidad de Medida en la Linea " + (i + 1) + " " + Convert.ToString(row.coditem) + ".", 0, dtnegativos);
+                }
+                else if (Convert.IsDBNull(row.cantidad))
+                {
+                    resultado = false;
+                    return (false, "No puso la cantidad en la Linea " + (i + 1) + " " + Convert.ToString(row.coditem) + " .", 0, dtnegativos);
+                }
+                else if (Convert.ToString(row.cantidad).Length < 1)
+                {
+                    resultado = false;
+                    return (false, "No puso la cantidad en la Linea " + (i + 1) + " " + Convert.ToString(row.coditem) + " .", 0, dtnegativos);
+                }
+                else if (Convert.ToDouble(row.cantidad) < 0)
+                {
+                    resultado = false;
+                    return (false, "No puso la cantidad en la Linea " + (i + 1) + " " + Convert.ToString(row.coditem) + " .", 0, dtnegativos);
+                }
+                else if (Convert.IsDBNull(row.preciolista))
+                {
+                    resultado = false;
+                    return (false, "No puso la Precio en la Linea " + (i + 1) + " Item : " + Convert.ToString(row.coditem) + " .", 0, dtnegativos);
+                }
+                else if (Convert.ToString(row.preciolista).Length < 1)
+                {
+                    resultado = false;
+                    return (false, "No puso la Precio en la Linea " + (i + 1) + " Item : " + Convert.ToString(row.coditem) + " .", 0, dtnegativos);
+                }
+                else if (Convert.ToDouble(row.preciolista) <= 0)
+                {
+                    resultado = false;
+                    return (false, "No puso la Precio en la Linea " + (i + 1) + " Item : " + Convert.ToString(row.coditem) + " .", 0, dtnegativos);
+                }
+                else if (!await ventas.ValidarTarifa(_context, codcliente_real, Convert.ToString(row.coditem), Convert.ToInt32(row.codtarifa)))
+                {
+                    resultado = false;
+                    return (false, "El Item en la Linea " + (i + 1) + " no se puede vender a ese precio para este cliente.", 0, dtnegativos);
+                }
+                else if (!await ventas.ValidarTarifa_Descuento(_context, row.coddescuento, Convert.ToInt32(row.codtarifa)))
+                {
+                    resultado = false;
+                    return (false, "En la Linea " + (i + 1) + " no se puede vender a ese tipo de precio con ese descuento especial.", 0, dtnegativos);
+                }
+                i = i + 1;
+            }
+
+            await Llenar_Datos_Del_Documento(_context, codempresa, DVTA, tabladetalle);
+
+            // ###verificar que la unidad de medida sea entero o decimal
+            if (resultado)
+            {
+                foreach (var row in tabladetalle)
+                {
+                    if (await ventas.UnidadSoloEnteros(_context, Convert.ToString(row.udm)))
+                    {
+                        // verificar que la cantidad sea entero
+                        if (Convert.ToDouble(row.cantidad) != Math.Floor(Convert.ToDouble(row.cantidad)))
+                        {
+                            resultado = false;
+                            return (false, "La cantidad en la Linea " + (i + 1) + " " + Convert.ToString(row.coditem) + " no puede tener decimales .", 0, dtnegativos);
+                        }
+                    }
+                }
+            }
+            if (!sin_validar)
+            {
+                if (!sin_validar_empaques)
+                {
+                    if (resultado)
+                    {
+                        if (await cliente.Controla_empaque_cerrado(_context, codcliente_real))
+                        {
+                            // Validar empaques Cerrados
+                            foreach (var row in tabladetalle)
+                            {
+                                if (await ventas.Tarifa_EmpaqueCerrado(_context, Convert.ToInt32(row.codtarifa)))
+                                {
+                                    if (!await ventas.CumpleEmpaqueCerrado(_context, Convert.ToString(row.coditem), Convert.ToInt32(row.codtarifa), Convert.ToInt32(row.coddescuento), Convert.ToDecimal(row.cantidad), DVTA.codcliente))
+                                    {
+                                        resultado = false;
+                                        return (false, "El item " + Convert.ToString(row.coditem) + " no cumple con empaques cerrados.", 25, dtnegativos);
+                                    }
+                                }
+                            }
+                            //if (!resultado)
+                            //{
+                            //    // Permiso especial pedir contrasenia
+                            //    var control = new sia_compartidos.prgcontrasena("25", id.Text + "-" + numeroid.Text + " " + codcliente.Text + "-" + nomcliente.Text, id.Text, numeroid.Text);
+                            //    control.ShowDialog();
+                            //    if (control.control == "si")
+                            //    {
+                            //        // pedir la razon
+                            //        var prgpedirnumero = new sia_compartidos.prgpedircadena(100);
+                            //        prgpedirnumero.ShowDialog();
+                            //        if (prgpedirnumero.eligio)
+                            //        {
+                            //            sia_funciones.Seguridad.Instancia.grabar_log_permisos("VENTA SIN EMPAQUES CERRADOS", prgpedirnumero.valor_str, id.Text + "-" + numeroid.Text + ": " + codcliente.Text + "-" + nomcliente.Text + " Total:" + subtotal.Text, sia_compartidos.temporales.Instancia.usuario);
+                            //            resultado = true;
+                            //        }
+                            //        prgpedirnumero.Dispose();
+                            //    }
+                            //    control.Dispose();
+                            //}
+                        }
+                    }
+                }
+            }
+
+
+            // SOLO VALIDAR NEGATIVOS
+            // if (!sin_validar)
+            if (!sin_validar_negativos)
+            {
+                if (resultado)
+                {
+                    if (!await inventario.PermitirNegativos(_context, codempresa))
+                    {
+                        var msgs = new List<string>();
+                        var negs = new List<string>();
+
+                        var validar_negativos = await Validar_Saldos_Negativos_Doc(_context, codempresa, usuario, codcliente_real, DVTA, tabladetalle);
+
+                        if (!validar_negativos.bandera)
+                        {
+                            resultado = false;
+                            return (false, "Este documento generara saldos negativos!!!", 3, dtnegativos);
+
+                            //var control = new sia_compartidos.prgcontrasena("3", id.Text + "-" + numeroid.Text + " NEGATIVOS " + codcliente.Text + "-" + nomcliente.Text, id.Text, numeroid.Text);
+                            //control.ShowDialog();
+                            //if (control.control == "si")
+                            //{
+                            //    sia_funciones.Restricciones.Instancia.GrabarNegativos("NR", id.Text, numeroid.Text, fecha.Value.Date, codcliente.Text, codalmacen.Text, ListaNegativos);
+                            //    resultado = true;
+                            //}
+                            //control.Dispose();
+                        }
+                    }
+                    // ///preguntar por contraseña de autorizacion
+                    //if (!resultado)
+                    //{
+                    //    var control = new sia_compartidos.prgcontrasena("3", id.Text + "-" + numeroid.Text + "  NEGATIVOS " + codcliente.Text + "-" + nomcliente.Text, id.Text, numeroid.Text);
+                    //    control.ShowDialog();
+                    //    if (control.control == "si")
+                    //    {
+                    //        sia_funciones.Restricciones.Instancia.GrabarNegativos("NR", id.Text, numeroid.Text, fecha.Value.Date, codcliente.Text, codalmacen.Text, ListaNegativos);
+                    //        resultado = true;
+                    //    }
+                    //    control.Dispose();
+                    //}
+                }
+            }
+
+
+            // //validar no mezclar desctos especiales
+            //sia_funciones.Validar_Vta.ResultadoValidacion objres;
+            //if (resultado)
+            //{
+            //    validar_Vta.InicializarResultado(objres);
+            //    objres = await validar_Vta.Validar_No_Mezclar_Descuentos_Especiales(_context, tabladetalle, codempresa);
+
+            //    if (!objres.resultado)
+            //    {
+            //        if (objres.accion == Validar_Vta.Acciones_Validar.Confirmar_SiNo)
+            //        {
+            //            if (MessageBox.Show(objres.observacion + "\n" + objres.obsdetalle + "¿Desea Continuar?", "Validar", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1) == DialogResult.No)
+            //            {
+            //                resultado = false;
+            //            }
+            //            else
+            //            {
+            //                resultado = true;
+            //            }
+            //        }
+            //        else
+            //        {
+            //            resultado = false;
+            //        }
+            //    }
+            //}
+
+            // //validar nro minimo de venta de items G2 pag-41
+            if (resultado)
+            {
+                validar_Vta.InicializarResultado(objres);
+                objres = await validar_Vta.Validar_Venta_Minima_Nro_Items_Grado2_KG(_context, tabladetalle, codempresa);
+                if (!objres.resultado)
+                {
+                    resultado = false;
+                    return (false, objres.observacion + Environment.NewLine + objres.obsdetalle, 0, dtnegativos);
+                }
+            }
+
+            // //validar descto PP venta de items G2 pag-41
+            if (resultado)
+            {
+                validar_Vta.InicializarResultado(objres);
+                objres = await validar_Vta.Validar_Descto_PP_Items_Grado2_KG(_context, tabladetalle, tabladescuentos, codempresa);
+                if (!objres.resultado)
+                {
+                    resultado = false;
+                    return (false, objres.observacion + Environment.NewLine + objres.obsdetalle, 0, dtnegativos);
+                }
+            }
+
+            // VALIDACION TARIFAS PERMITIDAS POR USUARIO
+            if (resultado)
+            {
+                foreach (var row in tabladetalle)
+                {
+                    if (!await ventas.UsuarioTarifa_Permitido(_context, usuario, Convert.ToInt32(row.codtarifa)))
+                    {
+                        resultado = false;
+                        return (false, "Este usuario no esta habilitado para ver ese tipo de Precio", 0, dtnegativos);
+                    }
+                }
+            }
+
+            return (true, "OK", 0, dtnegativos);
+        }
+
+        private async Task<(bool result, string msgAlert)> Validar_Descuentos_Por_Deposito_Excedente(DBContext _context, string codempresa, List<vedesextraDatos> tabladescuentos, DatosDocVta DVTA)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            bool resultado = true;
+            string msgAlert = "";
+
+            objres = await validar_Vta.Validar_Descuento_Por_Deposito(_context, DVTA, tabladescuentos, codempresa);
+
+            if (objres.resultado == false)
+            {
+                msgAlert = objres.observacion + " " + objres.obsdetalle + "Alerta Descuentos Por Deposito!!!";
+                resultado = false;
+            }
+            return (resultado, msgAlert);
+        }
+        private async Task<(bool bandera, string msg, int codigo_control)> Validar_Datos_Cabecera_Remision(DBContext _context, bool sin_validar, bool sin_validar_MontoMin_desc, bool sin_validar_monto_total, bool sin_validar_doc_ant_inv, string codempresa, string usuario, int cod_proforma, string id_proforma, int nroid_proforma, string codmoneda_pf, string codcliente_real, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos)
+        {
+            bool resultado = true;
+            DataTable lista_complementaria = new DataTable();
+
+            if (cod_proforma == 0)
+            {
+                resultado = false;
+                return (false, "Toda Nota de Remision debe ser transferida desde una Proforma.", 0);
+            }
+            if (DVTA.codcliente_real.Length == 0)
+            {
+                resultado = false;
+                return (false, "El codigo de cliente real esta vacio, consulte con el administrador de sistemas.", 0);
+            }
+
+            if (!sin_validar)
+            {
+                if (DVTA.tipo_vta == "1")
+                {
+                    if (await cliente.EsContraEntrega(_context, DVTA.codcliente))
+                    {
+                        //como es contraentrega no controla limite de credito
+                    }
+                    else
+                    {
+                        if (DVTA.contra_entrega == "NO")
+                        {
+                            decimal cd = 0;
+                            string moneda_credito = "";
+                            moneda_credito = await creditos.Credito_Fijo_Asignado_Vigente_Moneda(_context, codcliente_real);
+                            cd = await creditos.CreditoDisponibleParaVentaNuevaRemision(_context, DVTA.codcliente, DVTA.codmoneda, cod_proforma, usuario, codempresa, moneda_credito);
+                            if (Convert.ToDecimal(DVTA.totaldoc) > cd)
+                            {
+                                resultado = false;
+                                return (false, "Este Documento sobrepasa el credito disponible del cliente: " + DVTA.codcliente + " el credito disponible es de: " + Math.Round(cd, 2).ToString() + moneda_credito + ". ", 0);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (resultado == true)
+            {
+                if (DVTA.id == "")
+                {
+                    resultado = false;
+                    return (false, "No puede dejar la casilla de Id de la Nota de Remision en blanco.", 0);
+                }
+                else if (DVTA.codalmacen == "")
+                {
+                    resultado = false;
+                    return (false, "No puede dejar la casilla de Almacen en blanco.", 0);
+                }
+                else if (DVTA.codvendedor == "")
+                {
+                    resultado = false;
+                    return (false, "No puede dejar la casilla de Vendedor en blanco.", 0);
+                }
+                else if (DVTA.codcliente == "")
+                {
+                    resultado = false;
+                    return (false, "No puede dejar la casilla del Codigo de Cliente en blanco.", 0);
+                }
+                else if (DVTA.codcliente_real == "")
+                {
+                    resultado = false;
+                    return (false, "No puede dejar la casilla del Codigo de Cliente Real en blanco.", 0);
+                }
+                else if (!await cliente.clientehabilitado(_context, DVTA.codcliente))
+                {
+                    resultado = false;
+                    return (false, "Ese Cliente no esta habilitado.", 0);
+                }
+                else if (DVTA.nombcliente == "")
+                {
+                    resultado = false;
+                    return (false, "No puede dejar la casilla de Nombre del Cliente en blanco.", 0);
+                }
+                else if (DVTA.nitfactura == "")
+                {
+                    resultado = false;
+                    return (false, "No puede dejar la casilla de N.I.T. del cliente en blanco.", 0);
+                }
+                else if (DVTA.direccion == "")
+                {
+                    DVTA.direccion = "---";
+                }
+
+                if (resultado)
+                {
+                    var (EsValido, Mensaje) = await ventas.Validar_NIT_Correcto(_context, DVTA.nitfactura, DVTA.tipo_doc_id + 1);
+                    if (!EsValido)
+                    {
+                        resultado = false;
+                        return (false, "Verifique que el NIT tenga el formato correcto!!! " + Mensaje, 0);
+                    }
+                }
+            }
+
+            //verificar que haya elegido el tipo de doc de identidad
+            if (resultado)
+            {
+                if (Convert.ToInt32(DVTA.tipo_doc_id) < 0)
+                {
+                    resultado = false;
+                    return (false, "Debe identificar el tipo de documento de identificación del cliente.", 0);
+                }
+            }
+            if (!sin_validar)
+            {
+                if (DVTA.tipo_vta == "0")
+                {
+                    if (!await ventas.cliente_ventacontado(_context, DVTA.codcliente))
+                    {
+                        resultado = false;
+                        return (false, "No se le puede vender al contado al Cliente: " + DVTA.codcliente, 0);
+                    }
+                }
+                else
+                {
+                    if (!await ventas.cliente_ventacredito(_context, DVTA.codcliente))
+                    {
+                        resultado = false;
+                        return (false, "No se le puede vender al credito al Cliente: " + DVTA.codcliente, 0);
+                    }
+                }
+            }
+            if (DVTA.tipo_vta == "0")
+            {
+                if (await seguridad.periodo_fechaabierta_context(_context, DVTA.fechadoc, 3))
+                { }
+                else
+                {
+                    resultado = false;
+                    return (false, "No puede crear documentos para ese periodo de fechas.", 0);
+                }
+            }
+            //restringir venta CREDITO - CONTRA ENTREGA 
+            //DESDE el 23-10-2049 y desde que se habilitan ventas CONTADO a clientes con codigo y tamb sin nombre que ya se podia desde mas antes
+            if (resultado)
+            {
+                if (DVTA.tipo_vta == "1" && DVTA.contra_entrega == "SI")
+                {
+                    resultado = false;
+                    return (false, "No esta permitido realizar ventas CREDITO - CONTRA ENTREGA, en cambio VENTAS CONTADO si son permitidas.", 0);
+                }
+            }
+            //ninguna venta al credito con NIT CERO
+            //segun instruccion JRA 23-07-2015
+            if (resultado)
+            {
+                if (DVTA.tipo_vta == "1")
+                {
+                    //VENTA CREDITO
+                    var (EsValido, Mensaje) = await ventas.Validar_NIT_Correcto(_context, DVTA.nitfactura, DVTA.tipo_doc_id + 1);
+                    if (EsValido)
+                    {
+                        if (Convert.ToDouble(DVTA.nitfactura) == 0)
+                        {
+                            resultado = false;
+                            return (false, "No se puede realizar una venta al credito con N.I.T. o Nro de C.I. igual a cero." + Mensaje, 0);
+                        }
+                    }
+                    else
+                    {
+                        resultado = false;
+                        return (false, "Para realizar una venta al credito, debe indicar un N.I.T. o Nro de C.I. Valido. " + Mensaje, 0);
+                    }
+                }
+            }
+            if (resultado)
+            {
+                if (await ventas.yahayproforma(_context, cod_proforma))
+                {
+                    resultado = false;
+                    return (false, "La proforma ya fue transferida a otro documento mientras usted realizaba este documento.", 0);
+                }
+            }
+
+            if (!sin_validar)
+            {
+                if (resultado)
+                {
+                    if (await ventas.proforma_es_complementaria(_context, cod_proforma))
+                    {
+                        //sacar precios de complementarias
+                        lista_complementaria = await ventas.lista_PFNR_complementarias_Table(_context, cod_proforma);
+                        var (EsValidoPrecio, mensaje) = await preciosvalidos(_context, "0", DVTA.codcliente, tabladetalle);
+                        if (EsValidoPrecio == false)
+                        //if (await preciosvalidos(_context, "0", DVTA.codcliente, tabladetalle) == false)
+                        {
+                            resultado = false;
+                            //return (false, "El documento contiene Items a precios no permitidos para este cliente.");
+                            return (false, mensaje, 0);
+                        }
+
+                        if (resultado)
+                        {
+                            if (await cliente.Controla_Monto_Minimo(_context, codcliente_real))
+                            {
+                                if (await montosminimosvalidoscomp(_context, await cliente.EsClienteNuevo(_context, codcliente_real), DVTA.tipo_vta, DVTA.contra_entrega, DVTA.codmoneda, DVTA.fechadoc, tabladetalle, lista_complementaria) == false)
+                                {
+                                    resultado = false;
+                                    return (false, "El Documento no cumple los montos minimos de las listas de precios elegidas.", 0);
+                                }
+                            }
+                        }
+                        if (resultado)
+                        {
+                            if (await cliente.Controla_Monto_Minimo(_context, codcliente_real))
+                            {
+                                if (await Validar_Monto_Minimo_Para_Aplicar_Descuentos_Especiales_Complementarios(_context, DVTA.codmoneda, DVTA.fechadoc, tabladetalle, lista_complementaria) == false)
+                                {
+                                    resultado = false;
+                                    return (false, "El Documento no cumple los montos minimos de los descuentos elegidos.", 0);
+                                }
+                            }
+                        }
+                        if (resultado)
+                        {
+                            if (await cliente.Controla_empaque_minimo(_context, codcliente_real))
+                            {
+                                if (await empaquesdoc(_context, Convert.ToInt32(DVTA.codalmacen), codcliente_real, tabladetalle) == false)
+                                {
+                                    resultado = false;
+                                    return (false, "El Documento no cumple los empaques minimos de algunos items.", 0);
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        var (EsValidoPrecio, mensaje) = await preciosvalidos(_context, "0", DVTA.codcliente, tabladetalle);
+                        if (EsValidoPrecio == false)
+                        //if (await preciosvalidos(_context, "0", DVTA.codcliente, tabladetalle) == false)
+                        {
+                            resultado = false;
+                            //return (false, "El documento contiene Items a precios no permitidos para este cliente.");
+                            return (false, mensaje, 0);
+                        }
+
+                        if (resultado)
+                        {
+                            if (await cliente.Controla_Monto_Minimo(_context, codcliente_real))
+                            {
+                                if (await Validar_Monto_Minimos_Segun_Lista_Precio(_context, await cliente.EsClienteNuevo(_context, codcliente_real), DVTA.tipo_vta, DVTA.contra_entrega, DVTA.codmoneda, DVTA.fechadoc, tabladetalle, lista_complementaria) == false)
+                                {
+                                    resultado = false;
+                                    return (false, "El Documento no cumple los montos minimos de las listas de precios elegidas.", 0);
+                                }
+                            }
+                        }
+                        if (resultado)
+                        {
+                            if (await cliente.Controla_Monto_Minimo(_context, codcliente_real))
+                            {
+                                if (await Validar_Monto_Minimo_Para_Aplicar_Descuentos_Especiales(_context, DVTA.codmoneda, DVTA.fechadoc, tabladetalle, lista_complementaria) == false)
+                                {
+                                    resultado = false;
+                                    return (false, "El Documento no cumple el monto minimo(SubTotal) requerido para aplicar el descuento especial proveedor o volumen.", 0);
+                                }
+                            }
+                        }
+                        if (resultado)
+                        {
+                            if (await cliente.Controla_empaque_minimo(_context, codcliente_real))
+                            {
+                                if (await empaquesdoc(_context, Convert.ToInt32(DVTA.codalmacen), codcliente_real, tabladetalle) == false)
+                                {
+                                    resultado = false;
+                                    return (false, "El Documento no cumple los empaques minimos de algunos items.", 0);
+                                }
+                            }
+                        }
+                    }
+                    //Validar montos minimos de descuentos a todo el documento
+                    if (resultado)
+                    {
+                        if (!sin_validar_MontoMin_desc)
+                        {
+                            var EsValidoMontosMinimosDesc = await Validar_Montos_Minimos_Para_Desctos_Extras(_context, codcliente_real, DVTA.tipo_vta, Convert.ToDecimal(DVTA.subtotaldoc), DVTA.codmoneda, DVTA.fechadoc, tabladescuentos);
+                            if (EsValidoMontosMinimosDesc.EsValido == false)
+                            //if (await preciosvalidos(_context, "0", DVTA.codcliente, tabladetalle) == false)
+                            {
+                                resultado = false;
+                                //return (false, "El documento contiene Items a precios no permitidos para este cliente.");
+                                return (false, EsValidoMontosMinimosDesc.msg, EsValidoMontosMinimosDesc.codigo_control);
+                            }
+                        }
+
+
+                    }
+                    //Validar Peso minimo de los descuentos
+                    if (resultado)
+                    {
+                        if (await cliente.Controla_Monto_Minimo(_context, codcliente_real))
+                        {
+                            //calcular Peso
+                            double peso_doc = 0;
+                            foreach (var i in tabladetalle)
+                            {
+                                peso_doc = peso_doc + (i.cantidad * await items.itempeso(_context, i.coditem));
+                            }
+                            foreach (var j in tabladescuentos)
+                            {
+                                if (peso_doc < await ventas.PesoMinimoDescuentoExtra(_context, j.coddesextra))
+                                {
+                                    resultado = false;
+                                    //return (false, "El documento contiene Items a precios no permitidos para este cliente.");
+                                    return (false, "El descuento " + j.descripcion + " no cumple el peso minimo para su aplicacion.", 0);
+                                }
+                            }
+
+                        }
+                    }
+                }
+
+            }
+            if (!sin_validar)
+            {
+                if (resultado)
+                {
+                    var EsValidoValidarDesc = await ValidarDescuentosHabilitado(_context, codcliente_real, tabladescuentos);
+                    if (EsValidoValidarDesc.EsValido == false)
+                    {
+                        resultado = false;
+                        return (false, EsValidoValidarDesc.msg, 0);
+                    }
+                }
+            }
+            else
+            {
+                if (resultado)
+                {
+                    var EsValidoValidarDesc = await ValidarDescuentosValidos(_context, codempresa, codcliente_real, DVTA, tabladetalle, tabladescuentos);
+                    if (EsValidoValidarDesc.EsValido == false)
+                    {
+                        resultado = false;
+                        return (false, EsValidoValidarDesc.msg, 0);
+                    }
+                }
+            }
+            //Validar si recoge el cliente o se le entrega
+            if (resultado)
+            {
+                var EsValidoValidarDesc = await MontosMinimosEntregaValidos(_context, DVTA.tipo_vta, DVTA.contra_entrega, DVTA.codmoneda, DVTA.fechadoc, tabladetalle);
+                if (EsValidoValidarDesc == true)
+                {
+                    DVTA.tipoentrega = "ENTREGAR";
+                }
+                else
+                {
+                    DVTA.tipoentrega = "RECOGE CLIENTE";
+                }
+            }
+            if (!sin_validar)
+            {
+                if (resultado)
+                {
+                    var EsValidoDescRepetidos = await DescuentosRepetidos(_context, codempresa, tabladescuentos);
+                    if (EsValidoDescRepetidos == true)
+                    {
+                        resultado = false;
+                        return (false, "El documento tiene descuentos repetidos.", 0);
+                    }
+                }
+
+            }
+            //Validar que no esta usando cuenta de tiendas para sacar nota de remision de almacen
+            if (resultado)
+            {
+                if (!await cliente.ExisteCliente(_context, DVTA.codcliente) == true)
+                {
+                    resultado = false;
+                    return (false, "La cuenta de usuario actual es para ventas de otra agencia, no puede generar notas de remision de esta agencia con esta cuenta. Por favor cambia a una cuenta de usuario de la agencia actual.", 0);
+                }
+            }
+            //VALIDAR ALERTAR SI NO IGUALA CON LA PROFORMA
+            if (resultado)
+            {
+
+                double sbt_proforma = 0;
+                double desc_proforma = 0;
+                double tot_proforma = 0;
+                double DIF_SBTTL = 0;
+                double DIF_DESC = 0;
+                double DIF_TTL = 0;
+                double tot_remision = 0;
+                double monto_conversion_sbttl = 0;
+                double monto_conversion_desc = 0;
+                double monto_conversion_ttl = 0;
+
+                // Desde 08/01/2024 validar tambien que si es una proforma AL CONTADO CON ANTICIPO ESTE VALIDE QUE EL MONTO DEL SUBTOTAL, DESCUENTOS Y TOTAL SEAN IGUALES 
+                // LA NOTA DE REMISION Y PROFORMA
+                sbt_proforma = (double)await ventas.SubTotal_Proforma(_context, cod_proforma);
+                desc_proforma = (double)await ventas.Descuentos_Proforma(_context, cod_proforma);
+                tot_proforma = (double)await ventas.Total_Proforma(_context, cod_proforma);
+
+                // si la moneda de la proforma no es la misma que la de la NR, realizar la conversion de la PF a la de la NR
+                if (!codmoneda_pf.Equals(DVTA.codmoneda))
+                {
+                    // sbttl
+                    monto_conversion_sbttl = (double)await tipocambio._conversion(_context, DVTA.codmoneda, codmoneda_pf, DVTA.fechadoc, (decimal)sbt_proforma);
+                    monto_conversion_sbttl = Math.Round(monto_conversion_sbttl, 2);
+                    // desc
+                    monto_conversion_desc = (double)await tipocambio._conversion(_context, DVTA.codmoneda, codmoneda_pf, DVTA.fechadoc, (decimal)desc_proforma);
+                    monto_conversion_desc = Math.Round(monto_conversion_desc, 2);
+                    // ttl
+                    monto_conversion_ttl = (double)await tipocambio._conversion(_context, DVTA.codmoneda, codmoneda_pf, DVTA.fechadoc, (decimal)tot_proforma);
+                    monto_conversion_ttl = Math.Round(monto_conversion_ttl, 2);
+                }
+                else
+                {
+                    monto_conversion_sbttl = sbt_proforma;
+                    monto_conversion_desc = desc_proforma;
+                    monto_conversion_ttl = tot_proforma;
+                }
+
+                // sbttl
+                DIF_SBTTL = Math.Round(monto_conversion_sbttl, 2, MidpointRounding.AwayFromZero) - Math.Round(Convert.ToDouble(DVTA.subtotaldoc), 2, MidpointRounding.AwayFromZero);
+                DIF_SBTTL = Math.Abs(DIF_SBTTL);
+                DIF_SBTTL = Math.Round(DIF_SBTTL, 2);
+
+                // desc
+                DIF_DESC = Math.Round(monto_conversion_desc, 2, MidpointRounding.AwayFromZero) - Math.Round(Convert.ToDouble(DVTA.totdesctos_extras), 2, MidpointRounding.AwayFromZero);
+                DIF_DESC = Math.Abs(DIF_DESC);
+                DIF_DESC = Math.Round(DIF_DESC, 2);
+
+                // ttl
+                DIF_TTL = Math.Round(monto_conversion_ttl, 2, MidpointRounding.AwayFromZero) - Math.Round(Convert.ToDouble(DVTA.totaldoc), 2, MidpointRounding.AwayFromZero);
+                DIF_TTL = Math.Abs(DIF_TTL);
+                DIF_TTL = Math.Round(DIF_TTL, 2);
+
+                // Si es venta al CONTADO CON ANTICIPO NO CONTRA ENTREGA
+                if (DVTA.tipo_vta == "0" && DVTA.contra_entrega == "NO")
+                {
+                    //venta al CONTADO CON ANTICIPO NO CONTRA ENTREGA
+                    // sbttl
+                    if (DIF_SBTTL >= 0.01)
+                    {
+                        resultado = false;
+                        return (false, "El monto del subtotal de la nota de remision es de: " + DVTA.subtotaldoc + " (" + DVTA.codmoneda + ")" + " no iguala con el monto subtotal de la proforma transferida cuyo monto es: " + monto_conversion_sbttl + " (" + codmoneda_pf + ") la diferencia es de: " + DIF_SBTTL + ". Consulte con el administrador de sistemas!!!", 0);
+                    }
+                    else
+                    {
+                        resultado = true;
+                    }
+
+                    // desc
+                    if (resultado)
+                    {
+                        if (DIF_DESC >= 0.01)
+                        {
+                            resultado = false;
+                            return (false, "El monto de los descuentos extras de la nota de remision es de: " + DVTA.totdesctos_extras + " (" + DVTA.codmoneda + ")" + " no iguala con el monto de los descuentos extra de la proforma transferida cuyo monto es: " + monto_conversion_desc + " (" + codmoneda_pf + ") la diferencia es de: " + DIF_DESC + ". Consulte con el administrador de sistemas!!!", 0);
+                        }
+                        else
+                        {
+                            resultado = true;
+                        }
+                    }
+
+                    // ttl
+                    if (resultado)
+                    {
+                        if (DIF_TTL >= 0.01)
+                        {
+                            resultado = false;
+                            return (false, "El monto del total de la nota de remision es de: " + DVTA.totaldoc + " (" + DVTA.codmoneda + ")" + " no iguala con el monto total de la proforma transferida cuyo monto es: " + monto_conversion_ttl + " (" + codmoneda_pf + ") la diferencia es de: " + DIF_TTL + ". Consulte con el administrador de sistemas!!!", 0);
+                        }
+                        else
+                        {
+                            resultado = true;
+                        }
+                    }
+                }
+                else
+                {
+                    // VENTA CONTADO - CONTRA ENTREGA O CREDITO
+                    if (DIF_TTL > 0.5)
+                    {
+                        if (!sin_validar_monto_total)
+                        {
+                            resultado = false;
+                            return (false, "El monto total de la nota de remision es de: " + DVTA.totaldoc + " (" + DVTA.codmoneda + ")" + " no iguala con el monto total de la proforma transferida cuyo monto es: " + monto_conversion_ttl + " (" + DVTA.codmoneda + ") la diferencia es de: " + DIF_TTL + ". Consulte con el administrador de sistemas!!!", 147);
+                            // pedir clave
+                        }
+                    }
+                    else
+                    {
+                        resultado = true;
+                    }
+                }
+            }
+            if (resultado)
+            {
+                if (!sin_validar_doc_ant_inv)
+                {
+                    if (await restricciones.ValidarModifDocAntesInventario(_context, Convert.ToInt32(DVTA.codalmacen), DVTA.fechadoc.Date) == true)
+                    { }
+                    else
+                    {
+                        resultado = false;
+                        return (false, "No puede modificar datos anteriores al ultimo inventario, Para eso necesita una autorizacion especial.", 48);
+                    }
+                }
+
+            }
+            //Validar que no se venda a credito a clientes sin nombre
+            if (resultado)
+            {
+                if (DVTA.tipo_vta == "1")
+                {//vta credito
+                    if (await cliente.EsClienteSinNombre(_context, DVTA.codcliente) == true)
+                    {
+                        resultado = false;
+                        return (false, "No puede hacer una venta a credito a un cliente Sin Nombre.", 0);
+                    }
+                }
+            }
+            if (resultado)
+            {
+                if (!await hardCoded.ValidarDsctosVtaContraEntrega(DVTA.contra_entrega == "SI", tabladescuentos, DVTA.tipo_vta) == true)
+                {
+                    resultado = false;
+                    return (false, "El documento tiene descuentos no permitidos para ventas Contra Entrega.", 0);
+                }
+            }
+            //'//////////////////////////////////////////////////////////////////////
+            //'//si es contado validar que tenga los anticipos asignados
+            //'//REVISADO EL 20-07-2018
+            //'//////////////////////////////////////////////////////////////////////
+            //implementado en fecha 30-11-2019
+            if (resultado)
+            {
+                //llenar precios permitidos
+                var dt_audit = await _context.veproforma
+                                       .Where(pf => pf.contra_entrega == true && pf.tipopago == 0 && pf.pago_contado_anticipado == true && pf.id == id_proforma && pf.numeroid == nroid_proforma)
+                                       .Select(pf => new { pf.codigo, pf.id, pf.numeroid, pf.tipopago, pf.contra_entrega, pf.pago_contado_anticipado })
+                                       .ToListAsync();
+                if (dt_audit.Count > 0)
+                {
+                    resultado = false;
+                    return (false, "No se puede generar la nota de remision porque la proforma esta grabada como CONTADO - CONTRA ENTREGA y al mismo tiempo se grabo como CONTADO CON PAGO ANTICIPADO, por favor consulte con el responsable del sistema!!!", 0);
+                }
+            }
+            if (resultado)
+            {
+                if (DVTA.tipo_vta == "0")
+                {
+                    if (DVTA.contra_entrega == "SI")
+                    {
+                        //SI ES CONTRA ENTREGA NO HAY PAGOS CON ANTICIPO ENTONCES QUE DEJE SACAR 
+                        //NO MAS LA NOTA DE REMISION
+                        //EN EL RESUMEN DIARIO NO DEDE INCLUIR
+                        //SEGUN LO INSTRUIDO POR MARIELITA MONTAÑO EN FECHA: 20-07-2018
+                        resultado = true;
+                    }
+                    else
+                    {
+                        //SI ES CONTADO - PERO NO CONTRA ENTREGA SE HA TENIDO QUE PAGAR CON ANTICIPOS
+                        //A CONTINUACION SE REVISARA ESO
+                        if (!await Validar_Anticipos_Aplicados(_context, id_proforma, nroid_proforma, codempresa, DVTA))
+                        {
+                            resultado = false;
+                            return (false, "La proforma es venta al Contado y no se pago con anticipo, por lo cual no se puede emitir la nota de remision. De lo contratio modifique la proforma como venta: Contado - Contra Entrega para luego pagar con cobranza contra entrega.", 0);
+                        }
+                        else
+                        {
+                            resultado = true;
+                        }
+
+                    }
+                }
+            }
+            ////////////////////////////////
+            return (resultado, "OK", 0);
+        }
+
+        private async Task<DatosDocVta> ConvertirVeremisionADatosDocVta(veremision veremision)
+        {
+            // Simulación de operación asincrónica (por ejemplo, alguna consulta a la base de datos)
+            await Task.Delay(10); // Simula una pequeña demora
+            return new DatosDocVta
+            {
+                estado_doc_vta = veremision.anulada ? "Anulada" : "Activa",
+                coddocumento = veremision.codigo,
+                id = veremision.id,
+                numeroid = veremision.numeroid.ToString(),
+                fechadoc = veremision.fecha,
+                codcliente = veremision.codcliente,
+                nombcliente = veremision.nomcliente,
+                nitfactura = veremision.nit,
+                tipo_doc_id = veremision.tipo_docid?.ToString(),
+                codcliente_real = veremision.codcliente_real,
+                nomcliente_real = "", // Asigna según lo que necesites
+                codtarifadefecto = 0, // Asigna según lo que necesites
+                codmoneda = veremision.codmoneda,
+                subtotaldoc = (double)veremision.subtotal,
+                totaldoc = (double)veremision.total,
+                tipo_vta = veremision.tipopago.ToString(),
+                codalmacen = veremision.codalmacen.ToString(),
+                codvendedor = veremision.codvendedor.ToString(),
+                preciovta = "", // Asigna según lo que necesites
+                desctoespecial = "", // Asigna según lo que necesites
+                preparacion = veremision.preparacion,
+                tipo_cliente = "", // Asigna según lo que necesites
+                cliente_habilitado = "", // Asigna según lo que necesites
+                contra_entrega = (bool)veremision.contra_entrega ? "SI" : "NO",
+                vta_cliente_en_oficina = false, // Asigna según lo que necesites
+                estado_contra_entrega = veremision.estado_contra_entrega,
+                desclinea_segun_solicitud = veremision.desclinea_segun_solicitud ?? false,
+                idsol_nivel = veremision.idsoldesctos,
+                nroidsol_nivel = veremision.nroidsoldesctos?.ToString(),
+                pago_con_anticipo = false, // Asigna según lo que necesites
+                niveles_descuento = "", // Asigna según lo que necesites
+
+                // datos al pie de la proforma
+                transporte = veremision.transporte,
+                nombre_transporte = veremision.nombre_transporte,
+                fletepor = veremision.fletepor,
+                tipoentrega = veremision.tipoentrega,
+                direccion = veremision.direccion,
+                ubicacion = "", // Asigna según lo que necesites
+                latitud = "", // Asigna según lo que necesites
+                longitud = "", // Asigna según lo que necesites
+                nroitems = 0, // Asigna según lo que necesites
+                totdesctos_extras = (double)veremision.descuentos,
+                totrecargos = (double)veremision.recargos,
+
+                // complemento mayorista-dimediado / o complemento para descto por importe
+                tipo_complemento = "", // Asigna según lo que necesites
+                idpf_complemento = "", // Asigna según lo que necesites
+                nroidpf_complemento = "0", // Asigna según lo que necesites
+
+                // para facturación mostrador
+                idFC_complementaria = "", // Asigna según lo que necesites
+                nroidFC_complementaria = "0", // Asigna según lo que necesites
+                nrocaja = "", // Asigna según lo que necesites
+                nroautorizacion = "", // Asigna según lo que necesites
+                fechalimite_dosificacion = DateTime.MinValue, // Asigna según lo que necesites
+                tipo_caja = "", // Asigna según lo que necesites
+                version_codcontrol = "", // Asigna según lo que necesites
+                nrofactura = "", // Asigna según lo que necesites
+                nroticket = "", // Asigna según lo que necesites
+                idanticipo = "", // Asigna según lo que necesites
+                noridanticipo = "0", // Asigna según lo que necesites
+                monto_anticipo = 0, // Asigna según lo que necesites
+                idpf_solurgente = "", // Asigna según lo que necesites
+                noridpf_solurgente = "0" // Asigna según lo que necesites
+            };
+        }
+
+        private async Task<(bool result, string msgAlert)> Validar_Recargos_Por_Deposito_Excedente(DBContext _context, string codempresa, List<verecargosDatos> tablarecargos, DatosDocVta DVTA)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            bool resultado = true;
+            string msgAlert = "";
+
+            objres = await validar_Vta.Validar_Recargo_Aplicado_Por_Desc_Deposito_Excedente(_context, DVTA, tablarecargos, codempresa);
+
+            if (objres.resultado == false)
+            {
+                msgAlert = objres.observacion + " " + objres.obsdetalle + "Alerta!!!";
+                resultado = false;
+            }
+
+            return (resultado, msgAlert);
+        }
+
+
+        private async Task<List<itemDataMatriz>> ConvertirListaVeremision1AListaItemDataMatriz(List<veremision1> listaVeremision1)
+        {
+            // Simulación de operación asincrónica (por ejemplo, alguna consulta a la base de datos)
+            await Task.Delay(10); // Simula una pequeña demora
+            if (listaVeremision1 == null)
+            {
+                return new List<itemDataMatriz>();
+            }
+
+            return listaVeremision1
+                .Select(ver => ConvertirVeremision1AItemDataMatriz(ver))
+                .ToList();
+        }
+
+
+        private async Task<List<verecargosDatos>> ConvertirListaVerecargoremiAListaVerecargosDatos(List<verecargoremi>? listaVerecargoremi)
+        {
+            // Simulación de operación asincrónica (por ejemplo, alguna consulta a la base de datos)
+            await Task.Delay(10); // Simula una pequeña demora
+            if (listaVerecargoremi == null)
+            {
+                return new List<verecargosDatos>();
+            }
+
+            return listaVerecargoremi
+                .Select(ver => ConvertirVerecargoremiAVerecargosDatos(ver))
+                .ToList();
+        }
+
+
+        private async Task<List<vedesextraDatos>> ConvertirVedesextraRemiADatos(List<vedesextraremi> tabladescuentosremi)
+        {
+            // Simulación de operación asincrónica (por ejemplo, alguna consulta a la base de datos)
+            await Task.Delay(10); // Simula una pequeña demora
+            if (tabladescuentosremi == null)
+            {
+                return new List<vedesextraDatos>();
+            }
+
+            return tabladescuentosremi.Select(remi => new vedesextraDatos
+            {
+                coddesextra = remi.coddesextra,
+                descripcion = "", // Asigna la descripción según lo que necesites
+                porcen = remi.porcen,
+                montodoc = remi.montodoc,
+                codcobranza = remi.codcobranza ?? 0, // Si es nulo, asigna un valor predeterminado
+                codcobranza_contado = remi.codcobranza_contado ?? 0, // Si es nulo, asigna un valor predeterminado
+                codanticipo = remi.codanticipo ?? 0 // Si es nulo, asigna un valor predeterminado
+            }).ToList();
+        }
+
+
+        private async Task<(bool bandera, string msg)> Validar_Saldos_Negativos_Doc(DBContext _context, string codempresa, string usuario, string codcliente_real, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle)
+        {
+            bool resultado = true;
+            string msg = "";
+
+            if (tabladetalle.Count > 0)
+            {
+                ResultadoValidacion objres = new ResultadoValidacion();
+                validar_Vta.InicializarResultado(objres);
+                (objres, dtnegativos) = await validar_Vta.Validar_Saldos_Negativos_Doc(_context, tabladetalle, DVTA, dtnegativos, codempresa, usuario);
+                if (objres.resultado == false)
+                {
+                    resultado = objres.resultado;
+                    return (resultado, "Si existen negativos.");
+                }
+            }
+            return (resultado, msg);
+        }
+
+
+        DatosDocVta objDocVta = new DatosDocVta();
+        private async Task<object?> Llenar_Datos_Del_Documento(DBContext _context, string codempresa, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle)
+        {
+            // Llena los datos de la proforma
+            objDocVta.coddocumento = DVTA.coddocumento;
+            objDocVta.estado_doc_vta = "NUEVO";
+            objDocVta.id = DVTA.id;
+            objDocVta.numeroid = DVTA.numeroid.ToString();
+            objDocVta.fechadoc = Convert.ToDateTime(DVTA.fechadoc);
+            objDocVta.codcliente = DVTA.codcliente;
+            objDocVta.nombcliente = DVTA.nombcliente;
+            objDocVta.nitfactura = DVTA.nitfactura;
+            objDocVta.codcliente_real = DVTA.codcliente_real;
+            objDocVta.nomcliente_real = DVTA.nomcliente_real;
+            objDocVta.codmoneda = DVTA.codmoneda;
+            objDocVta.codtarifadefecto = await validar_Vta.Precio_Unico_Del_Documento(_context, tabladetalle, codempresa);
+            objDocVta.subtotaldoc = (double)DVTA.subtotaldoc;
+            objDocVta.totdesctos_extras = (double)DVTA.totdesctos_extras;
+            objDocVta.totrecargos = (double)DVTA.totrecargos;
+            objDocVta.totaldoc = (double)DVTA.totaldoc;
+            //if (DVTA.tipo_vta == ""1)
+            //{
+            //    objDocVta.tipo_vta = "1";
+            //}
+            //else
+            //{
+            //    objDocVta.tipo_vta = "0";
+            //}
+            objDocVta.tipo_vta = DVTA.tipo_vta;
+            objDocVta.codalmacen = DVTA.codalmacen.ToString();
+            objDocVta.codvendedor = DVTA.codvendedor.ToString();
+            objDocVta.preciovta = objDocVta.codtarifadefecto.ToString();
+            objDocVta.desctoespecial = DVTA.desctoespecial;
+            objDocVta.preparacion = DVTA.preparacion;
+            if (DVTA.contra_entrega == "SI")
+            {
+                objDocVta.contra_entrega = "SI";
+            }
+            else
+            {
+                objDocVta.contra_entrega = "NO";
+            }
+            objDocVta.estado_contra_entrega = DVTA.estado_contra_entrega;
+
+            objDocVta.desclinea_segun_solicitud = (bool)DVTA.desclinea_segun_solicitud;
+            objDocVta.idsol_nivel = DVTA.idpf_solurgente;
+            objDocVta.nroidsol_nivel = DVTA.nroidsol_nivel.ToString();
+
+            // Modificado en fecha: 18-05-2022
+            if (objDocVta.desclinea_segun_solicitud)
+            {
+                objDocVta.codcliente_real = await ventas.Cliente_Referencia_Solicitud_Descuentos(_context, objDocVta.idsol_nivel, Convert.ToInt32(objDocVta.nroidsol_nivel));
+                objDocVta.nomcliente_real = await cliente.Razonsocial(_context, objDocVta.codcliente_real);
+            }
+            else
+            {
+                objDocVta.codcliente_real = DVTA.codcliente_real;
+                objDocVta.nomcliente_real = await cliente.Razonsocial(_context, objDocVta.codcliente_real);
+            }
+
+            objDocVta.niveles_descuento = DVTA.niveles_descuento;
+
+            // Datos al pie de la proforma
+            objDocVta.transporte = DVTA.transporte;
+            objDocVta.nombre_transporte = DVTA.nombre_transporte;
+            objDocVta.fletepor = DVTA.fletepor;
+            objDocVta.tipoentrega = DVTA.tipoentrega;
+            objDocVta.direccion = DVTA.direccion;
+
+            objDocVta.nroitems = tabladetalle.Count;
+
+            // Datos del complemento mayosita - dimediado
+            objDocVta.idpf_complemento = DVTA.idpf_complemento;
+            objDocVta.nroidpf_complemento = DVTA.nroidpf_complemento;
+            objDocVta.tipo_cliente = DVTA.tipo_cliente;
+            objDocVta.cliente_habilitado = DVTA.cliente_habilitado;
+
+            objDocVta.latitud = DVTA.latitud;
+            objDocVta.longitud = DVTA.longitud;
+            objDocVta.ubicacion = DVTA.ubicacion;
+
+            objDocVta.pago_con_anticipo = DVTA.pago_con_anticipo;
+            objDocVta.vta_cliente_en_oficina = DVTA.vta_cliente_en_oficina;
+
+            // Para facturación mostrador
+            objDocVta.idFC_complementaria = "";
+            objDocVta.nroidFC_complementaria = "0";
+            objDocVta.nrocaja = "";
+            objDocVta.nroautorizacion = "";
+            objDocVta.tipo_caja = "";
+            //sia_DAL.Datos.Instancia.FechaDelServidor.AddDays(10);
+            objDocVta.version_codcontrol = "";
+            objDocVta.nrofactura = "0";
+            objDocVta.nroticket = "";
+            objDocVta.idanticipo = "";
+            objDocVta.noridanticipo = "0";
+            objDocVta.monto_anticipo = 0;
+            objDocVta.idpf_solurgente = "";
+            objDocVta.noridpf_solurgente = "0";
+
+            return objDocVta;
+        }
+
+
+
+        private async Task<(bool EsValido, string msg)> preciosvalidos(DBContext _context, string opcion, string codcliente, List<itemDataMatriz> tabladetalle)
+        {
+            try
+            {
+                bool resultado = true;
+                bool bandera = true;
+                string cadena = "";
+                //llenar precios del doc
+                List<int> precios = new List<int>();
+
+                foreach (var i in tabladetalle)
+                {
+                    if (!await YahayPrecio(i.codtarifa, precios))
+                    {
+                        precios.Add(i.codtarifa);
+                    }
+                }
+                //llenar precios permitidos
+                var tabla = await _context.veclienteprecio
+                                       .Where(precio => precio.codcliente == codcliente)
+                                       .OrderBy(precio => precio.codtarifa)
+                                       .Select(precio => precio.codtarifa)
+                                       .ToListAsync();
+
+                foreach (var codtarifa in tabla)
+                {
+                    cadena = cadena + " - " + codtarifa;
+                }
+
+                foreach (var i in precios)
+                {
+                    bandera = false;
+                    foreach (var k in tabla)
+                    {
+                        if (i == k)
+                        {
+                            bandera = true;
+                        }
+                    }
+                    if (bandera == false)
+                    {
+                        resultado = false;
+                        cadena = "El documento contiene Items a precio " + precios + " el cual no esta permitido para este cliente." + Environment.NewLine + "Los precios Permitidos son: " + cadena;
+                        return (resultado, cadena);
+                    }
+                }
+
+
+                if (resultado == true)
+                {
+                    if (opcion == "1")
+                    {
+                        cadena = "Los precios Permitidos son: " + cadena;
+                        resultado = true;
+                        return (resultado, cadena);
+                    }
+                }
+                // Todo está correcto
+                return (resultado, cadena);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return (false, "Error Servidor");
+            }
+        }
+
+
+
+        private async Task<bool> montosminimosvalidoscomp(DBContext _context, bool cliente_nuevo, string tipo_de_pago, string contra_entrega, string codmoneda, DateTime fecha, List<itemDataMatriz> tabladetalle, DataTable list_PF_Complementaria)
+        {
+            try
+            {
+                bool resultado = true;
+                bool bandera = true;
+                decimal SUBTTL_GRAL_PEDIDO = 0;
+                DataTable tabla = new DataTable();
+
+                if (tabladetalle.Count > 0)
+                {
+                    string cadena = "";
+                    List<int> precios = new List<int>();
+                    List<decimal> totales = new List<decimal>();
+                    decimal montomin = 0;
+                    decimal dif = 0;
+                    //sacar precios
+                    foreach (var i in tabladetalle)
+                    {
+                        if (precios.Contains(i.codtarifa))
+                        { }
+                        else { precios.Add(i.codtarifa); }
+                        SUBTTL_GRAL_PEDIDO += Convert.ToDecimal(i.total);
+                    }
+                    //sacar precios de complementarias
+                    foreach (DataRow lista in list_PF_Complementaria.Rows)
+                    {
+                        int codremision = (int)lista["codremision"];
+                        int codproforma = (int)lista["codproforma"];
+                        if (codremision == 0)
+                        {
+                            //aun no han sacado su nr
+                            tabla.Clear();
+                            var sql1 = await _context.veproforma1
+                                           .Where(vp1 => vp1.codproforma == codproforma)
+                                           .Select(vp1 => vp1.codtarifa)
+                                           .Distinct().ToListAsync();
+                            var result1 = sql1.Distinct().ToList();
+                            tabla = funciones.ToDataTable(result1);
+                            foreach (DataRow tbl in tabla.Rows)
+                            {
+                                if (precios.Contains((int)tbl["codtarifa"]))
+                                { }
+                                else
+                                {
+                                    precios.Add((int)tbl["codtarifa"]);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            tabla.Clear();
+                            var sql1 = await _context.veremision1
+                                           .Where(vp1 => vp1.codremision == codremision)
+                                           .Select(vp1 => vp1.codtarifa)
+                                           .Distinct().ToListAsync();
+                            var result1 = sql1.Distinct().ToList();
+                            tabla = funciones.ToDataTable(result1);
+                            foreach (DataRow tbl in tabla.Rows)
+                            {
+                                if (precios.Contains((int)tbl["codtarifa"]))
+                                { }
+                                else
+                                {
+                                    precios.Add((int)tbl["codtarifa"]);
+                                }
+                            }
+                        }
+                    }
+                    //sacartotales
+                    for (int i = 0; i < precios.Count; i++)
+                    {
+                        totales.Add(0);
+                        foreach (var k in tabladetalle)
+                        {
+                            if (precios[i] == k.codtarifa)
+                            {
+                                totales[i] = totales[i] + Convert.ToDecimal(k.total);
+                            }
+                        }
+                    }
+                    //sacartotales de complementarias
+                    foreach (DataRow lista in list_PF_Complementaria.Rows)
+                    {
+                        int codremision = (int)lista["codremision"];
+                        int codproforma = (int)lista["codproforma"];
+                        if (codremision == 0)
+                        {
+                            //aun no han sacado su nr
+                            tabla.Clear();
+                            var sql1 = await _context.veproforma1
+                                           .Where(vp1 => vp1.codproforma == codproforma)
+                                           .Select(vp1 => new { vp1.codtarifa, total = vp1.totalaut })
+                                            .ToListAsync();
+                            var result1 = sql1.Distinct().ToList();
+                            tabla = funciones.ToDataTable(result1);
+
+                            for (int i = 0; i < precios.Count; i++)
+                            {
+                                foreach (DataRow k in tabla.Rows)
+                                {
+                                    if (precios[i] == (int)k["codtarifa"])
+                                    {
+                                        totales[i] = totales[i] + Convert.ToDecimal((decimal)k["total"]);
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            tabla.Clear();
+                            var sql1 = await _context.veremision1
+                                           .Where(vp1 => vp1.codremision == codremision)
+                                           .Select(vp1 => new { vp1.codtarifa, total = vp1.total })
+                                           .ToListAsync();
+                            var result1 = sql1.Distinct().ToList();
+                            tabla = funciones.ToDataTable(result1);
+
+                            for (int i = 0; i < precios.Count; i++)
+                            {
+                                foreach (DataRow k in tabla.Rows)
+                                {
+                                    if (precios[i] == (int)k["codtarifa"])
+                                    {
+                                        totales[i] = totales[i] + Convert.ToDecimal((decimal)k["total"]);
+                                    }
+                                }
+                            }
+                        }
+
+                    }
+                    //comparar y mostrar
+                    if (contra_entrega == "SI")
+                    {
+                        tabla.Clear();
+                        var sql1 = await _context.intarifa
+                                       //.Where(vp1 => vp1.codremision == codremision)
+                                       .Select(it => new { it.codigo, montomin = it.min_contra_entrega, moneda = it.codmoneda_min_contra_entrega })
+                                       .OrderBy(it => it.codigo)
+                                       .Distinct().ToListAsync();
+                        var result1 = sql1.Distinct().ToList();
+                        tabla = funciones.ToDataTable(result1);
+
+                    }
+                    else
+                    {
+                        if (tipo_de_pago == "0")
+                        {
+                            //contado
+                            if (cliente_nuevo)
+                            {
+                                tabla.Clear();
+                                var sql1 = await _context.intarifa
+                                               //.Where(vp1 => vp1.codremision == codremision)
+                                               .Select(it => new { it.codigo, montomin = it.min_nuevo_contado, moneda = it.codmoneda_min_nuevo_contado })
+                                               .OrderBy(it => it.codigo)
+                                               .Distinct().ToListAsync();
+                                var result1 = sql1.Distinct().ToList();
+                                tabla = funciones.ToDataTable(result1);
+                            }
+                            else
+                            {
+
+                                tabla.Clear();
+                                var sql1 = await _context.intarifa
+                                               //.Where(vp1 => vp1.codremision == codremision)
+                                               .Select(it => new { it.codigo, montomin = it.min_contado, moneda = it.codmoneda_min_contado })
+                                               .OrderBy(it => it.codigo)
+                                               .Distinct().ToListAsync();
+                                var result1 = sql1.Distinct().ToList();
+                                tabla = funciones.ToDataTable(result1);
+                            }
+                        }
+                        else
+                        {
+                            //credito
+                            if (cliente_nuevo)
+                            {
+                                tabla.Clear();
+                                var sql1 = await _context.intarifa
+                                               //.Where(vp1 => vp1.codremision == codremision)
+                                               .Select(it => new { it.codigo, montomin = it.min_nuevo_credito, moneda = it.codmoneda_min_nuevo_credito })
+                                               .OrderBy(it => it.codigo)
+                                               .Distinct().ToListAsync();
+                                var result1 = sql1.Distinct().ToList();
+                                tabla = funciones.ToDataTable(result1);
+                            }
+                            else
+                            {
+                                tabla.Clear();
+                                var sql1 = await _context.intarifa
+                                               //.Where(vp1 => vp1.codremision == codremision)
+                                               .Select(it => new { it.codigo, montomin = it.min_credito, moneda = it.codmoneda_min_credito })
+                                               .OrderBy(it => it.codigo)
+                                               .Distinct().ToListAsync();
+                                var result1 = sql1.Distinct().ToList();
+                                tabla = funciones.ToDataTable(result1);
+                            }
+                        }
+                    }
+                    //obtener el precio que tiene monto min mayor para validar con ese
+                    int CODTARIFA_PARA_VALIDAR = await validar_Vta.Tarifa_Monto_Min_Mayor(_context, objDocVta, precios);
+                    List<int> precios_para_validar = new List<int>();
+                    DataRow[] registro;
+                    precios_para_validar.Add(CODTARIFA_PARA_VALIDAR);
+
+                    for (int i = 0; i < precios_para_validar.Count; i++)
+                    {
+                        // Convertir el valor del índice a cadena y usarlo en la consulta
+                        registro = tabla.Select($"codigo='{precios_para_validar[i]}'");
+
+                        // Verificar si se recuperaron los datos del tipo de precio
+                        if (registro.Length > 0)
+                        {
+                            // Convertir los valores necesarios y realizar la conversión de moneda
+                            montomin = await tipocambio._conversion(_context, codmoneda, registro[0]["moneda"].ToString(), fecha.Date, Convert.ToDecimal(registro[0]["montomin"]));
+                            dif = SUBTTL_GRAL_PEDIDO - montomin;
+                            if (dif < 0)
+                            {
+                                resultado = false;
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            montomin = 99999999;
+                            cadena += "No se encontró en la tabla de precios, los parámetros del tipo de precio:" + precios_para_validar[i].ToString() + ", consulte con el administrador del sistema!!!";
+                            resultado = false;
+                        }
+                    }
+                }
+                else
+                {
+                    resultado = true;
+                }
+
+
+                // Todo está correcto
+                return (resultado);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return (false);
+            }
+        }
+
+        private async Task<bool> Validar_Monto_Minimo_Para_Aplicar_Descuentos_Especiales_Complementarios(DBContext _context, string codmoneda, DateTime fecha, List<itemDataMatriz> tabladetalle, DataTable list_PF_Complementaria)
+        {
+            try
+            {
+                bool resultado = true;
+                bool bandera = true;
+                DataTable tabla = new DataTable();
+
+                if (tabladetalle.Count > 0)
+                {
+                    string cadena = "";
+                    List<int> descuentos = new List<int>();
+                    List<decimal> totales = new List<decimal>();
+                    decimal montomin = 0;
+                    decimal dif = 0;
+                    //sacar descuentos
+                    foreach (var i in tabladetalle)
+                    {
+                        if (i.coddescuento > 0)
+                        {
+                            if (!await YahayPrecio(i.coddescuento, descuentos))
+                            {
+                                descuentos.Add(i.coddescuento);
+                            }
+                        }
+
+                    }
+                    //sacar descuentos de complementarias
+                    foreach (DataRow lista in list_PF_Complementaria.Rows)
+                    {
+                        int codremision = (int)lista["codremision"];
+                        int codproforma = (int)lista["codproforma"];
+                        if (codremision == 0)
+                        {
+                            //aun no han sacado su nr
+                            tabla.Clear();
+                            var sql2 = await _context.veproforma1
+                                           .Where(vp1 => vp1.codproforma == codproforma)
+                                           .Select(vp1 => vp1.coddescuento)
+                                           .Distinct().ToListAsync();
+                            var result2 = sql2.Distinct().ToList();
+                            tabla = funciones.ToDataTable(result2);
+                            foreach (DataRow tbl in tabla.Rows)
+                            {
+                                if ((int)tbl["coddescuento"] > 0)
+                                {
+                                    if (!await YahayPrecio((int)tbl["coddescuento"], descuentos))
+                                    {
+                                        descuentos.Add((int)tbl["coddescuento"]);
+                                    }
+                                }
+
+                            }
+                        }
+                        else
+                        {
+                            tabla.Clear();
+                            var sql2 = await _context.veremision1
+                                           .Where(vp1 => vp1.codremision == codremision)
+                                           .Select(vp1 => vp1.coddescuento)
+                                           .Distinct().ToListAsync();
+                            var result2 = sql2.Distinct().ToList();
+                            tabla = funciones.ToDataTable(result2);
+                            foreach (DataRow tbl in tabla.Rows)
+                            {
+                                if ((int)tbl["coddescuento"] > 0)
+                                {
+                                    if (!await YahayPrecio((int)tbl["coddescuento"], descuentos))
+                                    {
+                                        descuentos.Add((int)tbl["coddescuento"]);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    //sacartotales
+                    for (int i = 0; i < descuentos.Count; i++)
+                    {
+                        totales.Add(0);
+                        foreach (var k in tabladetalle)
+                        {
+                            if (descuentos[i] == k.coddescuento)
+                            {
+                                totales[i] = totales[i] + Convert.ToDecimal(k.total);
+                            }
+                        }
+                    }
+                    //sacartotales de complementarias
+                    foreach (DataRow lista in list_PF_Complementaria.Rows)
+                    {
+                        int codremision = (int)lista["codremision"];
+                        int codproforma = (int)lista["codproforma"];
+                        if (codremision == 0)
+                        {
+                            //aun no han sacado su nr
+                            tabla.Clear();
+                            var sql2 = await _context.veproforma1
+                                           .Where(vp1 => vp1.codproforma == codproforma)
+                                           .Select(vp1 => new { vp1.coddescuento, total = vp1.totalaut })
+                                            .ToListAsync();
+                            var result2 = sql2.Distinct().ToList();
+                            tabla = funciones.ToDataTable(result2);
+
+                            for (int i = 0; i < descuentos.Count; i++)
+                            {
+                                foreach (DataRow k in tabla.Rows)
+                                {
+                                    if (descuentos[i] == (int)k["coddescuento"])
+                                    {
+                                        totales[i] = totales[i] + Convert.ToDecimal((decimal)k["total"]);
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            tabla.Clear();
+                            var sql2 = await _context.veremision1
+                                           .Where(vp1 => vp1.codremision == codremision)
+                                           .Select(vp1 => new { vp1.coddescuento, total = vp1.total })
+                                           .ToListAsync();
+                            var result2 = sql2.Distinct().ToList();
+                            tabla = funciones.ToDataTable(result2);
+
+                            for (int i = 0; i < descuentos.Count; i++)
+                            {
+                                foreach (DataRow k in tabla.Rows)
+                                {
+                                    if (descuentos[i] == (int)k["coddescuento"])
+                                    {
+                                        totales[i] = totales[i] + Convert.ToDecimal((decimal)k["total"]);
+                                    }
+                                }
+                            }
+                        }
+
+                    }
+                    //comparar y mostrar
+                    //obtener el precio que tiene monto min mayor para validar con ese
+                    DataRow[] registro;
+
+                    tabla.Clear();
+                    var sql1 = await _context.vedescuento
+                                   //.Where(vp1 => vp1.codremision == codremision)
+                                   .Select(it => new { it.codigo, it.monto, it.moneda })
+                                   .OrderBy(it => it.codigo)
+                                   .Distinct().ToListAsync();
+                    var result1 = sql1.Distinct().ToList();
+                    tabla = funciones.ToDataTable(result1);
+
+                    for (int i = 0; i < descuentos.Count; i++)
+                    {
+                        // Convertir el valor del índice a cadena y usarlo en la consulta
+                        registro = tabla.Select($"codigo='{descuentos[i]}'");
+
+                        // Verificar si se recuperaron los datos del tipo de precio
+                        if (registro.Length > 0)
+                        {
+                            // Convertir los valores necesarios y realizar la conversión de moneda
+                            montomin = await tipocambio._conversion(_context, codmoneda, registro[0]["moneda"].ToString(), fecha.Date, Convert.ToDecimal(registro[0]["monto"]));
+                            dif = totales[i] - montomin;
+                            if (dif < 0)
+                            {
+                                resultado = false;
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            montomin = 99999999;
+                            cadena += "No se encontró en la tabla de descuentos, los parámetros del tipo de descuentos:" + descuentos[i].ToString() + ", consulte con el administrador del sistema!!!";
+                            resultado = false;
+                        }
+                    }
+                }
+                else
+                {
+                    resultado = true;
+                }
+                return (resultado);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return (false);
+            }
+        }
+
+        private async Task<bool> empaquesdoc(DBContext _context, int codalmacen, string codcliente_real, List<itemDataMatriz> tabladetalle)
+        {
+            bool resultado = false;
+            foreach (var i in tabladetalle)
+            {
+                if (await restricciones.cumpleempaque(_context, i.coditem, i.codtarifa, i.coddescuento, Convert.ToDecimal(i.cantidad), codalmacen, codcliente_real))
+                {
+                    resultado = true;
+                }
+                else
+                {
+                    resultado = false;
+                    break;
+                }
+            }
+            return resultado;
+        }
+
+        
+
+        private async Task<bool> Validar_Monto_Minimos_Segun_Lista_Precio(DBContext _context, bool cliente_nuevo, string tipo_de_pago, string contra_entrega, string codmoneda, DateTime fecha, List<itemDataMatriz> tabladetalle, DataTable list_PF_Complementaria)
+        {
+            try
+            {
+                bool resultado = true;
+                bool bandera = true;
+                decimal SUBTTL_GRAL_PEDIDO = 0;
+                DataTable tabla = new DataTable();
+
+                if (tabladetalle.Count > 0)
+                {
+                    string cadena = "";
+                    List<int> precios = new List<int>();
+                    List<int> precios_list = new List<int>();
+                    List<decimal> totales = new List<decimal>();
+                    decimal montomin = 0;
+                    decimal dif = 0;
+                    //sacar precios
+                    foreach (var i in tabladetalle)
+                    {
+                        if (!await YahayPrecio(i.codtarifa, precios))
+                        {
+                            precios.Add(i.codtarifa);
+                        }
+                        SUBTTL_GRAL_PEDIDO += Convert.ToDecimal(i.total);
+                    }
+
+                    //sacartotales
+                    for (int i = 0; i < precios.Count; i++)
+                    {
+                        totales.Add(0);
+                        foreach (var k in tabladetalle)
+                        {
+                            if (precios[i] == k.codtarifa)
+                            {
+                                totales[i] = totales[i] + Convert.ToDecimal(k.total);
+                            }
+                        }
+                    }
+                    //comparar y mostrar
+                    if (contra_entrega == "SI")
+                    {
+                        tabla.Clear();
+                        var sql1 = await _context.intarifa
+                                       //.Where(vp1 => vp1.codremision == codremision)
+                                       .Select(it => new { it.codigo, montomin = it.min_contra_entrega, moneda = it.codmoneda_min_contra_entrega })
+                                       .OrderBy(it => it.codigo)
+                                       .Distinct().ToListAsync();
+                        var result1 = sql1.Distinct().ToList();
+                        tabla = funciones.ToDataTable(result1);
+
+                    }
+                    else
+                    {
+                        if (tipo_de_pago == "0")
+                        {
+                            //contado
+                            if (cliente_nuevo)
+                            {
+                                tabla.Clear();
+                                var sql1 = await _context.intarifa
+                                               //.Where(vp1 => vp1.codremision == codremision)
+                                               .Select(it => new { it.codigo, montomin = it.min_nuevo_contado, moneda = it.codmoneda_min_nuevo_contado })
+                                               .OrderBy(it => it.codigo)
+                                               .Distinct().ToListAsync();
+                                var result1 = sql1.Distinct().ToList();
+                                tabla = funciones.ToDataTable(result1);
+                            }
+                            else
+                            {
+
+                                tabla.Clear();
+                                var sql1 = await _context.intarifa
+                                               //.Where(vp1 => vp1.codremision == codremision)
+                                               .Select(it => new { it.codigo, montomin = it.min_contado, moneda = it.codmoneda_min_contado })
+                                               .OrderBy(it => it.codigo)
+                                               .Distinct().ToListAsync();
+                                var result1 = sql1.Distinct().ToList();
+                                tabla = funciones.ToDataTable(result1);
+                            }
+                        }
+                        else
+                        {
+                            //credito
+                            if (cliente_nuevo)
+                            {
+                                tabla.Clear();
+                                var sql1 = await _context.intarifa
+                                               //.Where(vp1 => vp1.codremision == codremision)
+                                               .Select(it => new { it.codigo, montomin = it.min_nuevo_credito, moneda = it.codmoneda_min_nuevo_credito })
+                                               .OrderBy(it => it.codigo)
+                                               .Distinct().ToListAsync();
+                                var result1 = sql1.Distinct().ToList();
+                                tabla = funciones.ToDataTable(result1);
+                            }
+                            else
+                            {
+                                tabla.Clear();
+                                var sql1 = await _context.intarifa
+                                               //.Where(vp1 => vp1.codremision == codremision)
+                                               .Select(it => new { it.codigo, montomin = it.min_credito, moneda = it.codmoneda_min_credito })
+                                               .OrderBy(it => it.codigo)
+                                               .Distinct().ToListAsync();
+                                var result1 = sql1.Distinct().ToList();
+                                tabla = funciones.ToDataTable(result1);
+                            }
+                        }
+                    }
+                    //obtener el precio que tiene monto min mayor para validar con ese
+                    int CODTARIFA_PARA_VALIDAR = await validar_Vta.Tarifa_Monto_Min_Mayor(_context, objDocVta, precios);
+                    List<int> precios_para_validar = new List<int>();
+                    DataRow[] registro;
+                    precios_para_validar.Add(CODTARIFA_PARA_VALIDAR);
+
+                    for (int i = 0; i < precios_para_validar.Count; i++)
+                    {
+                        // Convertir el valor del índice a cadena y usarlo en la consulta
+                        registro = tabla.Select($"codigo='{precios_para_validar[i]}'");
+
+                        // Verificar si se recuperaron los datos del tipo de precio
+                        if (registro.Length > 0)
+                        {
+                            // Convertir los valores necesarios y realizar la conversión de moneda
+                            montomin = await tipocambio._conversion(_context, codmoneda, registro[0]["moneda"].ToString(), fecha.Date, Convert.ToDecimal(registro[0]["montomin"]));
+                            dif = SUBTTL_GRAL_PEDIDO - montomin;
+                            if (dif < 0)
+                            {
+                                resultado = false;
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            montomin = 99999999;
+                            cadena += "No se encontró en la tabla de precios, los parámetros del tipo de precio:" + precios_para_validar[i].ToString() + ", consulte con el administrador del sistema!!!";
+                            resultado = false;
+                        }
+                    }
+                }
+                else
+                {
+                    resultado = true;
+                }
+
+
+                // Todo está correcto
+                return (resultado);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return (false);
+            }
+        }
+
+        private async Task<bool> Validar_Monto_Minimo_Para_Aplicar_Descuentos_Especiales(DBContext _context, string codmoneda, DateTime fecha, List<itemDataMatriz> tabladetalle, DataTable list_PF_Complementaria)
+        {
+            try
+            {
+                bool resultado = true;
+                bool bandera = true;
+                DataTable tabla = new DataTable();
+
+                if (tabladetalle.Count > 0)
+                {
+                    string cadena = "";
+                    List<int> descuentos = new List<int>();
+                    List<decimal> totales = new List<decimal>();
+                    decimal montomin = 0;
+                    decimal dif = 0;
+                    //sacar descuentos
+                    foreach (var i in tabladetalle)
+                    {
+                        if (i.coddescuento > 0)
+                        {
+                            if (!await YahayPrecio(i.coddescuento, descuentos))
+                            {
+                                descuentos.Add(i.coddescuento);
+                            }
+                        }
+
+                    }
+                    //sacartotales
+                    for (int i = 0; i < descuentos.Count; i++)
+                    {
+                        totales.Add(0);
+                        foreach (var k in tabladetalle)
+                        {
+                            if (descuentos[i] == k.coddescuento)
+                            {
+                                totales[i] = totales[i] + Convert.ToDecimal(k.total);
+                            }
+                        }
+                    }
+                    //comparar y mostrar
+                    //obtener el precio que tiene monto min mayor para validar con ese
+                    DataRow[] registro;
+                    tabla.Clear();
+                    var sql1 = await _context.vedescuento
+                                   //.Where(vp1 => vp1.codremision == codremision)
+                                   .Select(it => new { it.codigo, it.monto, it.moneda })
+                                   .OrderBy(it => it.codigo)
+                                   .Distinct().ToListAsync();
+                    var result1 = sql1.Distinct().ToList();
+                    tabla = funciones.ToDataTable(result1);
+
+                    for (int i = 0; i < descuentos.Count; i++)
+                    {
+                        // Convertir el valor del índice a cadena y usarlo en la consulta
+                        registro = tabla.Select($"codigo='{descuentos[i]}'");
+
+                        // Verificar si se recuperaron los datos del tipo de precio
+                        if (registro.Length > 0)
+                        {
+                            // Convertir los valores necesarios y realizar la conversión de moneda
+                            montomin = await tipocambio._conversion(_context, codmoneda, registro[0]["moneda"].ToString(), fecha.Date, Convert.ToDecimal(registro[0]["monto"]));
+                            dif = totales[i] - montomin;
+                            if (dif < 0)
+                            {
+                                resultado = false;
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            montomin = 99999999;
+                            cadena += "No se encontró en la tabla de descuentos, los parámetros del tipo de descuentos:" + descuentos[i].ToString() + ", consulte con el administrador del sistema!!!";
+                            resultado = false;
+                        }
+                    }
+                }
+                else
+                {
+                    resultado = true;
+                }
+                return (resultado);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return (false);
+            }
+        }
+
+        private async Task<(bool EsValido, string msg, int codigo_control)> Validar_Montos_Minimos_Para_Desctos_Extras(DBContext _context, string codcliente_real, string tipopago, decimal subtotal, string codmoneda, DateTime fecha, List<vedesextraDatos> tabladescuentos)
+        {
+            try
+            {
+                bool resultado = true;
+                bool bandera = true;
+                decimal _total = 0;
+                decimal _montoMIN = 0;
+                decimal _dif = 0;
+                string cadena = "";
+                //llenar precios del doc
+                List<int> precios = new List<int>();
+
+                if (await cliente.Controla_Monto_Minimo(_context, codcliente_real))
+                {
+                    if (tipopago == "0")
+                    {
+                        //CONTADO
+                        foreach (var i in tabladescuentos)
+                        {
+                            _total = subtotal;
+                            _montoMIN = await ventas.MontoMinimoContadoDescuentoExtra(_context, i.coddesextra, codmoneda, fecha.Date);
+                            _dif = _montoMIN - _total;
+                            if (_montoMIN == 0)
+                            {
+                                resultado = true;
+                            }
+                            else
+                            {
+                                if (_total < _montoMIN)
+                                {
+                                    resultado = false;
+                                    cadena = "El descuento: " + i.coddesextra + "-" + i.descripcion + " no cumple el monto minimo para su aplicacion, el monto mínimo es: " + _montoMIN.ToString() + "(" + codmoneda + ") y el subtotal es: " + _total.ToString() + "(" + codmoneda + "). Verifique si la proforma tiene complemento!!!";
+                                    return (resultado, cadena, 65);
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        //CREDITO
+                        foreach (var i in tabladescuentos)
+                        {
+                            _total = subtotal;
+                            _montoMIN = await ventas.MontoMinimoCreditoDescuentoExtra(_context, i.coddesextra, codmoneda, fecha.Date);
+                            _dif = _montoMIN - _total;
+                            if (_montoMIN == 0)
+                            {
+                                resultado = true;
+                            }
+                            else
+                            {
+                                if (_total < _montoMIN)
+                                {
+                                    resultado = false;
+                                    cadena = "El descuento: " + i.coddesextra + "-" + i.descripcion + " no cumple el monto minimo para su aplicacion, el monto mínimo es: " + _montoMIN.ToString() + "(" + codmoneda + ") y el subtotal es: " + _total.ToString() + "(" + codmoneda + "). Verifique si la proforma tiene complemento!!!";
+                                    return (resultado, cadena, 65);
+                                }
+                            }
+                        }
+                    }
+                }
+                // Todo está correcto
+                return (resultado, cadena, 0);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return (false, "Error Servidor", 0);
+            }
+        }
+
+        private async Task<(bool EsValido, string msg)> ValidarDescuentosHabilitado(DBContext _context, string codcliente_real, List<vedesextraDatos> tabladescuentos)
+        {
+            try
+            {
+                bool resultado = true;
+                string cadena = "";
+                foreach (var i in tabladescuentos)
+                {
+                    if (await cliente.Cliente_Tiene_Descto_Extra_Asignado(_context, i.coddesextra, codcliente_real))
+                    {
+                        resultado = true;
+                    }
+                    else
+                    {
+                        resultado = false;
+                        cadena = "Este cliente: " + codcliente_real + " no tiene habilitado el descuento " + i.coddesextra + " " + await nombres.nombredesextra(_context, i.coddesextra);
+                        return (resultado, cadena);
+                    }
+                }
+
+                return (resultado, cadena);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return (false, "Error Servidor");
+            }
+        }
+
+        private async Task<(bool EsValido, string msg)> ValidarDescuentosValidos(DBContext _context, string codempresa, string codcliente_real, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos)
+        {
+            try
+            {
+                bool resultado = true;
+                string cadena = "";
+                int precio_main = await Determinar_El_Precio_Principal_De_La_Proforma(_context, codempresa, DVTA, tabladetalle);
+                bool es_contra_entrega = false;
+                foreach (var i in tabladescuentos)
+                {
+                    //verificar que los desctos esten habilitados para el precio principal de la proforma
+                    if (!await ventas.Descuento_Extra_Habilitado_Para_Precio(_context, i.coddesextra, precio_main))
+                    {
+                        resultado = false;
+                        cadena = "El descuento: " + i.coddesextra + " no esta habilitado para el precio principal de la proforma: " + precio_main + " Verifique esta situacion!!!";
+                        return (resultado, cadena);
+                    }
+                    es_contra_entrega = DVTA.contra_entrega == "SI";
+                    if (!await restricciones.Validar_Contraentrega_Descuento(_context, es_contra_entrega, i.coddesextra))
+                    {
+                        resultado = false;
+                        cadena = "No se puede asignar ese descuento a una venta Contra Entrega.";
+                        return (resultado, cadena);
+                    }
+                    if (await cliente.Cliente_Tiene_Descto_Extra_Asignado(_context, i.coddesextra, codcliente_real))
+                    {
+                        //control implementado en fecha: 01-09-2022
+                        //verifica si los desctos extras son los correctos segun el tipo de precio PRINCIPAL del pedido
+                        if (!await ventas.TarifaValidaDescuento(_context, precio_main, i.coddesextra))
+                        {
+                            resultado = false;
+                            cadena = "Se tiene un tipo de precio no permitido para los descuentos otorgados.";
+                            return (resultado, cadena);
+                        }
+                        foreach (var j in tabladetalle)
+                        {
+                            if (!await ventas.DescuentoEspecialValidoDescuento(_context, j.coddescuento, i.coddesextra))
+                            {
+                                resultado = false;
+                                cadena = "El item " + j.coditem + " tiene un tipo de Descuento Especial no permitido para los descuentos otorgados.";
+                                return (resultado, cadena);
+                            }
+                            else if (!await ventas.DescuentoExtra_ItemValido(_context, j.coditem, i.coddesextra))
+                            {
+                                resultado = false;
+                                cadena = "El item " + j.coditem + " no esta permitido para los descuentos otorgados.";
+                                return (resultado, cadena);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        resultado = false;
+                        cadena = "Este cliente no tiene habilitado el descuento " + i.coddesextra + " " + nombres.nombredesextra(_context, i.coddesextra);
+                        return (resultado, cadena);
+                    }
+                    if (!resultado)
+                    {
+                        break;
+                    }
+                }
+                return (resultado, cadena);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return (false, "Error Servidor");
+            }
+        }
+
+        private async Task<bool> MontosMinimosEntregaValidos(DBContext _context, string tipo_de_pago, string contra_entrega, string codmoneda, DateTime fecha, List<itemDataMatriz> tabladetalle)
+        {
+            try
+            {
+                bool resultado = true;
+                bool bandera = true;
+                decimal SUBTTL_GRAL_PEDIDO = 0;
+                DataTable tabla = new DataTable();
+
+                if (tabladetalle.Count > 0)
+                {
+                    string cadena = "";
+                    List<int> precios = new List<int>();
+                    List<int> precios_list = new List<int>();
+                    List<decimal> totales = new List<decimal>();
+                    decimal montomin = 0;
+                    decimal dif = 0;
+                    //sacar precios
+                    foreach (var i in tabladetalle)
+                    {
+                        if (!await YahayPrecio(i.codtarifa, precios))
+                        {
+                            precios.Add(i.codtarifa);
+                        }
+                        SUBTTL_GRAL_PEDIDO += Convert.ToDecimal(i.total);
+                    }
+
+                    //sacartotales
+                    for (int i = 0; i < precios.Count; i++)
+                    {
+                        totales.Add(0);
+                        foreach (var k in tabladetalle)
+                        {
+                            if (precios[i] == k.codtarifa)
+                            {
+                                totales[i] = totales[i] + Convert.ToDecimal(k.total);
+                            }
+                        }
+                    }
+                    //comparar y mostrar
+                    if (contra_entrega == "SI")
+                    {
+                        tabla.Clear();
+                        var sql1 = await _context.intarifa
+                                       //.Where(vp1 => vp1.codremision == codremision)
+                                       .Select(it => new { it.codigo, montomin = it.min_contra_entrega, moneda = it.codmoneda_min_contra_entrega })
+                                       .OrderBy(it => it.codigo)
+                                       .Distinct().ToListAsync();
+                        var result1 = sql1.Distinct().ToList();
+                        tabla = funciones.ToDataTable(result1);
+
+                    }
+                    else
+                    {
+                        if (tipo_de_pago == "0")
+                        {
+                            //contado
+                            tabla.Clear();
+                            var sql1 = await _context.intarifa
+                                           //.Where(vp1 => vp1.codremision == codremision)
+                                           .Select(it => new { it.codigo, montomin = it.min_entrega_contado, moneda = it.codmoneda_min_entrega_contado })
+                                           .OrderBy(it => it.codigo)
+                                           .Distinct().ToListAsync();
+                            var result1 = sql1.Distinct().ToList();
+                            tabla = funciones.ToDataTable(result1);
+                        }
+                        else
+                        {
+                            //credito
+                            tabla.Clear();
+                            var sql1 = await _context.intarifa
+                                               //.Where(vp1 => vp1.codremision == codremision)
+                                               .Select(it => new { it.codigo, montomin = it.min_entrega_credito, moneda = it.codmoneda_min_entrega_credito })
+                                               .OrderBy(it => it.codigo)
+                                               .Distinct().ToListAsync();
+                            var result1 = sql1.Distinct().ToList();
+                            tabla = funciones.ToDataTable(result1);
+                        }
+                    }
+                    //obtener el precio que tiene monto min mayor para validar con ese
+                    //int CODTARIFA_PARA_VALIDAR = await validar_Vta.Tarifa_Monto_Min_Mayor(_context, objDocVta, precios);
+                    //List<int> precios_para_validar = new List<int>();
+                    DataRow[] registro;
+                    //precios_para_validar.Add(CODTARIFA_PARA_VALIDAR);
+
+                    for (int i = 0; i < precios.Count; i++)
+                    {
+                        // Convertir el valor del índice a cadena y usarlo en la consulta
+                        registro = tabla.Select($"codigo='{precios[i]}'");
+
+                        // Verificar si se recuperaron los datos del tipo de precio
+                        if (registro.Length > 0)
+                        {
+                            // Convertir los valores necesarios y realizar la conversión de moneda
+                            montomin = await tipocambio._conversion(_context, codmoneda, registro[0]["moneda"].ToString(), fecha.Date, Convert.ToDecimal(registro[0]["montomin"]));
+                            dif = totales[i] - montomin;
+                            if (dif < 0)
+                            {
+                                resultado = false;
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            montomin = 99999999;
+                            cadena += "No se encontró en la tabla de precios, los parámetros del tipo de precio:" + precios[i].ToString() + ", consulte con el administrador del sistema!!!";
+                            resultado = false;
+                        }
+                    }
+                }
+                else
+                {
+                    resultado = true;
+                }
+                // Todo está correcto
+                return (resultado);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return (false);
+            }
+        }
+
+
+        private async Task<bool> DescuentosRepetidos(DBContext _context, string codempresa, List<vedesextraDatos> tabladescuentos)
+        {
+            try
+            {
+                bool resultado = false;
+                int coddesextra_depositos = await configuracion.emp_coddesextra_x_deposito(_context, codempresa);
+                List<int> listado = new List<int>();
+                foreach (var i in tabladescuentos)
+                {
+                    if (i.coddesextra != coddesextra_depositos)
+                    {
+                        if (listado.Contains(i.coddesextra))
+                        {
+                            resultado = true;
+                            break;
+                        }
+                        else { listado.Add(i.coddesextra); }
+                    }
+                }
+                // Todo está correcto
+                return (resultado);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return (true);
+            }
+        }
+
+        private async Task<bool> YahayPrecio(int precio, List<int> precios)
+        {
+            bool resultado = false;
+            for (int i = 0; i < precios.Count; i++)
+            {
+                if (precio == (int)precios[i])
+                {
+                    resultado = true;
+                    break;
+                }
+            }
+            return resultado;
+        }
+
+        private async Task<int> Determinar_El_Precio_Principal_De_La_Proforma(DBContext _context, string codempresa, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle)
+        {
+            //determinar con que precio se valiara el monto min requerido
+            await Llenar_Datos_Del_Documento(_context, codempresa, DVTA, tabladetalle);
+            List<int> precios = new List<int>();
+            precios = await validar_Vta.Lista_Precios_En_El_Documento(tabladetalle);
+            int CODTARIFA_PARA_VALIDAR = await validar_Vta.Tarifa_Monto_Min_Mayor(_context, objDocVta, precios);
+            return CODTARIFA_PARA_VALIDAR;
+        }
+
+        private verecargosDatos ConvertirVerecargoremiAVerecargosDatos(verecargoremi verecargoremi)
+        {
+            if (verecargoremi == null)
+            {
+                return null;
+            }
+
+            return new verecargosDatos
+            {
+                codrecargo = verecargoremi.codrecargo,
+                descripcion = "", // Asigna un valor adecuado o busca una forma de obtener la descripción si es necesario
+                porcen = verecargoremi.porcen,
+                monto = verecargoremi.monto ?? 0, // Utiliza un valor predeterminado si es null
+                moneda = verecargoremi.moneda,
+                montodoc = verecargoremi.montodoc,
+                codcobranza = verecargoremi.codcobranza ?? 0 // Utiliza un valor predeterminado si es null
+            };
+        }
+
+        private itemDataMatriz ConvertirVeremision1AItemDataMatriz(veremision1 ver)
+        {
+            if (ver == null)
+            {
+                return null;
+            }
+
+            return new itemDataMatriz
+            {
+                coditem = ver.coditem,
+                descripcion = "", // Asigna un valor adecuado o busca una forma de obtener la descripción si es necesario
+                medida = "", // Asigna un valor adecuado o busca una forma de obtener la medida si es necesario
+                udm = ver.udm,
+                porceniva = (double)(ver.porceniva ?? 0),
+                empaque = null, // Asigna un valor adecuado si es necesario
+                cantidad_pedida = 0, // Asigna un valor adecuado si es necesario
+                cantidad = (double)ver.cantidad,
+                porcen_mercaderia = 0, // Asigna un valor adecuado si es necesario
+                codtarifa = ver.codtarifa,
+                coddescuento = ver.coddescuento,
+                preciolista = (double)ver.preciolista,
+                niveldesc = ver.niveldesc,
+                porcendesc = (double)(ver.preciodesc ?? 0), // Asigna un valor adecuado si es necesario
+                preciodesc = (double)(ver.preciodesc ?? 0),
+                precioneto = (double)ver.precioneto,
+                total = (double)ver.total,
+                cumple = true,
+                cumpleMin = true,
+                cumpleEmp = true,
+                nroitem = 0,
+                porcentaje = 0,
+                monto_descto = 0,
+                subtotal_descto_extra = 0
+            };
+        }
+
+        private async Task<bool> Validar_Anticipos_Aplicados(DBContext _context, string id, int numeroid, string codempresa, DatosDocVta DVTA)
+        {
+            bool resultado = false;
+            //obtener los anticipos aplicados a la proforma 
+            //que se pretende sacar nota de remision
+            var dt_anticipos = await anticipos_vta_contado.Anticipos_Aplicados_a_Proforma(_context, id, numeroid);
+            if (dt_anticipos.Count > 0)
+            {
+                ResultadoValidacion objres = new ResultadoValidacion();
+                objres = await anticipos_vta_contado.Validar_Anticipo_Asignado_2(_context, true, DVTA, dt_anticipos, codempresa);
+                //'Desde 15/01/2024 se cambio esta funcion porque no estaba validando correctamente la transformacion de moneda de los anticipos a aplicarse ya se en $us o BS
+                if (objres.resultado == true)
+                {
+                    resultado = true;
+                }
+                else
+                {
+                    resultado = false;
+                }
+            }
+            else
+            {
+                resultado = false;
+            }
+            return resultado;
+        }
+
+
 
 
 

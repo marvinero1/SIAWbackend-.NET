@@ -75,7 +75,7 @@ namespace siaw_funciones
                 }
             }
         }
-        private ResultadoValidacion InicializarResultado(ResultadoValidacion objres)
+        public ResultadoValidacion InicializarResultado(ResultadoValidacion objres)
         {
             objres.resultado = true;
             objres.observacion = "";
@@ -9153,5 +9153,22 @@ namespace siaw_funciones
             }
             return resultado;
         }
+
+        public async Task<int> Precio_Unico_Del_Documento(DBContext _context, List<itemDataMatriz> tabladetalle, string codempresa)
+        {
+            int resultado = -1;
+            var lista_precios = await Lista_Precios_En_El_Documento(tabladetalle);
+            if (lista_precios.Count == 1)
+            {
+                resultado = lista_precios[0];
+            }
+            else
+            {
+                resultado = -1;
+            }
+            return resultado;
+
+        }
+
     }
 }
