@@ -43,10 +43,12 @@ namespace SIAW.Controllers.ventas.transaccion
         private readonly HardCoded hardCoded = new HardCoded();
 
         private readonly Log log = new Log();
-
+        private readonly string _controllerName;
         public veremisionController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;
+            // Inicializar el nombre del controlador en el constructor
+            _controllerName = this.ControllerContext.ActionDescriptor.ControllerName;
         }
         [HttpGet]
         [Route("getParametrosIniciales/{userConn}/{usuario}/{codempresa}")]
@@ -460,10 +462,10 @@ namespace SIAW.Controllers.ventas.transaccion
                             msgSolUrg = msgSolUrg
                         });
                     }
-                    catch (Exception)
+                    catch (Exception ex)
                     {
                         dbContexTransaction.Rollback();
-                        return Problem("Error en el servidor");
+                        return Problem($"Error en el servidor: {ex.Message}");
                         throw;
                     }
                 }
@@ -2972,7 +2974,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
-        private async Task<(string resp, int codNRemision, int numeroId, bool mostrarModificarPlanCuotas, List<object>? plandeCuotas)> Grabar_Documento(DBContext _context, string id, string usuario, bool desclinea_segun_solicitud, int codProforma, string codempresa, SaveNRemisionCompleta datosRemision)
+        private async Task<(string resp, int codNRemision, int numeroId, bool mostrarModificarPlanCuotas, List<planPago_object>? plandeCuotas)> Grabar_Documento(DBContext _context, string id, string usuario, bool desclinea_segun_solicitud, int codProforma, string codempresa, SaveNRemisionCompleta datosRemision)
         {
             veremision veremision = datosRemision.veremision;
             List<veremision1> veremision1 = datosRemision.veremision1;
@@ -3129,7 +3131,7 @@ namespace SIAW.Controllers.ventas.transaccion
             // ####################################
             // generar plan de pagos si es que es a credito
             // #################################
-            List<object> planCuotasGenerada = new List<object>();
+            List<planPago_object> planCuotasGenerada = new List<planPago_object>();
             bool mostrarModificarPlanCuotas = false;
             if (veremision.tipopago == 1)  // si el tipo pago es a credito == 1
             {
@@ -3149,7 +3151,7 @@ namespace SIAW.Controllers.ventas.transaccion
                             // modificarplandepago()
                             // ENVIAR BOOL PARA MOSTRAR PLAN DE CUOTAS
                             mostrarModificarPlanCuotas = true;
-                            planCuotasGenerada = (List<object>)await verPlandePago(_context, codNRemision, veremision.usuarioreg);
+                            planCuotasGenerada = await verPlandePago(_context, codNRemision, veremision.usuarioreg);
                         }
 
                     }
@@ -3163,7 +3165,7 @@ namespace SIAW.Controllers.ventas.transaccion
                                 // modificarplandepago()
                                 // ENVIAR BOOL PARA MOSTRAR PLAN DE CUOTAS
                                 mostrarModificarPlanCuotas = true;
-                                planCuotasGenerada = (List<object>)await verPlandePago(_context, codNRemision, veremision.usuarioreg);
+                                planCuotasGenerada = await verPlandePago(_context, codNRemision, veremision.usuarioreg);
                             }
                         }
                         else
@@ -3173,7 +3175,7 @@ namespace SIAW.Controllers.ventas.transaccion
                             {
                                 // modificarplandepago(codigo.Text, codcliente.Text, codmoneda.Text, total.Text)
                                 mostrarModificarPlanCuotas = true;
-                                planCuotasGenerada = (List<object>)await verPlandePago(_context, codNRemision, veremision.usuarioreg);
+                                planCuotasGenerada = await verPlandePago(_context, codNRemision, veremision.usuarioreg);
                             }
                             // para cada nota complementaria revertir pagos y generar sus cuotas
                             foreach (var reg in lista)
@@ -3190,10 +3192,13 @@ namespace SIAW.Controllers.ventas.transaccion
                                     }
                                     else
                                     {
+                                        // EN UNA REUNION CON GERENCIA, SE DECIDIO ANULAR ESTA ACCION.
+                                        /*
                                         if (await ventas.revertirpagos(_context, reg.codremision,4))
                                         {
                                             await ventas.generarcuotaspago(_context, reg.codremision, 4, await ventas.MontoTotalComplementarias(_context, lista), await ventas.TotalNRconNC_ND(_context, reg.codremision), veremision.codmoneda, veremision.codcliente, await ventas.FechaComplementariaDeMayorMonto(_context, lista), false, codempresa);
                                         }
+                                        */
                                     }
                                 }
                             }
@@ -3211,7 +3216,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         {
                             // modificarplandepago(codigo.Text, codcliente.Text, codmoneda.Text, total.Text)
                             mostrarModificarPlanCuotas = true;
-                            planCuotasGenerada = (List<object>)await verPlandePago(_context, codNRemision, veremision.usuarioreg);
+                            planCuotasGenerada = await verPlandePago(_context, codNRemision, veremision.usuarioreg);
                         }
                     }
                     else
@@ -3223,7 +3228,7 @@ namespace SIAW.Controllers.ventas.transaccion
                             {
                                 // modificarplandepago(codigo.Text, codcliente.Text, codmoneda.Text, total.Text)
                                 mostrarModificarPlanCuotas = true;
-                                planCuotasGenerada = (List<object>)await verPlandePago(_context, codNRemision, veremision.usuarioreg);
+                                planCuotasGenerada = await verPlandePago(_context, codNRemision, veremision.usuarioreg);
                             }
 
                         }
@@ -3234,7 +3239,7 @@ namespace SIAW.Controllers.ventas.transaccion
                             {
                                 // modificarplandepago(codigo.Text, codcliente.Text, codmoneda.Text, total.Text)
                                 mostrarModificarPlanCuotas = true;
-                                planCuotasGenerada = (List<object>)await verPlandePago(_context, codNRemision, veremision.usuarioreg);
+                                planCuotasGenerada = await verPlandePago(_context, codNRemision, veremision.usuarioreg);
                             }
                             // para cada nota complementaria revertir pagos y generar sus cuotas
                             foreach (var reg in lista)
@@ -3251,10 +3256,13 @@ namespace SIAW.Controllers.ventas.transaccion
                                     }
                                     else
                                     {
+                                        // EN UNA REUNION CON GERENCIA, SE DECIDIO ANULAR ESTA ACCION.
+                                        /*
                                         if (await ventas.revertirpagos(_context, reg.codremision, 4))
                                         {
                                             await ventas.generarcuotaspago(_context, reg.codremision, 4, await ventas.MontoTotalComplementarias(_context, lista), await ventas.TotalNRconNC_ND(_context, reg.codremision), veremision.codmoneda, veremision.codcliente, await ventas.FechaComplementariaDeMayorMonto(_context, lista), false, codempresa);
                                         }
+                                        */
                                     }
                                 }
                             }
@@ -3315,17 +3323,17 @@ namespace SIAW.Controllers.ventas.transaccion
             _context.veremision_iva.AddRange(veremision_iva);
             await _context.SaveChangesAsync();
         }
-        private async Task<object> verPlandePago(DBContext _context, int codRemision, string usuario)
+        private async Task<List<planPago_object>> verPlandePago(DBContext _context, int codRemision, string usuario)
         {
             // log de ingreso
             // prgmodifplanpago_Load
             var planPagos = await _context.coplancuotas.Where(i => i.coddocumento == codRemision && i.codtipodoc==4)
-                .Select(i => new
+                .Select(i => new planPago_object
                 {
-                    i.nrocuota,
-                    i.vencimiento,
-                    i.monto,
-                    i.moneda
+                    nrocuota = i.nrocuota,
+                    vencimiento = i.vencimiento,
+                    monto = i.monto,
+                    moneda = i.moneda
                 })
                 .ToListAsync();
 
@@ -3394,9 +3402,10 @@ namespace SIAW.Controllers.ventas.transaccion
                 }
 
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                Console.WriteLine(ex.Message);
+                return Problem("Error en el servidor : " + ex.Message);
                 throw;
             }
         }
@@ -3994,5 +4003,13 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
 
+    }
+
+    public class planPago_object
+    {
+        public int nrocuota { get; set; }
+        public DateTime vencimiento { get; set; }
+        public decimal monto { get; set; }
+        public string moneda { get; set; }
     }
 }

@@ -1615,7 +1615,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         precioneto = (double)precioneto,
                         total = (double)total,
                         cumpleMin = reg.cumpleMin,
-                        nroitem = reg.orden_pedido
+                        nroitem = reg.nroitem ?? 0
                     })
                     .FirstOrDefaultAsync();
 
@@ -1892,10 +1892,10 @@ namespace SIAW.Controllers.ventas.transaccion
                         dbContexTransaction.Commit();
                         return Ok(new { resp = "Se Grabo la Proforma de manera Exitosa", codProf = result.codprof, alerts = msgAlerts });
                     }
-                    catch (Exception)
+                    catch (Exception ex)
                     {
                         dbContexTransaction.Rollback();
-                        return Problem("Error en el servidor");
+                        return Problem($"Error en el servidor: {ex.Message}");
                         throw;
                     }
                 }
@@ -2624,7 +2624,8 @@ namespace SIAW.Controllers.ventas.transaccion
                 codalmacen = veproforma.codalmacen,
                 desc_linea_seg_solicitud = desclinea_segun_solicitud ? "SI" : "NO",  //(SI o NO)
                 codmoneda = veproforma.codmoneda,
-                fecha = veproforma.fecha
+                fecha = veproforma.fecha,
+                nroitem = i.nroitem
             }).ToList();
 
             var tabla_detalle = veproforma1_2.Select(i => new itemDataMatriz
@@ -6014,6 +6015,7 @@ namespace SIAW.Controllers.ventas.transaccion
         public string ? descripcion { get; set; }
         public string ? medida { get; set; }
         public int orden_pedido { get; set; }
+        public int ? nroitem { get; set; }
     }
     public class getTarifaPrincipal_Rodrigo
     {

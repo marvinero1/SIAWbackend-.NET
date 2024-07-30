@@ -3761,7 +3761,7 @@ namespace siaw_funciones
                 int i = 0;
                 foreach (var reg1 in descuentose)
                 {
-                    cadena = cadena + await nombres.nombredescuento(_context, reg1) + "= " + totales[i].ToString("#,0.00", new System.Globalization.CultureInfo("en-US"));
+                    cadena = cadena + await nombres.nombredescuento(_context, reg1) + "= " + totales[i].ToString("#,0.00", new System.Globalization.CultureInfo("en-US")) + " ";
                     TTL_DESCTOS += totales[i];
                     i++;
 

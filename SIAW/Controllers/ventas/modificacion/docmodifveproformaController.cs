@@ -70,8 +70,8 @@ namespace SIAW.Controllers.ventas.modificacion
         }
 
         [HttpGet]
-        [Route("getUltiProfId_2/{userConn}/{usuario}")]
-        public async Task<object> getUltiProfId_2(string userConn, string usuario)
+        [Route("getUltiProfId/{userConn}/{usuario}")]
+        public async Task<object> getUltiProfId(string userConn, string usuario)
         {
             try
             {
@@ -113,8 +113,8 @@ namespace SIAW.Controllers.ventas.modificacion
         }
 
         [HttpGet]
-        [Route("getUltiProfId/{userConn}")]
-        public async Task<object> getUltiProfId(string userConn)
+        [Route("getUltiProfId_Ant_no/{userConn}")]
+        public async Task<object> getUltiProfId_Ant_no(string userConn)
         {
             try
             {
@@ -139,15 +139,10 @@ namespace SIAW.Controllers.ventas.modificacion
             }
         }
 
-        private async Task<bool> validaTransferencia(DBContext _context, string idProforma, int nroidProforma)
-        {
-
-            return false;
-        }
 
         [HttpGet]
-        [Route("obtProfxModif/{userConn}/{idProforma}/{nroidProforma}")]
-        public async Task<object> obtProfxModif(string userConn, string idProforma, int nroidProforma)
+        [Route("obtProfxModif/{userConn}/{idProforma}/{nroidProforma}/{usuario}")]
+        public async Task<object> obtProfxModif(string userConn, string idProforma, int nroidProforma, string usuario)
         {
             try
             {
@@ -165,15 +160,13 @@ namespace SIAW.Controllers.ventas.modificacion
                         return BadRequest(new { resp = "No se encontró una proforma con los datos proporcionados, revise los datos" });
                     }
 
-                    // recibir desde front colocar cuando regrese marvin:        string usuario
-
-                    /*
+                    
                     int codvendedorClienteProf = await ventas.Vendedor_de_Cliente_De_Proforma(_context, idProforma, nroidProforma);
                     if (! await seguridad.autorizado_vendedores(_context, usuario, codvendedorClienteProf, codvendedorClienteProf))
                     {
                         return BadRequest(new { resp = "No esta autorizado para ver esta información." });
                     }
-                    */
+                    
 
                     // obtener razon social de cliente
                     var codclientedescripcion = await cliente.Razonsocial(_context, cabecera.codcliente);
