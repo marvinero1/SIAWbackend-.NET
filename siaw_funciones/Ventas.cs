@@ -663,7 +663,7 @@ namespace siaw_funciones
                         }
                     }
                 }
-                if (DBNull.Value.Equals(reg.subtotal_descto_extra))
+                if (DBNull.Value.Equals(reg.subtotal_descto_extra) || reg.subtotal_descto_extra == 0)
                 {
                     reg.monto_descto = (reg.total / 100) * reg.porcentaje;
                     reg.subtotal_descto_extra = reg.total - reg.monto_descto;
@@ -843,7 +843,7 @@ namespace siaw_funciones
                 .Select(de => de.D.codremision)
                 .ToListAsync();
 
-            if (resultado != null)
+            if (resultado.Count() > 0)
             {
                 return true;
             }
@@ -3230,7 +3230,7 @@ namespace siaw_funciones
             try
             {
                 var resul = await _context.veproforma.Where(i => i.codigo == codproforma).Select(i => i.codcliente).FirstOrDefaultAsync();
-                resultado = resultado ?? "";
+                resultado = resul ?? "";
 
             }
             catch (Exception ex)
@@ -4483,7 +4483,7 @@ namespace siaw_funciones
                     {
                         // si hay plan de pagos adecuado ver si tiene especificacion de porcentajes por cuota
                         int codigo_pp = planPagos[0].codigo;
-                        nrocuotas = planPagos[1].nrocuotas;
+                        nrocuotas = planPagos[0].nrocuotas;
 
                         var veplanpago2List = await _context.veplanpago2.Where(i => i.coddetplanpago == codigo_pp).Select(i => new
                         {

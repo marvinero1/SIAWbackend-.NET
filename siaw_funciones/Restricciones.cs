@@ -337,7 +337,32 @@ namespace siaw_funciones
                 }
                 else
                 {
-                    cantidad_es_multiplo = unido.cantidad_pf_total % empaque_precio == 0 || unido.cantidad % empaque_precio == 0;
+                    try
+                    {
+                        Console.WriteLine(unido.cantidad_pf_total);
+                        Console.WriteLine(unido.cantidad);
+                        Console.WriteLine(empaque_precio);
+                        if (empaque_precio == 0)
+                        {
+                            cantidad_es_multiplo = false;
+                        }
+                        else
+                        {
+                            if (unido.cantidad_pf_total % empaque_precio == 0 || unido.cantidad % empaque_precio == 0)
+                            {
+                                cantidad_es_multiplo = true;
+                            }
+                            else
+                            {
+                                cantidad_es_multiplo = false;
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex.ToString());
+                        cantidad_es_multiplo = false;
+                    }
                     //28-01-2022 si el item se vende al 100% no controlar
                     if (unido.porcen_maximo == 100 && unido.cantidad_pf_anterior > 0 && unido.cantidad <= CANTIDAD_PERMITIDA_SEG_PORCEN)
                     {

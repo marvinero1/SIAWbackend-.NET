@@ -56,7 +56,7 @@ namespace SIAW.Controllers.notificaciones
                     var nombreVendedor = await _context.pepersona.Where(i => i.codigo == (credenciales.persona))
                         .Select(i => i.nombre1 + " " + i.nombre2 + " " + i.apellido1 + " " + i.apellido2).FirstOrDefaultAsync();
 
-                    var emailsCc = await _context.adusuario_destinatarios.Where(i => i.codvendedor == codvendedor)
+                    var emailsCc = await _context.vevendedor_destinatarios.Where(i => i.codvendedor == codvendedor)
                         .Select(i => i.destinatarios).ToListAsync();
                     if (emailsCc.Count() == 0)
                     {

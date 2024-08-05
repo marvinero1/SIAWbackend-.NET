@@ -35,22 +35,22 @@ namespace siaw_funciones
         }
         public enum Entidades
         {
-            Nota_Movimiento = 0,
-            Proforma,
-            Nota_Remision,
-            Factura,
-            Comprobante,
-            Cobranza,
-            Cobranza_Contado,
-            Anticipo,
-            Ventana,
-            Ruta,
-            Flete,
-            Flete_Devolucion,
-            Pedido,
-            Solicitud_Creacion_Cliente,
-            Deposito_Cliente,
-            Facturacion_Eletronica_Linea
+            SW_Nota_Movimiento = 0,
+            SW_Proforma,
+            SW_Nota_Remision,
+            SW_Factura,
+            SW_Comprobante,
+            SW_Cobranza,
+            SW_Cobranza_Contado,
+            SW_Anticipo,
+            SW_Ventana,
+            SW_Ruta,
+            SW_Flete,
+            SW_Flete_Devolucion,
+            SW_Pedido,
+            SW_Solicitud_Creacion_Cliente,
+            SW_Deposito_Cliente,
+            SW_Facturacion_Eletronica_Linea
         }
         public enum TipoLog
         {

@@ -332,11 +332,11 @@ namespace siaw_funciones
 
 
                     //AUMENTAR CANTIDAD PARA ESTA PROFORMA DE INGRESO POR NOTAS DE MOVIMIENTO URGENTES
-                    total_para_esta = await getSldReservNotaUrgentUnaProf_Sam(_context, coditem, codalmacen, "''", 0);
+                    total_para_esta = await getSldReservNotaUrgentUnaProf_Sam(_context, coditem, codalmacen, idproforma, numeroidproforma);
 
 
                     //AUMENTAR LA CANTIDAD DE LA PROFORMA DE ESTA NOTA QUE PUEDE ESTAR COMO RESERVADA.
-                    total_proforma = await getSldReservProf_Sam(_context, coditem, codalmacen, "''", 0);
+                    total_proforma = await getSldReservProf_Sam(_context, coditem, codalmacen, idproforma, numeroidproforma);
 
                 }
 
@@ -350,13 +350,13 @@ namespace siaw_funciones
                 var4.descripcion = "(+) INGRESOS SOLICITUDES URGENTE DE PROFORMA : -0";
                 var4.valor = total_para_esta;
                 listaSaldos.Add(var4);
-                saldoItemTotal.valor -= total_para_esta;  // reduce saldo total
+                saldoItemTotal.valor += total_para_esta;  // reduce saldo total
 
                 sldosItemCompleto var5 = new sldosItemCompleto();
                 var5.descripcion = "(+) CANTIDAD RESERVADA PROFORMA APROBADA: -0";
                 var5.valor = total_proforma;
                 listaSaldos.Add(var5);
-                saldoItemTotal.valor -= total_proforma;  // reduce saldo total
+                saldoItemTotal.valor += total_proforma;  // reduce saldo total
 
                 mi_fin:
                 _context = context_original;
@@ -1163,13 +1163,13 @@ namespace siaw_funciones
                 var4.descripcion = "(+) INGRESOS SOLICITUDES URGENTE DE PROFORMA : -0";
                 var4.valor = total_para_esta;
                 listaSaldos.Add(var4);
-                saldoItemTotal.valor -= total_para_esta;  // reduce saldo total
+                saldoItemTotal.valor += total_para_esta;  // reduce saldo total
 
                 sldosItemCompleto var5 = new sldosItemCompleto();
                 var5.descripcion = "(+) CANTIDAD RESERVADA PROFORMA APROBADA: -0";
                 var5.valor = total_proforma;
                 listaSaldos.Add(var5);
-                saldoItemTotal.valor -= total_proforma;  // reduce saldo total
+                saldoItemTotal.valor += total_proforma;  // reduce saldo total
 
 
                 listaSaldos.Add(saldoItemTotal);
@@ -1930,14 +1930,14 @@ namespace siaw_funciones
                                 {
                                     if (await SaldoActual_Disminuir(_context,codalmacen,reg.coditem, (double)reg.cantidad) == false)
                                     {
-                                        await log.RegistrarEvento(_context, usuario, Log.Entidades.Nota_Remision, codigo.ToString(), reg.coditem, codigo.ToString(), "SaldoActual_Disminuir", "No disminuyo stock en cantidad en NR.", Log.TipoLog.Modificacion);
+                                        await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, codigo.ToString(), reg.coditem, codigo.ToString(), "SaldoActual_Disminuir", "No disminuyo stock en cantidad en NR.", Log.TipoLog.Modificacion);
                                     }
                                 }
                                 else // de modo="eliminar" 
                                 {
                                     if (await SaldoActual_Aumentar(_context,codalmacen,reg.coditem, (double)reg.cantidad) == false)
                                     {
-                                        await log.RegistrarEvento(_context, usuario, Log.Entidades.Nota_Remision, codigo.ToString(), reg.coditem, codigo.ToString(), "SaldoActual_Aumentar", "No aumento stock en cantidad en NR.", Log.TipoLog.Modificacion);
+                                        await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, codigo.ToString(), reg.coditem, codigo.ToString(), "SaldoActual_Aumentar", "No aumento stock en cantidad en NR.", Log.TipoLog.Modificacion);
                                     }
                                 }
                             }

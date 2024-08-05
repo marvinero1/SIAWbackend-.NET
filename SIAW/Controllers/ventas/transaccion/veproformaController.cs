@@ -72,6 +72,7 @@ namespace SIAW.Controllers.ventas.transaccion
         private readonly Anticipos_Vta_Contado anticipos_vta_contado = new Anticipos_Vta_Contado();
         private readonly Log log = new Log();
         private readonly Depositos_Cliente depositos_cliente = new Depositos_Cliente();
+        private readonly string _controllerName = "veproformaController";
 
         public veproformaController(UserConnectionManager userConnectionManager)
         {
@@ -1737,7 +1738,7 @@ namespace SIAW.Controllers.ventas.transaccion
                             dbContexTransaction.Rollback();
                             return BadRequest(new { resp = result.resp });
                         }
-                        await log.RegistrarEvento(_context, veproforma.usuarioreg, Log.Entidades.Proforma, result.codprof.ToString(), idProf, result.numeroId.ToString(), "docveproforma.vb", "Grabar", Log.TipoLog.Creacion);
+                        await log.RegistrarEvento(_context, veproforma.usuarioreg, Log.Entidades.SW_Proforma, result.codprof.ToString(), idProf, result.numeroId.ToString(), this._controllerName, "Grabar", Log.TipoLog.Creacion);
 
                         //Grabar Etiqueta
                         if (datosProforma.veetiqueta_proforma != null)
@@ -1802,6 +1803,8 @@ namespace SIAW.Controllers.ventas.transaccion
                             }
                         }
 
+                        // Desde 23/11/2023 guardar el log de grabado aqui
+                        await log.RegistrarEvento(_context, veproforma.usuarioreg, Log.Entidades.SW_Proforma, result.codprof.ToString(), veproforma.id, result.numeroId.ToString(), this._controllerName, "Grabar Para Aprobar", Log.TipoLog.Creacion);
                         if (paraAprobar)
                         {
 
@@ -1809,10 +1812,8 @@ namespace SIAW.Controllers.ventas.transaccion
                             // *****************O J O *************************************************************************************************************
                             // IMPLEMENTADO EN FECHA 26-04-2018 LLAMA A LA FUNNCION QUE VALIDA LO QUE SE VALIDA DESDE LA VENTANA DE APROBACION DE PROFORMAS
                             // *****************O J O *************************************************************************************************************
-                            // Desde 23/11/2023 guardar el log de grabado aqui
 
 
-                            await log.RegistrarEvento(_context, veproforma.usuarioreg, Log.Entidades.Proforma, result.codprof.ToString(), veproforma.id, result.numeroId.ToString(), "veproformaController", "Grabar Para Aprobar", Log.TipoLog.Creacion);
                             string mensajeAprobacion = "";
                             var resultValApro = await Validar_Aprobar_Proforma(_context, veproforma.id, result.numeroId, result.codprof, codempresa, datosProforma.tabladescuentos, datosProforma.DVTA, datosProforma.tablarecargos);
 
@@ -1838,7 +1839,7 @@ namespace SIAW.Controllers.ventas.transaccion
                                     // Desde 15/11/2023 registrar en el log si por alguna razon no actualiza en instoactual correctamente al disminuir el saldo de cantidad y la reserva en proforma
                                     if (await ventas.aplicarstocksproforma(_context, result.codprof, codempresa) == false)
                                     {
-                                        await log.RegistrarEvento(_context, veproforma.usuarioreg, Log.Entidades.Proforma, result.codprof.ToString(), veproforma.id, result.numeroId.ToString(), "veproformaController", "No actualizo stock al sumar cantidad de reserva en PF.", Log.TipoLog.Creacion);
+                                        await log.RegistrarEvento(_context, veproforma.usuarioreg, Log.Entidades.SW_Proforma, result.codprof.ToString(), veproforma.id, result.numeroId.ToString(), this._controllerName, "No actualizo stock al sumar cantidad de reserva en PF.", Log.TipoLog.Creacion);
                                     }
                                     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -2393,25 +2394,29 @@ namespace SIAW.Controllers.ventas.transaccion
                     _context.veproforma_anticipo.RemoveRange(anticiposprevios);
                     await _context.SaveChangesAsync();
                 }
-                if (dt_anticipo_pf.Count() > 0 && dt_anticipo_pf != null)
+                if (dt_anticipo_pf != null)
                 {
+                    if (dt_anticipo_pf.Count() > 0)
+                    {
 
-                    var newData = dt_anticipo_pf
-                        .Select(i => new veproforma_anticipo
-                        {
-                            codproforma = codProforma,
-                            codanticipo = i.codanticipo,
-                            monto = (decimal?)i.monto,
-                            tdc = (decimal?)i.tdc,
+                        var newData = dt_anticipo_pf
+                            .Select(i => new veproforma_anticipo
+                            {
+                                codproforma = codProforma,
+                                codanticipo = i.codanticipo,
+                                monto = (decimal?)i.monto,
+                                tdc = (decimal?)i.tdc,
 
-                            fechareg = DateTime.Parse(datos_proforma.getFechaActual()),
-                            usuarioreg = veproforma.usuarioreg,
-                            horareg = datos_proforma.getHoraActual()
-                        }).ToList();
-                    _context.veproforma_anticipo.AddRange(newData);
-                    await _context.SaveChangesAsync();
+                                fechareg = DateTime.Parse(datos_proforma.getFechaActual()),
+                                usuarioreg = veproforma.usuarioreg,
+                                horareg = datos_proforma.getHoraActual()
+                            }).ToList();
+                        _context.veproforma_anticipo.AddRange(newData);
+                        await _context.SaveChangesAsync();
 
+                    }
                 }
+                
             }
             catch (Exception)
             {
@@ -2436,32 +2441,36 @@ namespace SIAW.Controllers.ventas.transaccion
                 decimal diferencia_ant_pf = 0;
                 bool anticipo_mayor = true;
 
-                if (dt_anticipo_pf.Count() > 0 && dt_anticipo_pf != null)
+                if (dt_anticipo_pf != null)
                 {
-                    foreach (var ant in dt_anticipo_pf)
+                    if (dt_anticipo_pf.Count() > 0)
                     {
-                        ttl_anticipos_aplicados += Math.Round(Convert.ToDecimal(ant.monto), 2);
-                    }
-                    ttl_pf = Math.Round(veproforma.total,2);
-                    diferencia_ant_pf = Math.Round(ttl_anticipos_aplicados - ttl_pf, 2);
-                    if (ttl_anticipos_aplicados != ttl_pf)
-                    {
-                        anticipo_mayor = ttl_anticipos_aplicados > ttl_pf;
-
-                        var newData = new veproforma_anticipo_diferencias
+                        foreach (var ant in dt_anticipo_pf)
                         {
-                            codproforma = codProforma,
-                            monto = diferencia_ant_pf,
-                            tdc = 1,
-                            fechareg = DateTime.Parse(datos_proforma.getFechaActual()),
-                            usuarioreg = veproforma.usuarioreg,
-                            horareg = datos_proforma.getHoraActual(),
-                            anticipo_aplicado_mayor = anticipo_mayor
-                        };
-                        await _context.veproforma_anticipo_diferencias.AddAsync(newData);
-                        await _context.SaveChangesAsync();
+                            ttl_anticipos_aplicados += Math.Round(Convert.ToDecimal(ant.monto), 2);
+                        }
+                        ttl_pf = Math.Round(veproforma.total, 2);
+                        diferencia_ant_pf = Math.Round(ttl_anticipos_aplicados - ttl_pf, 2);
+                        if (ttl_anticipos_aplicados != ttl_pf)
+                        {
+                            anticipo_mayor = ttl_anticipos_aplicados > ttl_pf;
+
+                            var newData = new veproforma_anticipo_diferencias
+                            {
+                                codproforma = codProforma,
+                                monto = diferencia_ant_pf,
+                                tdc = 1,
+                                fechareg = DateTime.Parse(datos_proforma.getFechaActual()),
+                                usuarioreg = veproforma.usuarioreg,
+                                horareg = datos_proforma.getHoraActual(),
+                                anticipo_aplicado_mayor = anticipo_mayor
+                            };
+                            await _context.veproforma_anticipo_diferencias.AddAsync(newData);
+                            await _context.SaveChangesAsync();
+                        }
                     }
                 }
+                
             }
             catch (Exception)
             {
@@ -2504,12 +2513,15 @@ namespace SIAW.Controllers.ventas.transaccion
             // ======================================================================================
             if (resultado)
             {
-                foreach (var reg in dt_anticipo_pf)
+                if (dt_anticipo_pf != null)
                 {
-                    if (!await anticipos_vta_contado.ActualizarMontoRestAnticipo(_context, reg.id_anticipo, reg.nroid_anticipo, reg.codproforma ?? 0, reg.codanticipo ?? 0, 0, codempresa))
-                    //    if (!await anticipos_vta_contado.ActualizarMontoRestAnticipo(_context, reg.id_anticipo, reg.nroid_anticipo, reg.codproforma ?? 0, reg.codanticipo ?? 0, reg.monto, codempresa))
+                    foreach (var reg in dt_anticipo_pf)
                     {
-                        resultado = false;
+                        if (!await anticipos_vta_contado.ActualizarMontoRestAnticipo(_context, reg.id_anticipo, reg.nroid_anticipo, reg.codproforma ?? 0, reg.codanticipo ?? 0, 0, codempresa))
+                        //    if (!await anticipos_vta_contado.ActualizarMontoRestAnticipo(_context, reg.id_anticipo, reg.nroid_anticipo, reg.codproforma ?? 0, reg.codanticipo ?? 0, reg.monto, codempresa))
+                        {
+                            resultado = false;
+                        }
                     }
                 }
             }
@@ -3063,9 +3075,10 @@ namespace SIAW.Controllers.ventas.transaccion
                         {
                             monto_desc_pf_complementaria = 0;
                         }
-                        //sumar el monto de la proforma complementaria
-                        reg.montodoc = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (double)(monto_desc + monto_desc_pf_complementaria));
+                        
                     }
+                    //sumar el monto de la proforma complementaria
+                    reg.montodoc = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (double)(monto_desc + monto_desc_pf_complementaria));
                 }
             }
 

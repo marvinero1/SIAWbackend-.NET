@@ -315,6 +315,7 @@ namespace siaw_funciones
                         _ = await Control_Valido(_context, control, DVTA, tabladetalle, tabladescuentos, dt_etiqueta, dt_anticipo_pf, tablarecargos, dtnocumplen, dtnegativos, codempresa, usuario);
                         //Control_Valido(userConnectionString, control, DVTA, tabladetalle, tabladescuentos, dt_etiqueta, dt_anticipo_pf, tablarecargos, dtnocumplen, dtnegativos, codempresa);
                     }
+                    var a = 1;
                     resultados = controles_final;
                 }
                 
@@ -6222,7 +6223,7 @@ namespace siaw_funciones
             }
 
             //verificar si la proforma esta transferida, deberia estar transferida
-            if (await ventas.proforma_transferida(_context, codproforma_complemento))
+            if (await ventas.proforma_transferida(_context, codproforma_complemento) == false)
             {
                 cadena += Environment.NewLine + "La proforma: " + DVTA.idpf_complemento + "-" + DVTA.nroidpf_complemento + " con la que intenta complementar no esta Transferida-Facturada, se requiere una proforma facturada.";
                 resultado = false;
@@ -6288,7 +6289,8 @@ namespace siaw_funciones
                             p.codcliente == DVTA.codcliente.Trim() &&
                             p.anulada == false &&
                             p.aprobada &&
-                            !string.IsNullOrEmpty(p.idpf_complemento))
+                            //!string.IsNullOrEmpty(p.idpf_complemento))
+                            p.idpf_complemento != "")
                         .Select(p => new
                         {
                             p.codigo,
@@ -9142,6 +9144,112 @@ namespace siaw_funciones
 
             return (dt, tabladetalle);
         }
+        public async Task<(ResultadoValidacion resultadoValidacion, List<Dtnegativos> dtnegativos)> Validar_Saldos_Negativos_Doc_Remision(DBContext _context, List<itemDataMatriz> tabladetalle, DatosDocVta DVTA, List<Dtnegativos> dtnegativos, string codempresa, string usuario, string idproforma, int numeroidproforma)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            string cadena_items = "";
+            string cadena_items2 = "";
+
+            InicializarResultado(objres);
+
+            if (tabladetalle.Count > 0)
+            {
+                List<string> msgs = new List<string>();
+                List<string> negs = new List<string>();
+
+                dtnegativos.Clear();
+                dtnegativos = await saldos.ValidarNegativosDocVenta(_context, tabladetalle, Convert.ToInt32(DVTA.codalmacen), idproforma, numeroidproforma, msgs, negs, codempresa, usuario);
+
+                foreach (var negativo in dtnegativos)
+                {
+                    if (negativo.obs.ToString() == "Genera Negativo")
+                    {
+                        if ((int)negativo.cantidad_conjunto > 0)
+                        {
+                            negs.Add(negativo.coditem_cjto.ToString());
+                        }
+                        if ((int)negativo.cantidad_suelta > 0)
+                        {
+                            negs.Add(negativo.coditem_suelto.ToString());
+                        }
+                    }
+                }
+                if (negs.Count == 0)
+                {
+                    objres.resultado = true;
+                    objres.observacion = "Ningun item del documento genera negativos";
+                    objres.accion = Acciones_Validar.Solo_Ok;
+
+                    foreach (var detalle in tabladetalle)
+                    {
+                        detalle.cumple = true;
+                    }
+                }
+                else
+                {
+                    foreach (var detalle in tabladetalle)
+                    {
+                        if (negs.Contains(detalle.coditem.ToString()))
+                        {
+                            // No cumple genera negativo
+                            detalle.cumple = false;
+                            // Genera la cadena de items en una fila
+                            if (cadena_items.Trim().Length == 0)
+                            {
+                                cadena_items = detalle.coditem.ToString();
+                            }
+                            else
+                            {
+                                cadena_items += " - " + detalle.coditem.ToString();
+                            }
+                            // Genera la lista item en filas
+                            if (cadena_items2.Trim().Length == 0)
+                            {
+                                cadena_items2 = detalle.coditem.ToString();
+                            }
+                            else
+                            {
+                                cadena_items2 += " - " + detalle.coditem.ToString();
+                            }
+                        }
+                        else
+                        {
+                            // Si cumple y NO genera negativo
+                            detalle.cumple = true;
+                        }
+                    }
+                }
+            }
+
+            if (await almacen.Es_Tienda(_context, int.Parse(DVTA.codalmacen)))
+            {
+                //si es tienda se habilita la posibilidad de facturar con negativos
+                //ESTO SERA PARA CASOS EXCEPCIONALES
+                if (cadena_items.Trim().Length > 0)
+                {
+                    objres.resultado = false;
+                    objres.observacion = "Los siguientes items generan saldos negativos!!!";
+                    objres.obsdetalle = cadena_items2;
+                    objres.datoA = DVTA.id + "-" + DVTA.numeroid;
+                    objres.datoB = cadena_items2;
+                    objres.accion = Acciones_Validar.Pedir_Servicio;
+                }
+            }
+            else
+            {
+                if (cadena_items.Trim().Length > 0)
+                {
+                    objres.resultado = false;
+                    objres.observacion = "Los siguientes items generan saldos negativos!!!";
+                    objres.obsdetalle = cadena_items2;
+                    objres.datoA = "";
+                    objres.datoB = "";
+                    objres.accion = Acciones_Validar.Ninguna;
+                }
+            }
+            return (objres, dtnegativos);
+        }
+
         public List<string> ListaItemsPedido(List<itemDataMatriz> tabladetalle)
         {
             List<string> resultado = new List<string>();

@@ -772,10 +772,6 @@
          "ObjectType": 0
       },
       {
-         "Name": "[dbo].[adusuario_destinatarios]",
-         "ObjectType": 0
-      },
-      {
          "Name": "[dbo].[adusuario_idproforma]",
          "ObjectType": 0
       },
@@ -7425,6 +7421,10 @@
       },
       {
          "Name": "[dbo].[vevendedor_desextra]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[vevendedor_destinatarios]",
          "ObjectType": 0
       },
       {

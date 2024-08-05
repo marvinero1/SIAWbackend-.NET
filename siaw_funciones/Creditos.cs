@@ -1106,7 +1106,7 @@ namespace siaw_funciones
                                 var RESULT_insertCreditoClienteNal = await Insertar_Credito_Cliente_MatrizNal(_context, OBJCREDITO, codcliente, casa_matriz_Nacional, ag_matriz_nacional);
                                 if (RESULT_insertCreditoClienteNal.resp)
                                 {
-                                    await log.RegistrarEvento(_context, usuarioreg, Log.Entidades.Ventana, codcliente, codcliente, "", "PROFORMAS", "Adicion de credito temporal automatico cliente: " + casa_matriz_Nacional, Log.TipoLog.Creacion);
+                                    await log.RegistrarEvento(_context, usuarioreg, Log.Entidades.SW_Ventana, codcliente, codcliente, "", "PROFORMAS", "Adicion de credito temporal automatico cliente: " + casa_matriz_Nacional, Log.TipoLog.Creacion);
                                     return (true, msgAlertOpcional, "Se ha registrado un credito temporal automatico. ");
                                 }
 
@@ -1634,7 +1634,7 @@ namespace siaw_funciones
 
                     if ( await Insertar_Credito_Cliente(_context, OBJCREDITO))
                     {
-                        await log.RegistrarEvento(_context, usuarioreg, Log.Entidades.Ventana, codcliente, codcliente, "", "PROFORMAS", "Adicion de credito temporal automatico cliente: " + codcliente, Log.TipoLog.Creacion);
+                        await log.RegistrarEvento(_context, usuarioreg, Log.Entidades.SW_Ventana, codcliente, codcliente, "", "PROFORMAS", "Adicion de credito temporal automatico cliente: " + codcliente, Log.TipoLog.Creacion);
                         return (true, msgAlert, "Se ha registrado un credito temporal automatico.");
                     }
                     else

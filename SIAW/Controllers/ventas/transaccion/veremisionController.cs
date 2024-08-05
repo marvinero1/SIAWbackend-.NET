@@ -43,12 +43,11 @@ namespace SIAW.Controllers.ventas.transaccion
         private readonly HardCoded hardCoded = new HardCoded();
 
         private readonly Log log = new Log();
-        private readonly string _controllerName;
+        private readonly string _controllerName = "veremisionController";
         public veremisionController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;
             // Inicializar el nombre del controlador en el constructor
-            _controllerName = this.ControllerContext.ActionDescriptor.ControllerName;
         }
         [HttpGet]
         [Route("getParametrosIniciales/{userConn}/{usuario}/{codempresa}")]
@@ -375,7 +374,8 @@ namespace SIAW.Controllers.ventas.transaccion
                         if (validacion.resp == false)
                         {
                             //return BadRequest(new { resp = validacion.resp, validacion.msgAlert, validacion.dtnegativos_result, validacion.codigo_control });
-                            return BadRequest(new { resp = validacion.resp, validacion.msgsAlert, validacion.dtnegativos_result, validacion.codigo_control });
+                            //return BadRequest(new { resp = validacion.resp, validacion.msgsAlert, validacion.dtnegativos_result, validacion.codigo_control });
+                            return StatusCode(203, new { resp = validacion.resp, validacion.msgsAlert, validacion.dtnegativos_result, validacion.codigo_control });
                         }
                         /////**************************
 
@@ -388,7 +388,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         {
                             return BadRequest(new { resp = doc_grabado.resp, msgAlert = "No se pudo Grabar la Nota de Remision con Exito." });
                         }
-                        await log.RegistrarEvento(_context, usuario, Log.Entidades.Nota_Remision, doc_grabado.codNRemision.ToString(), datosRemision.veremision.id, doc_grabado.numeroId.ToString(), "veremisionController", "Grabar", Log.TipoLog.Creacion);
+                        await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, doc_grabado.codNRemision.ToString(), datosRemision.veremision.id, doc_grabado.numeroId.ToString(), this._controllerName, "Grabar", Log.TipoLog.Creacion);
                         // devolver
                         string msgAlertGrabado = "Se grabo la Nota de Remision " + datosRemision.veremision.id + "-" + doc_grabado.numeroId + " con Exito.";
 
@@ -459,6 +459,7 @@ namespace SIAW.Controllers.ventas.transaccion
                             codNotRemision = doc_grabado.codNRemision,
                             nroIdRemision = doc_grabado.numeroId,
                             mostrarVentanaModifPlanCuotas = doc_grabado.mostrarModificarPlanCuotas,
+                            planCuotas = doc_grabado.plandeCuotas,
                             msgSolUrg = msgSolUrg
                         });
                     }
@@ -573,7 +574,7 @@ namespace SIAW.Controllers.ventas.transaccion
             ////////////////////////////////////////////////////////////////////////////////
             /////VALIDAR DETALLE DE ITEMS
             ///////////////////////////////////////////////////////////////////////////////////
-            var validacion_detalle = await Validar_Detalle(_context, sin_validar, sin_validar_empaques, sin_validar_negativos, codempresa, usuario, codcliente_real, DVTA, tabladetalle, tabladescuentos);
+            var validacion_detalle = await Validar_Detalle(_context, sin_validar, sin_validar_empaques, sin_validar_negativos, codempresa, usuario, codcliente_real, DVTA, tabladetalle, tabladescuentos, id_pf, nroid_pf);
             if (!validacion_detalle.bandera)
             {
                 resultado = false;
@@ -644,7 +645,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
         public List<Dtnegativos> dtnegativos = new List<Dtnegativos>();
-        private async Task<(bool bandera, string msg, int codigo_control, List<Dtnegativos> dtnegativos_result)> Validar_Detalle(DBContext _context, bool sin_validar, bool sin_validar_empaques, bool sin_validar_negativos, string codempresa, string usuario, string codcliente_real, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos)
+        private async Task<(bool bandera, string msg, int codigo_control, List<Dtnegativos> dtnegativos_result)> Validar_Detalle(DBContext _context, bool sin_validar, bool sin_validar_empaques, bool sin_validar_negativos, string codempresa, string usuario, string codcliente_real, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos, string id_pf, int numeroid_pf)
         {
             bool resultado = true;
             int i = 0;
@@ -803,7 +804,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         var msgs = new List<string>();
                         var negs = new List<string>();
 
-                        var validar_negativos = await Validar_Saldos_Negativos_Doc(_context, codempresa, usuario, codcliente_real, DVTA, tabladetalle);
+                        var validar_negativos = await Validar_Saldos_Negativos_Doc(_context, codempresa, usuario, codcliente_real, DVTA, tabladetalle, id_pf, numeroid_pf);
 
                         if (!validar_negativos.bandera)
                         {
@@ -902,6 +903,8 @@ namespace SIAW.Controllers.ventas.transaccion
 
             return (true, "OK", 0, dtnegativos);
         }
+
+
 
         private async Task<(bool result, string msgAlert)> Validar_Descuentos_Por_Deposito_Excedente(DBContext _context, string codempresa, List<vedesextraDatos> tabladescuentos, DatosDocVta DVTA)
         {
@@ -1642,7 +1645,7 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
 
-        private async Task<(bool bandera, string msg)> Validar_Saldos_Negativos_Doc(DBContext _context, string codempresa, string usuario, string codcliente_real, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle)
+        private async Task<(bool bandera, string msg)> Validar_Saldos_Negativos_Doc(DBContext _context, string codempresa, string usuario, string codcliente_real, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, string id, int numeroid)
         {
             bool resultado = true;
             string msg = "";
@@ -1651,7 +1654,7 @@ namespace SIAW.Controllers.ventas.transaccion
             {
                 ResultadoValidacion objres = new ResultadoValidacion();
                 validar_Vta.InicializarResultado(objres);
-                (objres, dtnegativos) = await validar_Vta.Validar_Saldos_Negativos_Doc(_context, tabladetalle, DVTA, dtnegativos, codempresa, usuario);
+                (objres, dtnegativos) = await validar_Vta.Validar_Saldos_Negativos_Doc_Remision(_context, tabladetalle, DVTA, dtnegativos, codempresa, usuario, id, numeroid);
                 if (objres.resultado == false)
                 {
                     resultado = objres.resultado;
@@ -3110,13 +3113,13 @@ namespace SIAW.Controllers.ventas.transaccion
                     // Desde 15/11/2023 registrar en el log si por alguna razon no actualiza en instoactual correctamente al disminuir el saldo de cantidad y la reserva en proforma
                     if (await saldos.Veremision_ActualizarSaldo(_context,usuario,codNRemision, Saldos.ModoActualizacion.Crear)==false)
                     {
-                        await log.RegistrarEvento(_context, usuario, Log.Entidades.Nota_Remision, codNRemision.ToString(), veremision.id, veremision.numeroid.ToString(), "veremisionController", "No actualizo stock al restar cantidad en NR.", Log.TipoLog.Creacion);
+                        await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, codNRemision.ToString(), veremision.id, veremision.numeroid.ToString(), this._controllerName, "No actualizo stock al restar cantidad en NR.", Log.TipoLog.Creacion);
                     }
                     else
                     {
                         if (await ventas.revertirstocksproforma(_context,codProforma,codempresa) == false)
                         {
-                            await log.RegistrarEvento(_context, usuario, Log.Entidades.Nota_Remision, codNRemision.ToString(), veremision.id, veremision.numeroid.ToString(), "veremisionController", "No actualizo stock al restar reserva en PF.", Log.TipoLog.Creacion);
+                            await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, codNRemision.ToString(), veremision.id, veremision.numeroid.ToString(), this._controllerName, "No actualizo stock al restar reserva en PF.", Log.TipoLog.Creacion);
                         }
                     }
                 }

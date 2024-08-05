@@ -213,7 +213,6 @@ namespace siaw_DBContext.Data
         public virtual DbSet<adusuario> adusuario { get; set; }
         public virtual DbSet<adusuario_crmcliente> adusuario_crmcliente { get; set; }
         public virtual DbSet<adusuario_crmvendedor> adusuario_crmvendedor { get; set; }
-        public virtual DbSet<adusuario_destinatarios> adusuario_destinatarios { get; set; }
         public virtual DbSet<adusuario_idproforma> adusuario_idproforma { get; set; }
         public virtual DbSet<adusuario_tarifa> adusuario_tarifa { get; set; }
         public virtual DbSet<advehiculo> advehiculo { get; set; }
@@ -1872,6 +1871,7 @@ namespace siaw_DBContext.Data
         public virtual DbSet<vetitular> vetitular { get; set; }
         public virtual DbSet<vevendedor> vevendedor { get; set; }
         public virtual DbSet<vevendedor_desextra> vevendedor_desextra { get; set; }
+        public virtual DbSet<vevendedor_destinatarios> vevendedor_destinatarios { get; set; }
         public virtual DbSet<vevendedor_objetivo> vevendedor_objetivo { get; set; }
         public virtual DbSet<vevendedor_objetivo_300> vevendedor_objetivo_300 { get; set; }
         public virtual DbSet<vevendedor_objetivo_400> vevendedor_objetivo_400 { get; set; }
@@ -7755,16 +7755,6 @@ namespace siaw_DBContext.Data
                 entity.Property(e => e.vendedor)
                     .IsRequired()
                     .HasMaxLength(50);
-            });
-
-            modelBuilder.Entity<adusuario_destinatarios>(entity =>
-            {
-                entity.HasKey(e => e.codigo)
-                    .HasName("PK__adusuari__40F9A2072EE34EE7");
-
-                entity.Property(e => e.destinatarios)
-                    .HasMaxLength(100)
-                    .IsUnicode(false);
             });
 
             modelBuilder.Entity<adusuario_idproforma>(entity =>
@@ -64639,6 +64629,16 @@ namespace siaw_DBContext.Data
             modelBuilder.Entity<vevendedor_desextra>(entity =>
             {
                 entity.HasNoKey();
+            });
+
+            modelBuilder.Entity<vevendedor_destinatarios>(entity =>
+            {
+                entity.HasKey(e => e.codigo)
+                    .HasName("PK__adusuari__40F9A2072EE34EE7");
+
+                entity.Property(e => e.destinatarios)
+                    .HasMaxLength(100)
+                    .IsUnicode(false);
             });
 
             modelBuilder.Entity<vevendedor_objetivo>(entity =>

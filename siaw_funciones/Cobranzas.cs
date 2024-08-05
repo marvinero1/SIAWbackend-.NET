@@ -1938,7 +1938,7 @@ namespace siaw_funciones
                                 string cliente = reg.codcliente_real;
 
                                 // registrar el log de eliminacion
-                                await log.RegistrarEvento(_context, usuarioreg, Log.Entidades.Proforma, cliente, reg.idpf, reg.nroidpf.ToString(), nomb_ventana, detalle, Log.TipoLog.Eliminacion);
+                                await log.RegistrarEvento(_context, usuarioreg, Log.Entidades.SW_Proforma, cliente, reg.idpf, reg.nroidpf.ToString(), nomb_ventana, detalle, Log.TipoLog.Eliminacion);
                                 // eliminar de cocobranza_deposito
                                 // si y solo siiii se puede borrar la cabecera
                                 if (borrar_cabecera)
@@ -1971,13 +1971,13 @@ namespace siaw_funciones
                                     if (affectedRows2 > 0)
                                     {
                                         detalle = "Se elimino de cocobranza_deposito el Desc por Deposito de: " + doc_cbza_depo + " Monto:" + reg.montodoc + " (" + reg.codmoneda + ") de Prof: " + reg.idpf + "-" + reg.nroidpf;
-                                        await log.RegistrarEvento(_context, usuarioreg, Log.Entidades.Proforma, cliente, reg.idpf, reg.nroidpf.ToString(), nomb_ventana, detalle, Log.TipoLog.Eliminacion);
+                                        await log.RegistrarEvento(_context, usuarioreg, Log.Entidades.SW_Proforma, cliente, reg.idpf, reg.nroidpf.ToString(), nomb_ventana, detalle, Log.TipoLog.Eliminacion);
                                     }
                                 }
                                 else
                                 {
                                     detalle = "Atencion!!! No Se elimino(hay otras proformas) de cocobranza_deposito el Desc por Deposito de: " + doc_cbza_depo + " Monto:" + reg.montodoc + " (" + reg.codmoneda + ") de Prof: " + reg.idpf + "-" + reg.nroidpf;
-                                    await log.RegistrarEvento(_context, usuarioreg, Log.Entidades.Proforma, cliente, reg.idpf, reg.nroidpf.ToString(), nomb_ventana, detalle, Log.TipoLog.Eliminacion);
+                                    await log.RegistrarEvento(_context, usuarioreg, Log.Entidades.SW_Proforma, cliente, reg.idpf, reg.nroidpf.ToString(), nomb_ventana, detalle, Log.TipoLog.Eliminacion);
                                 }
                             }
                         }

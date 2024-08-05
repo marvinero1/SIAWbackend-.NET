@@ -473,7 +473,7 @@ namespace siaw_funciones
                 _context.cocobranza_deposito.RemoveRange(dt);
                 await _context.SaveChangesAsync();
                 // grabar logs
-                await log.RegistrarEvento(_context, usuarioreg, Log.Entidades.Ventana, Datos_Deposito.codcliente, Datos_Deposito.codcliente, "", nomb_ventana, "Se elimino la cobranza:" + Datos_Deposito.idcbza + "-" + Datos_Deposito.nroidcbza + " en cocobranza_deposito.", Log.TipoLog.Edicion);
+                await log.RegistrarEvento(_context, usuarioreg, Log.Entidades.SW_Ventana, Datos_Deposito.codcliente, Datos_Deposito.codcliente, "", nomb_ventana, "Se elimino la cobranza:" + Datos_Deposito.idcbza + "-" + Datos_Deposito.nroidcbza + " en cocobranza_deposito.", Log.TipoLog.Edicion);
 
             }
             // insertar el registro en cocobranza_deposito
@@ -494,7 +494,7 @@ namespace siaw_funciones
             _context.cocobranza_deposito.Add(newReg);
             await _context.SaveChangesAsync();
             // grabar logs
-            await log.RegistrarEvento(_context, usuarioreg, Log.Entidades.Ventana, Datos_Deposito.codcliente, Datos_Deposito.codcliente, "", nomb_ventana, "Se registro la  cobranza " + Datos_Deposito.idcbza + "-" + Datos_Deposito.nroidcbza + " en cocobranza deposito con el monto descuento de: " + Datos_Deposito.monto_descto.ToString(), Log.TipoLog.Edicion);
+            await log.RegistrarEvento(_context, usuarioreg, Log.Entidades.SW_Ventana, Datos_Deposito.codcliente, Datos_Deposito.codcliente, "", nomb_ventana, "Se registro la  cobranza " + Datos_Deposito.idcbza + "-" + Datos_Deposito.nroidcbza + " en cocobranza deposito con el monto descuento de: " + Datos_Deposito.monto_descto.ToString(), Log.TipoLog.Edicion);
             return true;
         }
 

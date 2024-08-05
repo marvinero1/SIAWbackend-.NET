@@ -71,7 +71,7 @@ namespace SIAW.Controllers.z_pruebas
                     var nombreVendedor = await _context.pepersona.Where(i => i.codigo == (credenciales.persona))
                         .Select(i => i.nombre1 + " " + i.nombre2 + " " + i.apellido1 + " " + i.apellido2).FirstOrDefaultAsync();
 
-                    var emailsCc = await _context.adusuario_destinatarios.Where(i => i.codvendedor == codvendedor)
+                    var emailsCc = await _context.vevendedor_destinatarios.Where(i => i.codvendedor == codvendedor)
                         .Select(i => i.destinatarios).ToListAsync();
 
                     var dataProf = await _context.veproforma.Where(i => i.codigo == codproforma)

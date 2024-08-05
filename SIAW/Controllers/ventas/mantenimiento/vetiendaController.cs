@@ -41,8 +41,6 @@ namespace SIAW.Controllers.ventas.mantenimiento
             {
                 return Problem("Error en el servidor");
             }
-
-
         }
 
         // GET: api/vetienda/5
