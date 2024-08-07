@@ -5721,6 +5721,187 @@ namespace siaw_funciones
             }
         }
 
+        public async Task<bool> RemisionEstaPagadaEnParte(DBContext _context, int codigo)
+        {
+            try
+            {
+                var pagado = await _context.coplancuotas
+                    .Where(p => p.coddocumento == codigo)
+                    .SumAsync(i => i.montopagado) ?? 0;
+                if (pagado > 0)
+                {
+                    return true;
+                }
+                return false;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        public async Task<bool> Remision_Contado_Contra_Entrega_Esta_Pagada_2(DBContext _context, int codremision)
+        {
+            try
+            {
+                var tblpagos = await _context.copagos
+                    .Where(p1 => p1.codremision == codremision)
+                    .Join(
+                        _context.cocobranza,
+                        p1 => p1.codcobranza,
+                        p2 => p2.codigo,
+                        (p1, p2) => new { p1, p2 }
+                    )
+                    .Where(joined => joined.p2.reciboanulado == false)
+                    .Select(joined => new
+                    {
+                        joined.p2.reciboanulado,
+                        joined.p2.id,
+                        joined.p2.numeroid,
+                        joined.p2.fecha,
+                        joined.p2.nit,
+                        monto_cbza = joined.p2.monto,
+                        monto_dist = joined.p1.monto
+                    })
+                    .ToListAsync();
+                double pagado = 0;
+                foreach (var reg in tblpagos)
+                {
+                    pagado = (double)reg.monto_dist;
+                }
+                ///////////////////////////////
+                // si hay monto pagado
+                ///////////////////////////////
+                if (pagado > 0)
+                {
+                    return true;
+                }
+                return false;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        ///////////////////////////////////////////////////////////////////////////////
+        // devulve una cadena de facturas de una nota de remision id-nro, id-nro
+        ///////////////////////////////////////////////////////////////////////////////
+        public async Task<string> facturas_de_una_nr(DBContext _context, int codremision)
+        {
+            try
+            {
+                string resultado = "";
+                var tabla = await _context.vefactura
+                    .Where(p => p.codremision == codremision && p.anulada == false)
+                    .Select(i => new
+                    {
+                        i.id,
+                        i.numeroid
+                    }).ToListAsync();
+                if (tabla.Count() > 0)
+                {
+                    foreach (var reg in tabla)
+                    {
+                        resultado = resultado + reg.id + "-" + reg.numeroid + ", ";
+                    }
+                    resultado = resultado + ".";
+                }
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
+        public async Task<bool> remision_es_reversion_pp(DBContext _context, string id, int nroid)
+        {
+            var tabla = await _context.veremision
+                .Where(v => v.id == id && v.numeroid == nroid && v.obs.StartsWith("REVERSION"))
+                .Select(v => v.codigo)
+                .CountAsync();
+            if (tabla > 0)
+            {
+                return true;
+            }
+            return false;
+        }
+        public async Task<int> Vendedor_de_Cliente_De_Remision(DBContext _context, string id, int numeroid)
+        {
+            int resultado = 0;
+            try
+            {
+                var codVendedor = await _context.veremision
+                    .Where(p => p.id == id && p.numeroid == numeroid)
+                    .Join(_context.vecliente,
+                          p => p.codcliente,
+                          c => c.codigo,
+                          (p, c) => new { c.codvendedor })
+                    .FirstOrDefaultAsync();
+                resultado = codVendedor.codvendedor;
+            }
+            catch (Exception)
+            {
+                resultado = 0;
+            }
+            return resultado;
+        }
+
+        public async Task<bool> ValidarMostrarDocumento(DBContext _context, TipoDocumento_Ventas tipo, int codigo_documento, string usuario)
+        {
+            bool resultado = true;
+            var tarifas = new List<int>();
+            switch (tipo)
+            {
+                case TipoDocumento_Ventas.Cotizacion:
+                    tarifas = await _context.vecotizacion1
+                      .Where(vc => vc.codcotizacion == codigo_documento)
+                      .Select(vc => vc.codtarifa)
+                      .Distinct()
+                      .ToListAsync();
+                    break;
+                case TipoDocumento_Ventas.Proforma:
+                    tarifas = await _context.veproforma1
+                      .Where(vc => vc.codproforma == codigo_documento)
+                      .Select(vc => vc.codtarifa)
+                      .Distinct()
+                      .ToListAsync();
+                    break;
+                case TipoDocumento_Ventas.Remision:
+                    tarifas = await _context.veremision1
+                      .Where(vc => vc.codremision == codigo_documento)
+                      .Select(vc => vc.codtarifa)
+                      .Distinct()
+                      .ToListAsync();
+                    break;
+                case TipoDocumento_Ventas.Factura:
+                    tarifas = await _context.vefactura1
+                      .Where(vc => vc.codfactura == codigo_documento)
+                      .Select(vc => vc.codtarifa)
+                      .Distinct()
+                      .ToListAsync();
+                    break;
+                default:
+                    tarifas = null;
+                    break;
+            }
+            if (tarifas != null)
+            {
+                foreach (var reg in tarifas)
+                {
+                    if (!await UsuarioTarifa_Permitido(_context,usuario,reg))
+                    {
+                        resultado = false;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                resultado = false;
+            }
+            return resultado;
+        }
 
 
         public async Task<List<ProformasWF>> Detalle_Proformas_Aprobadas_WF(string userConnectionString, string codempresa, string usuario)
@@ -5864,5 +6045,12 @@ namespace siaw_funciones
         public string medida { get; set; }
         public string udm { get; set; }
         public decimal cantidad { get; set; }
+    }
+    public enum TipoDocumento_Ventas
+    {
+        Cotizacion,
+        Proforma,
+        Remision,
+        Factura
     }
 }

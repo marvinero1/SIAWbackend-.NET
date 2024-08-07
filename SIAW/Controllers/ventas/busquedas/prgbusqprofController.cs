@@ -79,7 +79,76 @@ namespace SIAW.Controllers.ventas.busquedas
                 throw;
             }
         }
+
+
+        [HttpPost]
+        [Route("getNotRemisionByParam/{userConn}")]
+        public async Task<IActionResult> getNotRemisionByParam(string userConn, RequestBusquedaProf? filtrosBusquedaProf)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var query = _context.veremision.AsQueryable();
+                    if (filtrosBusquedaProf != null)
+                    {
+                        if (filtrosBusquedaProf.itodos1)
+                        {
+                            query = query.Where(i => string.Compare(i.id, filtrosBusquedaProf.id1) >= 0 && string.Compare(i.id, filtrosBusquedaProf.id2) <= 0);
+                        }
+                        if (filtrosBusquedaProf.ftodos1)
+                        {
+                            query = query.Where(i => i.fecha >= (filtrosBusquedaProf.fechade ?? new DateTime(1900, 1, 1)).Date && i.fecha <= (filtrosBusquedaProf.fechaa ?? new DateTime(1900, 1, 1)).Date);
+                        }
+                        if (filtrosBusquedaProf.atodos1)
+                        {
+                            query = query.Where(i => i.codalmacen >= filtrosBusquedaProf.codalmacen1 && i.codalmacen <= filtrosBusquedaProf.codalmacen2);
+                        }
+                        if (filtrosBusquedaProf.vtodos1)
+                        {
+                            query = query.Where(i => i.codvendedor >= filtrosBusquedaProf.codvendedor1 && i.codvendedor <= filtrosBusquedaProf.codvendedor2);
+                        }
+                        if (filtrosBusquedaProf.ctodos1)
+                        {
+                            query = query.Where(i => string.Compare(i.codcliente, filtrosBusquedaProf.codcliente1) >= 0 && string.Compare(i.codcliente, filtrosBusquedaProf.codcliente2) <= 0);
+                        }
+                    }
+                    var notaRemiBusq = await query
+                        .OrderBy(i => i.fecha)
+                        .ThenBy(i => i.id)
+                        .ThenBy(i => i.numeroid)
+                        .Take(100)
+                        .Select(i => new
+                        {
+                            i.codigo,
+                            i.id,
+                            i.numeroid,
+                            i.fecha,
+                            i.codcliente,
+                            i.nomcliente,
+                            i.codvendedor,
+                            i.codalmacen,
+                            i.total,
+                            i.codmoneda
+                        }).ToListAsync();
+                    return Ok(notaRemiBusq);
+                }
+
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+        }
+
+
     }
+
+
+
 
     public class RequestBusquedaProf
     {
