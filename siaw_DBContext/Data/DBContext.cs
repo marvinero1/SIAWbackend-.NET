@@ -20362,6 +20362,8 @@ namespace siaw_DBContext.Data
                     .HasMaxLength(15)
                     .IsUnicode(false);
 
+                entity.Property(e => e.impresora_nr).HasMaxLength(60);
+
                 entity.Property(e => e.latitud)
                     .HasMaxLength(25)
                     .IsUnicode(false);
@@ -61957,9 +61959,8 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<velog_estado_pedido>(entity =>
             {
-                entity.HasNoKey();
-
-                entity.Property(e => e.codigo).ValueGeneratedOnAdd();
+                entity.HasKey(e => e.codigo)
+                    .HasName("PK__velog_es__40F9A20728467AAB");
 
                 entity.Property(e => e.estado).HasMaxLength(50);
 

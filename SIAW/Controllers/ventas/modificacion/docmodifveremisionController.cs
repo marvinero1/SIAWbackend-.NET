@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using siaw_DBContext.Data;
 using siaw_DBContext.Models;
 using siaw_funciones;
@@ -17,8 +18,12 @@ namespace SIAW.Controllers.ventas.modificacion
         private readonly siaw_funciones.Ventas ventas = new siaw_funciones.Ventas();
         private readonly siaw_funciones.Seguridad seguridad = new siaw_funciones.Seguridad();
         private readonly siaw_funciones.Cliente cliente = new siaw_funciones.Cliente();
+        private readonly siaw_funciones.Funciones funciones = new Funciones();
+        private readonly siaw_funciones.Saldos saldos = new siaw_funciones.Saldos();
+        private readonly siaw_funciones.Creditos creditos = new siaw_funciones.Creditos();
 
         private readonly Restricciones restricciones = new Restricciones();
+        private readonly Log log = new Log();
         private readonly string _controllerName = "docmodifveremisionController";
 
         public docmodifveremisionController(UserConnectionManager userConnectionManager)
@@ -294,83 +299,164 @@ namespace SIAW.Controllers.ventas.modificacion
             return detalle;
         }
 
-        [HttpGet]
-        [Route("anularNR/{userConn}/{codRemision}")]
-        public async Task<object> anularNR(string userConn, int codRemision)
+        [HttpPost]
+        [Route("anularNR/{userConn}/{codRemision}/{usuario}/{codempresa}/{autUltInventario}/{autNResReversion}")]
+        public async Task<object> anularNR(string userConn, int codRemision, string usuario, string codempresa, bool autUltInventario, bool autNResReversion)
         {
-            try
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+            using (var _context = DbContextFactory.Create(userConnectionString))
             {
-                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-
-                using (var _context = DbContextFactory.Create(userConnectionString))
+                using (var dbContexTransaction = _context.Database.BeginTransaction())
                 {
-                    var datosRemision = await _context.veremision.Where(i => i.codigo == codRemision).Select(i => new
+                    try
                     {
-                        i.codalmacen,
-                        i.fecha,
-                        i.anulada,
-                        i.transferida,
-                        i.id,
-                        i.numeroid,
-                        i.obs,
-                        i.codproforma
-                    }).FirstOrDefaultAsync();
-                    if (datosRemision == null)
-                    {
-                        return BadRequest(new { resp = "No se encontraron datos con el codigo de Nota de Remision Proporcionado, consulte al administrador de Sistema" });
-                    }
-                    if (await restricciones.ValidarModifDocAntesInventario(_context, datosRemision.codalmacen, datosRemision.fecha))
-                    {
-                        // nada
-                    }
-                    else
-                    {
-                        return BadRequest(new { resp = "No puede modificar datos anteriores al ultimo inventario, Para eso necesita una autorizacion especial." });
-                        // aca debe llamar a autorizacion especial  // verificar con Marvin
-                    }
+                        var datosRemision = await _context.veremision.Where(i => i.codigo == codRemision).Select(i => new
+                        {
+                            i.codalmacen,
+                            i.fecha,
+                            i.anulada,
+                            i.transferida,
+                            i.id,
+                            i.numeroid,
+                            i.obs,
+                            i.codproforma,
+                            i.descarga,
+                            i.codmoneda,
+                            i.codcliente
+                        }).FirstOrDefaultAsync();
+                        if (datosRemision == null)
+                        {
+                            return BadRequest(new { resp = "No se encontraron datos con el codigo de Nota de Remision Proporcionado, consulte al administrador de Sistema" });
+                        }
+                        if (autUltInventario == false)
+                        {
+                            if (await restricciones.ValidarModifDocAntesInventario(_context, datosRemision.codalmacen, datosRemision.fecha))
+                            {
+                                // nada
+                            }
+                            else
+                            {
+                                return StatusCode(203, new { resp = "No puede modificar datos anteriores al ultimo inventario, Para eso necesita una autorizacion especial." });
+                                // aca debe llamar a autorizacion especial  // verificar con Marvin
+                            }
+                        }
+                        
 
-                    if (datosRemision.anulada)
-                    {
-                        return BadRequest(new { resp = "Esta Nota de Remision ya esta Anulada." });
-                    }
-                    if (await ventas.RemisionEstaPagadaEnParte(_context,codRemision) || await ventas.Remision_Contado_Contra_Entrega_Esta_Pagada_2(_context,codRemision))
-                    {
-                        return BadRequest(new { resp = "Esta Nota de Remision tiene un monto pagado, no puede ser Anulada. Para anularla anule el/los documento/s al cual fue transferido. " + await ventas.facturas_de_una_nr(_context, codRemision) });
-                    }
-                    if (datosRemision.transferida)
-                    {
-                        return BadRequest(new { resp = "Esta Nota de Remision ya fue transferida, no puede ser Anulada. Para anularla anule el/los documento/s al cual fue transferido. " + await ventas.facturas_de_una_nr(_context, codRemision) });
-                    }
-                    // verificar si es nota de reversion
-                    if (await ventas.remision_es_reversion_pp(_context,datosRemision.id, datosRemision.numeroid))
-                    {
-                        return BadRequest(new { resp = "La nota de remision es reversion de: " + datosRemision.obs + "para anular debe ingresar el permiso especial." });
-                        // aca debe llamar a autorizacion especial  // verificar con Marvin
-                    }
-                    if (await ventas.proforma_es_complementaria(_context, datosRemision.codproforma ?? 0))
-                    {
-                        var lista = await ventas.lista_PFNR_complementarias(_context, datosRemision.codproforma ?? 0);
-                        // anular complementaria
-                        //anularcomplementaria()
-                    }
-                    else
-                    {
-                        // anular normal
-                        await anularnormal(_context,codRemision,datosRemision.codproforma ?? 0);
-                    }
-                    return Ok("Pendiente");
+                        if (datosRemision.anulada)
+                        {
+                            return BadRequest(new { resp = "Esta Nota de Remision ya esta Anulada." });
+                        }
+                        if (await ventas.RemisionEstaPagadaEnParte(_context, codRemision) || await ventas.Remision_Contado_Contra_Entrega_Esta_Pagada_2(_context, codRemision))
+                        {
+                            return BadRequest(new { resp = "Esta Nota de Remision tiene un monto pagado, no puede ser Anulada. Para anularla anule el/los documento/s al cual fue transferido. " + await ventas.facturas_de_una_nr(_context, codRemision) });
+                        }
+                        if (datosRemision.transferida)
+                        {
+                            return BadRequest(new { resp = "Esta Nota de Remision ya fue transferida, no puede ser Anulada. Para anularla anule el/los documento/s al cual fue transferido. " + await ventas.facturas_de_una_nr(_context, codRemision) });
+                        }
+                        // verificar si es nota de reversion
+                        if (autNResReversion == false)
+                        {
+                            if (await ventas.remision_es_reversion_pp(_context, datosRemision.id, datosRemision.numeroid))
+                            {
+                                return StatusCode(203, new { resp = "La nota de remision es reversion de: " + datosRemision.obs + "para anular debe ingresar el permiso especial." });
+                                // aca debe llamar a autorizacion especial  // verificar con Marvin
+                            }
+                        }
+                        
+                        string msgAnulacion = "";
+                        if (await ventas.proforma_es_complementaria(_context, datosRemision.codproforma ?? 0))
+                        {
+                            List<list_PFNR_comp_> lista = await ventas.lista_PFNR_complementarias(_context, datosRemision.codproforma ?? 0);
+                            // anular complementaria
+                            //anularcomplementaria()
+                            // CUANDO ES COMPLEMENTARIA AL ANULAR SE DEBE MANDAR CON TRUE
+                            msgAnulacion = await anularnormal(_context, codRemision, datosRemision.codproforma ?? 0, datosRemision.descarga, usuario, codempresa, true);
+                            await anularcomplementaria(_context, codRemision, datosRemision.codproforma ?? 0, datosRemision.codmoneda, datosRemision.codcliente, datosRemision.fecha.Date, codempresa);
+                        }
+                        else
+                        {
+                            // anular normal     // CUANDO NO ES COMPLEMENTARIA AL ANULAR SE DEBE MANDAR CON FALSE
+                            msgAnulacion = await anularnormal(_context, codRemision, datosRemision.codproforma ?? 0, datosRemision.descarga, usuario, codempresa, false);
+                        }
+                        // si no se anulo se debe mandar la observacion encontrada
+                        if (msgAnulacion != "ok")
+                        {
+                            dbContexTransaction.Rollback();
+                            return BadRequest(new { resp = msgAnulacion });
+                        }
 
+                        await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, codRemision.ToString(), datosRemision.id, datosRemision.numeroid.ToString(), _controllerName, "Anular", Log.TipoLog.Anulacion);
+                        // cambiar fecha anulacion, si no tiene facturas
+                        var recordsToUpdate = await _context.veremision
+                        .Where(v => v.anulada == true &&
+                                    v.fecha_anulacion > v.fecha &&
+                                    v.fecha >= new DateTime(v.fecha.Date.Year, v.fecha.Date.Month, 1) &&
+                                    !_context.vefactura.Select(f => f.codremision).Contains(v.codigo))
+                        .ToListAsync();
+                        if (recordsToUpdate.Count() > 0)
+                        {
+                            foreach (var record in recordsToUpdate)
+                            {
+                                record.fecha_anulacion = record.fecha;
+                                _context.Entry(record).State = EntityState.Modified;
+                            }
+
+                            await _context.SaveChangesAsync();
+                        }
+                        if (!await cliente.ExisteCliente(_context, datosRemision.codcliente))
+                        {
+                            veventas_remoto newregistro = new veventas_remoto();
+                            newregistro.idremision = datosRemision.id;
+                            newregistro.nroidremision = datosRemision.numeroid;
+                            newregistro.consolidado = false;
+                            _context.veventas_remoto.Add(newregistro);
+                            await _context.SaveChangesAsync();
+                        }
+                        await creditos.Actualizar_Credito_2023(_context, datosRemision.codcliente, usuario, codempresa, true);
+
+
+                        dbContexTransaction.Commit();
+                        return Ok(new { resp = "Se Anulo la Nota de Remision con exito." });
+                    }
+                    catch (Exception ex)
+                    {
+                        dbContexTransaction.Rollback();
+                        return Problem($"Error en el servidor: {ex.Message}");
+                        throw;
+                    }
                 }
 
-            }
-            catch (Exception)
-            {
-                return Problem("Error en el servidor");
-                throw;
+
             }
         }
 
-        private async Task<string> anularnormal(DBContext _context, int codigoNR, int codigoPF)
+        private async Task anularcomplementaria(DBContext _context, int codigoNR, int codigoPF, string codmoneda, string codcliente, DateTime fecha, string codempresa)
+        {
+            // SEGUNN SE REVISO ACA VA CODIGO SIMILAR AL DE ANULAR NORMAL, POR LO QUE SE LLAMARA DE MANERA GENERAL A ANULAR NORMAL Y DESPUES A ESTA SI EL PEDIDO ES COMPLEMENTO
+            // recalcular planes de pago para las notas restantes
+            List<list_PFNR_comp_> lista = await ventas.lista_PFNR_complementarias(_context, codigoPF);
+            foreach (var reg in lista)
+            {
+                if (reg.codremision == 0 || reg.codremision == codigoNR)
+                {
+                    // nada
+                }
+                else
+                {
+                    if (await ventas.revertirpagos(_context,reg.codremision,4))
+                    {
+                        await ventas.generarcuotaspago(_context, reg.codremision, 4, await montocomplementarias(_context, lista, 0), 0, codmoneda, codcliente, fechacomplementaria_menor(lista, fecha), false, codempresa);
+                    }
+                }
+            }
+
+        }
+
+
+
+        private async Task<string> anularnormal(DBContext _context, int codigoNR, int codigoPF, bool descarga, string usuario, string codempresa, bool complementaria)
         {
             if (await ventas.revertirpagos(_context, codigoNR, 4))
             {
@@ -389,7 +475,44 @@ namespace SIAW.Controllers.ventas.modificacion
                             // Se actualizaron registros en la base de datos
                             // Aqui no se quitara el codigod eproforma para tener el enlace
                             // If sia_DAL.Datos.Instancia.EjecutarComando("UPDATE veremision SET anulada=1, fecha_anulacion='" & sia_DAL.Datos.Instancia.FechaISO(sia_funciones.Funciones.Instancia.fecha_del_servidor()) & "', codproforma=0 WHERE codigo= " + codigo.Text) Then
+                            var notaRemision = await _context.veremision.Where(i => i.codigo == codigoNR).FirstOrDefaultAsync();
+                            if (notaRemision != null)
+                            {
+                                notaRemision.anulada = true;
+                                notaRemision.fecha_anulacion = await funciones.FechaDelServidor(_context);
+                                var confirmacion2 = await _context.SaveChangesAsync();
+                                if (confirmacion2 > 0)
+                                {
+                                    // SOLO PARA COMPLEMENTARIA
+                                    if (complementaria)
+                                    {
+                                        await ventas.RemisionPonerFechaAnulacion(_context,codigoNR);
+                                    }
 
+                                    if (descarga)
+                                    {
+                                        //sia_funciones.Saldos.Instancia.Veremision_ActualizarSaldo(CInt(codigo.Text), sia_funciones.Saldos.modo_actualizacion.eliminar)
+                                        //dsd 26-01-2022 debe de actualizar la reserva de cantidades de la proforma de la remision anulada en instoactual
+                                        if (await saldos.Veremision_ActualizarSaldo(_context,usuario,codigoNR,Saldos.ModoActualizacion.Eliminar) == false)
+                                        {
+                                            return "No se pudo actualizar todos los stocks actuales de esta nota, Por favor haga correr una actualizacion de stocks cuando vea conveniente.";
+                                        }
+                                        else
+                                        {
+                                            await ventas.aplicarstocksproforma(_context, codigoPF, codempresa);
+                                        }
+                                    }
+                                    return "ok"; // Se Anulo la Nota de Remision con exito.
+                                }
+                                else
+                                {
+                                    return "No se pudo Anular esta Nota de Remision.";
+                                }
+                            }
+                            else
+                            {
+                                return "No se encontró una nota de remision con este código, consulte con el administrador";
+                            }
 
                         }
                         else
@@ -397,19 +520,76 @@ namespace SIAW.Controllers.ventas.modificacion
                             return "No se pudo Anular esta Nota de Remision.";
                         }
                     }
+                    else
+                    {
+                        return "No se encontró una proforma enlazada a la nota de Remision, consulte con el administrador.";
+                    }
                 }
                 else
                 {
-
+                    // ANTES ERA ACA CASO PEDIDO, PERO COMO NO SE TOMA YA DIRECTO ANULAR
+                    // If sia_DAL.Datos.Instancia.EjecutarComando("UPDATE veremision SET anulada=1, fecha_anulacion='" & sia_DAL.Datos.Instancia.FechaISO(Today) & "', codproforma=0 WHERE codigo= " + codigo.Text) Then
+                    var notaRemision = await _context.veremision.Where(i => i.codigo == codigoNR).FirstOrDefaultAsync();
+                    if (notaRemision != null)
+                    {
+                        notaRemision.anulada = true;
+                        notaRemision.fecha_anulacion = await funciones.FechaDelServidor(_context);
+                        var confirmacion2 = await _context.SaveChangesAsync();
+                        if (confirmacion2 > 0)
+                        {
+                            if (descarga)
+                            {
+                                await saldos.Veremision_ActualizarSaldo(_context, usuario, codigoNR, Saldos.ModoActualizacion.Eliminar);
+                            }
+                            return "ok"; // Se Anulo la Nota de Remision con exito.
+                        }
+                        else
+                        {
+                            return "No se pudo Anular esta Nota de Remision.";
+                        }
+                    }
+                    else
+                    {
+                        return "No se encontró una nota de remision con este código, consulte con el administrador";
+                    }
                 }
             }
             else
             {
                 return "No se pudo Anular esta Nota de Remision. Ya que no se pudo revertir los pagos hechos a la misma.";
             }
-            return "ok";
         }
 
+        // monto total de las complementarias mas la nota actual
+        private async Task<double> montocomplementarias(DBContext _context, List<list_PFNR_comp_> lista, double total = 0)
+        {
+            double totalc = total;
+            foreach (var reg in lista)
+            {
+                if (reg.codremision == 0)
+                {
+                    // nada
+                }
+                else
+                {
+                    var tabla = await _context.veremision.Where(i => i.codigo == reg.codremision).Select(i => new { i.total }).FirstOrDefaultAsync();
+                    if (tabla != null)
+                    {
+                        totalc = totalc + (double)tabla.total;
+                    }
+                }
+            }
+            return totalc;
+        }
+        private DateTime fechacomplementaria_menor(List<list_PFNR_comp_> lista, DateTime fecha)
+        {
+            DateTime fecha_menor = lista.Min(i => i.fecharemision); // obtener la fecha menor de la lista
+            if (fecha_menor < fecha)
+            {
+                return fecha_menor.Date;
+            }
+            return fecha.Date;
+        }
 
     }
 }

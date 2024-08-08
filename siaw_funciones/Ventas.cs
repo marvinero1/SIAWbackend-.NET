@@ -5903,7 +5903,55 @@ namespace siaw_funciones
             return resultado;
         }
 
+        public async Task<bool> RemisionPonerFechaAnulacion(DBContext _context, int codremision)
+        {
+            bool resultado = new bool();
+            try
+            {
+                // ver si tiene facturas
+                var dt_facturas = await _context.vefactura.Where( i=> i.codremision == codremision).Select(i=> new { i.fecha_anulacion }).ToListAsync();
+                if (dt_facturas.Count() > 0)
+                {
+                    // si tiene  poner la fecha de sus facturas
+                    var maxFecha = dt_facturas.Max();
+                    // DateTime fechaMax = (maxFecha.fecha_anulacion??DateTime.Now).Date;
+                    var remision = _context.veremision.FirstOrDefault(r => r.codigo == codremision);
 
+                    if (remision != null)
+                    {
+                        remision.fecha_anulacion = maxFecha.fecha_anulacion;
+                        await _context.SaveChangesAsync();
+                        resultado = true;
+                    }
+                    else
+                    {
+                        resultado = false;
+                    }
+
+                }
+                else
+                {
+                    // si no tiene poner su misma fecha como fecha_anulacion
+                    var remision = _context.veremision.FirstOrDefault(r => r.codigo == codremision);
+
+                    if (remision != null)
+                    {
+                        remision.fecha_anulacion = remision.fecha;
+                        await _context.SaveChangesAsync();
+                        resultado = true;
+                    }
+                    else
+                    {
+                        resultado = false;
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                resultado = false;
+            }
+            return resultado;
+        }
         public async Task<List<ProformasWF>> Detalle_Proformas_Aprobadas_WF(string userConnectionString, string codempresa, string usuario)
         {
             List<ProformasWF> resultado = new List<ProformasWF>();

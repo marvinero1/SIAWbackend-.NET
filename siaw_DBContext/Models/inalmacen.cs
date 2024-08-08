@@ -42,5 +42,6 @@ namespace siaw_DBContext.Models
         public string longitud { get; set; }
         public string fax { get; set; }
         public string actividad { get; set; }
+        public string impresora_nr { get; set; }
     }
 }

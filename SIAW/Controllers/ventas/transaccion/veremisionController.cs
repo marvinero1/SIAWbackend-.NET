@@ -3348,17 +3348,20 @@ namespace SIAW.Controllers.ventas.transaccion
         public async Task<ActionResult<List<object>>> impresionNotaRemision(string userConn, string codClienteReal, string codEmpresa, string codclientedescripcion, string preparacion, int codigoNR)
         {
             // lista de impresoras disponibles, aca deben ir de momento las impresoras matriciales de notas de remision, nombre que tienen.
+            /*
             var impresorasDisponibles = new Dictionary<int, string>
             {
                 { 311, "EPSON LX-350" },  
                 { 411, "EPSON LX-350" },
                 { 811, "EPSON LX-350" }
             };
+            */
             try
             {
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
+                    
                     var veremision = await _context.veremision.Where(i => i.codigo == codigoNR).FirstOrDefaultAsync();
                     if (veremision != null)
                     {
@@ -3367,7 +3370,12 @@ namespace SIAW.Controllers.ventas.transaccion
                         System.Drawing.Printing.PrinterSettings config = new System.Drawing.Printing.PrinterSettings();
 
                         // Asignar el nombre de la impresora
-                        config.PrinterName = impresorasDisponibles[veremision.codalmacen];
+                        string impresora = await _context.inalmacen.Where(i => i.codigo ==veremision.codalmacen).Select(i => i.impresora_nr).FirstOrDefaultAsync() ?? "";
+                        if (impresora == "")
+                        {
+                            return BadRequest(new { resp = "No se encontró una impresora registrada para este código de almacen, consulte con el administrador." });
+                        }
+                        config.PrinterName = impresora;
 
                         // Comprobar si la impresora está instalada
                         if (config.IsValid)
@@ -3389,7 +3397,7 @@ namespace SIAW.Controllers.ventas.transaccion
                             }
                             if (impremiendo)
                             {
-                                return Ok(new { resp = "Imprimiendo Documento ...." });
+                                return Ok(new { resp = "Se envió el documento a la impresora: " + impresora });
                             }
                             else
                             {
