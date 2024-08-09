@@ -5952,6 +5952,143 @@ namespace siaw_funciones
             }
             return resultado;
         }
+
+        public async Task<bool> GenerarPlanDePagosRemision(DBContext _context, int codremision, string codempresa)
+        {
+            bool resultado = false;
+            var dt_remision = await _context.veremision.FirstOrDefaultAsync(i => i.codigo == codremision);
+            if (dt_remision != null)
+            {
+                if (dt_remision.tipopago == 0)
+                {
+                    // no es a credito
+                }
+                else
+                {
+                    await revertirpagos(_context, codremision, 4);
+                    if (await ProformaTieneNRAnulada(_context,dt_remision.codproforma ?? 0))
+                    {
+                        // #########################################
+
+                        // con fecha de ntoa anulada
+                        DateTime fecha_antigua = await ProformaFechaMasAntiguaNR(_context, dt_remision.codproforma ?? 0);
+
+                        // #si es PP generar con su monto y su fecha no importan las complementarias ni influye
+                        if (await remision_es_PP(_context,codremision))
+                        {
+                            if (await generarcuotaspago(_context,codremision,4, await TotalNRconNC_ND(_context,codremision),await TotalNRconNC_ND(_context,codremision),dt_remision.codmoneda,dt_remision.codcliente,fecha_antigua,false,codempresa))
+                            {
+                                resultado = true;
+                            }
+                        }
+                        else
+                        {
+                            // #si no es PP perocomo es complementaria hacer todo el el chenko
+                            if (! await proforma_es_complementaria(_context,dt_remision.codproforma ?? 0))
+                            {
+                                if (await generarcuotaspago(_context, codremision, 4, await TotalNRconNC_ND(_context, codremision), await TotalNRconNC_ND(_context, codremision), dt_remision.codmoneda, dt_remision.codcliente, fecha_antigua, false, codempresa))
+                                {
+                                    resultado = true;
+                                }
+                            }
+                            else
+                            {
+                                var lista = await lista_PFNR_complementarias_noPP(_context, dt_remision.codproforma ?? 0);
+                                if (await generarcuotaspago(_context, codremision, 4, await MontoTotalComplementarias(_context, lista), await TotalNRconNC_ND(_context, codremision), dt_remision.codmoneda, dt_remision.codcliente, await FechaComplementariaDeMayorMonto(_context,lista), false, codempresa))
+                                {
+                                    resultado = true;
+                                }
+
+                                // para cada nota complementaria revertir pagos y generar sus cuotas
+                                foreach (var reg in lista)
+                                {
+                                    if (reg.codremision == 0)
+                                    {
+                                        // nada
+                                    }
+                                    else
+                                    {
+                                        if (reg.codremision == codremision)
+                                        {
+                                            // la actual no hacer pues ya fue hecha
+                                        }
+                                        else
+                                        {
+                                            if (await revertirpagos(_context,reg.codremision,4))
+                                            {
+                                                await generarcuotaspago(_context, reg.codremision, 4, await MontoTotalComplementarias(_context, lista), await TotalNRconNC_ND(_context, reg.codremision), dt_remision.codmoneda, dt_remision.codcliente, await FechaComplementariaDeMayorMonto(_context, lista), false, codempresa);
+                                            }
+                                        }
+                                    }
+                                }
+
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // ######################################### normal
+                        // #si es PP generar con su monto y su fecha no importan las complementarias ni influye
+                        if (await remision_es_PP(_context,codremision))
+                        {
+                            if (await generarcuotaspago(_context, codremision, 4, await TotalNRconNC_ND(_context, codremision), await TotalNRconNC_ND(_context, codremision), dt_remision.codmoneda, dt_remision.codcliente, dt_remision.fecha, false, codempresa))
+                            {
+                                resultado = true;
+                            }
+                            else
+                            {
+                                // #si no es PP perocomo es complementaria hacer todo el el chenko
+                                if (! await proforma_es_complementaria(_context,dt_remision.codproforma ?? 0))
+                                {
+                                    if (await generarcuotaspago(_context, codremision, 4, await TotalNRconNC_ND(_context, codremision), await TotalNRconNC_ND(_context, codremision), dt_remision.codmoneda, dt_remision.codcliente, dt_remision.fecha, false, codempresa))
+                                    {
+                                        resultado = true;
+                                    }
+                                }
+                                else
+                                {
+                                    var lista = await lista_PFNR_complementarias_noPP(_context, dt_remision.codproforma ?? 0);
+                                    if (await generarcuotaspago(_context, codremision, 4, await MontoTotalComplementarias(_context, lista), await TotalNRconNC_ND(_context, codremision), dt_remision.codmoneda, dt_remision.codcliente, await FechaComplementariaDeMayorMonto(_context,lista), false, codempresa))
+                                    {
+                                        resultado = true;
+                                    }
+                                    // para cada nota complementaria revertir pagos y generar sus cuotas
+                                    foreach (var reg in lista)
+                                    {
+                                        if (reg.codremision == 0)
+                                        {
+                                            // nada
+                                        }
+                                        else
+                                        {
+                                            if (reg.codremision == codremision)
+                                            {
+                                                // la actual no hacer pues ya fue hecha
+                                            }
+                                            else
+                                            {
+                                                if (await revertirpagos(_context, reg.codremision, 4))
+                                                {
+                                                    await generarcuotaspago(_context, reg.codremision, 4, await MontoTotalComplementarias(_context, lista), await TotalNRconNC_ND(_context, reg.codremision), dt_remision.codmoneda, dt_remision.codcliente, await FechaComplementariaDeMayorMonto(_context, lista), false, codempresa);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+
+                        }
+                    } // ###################
+                }
+            }
+            return resultado;
+        }
+
+
+
         public async Task<List<ProformasWF>> Detalle_Proformas_Aprobadas_WF(string userConnectionString, string codempresa, string usuario)
         {
             List<ProformasWF> resultado = new List<ProformasWF>();

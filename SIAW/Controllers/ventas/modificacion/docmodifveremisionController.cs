@@ -21,6 +21,7 @@ namespace SIAW.Controllers.ventas.modificacion
         private readonly siaw_funciones.Funciones funciones = new Funciones();
         private readonly siaw_funciones.Saldos saldos = new siaw_funciones.Saldos();
         private readonly siaw_funciones.Creditos creditos = new siaw_funciones.Creditos();
+        private readonly siaw_funciones.Cobranzas cobranzas = new siaw_funciones.Cobranzas();
 
         private readonly Restricciones restricciones = new Restricciones();
         private readonly Log log = new Log();
@@ -117,17 +118,27 @@ namespace SIAW.Controllers.ventas.modificacion
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
-                    if (await ventas.ValidarMostrarDocumento(_context, TipoDocumento_Ventas.Remision, codigodoc, usuario) == false)
-                    {
-                        return BadRequest(new { resp = "No le esta permitido ver este tipo de precio" });
-                    }
-
                     // cabecera
                     var cabecera = await _context.veremision.Where(i => i.codigo == codigodoc).FirstOrDefaultAsync();
                     if (cabecera == null)
                     {
                         return BadRequest(new { resp = "No se encontró una Nota de Remision con los datos proporcionados, revise los datos" });
                     }
+                    string estadodoc = "";
+                    if (cabecera.anulada == true)
+                    {
+                        estadodoc = "ANULADA";
+                    }
+
+                    if (await ventas.ValidarMostrarDocumento(_context, TipoDocumento_Ventas.Remision, codigodoc, usuario) == false)
+                    {
+                        return StatusCode(203, new { 
+                            resp = "No le esta permitido ver este tipo de precio",
+                            cabecera,
+                            estadodoc
+                        });
+                    }
+                    
                     // obtener razon social de cliente
                     var codclientedescripcion = await cliente.Razonsocial(_context, cabecera.codcliente);
                     string _codcliente_real = "";
@@ -152,11 +163,7 @@ namespace SIAW.Controllers.ventas.modificacion
                     {
                         complemento = "COMPLEMENTARIA";
                     }
-                    string estadodoc = "";
-                    if (cabecera.anulada == true)
-                    {
-                        estadodoc = "ANULADA";
-                    }
+                    
 
                     // cargar recargos  cargarrecargo
                     var recargos = await cargarrecargo(_context, codigodoc);
@@ -323,7 +330,8 @@ namespace SIAW.Controllers.ventas.modificacion
                             i.codproforma,
                             i.descarga,
                             i.codmoneda,
-                            i.codcliente
+                            i.codcliente,
+                            i.total
                         }).FirstOrDefaultAsync();
                         if (datosRemision == null)
                         {
@@ -337,7 +345,15 @@ namespace SIAW.Controllers.ventas.modificacion
                             }
                             else
                             {
-                                return StatusCode(203, new { resp = "No puede modificar datos anteriores al ultimo inventario, Para eso necesita una autorizacion especial." });
+                                return StatusCode(203, new { 
+                                    resp = "No puede modificar datos anteriores al ultimo inventario, Para eso necesita una autorizacion especial.",
+                                    tipoPermiso = 48,
+                                    categoria_log = "Anular Nota Remision",
+                                    datos_documento = datosRemision.id + "-" + datosRemision.numeroid + ": " + datosRemision.id + "-" + datosRemision.numeroid,
+                                    datos_a = datosRemision.id,
+                                    datos_b = datosRemision.numeroid,
+                                    validacion = true
+                                });
                                 // aca debe llamar a autorizacion especial  // verificar con Marvin
                             }
                         }
@@ -360,7 +376,15 @@ namespace SIAW.Controllers.ventas.modificacion
                         {
                             if (await ventas.remision_es_reversion_pp(_context, datosRemision.id, datosRemision.numeroid))
                             {
-                                return StatusCode(203, new { resp = "La nota de remision es reversion de: " + datosRemision.obs + "para anular debe ingresar el permiso especial." });
+                                return StatusCode(203, new { 
+                                    resp = "La nota de remision es reversion de: " + datosRemision.obs + "para anular debe ingresar el permiso especial." ,
+                                    tipoPermiso = 78,
+                                    categoria_log = "Anular Reversion",
+                                    datos_documento = datosRemision.id + "-" + datosRemision.numeroid + " Total:" + datosRemision.total,
+                                    datos_a = datosRemision.id,
+                                    datos_b = datosRemision.numeroid,
+                                    validacion = true
+                                });
                                 // aca debe llamar a autorizacion especial  // verificar con Marvin
                             }
                         }
@@ -389,12 +413,28 @@ namespace SIAW.Controllers.ventas.modificacion
 
                         await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, codRemision.ToString(), datosRemision.id, datosRemision.numeroid.ToString(), _controllerName, "Anular", Log.TipoLog.Anulacion);
                         // cambiar fecha anulacion, si no tiene facturas
+                        /*
                         var recordsToUpdate = await _context.veremision
                         .Where(v => v.anulada == true &&
                                     v.fecha_anulacion > v.fecha &&
                                     v.fecha >= new DateTime(v.fecha.Date.Year, v.fecha.Date.Month, 1) &&
                                     !_context.vefactura.Select(f => f.codremision).Contains(v.codigo))
                         .ToListAsync();
+                        */
+
+                        DateTime fechaInicialAux = new DateTime(datosRemision.fecha.Date.Year, datosRemision.fecha.Date.Month, 1);
+                        var initialQuery = await _context.veremision
+                            .Where(v => v.anulada == true &&
+                                        v.fecha_anulacion > v.fecha &&
+                                        v.fecha >= fechaInicialAux)
+                            .ToListAsync();
+
+                        var recordsToUpdate = initialQuery
+                            .Where(v => !_context.vefactura
+                                .Select(f => f.codremision)
+                                .Contains(v.codigo))
+                            .ToList();
+
                         if (recordsToUpdate.Count() > 0)
                         {
                             foreach (var record in recordsToUpdate)
@@ -589,6 +629,100 @@ namespace SIAW.Controllers.ventas.modificacion
                 return fecha_menor.Date;
             }
             return fecha.Date;
+        }
+
+        [HttpPut]
+        [Route("cambiarFechaAnulNR/{userConn}/{codRemision}/{fecha_anulacion}/{autModifFechaAnulacion}")]
+        public async Task<object> cambiarFechaAnulNR(string userConn, int codRemision, DateTime fecha_anulacion, bool autModifFechaAnulacion)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    // si es true quiere decir que no necesita validacion e ingresa directo.
+                    var dataVeremision = _context.veremision.FirstOrDefault(v => v.codigo == codRemision);
+                    if (dataVeremision != null)
+                    {
+                        if (autModifFechaAnulacion == false)
+                        {
+                            // valida
+                            if (await seguridad.AutorizacionEstaHabilitada(userConnectionString, 75))   // autorizacion esta habilitada
+                            {
+
+                                // pedir autorizacion
+                                return StatusCode(203, new
+                                {
+                                    resp = "No puede modificar la fecha de anulación, Para eso necesita una autorizacion especial.",
+                                    tipoPermiso = 75,
+                                    categoria_log = "Remision",
+                                    datos_documento = dataVeremision.id + "-" + dataVeremision.numeroid + ": " + dataVeremision.codcliente + "-" + dataVeremision.nomcliente +  "Total:" + dataVeremision.total,
+                                    datos_a = dataVeremision.id,
+                                    datos_b = dataVeremision.numeroid,
+                                    validacion = true
+                                });
+                            }
+                        }
+                        dataVeremision.fecha_anulacion = fecha_anulacion.Date;
+                        dataVeremision.fechareg = await funciones.FechaDelServidor(_context);
+                        _context.Entry(dataVeremision).State = EntityState.Modified;
+                        await _context.SaveChangesAsync();
+                        return Ok(new { resp = "Se actualizó correctamente la fecha de anulación." });
+
+                    }
+                    return BadRequest(new { resp = "No se encontró una nota de remision con los datos proporcionados, consulte con el administrador" });
+
+                }
+
+            }
+            catch (Exception ex)
+            {
+                return Problem($"Error en el servidor: {ex.Message}");
+                throw;
+            }
+        }
+
+        [HttpPost]
+        [Route("genPlanPagosFalt/{userConn}/{codRemision}/{codempresa}")]
+        public async Task<object> genPlanPagosFalt(string userConn, int codRemision, string codempresa)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var dataVeremision = await _context.veremision.Where(v => v.codigo == codRemision).Select(i => new {
+                        i.codigo,
+                        i.id,
+                        i.numeroid,
+                        i.tipopago,
+                    }).FirstOrDefaultAsync();
+                    if (dataVeremision != null)
+                    {
+                        if (dataVeremision.tipopago == 0)
+                        {
+                            return BadRequest(new { resp = "Esta nota es al contado, por lo tanto no debe tener plan de pagos." });
+                        }
+                        if (await cobranzas.NR_Con_Cuotas(_context, dataVeremision.id, dataVeremision.numeroid))
+                        {
+                            return BadRequest(new { resp = "Esta nota de remision ya tiene plan de cuotas." });
+                        }
+                        if (await ventas.GenerarPlanDePagosRemision(_context,codRemision,codempresa))
+                        {
+                            return Ok(new { resp = "Se genero el plan de pagos con exito." });
+                        }
+                        return BadRequest(new { resp = "No se pudo generar el plan de cuotas, por favor Vuelva a intentarlo, o informe al administrador del sistema." });
+                    }
+                    return BadRequest(new { resp = "No se encontró una nota de remision con los datos proporcionados, consulte con el administrador" });
+                }
+            }
+            catch (Exception ex)
+            {
+                return Problem($"Error en el servidor: {ex.Message}");
+                throw;
+            }
         }
 
     }

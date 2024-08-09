@@ -2586,6 +2586,39 @@ namespace siaw_funciones
             resultado = datos.Trim();
             return resultado;
         }
+
+        public async Task<bool> NR_Con_Cuotas(DBContext _context, string id, int numeroid)
+        {
+            bool resultado = false;
+            try
+            {
+                // Primera consulta: obtener los códigos de veremision
+                var codigosVeremision = await _context.veremision
+                    .Where(v => v.id == "id" && v.numeroid == numeroid)
+                    .Select(v => v.codigo)
+                    .ToListAsync();
+
+                // Segunda consulta: contar los registros en coplancuotas
+                int count = await _context.coplancuotas
+                    .Where(c => codigosVeremision.Contains(c.coddocumento))
+                    .CountAsync();
+                if (count > 0)
+                {
+                    resultado = true;
+                }
+                else
+                {
+                    resultado = false;
+                }
+
+            }
+            catch (Exception)
+            {
+                resultado = false;
+            }
+            return resultado;
+        }
+
     }
 
     public class dtcocobranza_deposito
