@@ -3126,7 +3126,6 @@ namespace SIAW.Controllers.ventas.transaccion
             }
             catch (Exception)
             {
-
                 throw;
             }
 
@@ -3282,8 +3281,6 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
             return ("ok", codNRemision, veremision.numeroid, mostrarModificarPlanCuotas, planCuotasGenerada);
-
-
         }
 
 

@@ -51,7 +51,11 @@ namespace SIAW.Controllers.notificaciones
                          }).FirstOrDefaultAsync();
                     if (credenciales == null)
                     {
-                        return BadRequest(new { resp = "No se encontraron datos con el usuario proporcionado." });
+                        return BadRequest(new { resp = "No se encontraron datos con el usuario proporcionado. No se envio Correo." });
+                    }
+                    if (credenciales.correo == null || credenciales.passwordcorreo == null)
+                    {
+                        return BadRequest(new { resp = "No se encontraron las credenciales del correo del usuario proporcionado. No se envio Correo." });
                     }
                     var nombreVendedor = await _context.pepersona.Where(i => i.codigo == (credenciales.persona))
                         .Select(i => i.nombre1 + " " + i.nombre2 + " " + i.apellido1 + " " + i.apellido2).FirstOrDefaultAsync();
@@ -60,7 +64,7 @@ namespace SIAW.Controllers.notificaciones
                         .Select(i => i.destinatarios).ToListAsync();
                     if (emailsCc.Count() == 0)
                     {
-                        return BadRequest(new { resp = "No se encontraron destinatarios relacionados a su codigo de vendedor" });
+                        return BadRequest(new { resp = "No se encontraron destinatarios relacionados a su codigo de vendedor. No se envio Correo." });
                     }
 
                     var dataProf = await _context.veproforma.Where(i => i.codigo == codproforma)

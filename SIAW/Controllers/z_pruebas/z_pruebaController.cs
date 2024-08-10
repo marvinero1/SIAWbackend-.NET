@@ -37,8 +37,8 @@ namespace SIAW.Controllers.z_pruebas
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         //[Authorize]
         [HttpPost]
-        [Route("envioCorreoProforma/{userConn}/{usuario}/{codvendedor}/{codproforma}")]
-        public async Task<ActionResult> envioCorreoProforma(string userConn, string usuario, int codvendedor, int codproforma, [FromForm] IFormFile pdfFile)
+        [Route("nadaaaa/{userConn}/{usuario}/{codvendedor}/{codproforma}")]
+        public async Task<ActionResult> nadaaaa(string userConn, string usuario, int codvendedor, int codproforma, [FromForm] IFormFile pdfFile)
         {
             if (pdfFile == null || pdfFile.Length == 0)
             {
