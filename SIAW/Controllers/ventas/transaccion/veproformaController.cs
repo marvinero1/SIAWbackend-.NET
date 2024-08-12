@@ -4029,7 +4029,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 // clientes casualas no deben tener descto por deposito seg/poliita desde el 01-08-2022
                 if (await cliente.Es_Cliente_Casual(_context, codcliente))
                 {
-                    return BadRequest(new { resp = "Cliente es casual, no puede tener descuento por depósito." });
+                    return StatusCode(203, new { resp = "Cliente es casual, no puede tener descuento por depósito." });
                 }
                 // verificar si es cliente competencia
                 if (await cliente.EsClienteCompetencia(_context, nit))
@@ -5920,6 +5920,30 @@ namespace SIAW.Controllers.ventas.transaccion
                     {
                         fechaServidor,
                         horaServidor
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                return Problem("Error en el servidor: " + ex.ToString());
+                throw;
+            }
+
+        }
+
+        [HttpGet]
+        [Route("verColEmpbyUser/{userConn}/{usuario}")]
+        public async Task<ActionResult<List<ProformasWF>>> verColEmpbyUser(string userConn, string usuario)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    bool usrVeEmp = await configuracion.usr_ver_columna_empaques(_context,usuario);
+                    return Ok(new
+                    {
+                        veEmpaques = usrVeEmp
                     });
                 }
             }

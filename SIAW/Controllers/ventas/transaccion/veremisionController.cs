@@ -3585,7 +3585,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 imp_codcliente = veremision.codcliente;
                 imp_cliente = codclientedescripcion;
                 imp_telefono = await ventas.telefonocliente_direccion(_context, codClienteReal, _direcc);
-                imp_ptoventa = await ventas.ptoventacliente_direccion(_context, codClienteReal, _direcc);
+                imp_ptoventa = await ventas.ptoventacliente_direccion(_context, codClienteReal, veremision.direccion);
 
                 // estos datos son para la impresion de la parte del contrato que esta en la nota de remision
                 imp_razonsocial = await cliente.Razonsocial(_context, codClienteReal);

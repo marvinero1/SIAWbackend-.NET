@@ -738,6 +738,46 @@ namespace siaw_funciones
             }
             return (int)result;
         }
+
+        public async Task<bool> usr_ver_columna_empaques(DBContext _context, string usuario)
+        {
+            try
+            {
+                var result = await _context.adusparametros
+                    .Where(v => v.usuario == usuario)
+                    .Select(i => new { i.ver_columna_empaques })
+                    .FirstOrDefaultAsync();
+                if (result == null)
+                {
+                    return false;
+                }
+                if (result.ver_columna_empaques == true)
+                {
+                    return true;
+                }
+                return false;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+        public async Task<bool> distribuir_descuentos_en_facturacion(DBContext _context, string empresa)
+        {
+            // se implemento esto para la version del sia del 10-03-2019
+            // si este parametro es TRUE quiere decir que los descuentos extras se proratean en la factura cuando se genera es la forma como 
+            bool resultado = true;
+            try
+            {
+                resultado = await _context.adparametros.Where(i => i.codempresa == empresa).Select(i => i.distribuir_desc_extra_en_factura).FirstOrDefaultAsync() ?? false;
+            }
+            catch (Exception)
+            {
+                resultado = true;
+            }
+            return resultado;
+        }
+
     }
 }
  
