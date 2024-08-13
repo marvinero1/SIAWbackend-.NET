@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore.Internal;
 using siaw_DBContext.Data;
 using siaw_DBContext.Models;
 using siaw_DBContext.Models_Extra;
+using System.Collections;
 using System.Data;
 using System.Text.RegularExpressions;
 
@@ -2541,5 +2542,45 @@ namespace siaw_funciones
                 return 0;
             }
         }
+
+        public async Task<bool> Es_Cliente_Competencia(DBContext _context, string nit_cliente)
+        {
+            string codcliente_seg_nit = await Cliente_Segun_Nit(_context,nit_cliente);
+            string cadena_nits = "";
+            // 1ro del nit saco su cod cliente
+            string maincode = await CodigoPrincipal(_context,codcliente_seg_nit);
+            // 2do veo todos los codigos iguales
+            string samecode = await CodigosIguales(_context, maincode);
+
+            var tbl = await _context.vecliente.Where(i => samecode.Contains(i.codigo)).Select(i => new
+            {
+                i.codigo,
+                i.nit
+            }).ToListAsync();
+            foreach (var reg in tbl)
+            {
+                cadena_nits = cadena_nits + ", '" + reg.nit + "'";
+            }
+
+            // verifica si el cliente esta en la tabla de los clasificados como competencia segun su nit
+            var result = await _context.cpcompetencia
+                .Where(p1 => cadena_nits.Contains(p1.nit))
+                .Join(_context.vecompetencia_control,
+                      p1 => p1.codgrupo_control,
+                      p2 => p2.codigo,
+                      (p1, p2) => new
+                      {
+                          p1.Codigo,
+                          p1.nit,
+                          p2
+                      })
+                .CountAsync();
+            if (result > 0)
+            {
+                return true;
+            }
+            return false;
+        }
+
     }
 }

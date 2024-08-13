@@ -1629,7 +1629,7 @@ namespace SIAW.Controllers.ventas.transaccion
             {
                 return null;
             }
-            resultado = resultado.OrderBy(i => i.coditem).ToList();
+            resultado = resultado.OrderBy(i => i.nroitem).ToList();
             return resultado;
         }
 

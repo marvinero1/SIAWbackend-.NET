@@ -6088,6 +6088,74 @@ namespace siaw_funciones
         }
 
 
+        public async Task<List<veremision_detalle>> DescuentoExtra_CalcularPorItem(DBContext _context, int coddesextra, List<veremision_detalle> detalle, string codcliente, string nit_cliente, double porcen_desc, bool obtener_desc_por_item)
+        {
+            // dt debe contener coditem y total
+            double resultado = 0;
+            try
+            {
+                // estas columnas se usan para realizar el calculo del descto diferenciado por item
+                // y en cascada segun la politica de promocion 27 DESCUENTO LEALTAD
+                foreach (var reg in detalle)
+                {
+                    // se obtiene el porccentaje por descuento extra segun el item y coddesextra
+                    if (obtener_desc_por_item)
+                    {
+                        reg.porcentaje = await DescuentoExtra_Porcentaje_Item(_context, coddesextra, reg.coditem);
+                    }
+                    else
+                    {
+                        reg.porcentaje = porcen_desc;
+                    }
+
+                    // se modifica el porcentaje antes obtenido si corresponde
+                    // segun politica gerencial emitida el 26-08-2015 para empresas competidoras
+                    // si el nivel de descto es Z o X no se benefician de la promocion
+                    if (await cliente.Es_Cliente_Competencia(_context, nit_cliente) == true)
+                    {
+                        if (await cliente.Cliente_Competencia_Controla_Descto_Nivel(_context,nit_cliente))
+                        {
+                            if (await Descuento_Extra_Valida_Nivel(_context,coddesextra))
+                            {
+                                if (reg.niveldesc == "Z" || reg.niveldesc == "z" || reg.niveldesc == "X" || reg.niveldesc == "x")
+                                {
+                                    reg.porcentaje = 0;
+                                }
+                            }
+                        }
+                    }
+                    //////////////////////////////////////////////////////////////////////////
+                    // aplicar los descuentos al precio individual de cada item
+                    //////////////////////////////////////////////////////////////////////////
+                    if (reg.precio_con_descto == 0)   // VERIFICAR CON LAS PRUEBAS YA QUE EN SIA PREGUNTA SI ES NULO, CAPAZ SALGA MAL OJOOOOOOOOOOOOOOOOOOO
+                    {
+                        reg.monto_descto = (double)reg.precioneto * 0.01 * reg.porcentaje;
+                        reg.precio_con_descto = (double)reg.precioneto - reg.monto_descto;
+                        reg.total_con_descto = (double)reg.cantidad * reg.precio_con_descto;
+                    }
+                    else
+                    {
+                        // si ya calculo del descuento una venz entra aqui para continuar con el precio con descuento ya calculado antes
+                        // hacer copia del subtotal con descto extra
+                        reg.subtotal_descto_extra = reg.total_con_descto;
+                        reg.monto_descto = 0;
+                        reg.monto_descto = reg.precio_con_descto * 0.01 * reg.porcentaje;
+                        double precio_unit_con_descto = reg.precio_con_descto - reg.monto_descto;
+                        reg.precio_con_descto = precio_unit_con_descto;
+                        reg.total_con_descto = (double)reg.cantidad * reg.precio_con_descto;
+                    }
+
+                }
+
+                return detalle;
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+        }
+
 
         public async Task<List<ProformasWF>> Detalle_Proformas_Aprobadas_WF(string userConnectionString, string codempresa, string usuario)
         {
@@ -6230,6 +6298,36 @@ namespace siaw_funciones
         public string medida { get; set; }
         public string udm { get; set; }
         public decimal cantidad { get; set; }
+    }
+    public class veremision_detalle
+    {
+        public int codremision { get; set; }
+        public string coditem { get; set; }
+        public decimal cantidad { get; set; }
+        public string udm { get; set; }
+        public decimal precioneto { get; set; }
+        public decimal preciolista { get; set; }
+        public string niveldesc { get; set; }
+        public decimal preciodesc { get; set; }
+        public int codtarifa { get; set; }
+        public short coddescuento { get; set; }
+        public decimal total { get; set; }
+        public decimal porceniva { get; set; }
+        public int codgrupomer { get; set; }
+        public decimal peso { get; set; }
+        public int codigo { get; set; }
+
+        public double distdescuento { get; set; }
+        public double distrecargo { get; set; }
+        public double preciodist { get; set; }
+        public double totaldist { get; set; }
+
+        public double total_con_descto { get; set; } = 0;
+        public double subtotal_descto_extra { get; set; } = 0;
+        public double precio_con_descto { get; set; } = 0;
+
+        public double porcentaje { get; set; } = 0;
+        public double monto_descto { get; set; } = 0;
     }
     public enum TipoDocumento_Ventas
     {
