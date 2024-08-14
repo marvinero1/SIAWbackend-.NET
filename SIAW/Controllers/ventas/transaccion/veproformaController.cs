@@ -1629,7 +1629,7 @@ namespace SIAW.Controllers.ventas.transaccion
             {
                 return null;
             }
-            resultado = resultado.OrderBy(i => i.nroitem).ToList();
+            resultado = resultado.OrderBy(i => i.nroitem).ThenByDescending(i=>i.coddescuento).ToList();
             return resultado;
         }
 
@@ -2831,6 +2831,42 @@ namespace SIAW.Controllers.ventas.transaccion
                     }
                     return BadRequest(new { resp = "No se seleccionaron descuentos extras" });
                 }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+        }
+        [HttpPost]
+        [Route("getDescripDescExtra/{userConn}")]
+        public async Task<object> getDescripDescExtra(string userConn, List<tabladescuentos>? tabladescuentos)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                if (tabladescuentos == null)
+                {
+                    return StatusCode(203, new { resp = "La proforma no tiene descuentos Extra asignados.", tieneDesc = false });
+                }
+                if (tabladescuentos.Count() == 0)
+                {
+                    return StatusCode(203, new { resp = "La proforma no tiene descuentos Extra asignados.", tieneDesc = false });
+                }
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    foreach (var reg in tabladescuentos)
+                    {
+                        reg.descrip = await nombres.nombredesextra(_context, reg.coddesextra);
+                    }
+                    return Ok(new
+                    {
+                        tabladescuentos,
+                        tieneDesc = true
+                    });
+                }
+
             }
             catch (Exception)
             {
@@ -4363,6 +4399,7 @@ namespace SIAW.Controllers.ventas.transaccion
                                 dt_aux.coddescuento = reg.coddescuento;
                                 dt_aux.cantidad = (double)cant_item_sin_empaque;
                                 dt_aux.cantidad_pedida = (double)cant_item_sin_empaque;
+                                dt_aux.nroitem = reg.nroitem;
                                 dt.Add(dt_aux);
                                 
                             }
@@ -4387,7 +4424,8 @@ namespace SIAW.Controllers.ventas.transaccion
                             codalmacen = codalmacen,
                             desc_linea_seg_solicitud = desc_linea_seg_solicitud,
                             codmoneda = codmoneda,
-                            fecha = fecha
+                            fecha = fecha,
+                            nroitem = i.nroitem
                         }).ToList();
 
                     var tablaDetalleExtra = await calculoPreciosMatriz(_context, codempresa, usuario, userConnectionString, data);
@@ -4396,7 +4434,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     {
                         return BadRequest(new { resp = "No se encontro informacion con los datos proporcionados." });
                     }
-                    tabladetalle = tabladetalle.Concat(tablaDetalleExtra).OrderBy(i=>i.coditem).ToList();
+                    tabladetalle = tabladetalle.Concat(tablaDetalleExtra).OrderBy(i=>i.coditem).ThenByDescending(i=> i.coddescuento).ToList();
 
                     return Ok(new
                     {

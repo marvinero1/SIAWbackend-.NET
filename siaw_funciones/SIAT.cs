@@ -12,6 +12,7 @@ namespace siaw_funciones
 {
     public class SIAT
     {
+        private readonly Empresa empresa = new Empresa();
         //Clase necesaria para el uso del DBContext del proyecto siaw_Context
         public static class DbContextFactory
         {
@@ -124,6 +125,41 @@ namespace siaw_funciones
                 Console.WriteLine($"Error: {ex.Message}");
                 return 0;
             }
+        }
+        public async Task<double> Redondear_SIAT(DBContext _context, string codempresa, double minumero)
+        {
+            double resultado = 0;
+            // El Servicio de Impuestos Nacionales utiliza en la emisión de facturas electrónicas en linea montos 
+            // expresados con dos decimales y utiliza el redondeo tradicional o HALF-UP. En este caso, el redondeo 
+            // se realiza al número superior cuando el decimal sea igual o superior a 5 y al número inferior 
+            // cuando el decimal sea igual o inferior a 5.
+            // Ej:
+
+            // 3.14159  será redondeado a 3.14
+            // 3.14559  será redondeado a 3.15
+            int CODALMACEN = await empresa.AlmacenLocalEmpresa(_context, codempresa);
+            int _codDocSector = await _context.adsiat_parametros_facturacion.Where(i => i.codalmacen == CODALMACEN).Select(I => I.tipo_doc_sector).FirstOrDefaultAsync() ?? -1;
+
+            if (_codDocSector == 1)
+            {
+                // 35 : FACTURA COMPRA VENTA (2 DECIMALES)
+                resultado = Math.Round(minumero, 2, MidpointRounding.AwayFromZero);
+            }
+            else if(_codDocSector == 35)
+            {
+                // 35 : FACTURA COMPRA VENTA BONIFICACIONES(5 DECIMALES) 
+                resultado = Math.Round(minumero, 5, MidpointRounding.AwayFromZero);
+            }
+            else if (_codDocSector == 24)
+            {
+                // 35 : notas de credito (2 DECIMALES)
+                resultado = Math.Round(minumero, 5, MidpointRounding.AwayFromZero);
+            }
+            else
+            {
+                resultado = Math.Round(minumero, 2, MidpointRounding.AwayFromZero);
+            }
+            return resultado;
         }
 
 

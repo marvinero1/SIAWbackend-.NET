@@ -16,6 +16,8 @@ namespace SIAW.Controllers.ventas.transaccion
         private readonly siaw_funciones.Configuracion configuracion = new siaw_funciones.Configuracion();
         private readonly siaw_funciones.Ventas ventas = new siaw_funciones.Ventas();
 
+        private readonly SIAT siat = new SIAT();
+
         public prgfacturarNR_cufdController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;
@@ -61,35 +63,39 @@ namespace SIAW.Controllers.ventas.transaccion
             {
                 bool distribuir_desc_extra_en_factura = await configuracion.distribuir_descuentos_en_facturacion(_context, codEmpresa);
                 var datosNR = await cargar_nr(_context, codigoremision);
-                if (datosNR.cabecera == null)
+
+                if (datosNR.cabecera == null || datosNR.detalle == null)
                 {
                     return (false,"No se pudo obtener los datos de la Nota de Remision, consulte con el administrador");
                 }
+                veremision cabecera = datosNR.cabecera;
+                List < veremision_detalle > detalle = datosNR.detalle;
                 
                 if (distribuir_desc_extra_en_factura)
                 {
                     // NNNNNNNOOOOOOOOOOOOO     PROOOOORAAAAAATEEEEEEOOOOOOOOOOO DESTRIBUYE EL DESCUENTO ENC ADA ITEM COMO TIENE QUE SER
                     // es la nueva forma implementada en 28-02-2019, aplica los descuentos por item, NO PRORATEA
 
-                    /*
-                    
-                    calcular_descuentos_extra_por_item(codigoremision)
-                    distribuir_recargos(codigoremision)
 
-                     */
+                    // acca devuelde tabla descuentos, total descuentos y el detalle modificado
+                    var datosDescExtraItem = await calcular_descuentos_extra_por_item(_context, codigoremision, codEmpresa, cabecera.codmoneda, cabecera.codcliente_real, cabecera.nit, (double)cabecera.subtotal, detalle);
+                    detalle = datosDescExtraItem.detalle;
+                    // acca devuelve detalle modificado
+                    detalle = await distribuir_recargos(_context, codigoremision, codEmpresa, detalle);
                 }
                 else
                 {
                     // AQUI HACE PRORATEO
                     // hace de la forma como siempre hacia lo que mario implemento
 
-                    /*
+                    
                      
                     distribuir_descuentos(codigoremision)
                     // No_Distribuir_Descuentos(codigoremision)
-                    distribuir_recargos(codigoremision)
-                     
-                     */
+                    // acca devuelve detalle modificado
+                    detalle = await distribuir_recargos(_context, codigoremision, codEmpresa, detalle);
+
+
                 }
                 return (false,"");
             }
@@ -137,7 +143,7 @@ namespace SIAW.Controllers.ventas.transaccion
             }
         }
 
-        private async Task<object?> calcular_descuentos_extra_por_item(DBContext _context, int codremision, string codempresa, string codmoneda, string codcliente_real, string nit, List<veremision_detalle> detalle)
+        private async Task<(List<veremision_detalle> detalle, List<tabladescuentos>? tabladescuentos, double ttl_descuento_aplicados)> calcular_descuentos_extra_por_item(DBContext _context, int codremision, string codempresa, string codmoneda, string codcliente_real, string nit, double subtotal, List<veremision_detalle> detalle)
         {
             int coddesextra_depositos = await configuracion.emp_coddesextra_x_deposito(_context, codempresa);
             double _ttl_con_descto = new double();
@@ -228,12 +234,130 @@ namespace SIAW.Controllers.ventas.transaccion
             // NO DIFERENCIADOS POR ITEM (es decir tienen un descuento general para todos
             // BUSCA SOLO LOS DESCUENTOS POR DEPOSITO
             ////////////////////////////////////////////////////////////////////////////////
-            return null;
+            foreach (var reg in tabladescuentos)
+            {
+                double monto_desc_deposito = 0;
+                if (! await ventas.DescuentoExtra_Diferenciado_x_item(_context,reg.coddesextra))
+                {
+                    if (reg.aplicacion == "SUBTOTAL")
+                    {
+                        ///////////////////////////////////////////
+                        // SI ES DESCTO POR DEPOSITO
+                        ///////////////////////////////////////////
+                        if (coddesextra_depositos == reg.coddesextra)
+                        {
+                            // OJO aqui se determina cual sera el porcentaje de descuento a aplicar a cada item
+                            // solo para el caso del descto del deposito de realiza de esta forma, el monto total del descto por deposito
+                            // ya viene calculados desde la proforma y lego nota de remision
+                            // no se debe recuperar el descuento por item en la funciona llamada ya que el descto extra no esta diferenciado por item, sino que es un porcen de descuento gral para todos los items
+                            double _porcen_desc_deposito_descto = ((double)reg.montodoc * 100) / _total_dist;
+                            detalle = await ventas.DescuentoExtra_CalcularPorItem(_context, reg.coddesextra, detalle, codcliente_real, nit, _porcen_desc_deposito_descto, false);
+                        }
+                        else
+                        {
+                            // este descuento se aplica sobre el subtotal de la venta
+                            reg.montodoc = ((decimal)subtotal / 100) * reg.porcen;
+                        }
+
+                    }
+                }
+            }
+
+            //////////////////////////////////////////////////////////////////////////////////
+            // totalizar los descuentos que se aplicaron
+            //////////////////////////////////////////////////////////////////////////////////
+            double total_desctos2 = 0;
+            foreach (var reg in detalle)
+            {
+                total_desctos2 += reg.subtotal_descto_extra - reg.total_con_descto;
+            }
+            //////////////////////////////////////////////////////////////////////////////////
+
+
+
+            ////////////////////////////////////////////////////////////////////////////////
+            // 3er    Los que se aplican en el:   TOTAL
+            // NO DIFERENCIADOS POR ITEM (son los que se aplica un descuento igual o gral para todos los items)
+            ////////////////////////////////////////////////////////////////////////////////
+
+            foreach (var reg in tabladescuentos)
+            {
+                if (!await ventas.DescuentoExtra_Diferenciado_x_item(_context, reg.coddesextra))
+                {
+                    if (reg.aplicacion == "TOTAL")
+                    {
+                        if (coddesextra_depositos != reg.coddesextra)
+                        {
+                            // este descuento se aplica sobre el subtotal de la venta
+                            // no se debe recuperar el descuento por item en la funciona llamada ya que el descto extra no esta diferenciado por item, sino que es un porcen de descuento gral para todos los items
+                            double _porcen_desc_deposito_descto = (double)reg.porcen;
+                            detalle = await ventas.DescuentoExtra_CalcularPorItem(_context, reg.coddesextra, detalle, codcliente_real, nit, _porcen_desc_deposito_descto, false);
+                        }
+                    }
+                }
+            }
+            // totalizar los descuentos que se aplicaron
+            double total_desctos3 = 0;
+            foreach (var reg in detalle)
+            {
+                total_desctos3 += reg.subtotal_descto_extra - reg.total_con_descto;
+            }
+
+            double ttl_descuento_aplicados = total_desctos1 + total_desctos2 + total_desctos3;
+
+            // poner los preciodist, totaldist,distdescuento
+            foreach (var reg in detalle)
+            {
+                reg.preciodist = reg.precio_con_descto;
+                reg.totaldist = reg.total_con_descto;
+                reg.distdescuento = (double)reg.total - reg.total_con_descto;
+            }
+            // descuentos.Text = (total_desctos1 + total_desctos2).ToString("####,##0.00")
+            return (detalle,tabladescuentos,ttl_descuento_aplicados);
+
+        }
+
+
+        private async Task<List<veremision_detalle>> distribuir_recargos(DBContext _context, int codigoremision, string codempresa, List<veremision_detalle> detalle)
+        {
+            var tabla = await _context.veremision.Where(i=> i.codigo == codigoremision).Select(i => new
+            {
+                i.subtotal,
+                i.recargos
+            }).FirstOrDefaultAsync();
+            double montorecar = 0;
+            double montorest = 0;
+            double montosubtotal = 0;
+            if (tabla != null)
+            {
+                montorecar = (double)tabla.recargos;
+                montorest = (double)tabla.recargos;
+                montosubtotal = (double)tabla.subtotal;
+            }
+            int index = 0;
+            foreach (var reg in detalle)
+            {
+                if (index < (detalle.Count() - 1))
+                {
+                    reg.distrecargo = await siat.Redondear_SIAT(_context, codempresa, (montorecar * (double)reg.total) / montosubtotal);
+                    montorest = montorest - reg.distrecargo;
+                    reg.preciodist = (double)reg.precioneto + ((reg.distrecargo - reg.distdescuento) / (double)reg.cantidad);
+                    reg.totaldist = (double)(reg.precioneto * reg.cantidad) + (reg.distrecargo - reg.distdescuento);
+                }
+                else  ///ponerle al el ultimo item todo lo que reste
+                {
+                    reg.distrecargo = montorest;
+                    reg.preciodist = (double)reg.precioneto + ((reg.distrecargo - reg.distdescuento) / (double)reg.cantidad);
+                    reg.totaldist = (double)(reg.precioneto * reg.cantidad) + (reg.distrecargo - reg.distdescuento);
+                }
+                index++;
+            }
+            return detalle;
 
         }
 
     }
-    
+
     // CLASES AUXILIARES
     public class tabladescuentosnNR
     {

@@ -26,3 +26,4 @@ C:\laragon\www\siawbackend-.net\siaw_DBContext\obj\Release\net6.0\refint\siaw_DB
 C:\laragon\www\siawbackend-.net\siaw_DBContext\obj\Release\net6.0\siaw_DBContext.pdb
 C:\laragon\www\siawbackend-.net\siaw_DBContext\obj\Release\net6.0\siaw_DBContext.genruntimeconfig.cache
 C:\laragon\www\siawbackend-.net\siaw_DBContext\obj\Release\net6.0\ref\siaw_DBContext.dll
+C:\laragon\www\siawbackend-.net\siaw_DBContext\obj\Release\net6.0\siaw_DBContext.sourcelink.json
