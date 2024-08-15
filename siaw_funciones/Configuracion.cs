@@ -777,6 +777,19 @@ namespace siaw_funciones
             }
             return resultado;
         }
+        public async Task<bool> usr_usar_bd_opcional(DBContext _context, string usuario)
+        {
+            try
+            {
+                bool resultado = await _context.adusparametros.Where(i => i.usuario == usuario).Select(i => i.usar_bd_opcional).FirstOrDefaultAsync();
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
 
     }
 }

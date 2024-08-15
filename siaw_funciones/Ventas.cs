@@ -6156,6 +6156,38 @@ namespace siaw_funciones
             }
         }
 
+        public async Task<int> almacen_de_remision(DBContext _context, int codRemision)
+        {
+            try
+            {
+                int resultado = await _context.veremision.Where(i => i.codigo == codRemision).Select(i => i.codalmacen).FirstOrDefaultAsync();
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
+
+
+        public async Task<DateTime> cufd_fechalimiteDate(DBContext _context, string cufd)
+        {
+            try
+            {
+                /*
+                 'fecha = Convert.ToDateTime(sia_DAL.Datos.Instancia.EjecutarComandoEscalar("SELECT fechalimite FROM vedosificacion WHERE cufd='" & cufd & "' "))
+                 'Dsd 15/12/2022 se modifico esta consulta para q solo busque segun el cufd y que este activa, ya que en ocasones podremos usar un CUFD para 2 dias debido a los cortes de los servicios
+                 ' de impuestos que pueden existir, entonces tiene q buscar el CUFD activo
+                */
+                DateTime fecha = (await _context.vedosificacion.Where(i => i.cufd == cufd && i.activa == true).Select(i => i.fechalimite).FirstOrDefaultAsync() ?? DateTime.Now);
+                return fecha.Date;
+            }
+            catch (Exception)
+            {
+                return DateTime.Now.Date;
+            }
+        }
+
 
         public async Task<List<ProformasWF>> Detalle_Proformas_Aprobadas_WF(string userConnectionString, string codempresa, string usuario)
         {
