@@ -798,5 +798,62 @@ namespace siaw_funciones
             return resultado;
         }
 
+        public async Task<double> Total_Anticipos_Aplicados_A_Remision(DBContext _context, int codremision, string moneda)
+        {
+
+            var dt = await _context.veremision
+                .Where(p1 => p1.anulada == false && p1.codigo == codremision)
+                .Join(_context.veproforma.Where(p2 => p2.anulada == false),
+                      p1 => p1.codproforma,
+                      p2 => p2.codigo,
+                      (p1, p2) => new { p1, p2 })
+                .Join(_context.veproforma_anticipo,
+                      p => p.p2.codigo,
+                      p3 => p3.codproforma,
+                      (p, p3) => new { p.p1, p.p2, p3 })
+                .Join(_context.coanticipo.Where(p4 => p4.anulado == false),
+                      p => p.p3.codanticipo,
+                      p4 => p4.codigo,
+                      (p, p4) => new
+                      {
+                          p4.id,
+                          p4.numeroid,
+                          p4.monto,
+                          p4.codmoneda,
+                          monto_dist = p.p3.monto,
+                          idpf = p.p2.id,
+                          nroidpf = p.p2.numeroid,
+                          fpf = p.p2.fecha,
+                          p.p2.codcliente,
+                          p.p2.idanticipo,
+                          p.p2.numeroidanticipo,
+                          idnr = p.p1.id,
+                          nroidnr = p.p1.numeroid,
+                          fnr = p.p1.fecha,
+                          ttl_remision = p.p1.total,
+                          p.p1.codalmacen,
+                          p.p1.fecha
+                      })
+                .OrderBy(p => p.id)
+                .ThenBy(p => p.numeroid)
+                .ToListAsync();
+
+            double ttl_dist = 0;
+            foreach (var reg in dt)
+            {
+                if (reg.codmoneda == moneda)
+                {
+                    ttl_dist += (double)(reg.monto_dist ?? 0);
+                }
+                else
+                {
+                    double monto_cambio = (double)await tipoCambio._conversion(_context, moneda, reg.codmoneda, reg.fnr, reg.monto_dist ?? 0);
+                    monto_cambio = Math.Round(monto_cambio, 2);
+                    ttl_dist += monto_cambio;
+                }
+            }
+            return ttl_dist;
+        }
+
     }
 }

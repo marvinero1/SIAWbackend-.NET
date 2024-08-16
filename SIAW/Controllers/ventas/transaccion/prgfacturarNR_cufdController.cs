@@ -19,6 +19,8 @@ namespace SIAW.Controllers.ventas.transaccion
         private readonly siaw_funciones.Ventas ventas = new siaw_funciones.Ventas();
         private readonly siaw_funciones.Cliente cliente = new siaw_funciones.Cliente();
         private readonly siaw_funciones.Funciones funciones = new siaw_funciones.Funciones();
+        private readonly siaw_funciones.Cobranzas cobranzas = new siaw_funciones.Cobranzas();
+        private readonly siaw_funciones.TipoCambio tipocambio = new siaw_funciones.TipoCambio();
 
         private readonly SIAT siat = new SIAT();
         private readonly Empresa empresa = new Empresa();
@@ -29,30 +31,65 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
         // GET: api/adsiat_tipodocidentidad
-        [HttpGet]
-        [Route("getTipoDocIdent/{userConn}")]
-        public async Task<ActionResult<IEnumerable<adsiat_tipodocidentidad>>> Getaadsiat_tipodocidentidad(string userConn)
+        [HttpPost]
+        [Route("generarFacturasNR/{userConn}")]
+        public async Task<ActionResult<IEnumerable<object>>> generarFacturasNR(string userConn, data_get_facturasNR data_get_facturasNR)
         {
             try
             {
+                string idNR = data_get_facturasNR.idNR;
+                int nroIdNR = data_get_facturasNR.nroIdNR;
+                string codEmpresa = data_get_facturasNR.codEmpresa;
+                string cufd = data_get_facturasNR.cufd;
+                string usuario = data_get_facturasNR.usuario;
+                int nrocaja = data_get_facturasNR.nrocaja;
+                bool valProfDespachos = data_get_facturasNR.valProfDespachos;
+                bool valFechaRemiHoy = data_get_facturasNR.valFechaRemiHoy;
+                bool valFactContado = data_get_facturasNR.valFactContado;
+                bool valTipoCam = data_get_facturasNR.valTipoCam;
+
+
+
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
-                    if (_context.adsiat_tipodocidentidad == null)
+
+                    var existeNR = await existenr(_context, idNR, nroIdNR);
+                    if (existeNR.existe == false)
                     {
-                        return BadRequest(new { resp = "Entidad adtipocambio es null." });
+                        return BadRequest(new { resp = "Esa nota de remision no existe o fue anulada." });
                     }
-                    var result = await _context.adsiat_tipodocidentidad
-                        .OrderBy(t => t.codigoclasificador)
-                        .Select(t => new
+                    int codRemision = existeNR.codRemision;
+                    var validaciones = await validar(_context, false, codEmpresa, codRemision, cufd, usuario, valProfDespachos, valFechaRemiHoy, valFactContado, valTipoCam);
+                    if (validaciones.resp == false)  // quiere decir que hay un problema con la Validacion
+                    {
+                        if (validaciones.objContra == null)
                         {
-                            t.codigoclasificador,
-                            t.descripcion
-                        })
-                        .ToListAsync();
-                    return Ok(result);
+                            return BadRequest(new { resp = validaciones.msg });
+                        }
+                        else
+                        {
+                            // si el objeto no es nulo, significa que requiere de contraseña y los datos se mandan al front
+                            return StatusCode(203, new { 
+                                resp = validaciones.msg, 
+                                valido = validaciones.resp,
+                                objContra = validaciones.objContra
+                            });
+                        }
+                    }
+
+                    var facturas = await GENERAR_FACTURA_DE_NR(_context, false, codEmpresa, codRemision, nrocaja);
+                    if (facturas.resp == false)
+                    {
+                        return BadRequest(new { resp = facturas.msg });
+                    }
+                    return Ok(new
+                    {
+                        valido = facturas.resp,
+                        facturas = facturas.dataFacturas
+                    });
                 }
             }
             catch (Exception)
@@ -87,9 +124,15 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
 
-        private async Task<(bool resp, string msg)> validar(DBContext _context, bool generacion_automatica, string codEmpresa, int codigoremision, int nrocaja, int codalmacen, string cufd, string usuario, bool valProfDespachos)
+        private async Task<(bool resp, string msg, object? objContra)> validar(DBContext _context, bool generacion_automatica, string codEmpresa, int codigoremision, string cufd, string usuario, bool valProfDespachos, bool valFechaRemiHoy, bool valFactContado, bool valTipoCam)
         {
             bool resultado = true;
+            var idNroId = await _context.veremision.Where(i => i.codigo == codigoremision).Select(i => new
+            {
+                i.id,
+                i.numeroid
+            }).FirstOrDefaultAsync();
+
             if (await yaestafacturadanr(_context, codigoremision))
             {
                 if (generacion_automatica)
@@ -119,7 +162,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 else
                 {
                     resultado = false;  
-                    return (resultado, "Esa nota de remision ya fue facturada.");
+                    return (resultado, "Esa nota de remision ya fue facturada.", null);
                 }
             }
             /*
@@ -129,7 +172,7 @@ namespace SIAW.Controllers.ventas.transaccion
             if ((await funciones.FechaDelServidor(_context)).Date > (await ventas.cufd_fechalimiteDate(_context,cufd)).Date)
             {
                 resultado = false;
-                return (resultado, "La fecha de la factura a generar excede la fecha limite de la dosificacion.");
+                return (resultado, "La fecha de la factura a generar excede la fecha limite de la dosificacion.", null);
             }
 
             // Validar que la proforma este registrada en despachos        //  ACA PEDIR CONTRTASEÑA ES 
@@ -154,6 +197,13 @@ namespace SIAW.Controllers.ventas.transaccion
                                 .Contains(dp.p.codigo))
                             .Select(dp => dp.d.estado)
                             .FirstOrDefaultAsync();
+                        var objContra = new
+                        {
+                            servicio = 33,
+                            datos_documento = idNroId.id + "-" + idNroId.numeroid,
+                            datos_a = idNroId.id,
+                            datos_b = idNroId.numeroid
+                        };
                         if (dt_despacho != null)
                         {
                             if (dt_despacho == "PREPARADO" || dt_despacho == "DESPACHAR" || dt_despacho == "DESPACHADO")
@@ -163,13 +213,13 @@ namespace SIAW.Controllers.ventas.transaccion
                             else
                             {
                                 resultado = false;
-                                return (resultado, "La proforma debe estar registrada por lo menos como Preparada para poder facturar su nota de remision, por favor registre su preparacion primero.");
+                                return (resultado, "La proforma debe estar registrada por lo menos como Preparada para poder facturar su nota de remision, por favor registre su preparacion primero.", objContra);
                             }
                         }
                         else
                         {
                             resultado = false;
-                            return (resultado, "La proforma de esta nota de remision no esta registrada en los despachos, por favor registre su preparacion primero.");
+                            return (resultado, "La proforma de esta nota de remision no esta registrada en los despachos, por favor registre su preparacion primero.", objContra);
                         }
                     }
                 }
@@ -190,149 +240,287 @@ namespace SIAW.Controllers.ventas.transaccion
                 else
                 {
                     resultado = false;
-                    return (resultado, "Esta tratando de facturar una nota de otro almacen al que pertenece su usuario. Verifique la nota y el usuario actual.");
+                    return (resultado, "Esta tratando de facturar una nota de otro almacen al que pertenece su usuario. Verifique la nota y el usuario actual.", null);
                 }
             }
 
             // ##VALIDAR QUE LA NOTA DE REMISION SEADE LA MISMA FECHA QUE HOY QUE SE ESTA FACTURANDO
+            // 'SE NECESITA PERMISO ESPECIAL  SI NO CUMPLE
+            if (resultado == true && generacion_automatica == false)
+            {
+                if (valFechaRemiHoy)  // SI ES TRUE NO VALIDA SE SALTA
+                {
+                    // NADA 
+                }
+                else
+                {
+                    DateTime fecha_remision = await ventas.RemisionFecha(_context, codigoremision);
+                    DateTime fecha_servidor = await funciones.FechaDelServidor(_context);
+                    var objContra = new
+                    {
+                        servicio = 29,
+                        datos_documento = idNroId.id + "-" + idNroId.numeroid,
+                        datos_a = idNroId.id,
+                        datos_b = idNroId.numeroid
+                    };
+                    if (fecha_remision.Year < fecha_servidor.Year)
+                    {
+                        resultado = false;
+                        return (resultado, "La nota de remision es de una fecha pasada, por favor verifique esta situacion.", objContra);
+                    }
+                    else
+                    {
+                        if (fecha_remision.Month < fecha_servidor.Month)
+                        {
+                            resultado = false;
+                            return (resultado, "La nota de remision es de una fecha pasada, por favor verifique esta situacion.", objContra);
+                        }
+                        else
+                        {
+                            if (fecha_remision.Day < fecha_servidor.Day)
+                            {
+                                resultado = false;
+                                return (resultado, "La nota de remision es de una fecha pasada, por favor verifique esta situacion.", objContra);
+                            }
+                            else
+                            {
+                                // todo ok !!
+                            }
+                        }
+                    }
+
+                    /*
+                     'If fecha_remision.Date < sia_funciones.Funciones.Instancia.fecha_del_servidor() Then
+                     '    MessageBox.Show("La nota de remision es de una fecha pasada, por favor verifique esta situacion.", "Validacion", MessageBoxButtons.OK, MessageBoxIcon.Exclamation)
+                     '    resultado = False
+                     'End If
+                     */
+                }
+            }
 
 
+            /*
+             '*********************************************************************************
+             '//validar que si la venta es contado si un id-numeroid de anticipo registrado 
+             '*********************************************************************************
+            */
+            if (resultado)
+            {
+                // si la venta es al contado y no es pagada con anticipo
+                // pedir clave para permitir lafacturacion
+                if (await ventas.NR_Tipo_Pago(_context,codigoremision) == 0)
+                {
+                    if (valFactContado)  // SI ES TRUE, TIENE CLAVE Y NO HACE NADA SINO VALIDA
+                    {
+                        // NADA
+                    }
+                    else
+                    {
+                        var ventContCAnti = await ventas.Es_Venta_Contado_Con_Pago_Anticipo(_context, codigoremision);
 
+                        if (await ventas.Es_Venta_Contado_Contra_Entrega(_context, codigoremision))
+                        {
+                            // si venta CONTADO - CONTRA ENTREGA no tiene que haber pago
+                            resultado = true;
+                        }
+                        else if (!ventContCAnti.resul)
+                        {
+                            var objContra = new
+                            {
+                                servicio = 89,
+                                datos_documento = idNroId.id + "-" + idNroId.numeroid,
+                                datos_a = idNroId.id,
+                                datos_b = idNroId.numeroid
+                            };
+                            // DEVOLVER MENSAJE QUE LLEGA ventContCAnti.msg
+                            //****  SI NO ES CON PAGO ANTICIPO  *********
+                            resultado = false;    // Pedir clave
+                            return (resultado, "Toda venta al contado que no ha sido previamente cancelada con un anticipo, debe ser cancelada en caja antes de facturar e ingresar una clave para emitir la factura.", objContra);
+                        }
+                        else
+                        {
+                            resultado = true;
+                        }
+                    }
+                    
+                }
+            }
+
+
+            // ### Verificar QUE LA NOTA DE REMISION TENGA CUOTAS SI ES A CREDITO
+            if (resultado)
+            {
+                if (await ventas.NR_Tipo_Pago(_context,codigoremision) == 0)
+                {
+                    // CONTADO
+                }
+                else
+                {
+                    if (await cobranzas.NR_Con_Cuotas(_context,idNroId.id,idNroId.numeroid))
+                    {
+                        // nada
+                    }
+                    else
+                    {
+                        resultado = false;
+                        return (resultado, "La nota de remision no tiene plan de cuotas, por favor Vuelva a grabarla, o informe al administrador del sistema.", null);
+                    }
+                }
+            }
+
+            // ### Verificar que el tipo de cambio no tenga algun valor raro
+            if (valTipoCam)  // si es true no valida
+            {
+                // NADA 
+            }
+            else
+            {
+                string monBase = await Empresa.monedabase(_context, codEmpresa);
+                string monExt = await empresa.monedaext(_context, codEmpresa);
+                double tdc_ant = (double)await tipocambio._tipocambio(_context, monBase, monExt, (await funciones.FechaDelServidor(_context)).Date.AddDays(-1));
+                double tdc_act = (double)await tipocambio._tipocambio(_context, monBase, monExt, (await funciones.FechaDelServidor(_context)).Date);
+                if (Math.Abs(tdc_act - tdc_ant) > 1)
+                {
+                    var objContra = new
+                    {
+                        servicio = -1,
+                        datos_documento = "",
+                        datos_a = "",
+                        datos_b = ""
+                    };
+                    resultado = false;
+                    return (resultado, "El tipo de cambio tiene una gran variacion, respecto a la fecha anterior. Por favor consulte con el administrador del sistema antes de continuar. Esta seguro que desea continuar?", objContra);
+                }
+            }
+            return (resultado, "", null);
+            
         }
 
 
         private async Task<(bool resp, string msg, object? dataFacturas)> GENERAR_FACTURA_DE_NR(DBContext _context, bool opcion_automatico, string codEmpresa, int codigoremision, int nrocaja)
         {
-            //if (validar(opcion_automatico))
-            if(true)
+            bool distribuir_desc_extra_en_factura = await configuracion.distribuir_descuentos_en_facturacion(_context, codEmpresa);
+            var datosNR = await cargar_nr(_context, codigoremision);
+
+            if (datosNR.cabecera == null || datosNR.detalle == null)
             {
-                bool distribuir_desc_extra_en_factura = await configuracion.distribuir_descuentos_en_facturacion(_context, codEmpresa);
-                var datosNR = await cargar_nr(_context, codigoremision);
+                return (false, "No se pudo obtener los datos de la Nota de Remision, consulte con el administrador", null);
+            }
+            veremision cabecera = datosNR.cabecera;  // DEVOLVER ESTO
+            List<veremision_detalle> detalle = datosNR.detalle;
 
-                if (datosNR.cabecera == null || datosNR.detalle == null)
-                {
-                    return (false,"No se pudo obtener los datos de la Nota de Remision, consulte con el administrador", null);
-                }
-                veremision cabecera = datosNR.cabecera;  // DEVOLVER ESTO
-                List < veremision_detalle > detalle = datosNR.detalle;
-                
-                int NROITEMS = datosNR.nroitems;
+            int NROITEMS = datosNR.nroitems;
 
-                if (distribuir_desc_extra_en_factura)
-                {
-                    // NNNNNNNOOOOOOOOOOOOO     PROOOOORAAAAAATEEEEEEOOOOOOOOOOO DESTRIBUYE EL DESCUENTO ENC ADA ITEM COMO TIENE QUE SER
-                    // es la nueva forma implementada en 28-02-2019, aplica los descuentos por item, NO PRORATEA
+            if (distribuir_desc_extra_en_factura)
+            {
+                // NNNNNNNOOOOOOOOOOOOO     PROOOOORAAAAAATEEEEEEOOOOOOOOOOO DESTRIBUYE EL DESCUENTO ENC ADA ITEM COMO TIENE QUE SER
+                // es la nueva forma implementada en 28-02-2019, aplica los descuentos por item, NO PRORATEA
 
 
-                    // acca devuelde tabla descuentos, total descuentos y el detalle modificado
-                    var datosDescExtraItem = await calcular_descuentos_extra_por_item(_context, codigoremision, codEmpresa, cabecera.codmoneda, cabecera.codcliente_real, cabecera.nit, (double)cabecera.subtotal, detalle);
-                    detalle = datosDescExtraItem.detalle;
-                    // acca devuelve detalle modificado
-                    detalle = await distribuir_recargos(_context, codigoremision, codEmpresa, detalle);
-                }
-                else
-                {
-                    // AQUI HACE PRORATEO
-                    // hace de la forma como siempre hacia lo que mario implemento
-
-
-
-                    detalle = await distribuir_descuentos(_context,codigoremision,codEmpresa,detalle);
-                    // No_Distribuir_Descuentos(codigoremision)
-                    // acca devuelve detalle modificado
-                    detalle = await distribuir_recargos(_context, codigoremision, codEmpresa, detalle);
-                   
-                }
-
-                // ver el numero de items por hoja sea valido
-                var ITEMSPORHOJA = await ventas.numitemscaja(_context, nrocaja);
-                List<tablaFacturas> lista = new List<tablaFacturas>();  // DEVOLVER LISTA
-                double totfactura = 0;
-                if (ITEMSPORHOJA >= NROITEMS)
-                {
-                    // la nota se emite en una sola HOJA
-                    /*
-                     
-                    subtotalNR.Text = CDbl(cabecera.Rows(0)("subtotal")).ToString("####,##0.00")
-                    totdesctosNR.Text = CDbl(cabecera.Rows(0)("descuentos")).ToString("####,##0.00")
-                    totrecargosNR.Text = CDbl(cabecera.Rows(0)("recargos")).ToString("####,##0.00")
-                    totremision.Text = CDbl(cabecera.Rows(0)("total")).ToString("####,##0.00")
-                     
-                     */
-
-                    // obtener el total final de la factura del detalle (sumatoria de totales de items)
-                    Total_Detalle_Factura _TTLFACTURA = new Total_Detalle_Factura();
-                    _TTLFACTURA = await Totalizar_Detalle_Factura(_context,detalle);
-
-                    // añadir a la lista
-                    
-                    tablaFacturas registro = new tablaFacturas();
-                    registro.nro = 1;
-
-                    /*
-                     
-                    'registro("subtotal") = sia_funciones.SIAT.Instancia.Redondeo_Decimales_SIA(sia_funciones.SIAT.Instancia.Redondear_SIAT(_TTLFACTURA.Total_factura))
-                    'desde 08/01/2023 ya se redondea en la funcion Totalizar_Detalle_Factura con dos decimales con el SQLServer
-
-                     */
-                    registro.subtotal = _TTLFACTURA.Total_factura;
-
-                    /*
-                     
-                    'registro("descuentos") = sia_funciones.SIAT.Instancia.Redondeo_Decimales_SIA(sia_funciones.SIAT.Instancia.Redondear_SIAT(_TTLFACTURA.Desctos))
-                    'desde 08/01/2023 ya se redondea en la funcion Totalizar_Detalle_Factura con dos decimales con el SQLServer
-                     
-                     */
-                    registro.descuentos = _TTLFACTURA.Desctos;
-
-                    /*
-                     
-                    'registro("recargos") = Math.Round(sia_funciones.SIAT.Instancia.Redondear_SIAT(_TTLFACTURA.Recargos), 2, MidpointRounding.AwayFromZero)
-                    'desde 08/01/2023 ya se redondea en la funcion Totalizar_Detalle_Factura con dos decimales con el SQLServer
-
-                     */
-                    registro.recargos = _TTLFACTURA.Recargos;
-
-                    registro.total = registro.subtotal - registro.descuentos;
-                    // 'registro("total") = Math.Round(_TTLFACTURA.Total_Dist, 2, MidpointRounding.AwayFromZero)
-
-                    if (await cliente.DiscriminaIVA(_context,cabecera.codcliente))
-                    {
-                        registro.iva = await siat.Redondear_SIAT(_context, codEmpresa, (double)(cabecera.iva ?? 0));
-                        registro.iva = Math.Round(registro.iva, 2, MidpointRounding.AwayFromZero);
-
-                        registro.monto = await siat.Redondear_SIAT(_context, codEmpresa, (registro.total - registro.iva));
-                        registro.monto = Math.Round(registro.monto, 2, MidpointRounding.AwayFromZero);
-                    }
-                    else
-                    {
-                        registro.iva = 0;
-                        registro.monto = await siat.Redondear_SIAT(_context, codEmpresa,registro.total);
-                        registro.monto = Math.Round(registro.monto, 2, MidpointRounding.AwayFromZero);
-                    }
-                    lista.Add(registro);
-                    totfactura = _TTLFACTURA.Total_Dist;
-                }
-                else
-                {
-                    // la nota sera multifactura
-                    var facturasDiv = await DIVIDIR_FACTURA(_context, cabecera.codcliente, ITEMSPORHOJA, codEmpresa, detalle);
-                    lista = facturasDiv.lista;
-                    totfactura = facturasDiv.totfactura;
-                }
-                var facturasInfo = new
-                {
-                    cabecera,
-                    lista,
-                    totfactura
-                };
-
-                return (true, "", null);
+                // acca devuelde tabla descuentos, total descuentos y el detalle modificado
+                var datosDescExtraItem = await calcular_descuentos_extra_por_item(_context, codigoremision, codEmpresa, cabecera.codmoneda, cabecera.codcliente_real, cabecera.nit, (double)cabecera.subtotal, detalle);
+                detalle = datosDescExtraItem.detalle;
+                // acca devuelve detalle modificado
+                detalle = await distribuir_recargos(_context, codigoremision, codEmpresa, detalle);
             }
             else
             {
-                return (false, "No se pudo generar la factura!!!", null);
+                // AQUI HACE PRORATEO
+                // hace de la forma como siempre hacia lo que mario implemento
+
+
+
+                detalle = await distribuir_descuentos(_context, codigoremision, codEmpresa, detalle);
+                // No_Distribuir_Descuentos(codigoremision)
+                // acca devuelve detalle modificado
+                detalle = await distribuir_recargos(_context, codigoremision, codEmpresa, detalle);
+
             }
+
+            // ver el numero de items por hoja sea valido
+            var ITEMSPORHOJA = await ventas.numitemscaja(_context, nrocaja);
+            List<tablaFacturas> lista = new List<tablaFacturas>();  // DEVOLVER LISTA
+            double totfactura = 0;
+            if (ITEMSPORHOJA >= NROITEMS)
+            {
+                // la nota se emite en una sola HOJA
+                /*
+
+                subtotalNR.Text = CDbl(cabecera.Rows(0)("subtotal")).ToString("####,##0.00")
+                totdesctosNR.Text = CDbl(cabecera.Rows(0)("descuentos")).ToString("####,##0.00")
+                totrecargosNR.Text = CDbl(cabecera.Rows(0)("recargos")).ToString("####,##0.00")
+                totremision.Text = CDbl(cabecera.Rows(0)("total")).ToString("####,##0.00")
+
+                 */
+
+                // obtener el total final de la factura del detalle (sumatoria de totales de items)
+                Total_Detalle_Factura _TTLFACTURA = new Total_Detalle_Factura();
+                _TTLFACTURA = await Totalizar_Detalle_Factura(_context, detalle);
+
+                // añadir a la lista
+
+                tablaFacturas registro = new tablaFacturas();
+                registro.nro = 1;
+
+                /*
+
+                'registro("subtotal") = sia_funciones.SIAT.Instancia.Redondeo_Decimales_SIA(sia_funciones.SIAT.Instancia.Redondear_SIAT(_TTLFACTURA.Total_factura))
+                'desde 08/01/2023 ya se redondea en la funcion Totalizar_Detalle_Factura con dos decimales con el SQLServer
+
+                 */
+                registro.subtotal = _TTLFACTURA.Total_factura;
+
+                /*
+
+                'registro("descuentos") = sia_funciones.SIAT.Instancia.Redondeo_Decimales_SIA(sia_funciones.SIAT.Instancia.Redondear_SIAT(_TTLFACTURA.Desctos))
+                'desde 08/01/2023 ya se redondea en la funcion Totalizar_Detalle_Factura con dos decimales con el SQLServer
+
+                 */
+                registro.descuentos = _TTLFACTURA.Desctos;
+
+                /*
+
+                'registro("recargos") = Math.Round(sia_funciones.SIAT.Instancia.Redondear_SIAT(_TTLFACTURA.Recargos), 2, MidpointRounding.AwayFromZero)
+                'desde 08/01/2023 ya se redondea en la funcion Totalizar_Detalle_Factura con dos decimales con el SQLServer
+
+                 */
+                registro.recargos = _TTLFACTURA.Recargos;
+
+                registro.total = registro.subtotal - registro.descuentos;
+                // 'registro("total") = Math.Round(_TTLFACTURA.Total_Dist, 2, MidpointRounding.AwayFromZero)
+
+                if (await cliente.DiscriminaIVA(_context, cabecera.codcliente))
+                {
+                    registro.iva = await siat.Redondear_SIAT(_context, codEmpresa, (double)(cabecera.iva ?? 0));
+                    registro.iva = Math.Round(registro.iva, 2, MidpointRounding.AwayFromZero);
+
+                    registro.monto = await siat.Redondear_SIAT(_context, codEmpresa, (registro.total - registro.iva));
+                    registro.monto = Math.Round(registro.monto, 2, MidpointRounding.AwayFromZero);
+                }
+                else
+                {
+                    registro.iva = 0;
+                    registro.monto = await siat.Redondear_SIAT(_context, codEmpresa, registro.total);
+                    registro.monto = Math.Round(registro.monto, 2, MidpointRounding.AwayFromZero);
+                }
+                lista.Add(registro);
+                totfactura = _TTLFACTURA.Total_Dist;
+            }
+            else
+            {
+                // la nota sera multifactura
+                var facturasDiv = await DIVIDIR_FACTURA(_context, cabecera.codcliente, ITEMSPORHOJA, codEmpresa, detalle);
+                lista = facturasDiv.lista;
+                totfactura = facturasDiv.totfactura;
+            }
+            var facturasInfo = new
+            {
+                cabecera,
+                lista,
+                totfactura
+            };
+
+            return (true, "", facturasInfo);
         }
 
         private async Task<(veremision ? cabecera, List<veremision_detalle>? detalle, int nroitems)> cargar_nr(DBContext _context, int codigo)
@@ -738,5 +926,22 @@ namespace SIAW.Controllers.ventas.transaccion
         public double monto { get; set; }
     }
 
+
+
+
+    public class data_get_facturasNR
+    {
+        public string idNR { get; set; } 
+        public int nroIdNR { get; set; } 
+        public string codEmpresa { get; set; } 
+        public string cufd { get; set; } 
+        public string usuario { get; set; }
+
+        public int nrocaja { get; set; }
+        public bool valProfDespachos { get; set; }
+        public bool valFechaRemiHoy { get; set; }
+        public bool valFactContado { get; set; }
+        public bool valTipoCam { get; set; }
+    }
 
 }

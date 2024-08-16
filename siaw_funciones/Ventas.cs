@@ -44,6 +44,8 @@ namespace siaw_funciones
         private readonly Empresa empresa = new Empresa();
         private readonly SIAT siat = new SIAT();
         private readonly Items items = new Items();
+        private readonly Anticipos_Vta_Contado anticipos_vta_contado = new Anticipos_Vta_Contado();
+
         //private readonly IDepositosCliente depositos_cliente;
 
         private const int CODDESEXTRA_PROMOCION = 10;
@@ -6168,7 +6170,166 @@ namespace siaw_funciones
                 return 0;
             }
         }
+        public async Task<DateTime> RemisionFecha(DBContext _context, int codRemision)
+        {
+            try
+            {
+                DateTime resultado = await _context.veremision.Where(i => i.codigo == codRemision).Select(i => i.fecha).FirstOrDefaultAsync();
+                return resultado.Date;
+            }
+            catch (Exception)
+            {
+                return DateTime.Now.Date;
+            }
+        }
+        public async Task<int> NR_Tipo_Pago(DBContext _context, int codRemision)
+        {
+            // tipo_pago=0 CONTADO
+            // tipo_pago=1 CREDITO
+            try
+            {
+                int resultado = await _context.veremision.Where(i => i.codigo == codRemision).Select(i => i.tipopago).FirstOrDefaultAsync();
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
+        public async Task<bool> Es_Venta_Contado_Contra_Entrega(DBContext _context, int codRemision)
+        {
+            // verifica cual es la proforma de la nota de remision y esta registrada con pago anticipado
+            bool resultado = false;
+            var dtremision = await _context.veremision.Where(i => i.codigo == codRemision && i.anulada == false).Select(i => new
+            {
+                i.id,
+                i.numeroid,
+                i.fecha,
+                i.codcliente,
+                i.tipopago,
+                i.contra_entrega,
+                i.estado_contra_entrega
+            }).FirstOrDefaultAsync();
+            if (dtremision != null)
+            {
+                if (dtremision.tipopago == 0 && dtremision.contra_entrega == true)
+                {
+                    resultado = true;
+                }
+                else
+                {
+                    resultado = false;
+                }
+            }
+            else
+            {
+                resultado = false;
+            }
+            return resultado;
 
+        }
+
+        public async Task<(bool resul, string msg)> Es_Venta_Contado_Con_Pago_Anticipo(DBContext _context, int codRemision)
+        {
+            bool resultado = false;
+            string msg = "";
+            var dt = await _context.veproforma
+                .Where(v => v.anulada == false &&
+                            v.pago_contado_anticipado == true &&
+                            _context.veremision
+                                .Where(e => e.codigo == codRemision &&
+                                            e.anulada == false)
+                                .Select(e => e.codproforma)
+                                .Contains(v.codigo))
+                .Select(v => new
+                {
+                    v.id,
+                    v.numeroid,
+                    v.fecha,
+                    v.codcliente,
+                    v.idanticipo,
+                    v.numeroidanticipo,
+                    v.monto_anticipo
+                })
+                .FirstOrDefaultAsync();
+
+            var dtremision = await _context.veremision.Where(i => i.codigo == codRemision && i.anulada == false).Select(i => new
+            {
+                i.codigo,
+                i.id,
+                i.numeroid,
+                i.fecha,
+                i.codcliente,
+                i.nomcliente,
+                i.total,
+                i.codmoneda
+            }).FirstOrDefaultAsync();
+
+            if (dt != null)
+            {
+                // SI es pago con anticipo o tiene la proforma asignada un anticipo
+                // a continuacion se verifica si el anticipo existe y esta marcado para_venta_contado
+                var dt1 = await _context.coanticipo.Where(i => i.id == dt.idanticipo && i.numeroid == dt.numeroidanticipo
+                    && i.anulado == false && i.para_venta_contado == true).Select(i => new
+                    {
+                        i.id,
+                        i.numeroid,
+                        i.para_venta_contado,
+                        i.anulado
+                    }).FirstOrDefaultAsync();
+                if (dt1 != null)
+                {
+                    // **********************************************************************************
+                    // valida para la forma como se hacian las proformas contado hasta el 31-03-2016
+                    // es decir en la proforma se indicaba el anticipo idanticipo-nroidanticipo monto anticipo
+                    // ese decir una un anticipo para una sola proforma
+                    // **********************************************************************************
+                    resultado = true;
+                }
+                else
+                {
+                    // **********************************************************************************
+                    // verifica si la proforma tiene distribuciones, verifica el total distribuido
+                    // esta modalidad esta vigente desde 01-04-2016
+                    // **********************************************************************************
+                    double total_pagado_nr = await anticipos_vta_contado.Total_Anticipos_Aplicados_A_Remision(_context, dtremision.codigo, dtremision.codmoneda);
+                    total_pagado_nr = Math.Round(total_pagado_nr, 2);
+                    if (total_pagado_nr >= (double)dtremision.total)
+                    {
+                        resultado = true;
+                    }
+                    else
+                    {
+                        // si el monto pagado a la proforma es menor se verifica que la diferencia no se mayor a 0.03
+                        // lo mismo se valida al sacar la nota de remision
+                        if (total_pagado_nr < (double)dtremision.total)
+                        {
+                            double DIFERENCIA = Math.Abs(total_pagado_nr - (double)dtremision.total);
+                            // Desde 12/06/2024 el monto de 0.03 se cambio a 0.5 por instruccion de gereancia y sup nal oper para poder aplicar proformas con montos mayores o menores con una dif de 0.5 max
+                            if (DIFERENCIA >= 0.0 && DIFERENCIA <= 0.5)
+                            {
+                                resultado = true;
+                            }
+                            else
+                            {
+                                msg = "El monto total de anticipo asignado no es suficiente para la venta !!!";
+                                resultado = false;
+                            }
+                        }
+                        else
+                        {
+                            resultado = false;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                resultado = false;
+            }
+            return (resultado, msg);
+
+        }
 
         public async Task<DateTime> cufd_fechalimiteDate(DBContext _context, string cufd)
         {
