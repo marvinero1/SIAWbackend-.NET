@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("siaw_funciones")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+307ceca039f0fb0a69ae0dd4adde186e3c322fb8")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a5aa3a3d12fa3cfa1e1b3ad838edb87819089d76")]
 [assembly: System.Reflection.AssemblyProductAttribute("siaw_funciones")]
 [assembly: System.Reflection.AssemblyTitleAttribute("siaw_funciones")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

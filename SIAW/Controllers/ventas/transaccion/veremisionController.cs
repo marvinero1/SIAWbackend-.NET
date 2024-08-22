@@ -3382,6 +3382,8 @@ namespace SIAW.Controllers.ventas.transaccion
                             // Configurar e iniciar el trabajo de impresión
                             // Aquí iría el código para configurar el documento a imprimir y lanzar la impresión
                             bool impremiendo = await RawPrinterHelper.SendFileToPrinterAsync(config.PrinterName, pathFile);
+                            // bool impremiendo = await RawPrinterHelper.PrintFileAsync(config.PrinterName, pathFile);
+
                             // luego de mandar a imprimir eliminamos el archivo
                             if (System.IO.File.Exists(pathFile))
                             {

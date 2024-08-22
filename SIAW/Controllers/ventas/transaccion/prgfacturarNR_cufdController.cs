@@ -1,12 +1,16 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using MessagePack;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Win32;
+using NuGet.Configuration;
 using siaw_DBContext.Data;
 using siaw_DBContext.Models;
 using siaw_DBContext.Models_Extra;
 using siaw_funciones;
 using System.ComponentModel.DataAnnotations;
+using System.Runtime.ConstrainedExecution;
+using System.Runtime.Intrinsics.Arm;
 
 namespace SIAW.Controllers.ventas.transaccion
 {
@@ -21,14 +25,81 @@ namespace SIAW.Controllers.ventas.transaccion
         private readonly siaw_funciones.Funciones funciones = new siaw_funciones.Funciones();
         private readonly siaw_funciones.Cobranzas cobranzas = new siaw_funciones.Cobranzas();
         private readonly siaw_funciones.TipoCambio tipocambio = new siaw_funciones.TipoCambio();
+        private readonly siaw_funciones.datosProforma datos_proforma = new siaw_funciones.datosProforma();
+        private readonly siaw_funciones.Saldos saldos = new siaw_funciones.Saldos();
 
         private readonly SIAT siat = new SIAT();
         private readonly Empresa empresa = new Empresa();
+        private readonly Documento documento = new Documento();
+        private readonly Log log = new Log();
+
+        private readonly string _controllerName = "prgfacturarNR_cufdController";
 
         public prgfacturarNR_cufdController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;
         }
+
+
+        [HttpGet]
+        [Route("getDosificacionCaja/{userConn}/{fecha}/{codalmacen}")]
+        public async Task<ActionResult<IEnumerable<object>>> getDosificacionCaja(string userConn, DateTime fecha, int codalmacen)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    Datos_Dosificacion_Activa datos_dosificacion_Activa = new Datos_Dosificacion_Activa();
+                    datos_dosificacion_Activa = await siat.Obtener_Cufd_Dosificacion_Activa(_context, fecha, codalmacen);
+                    if (datos_dosificacion_Activa.resultado == true)
+                    {
+                        if (await ventas.cufd_tipofactura(_context, datos_dosificacion_Activa.cufd) == 1)
+                        {
+                            return Ok(new
+                            {
+                                resp = "Atencion!!! la dosificacion CUFD elegida es manual, esta seguro de continuar??? ",
+                                nrocaja = "",
+                                cufd = "",
+                                codigo_control = "",
+                                dtpfecha_limite = new DateTime(1900, 1, 1).Date,
+                                nrolugar = "",
+                                tipo = "",
+                                codtipo_comprobante = "",
+                                codtipo_comprobantedescripcion = ""
+                            });
+                        }
+                        // si hay datos de dosificacion
+                        string alerta = await ventas.alertadosificacion(_context, datos_dosificacion_Activa.nrocaja);
+                        return Ok(new
+                        {
+                            resp = alerta,
+                            nrocaja = datos_dosificacion_Activa.nrocaja,
+                            cufd = datos_dosificacion_Activa.cufd,
+                            codigo_control = datos_dosificacion_Activa.codcontrol,
+                            dtpfecha_limite = datos_dosificacion_Activa.fechainicio.Date,
+                            nrolugar = "",
+                            tipo = datos_dosificacion_Activa.tipo,
+                            codtipo_comprobante = "",
+                            codtipo_comprobantedescripcion = ""
+                        });
+                    }
+                    else
+                    {
+                        return BadRequest(new {resp = "No se encontro dosificacion de CUFD activa para el almacen: " });
+                    }
+                }
+
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+            }
+        }
+
+
+
 
         // GET: api/adsiat_tipodocidentidad
         [HttpPost]
@@ -517,7 +588,8 @@ namespace SIAW.Controllers.ventas.transaccion
             {
                 cabecera,
                 lista,
-                totfactura
+                totfactura,
+                detalle
             };
 
             return (true, "", facturasInfo);
@@ -888,6 +960,348 @@ namespace SIAW.Controllers.ventas.transaccion
             }
             var totfactura = await siat.Redondear_SIAT(_context, codempresa, super_total);
             return (lista, totfactura);
+        }
+
+
+
+
+        [HttpPost]
+        [Route("grabarFacturasNR/{userConn}")]
+        public async Task<ActionResult<IEnumerable<object>>> grabarFacturasNR(string userConn, data_get_facturasNR data_get_facturasNR)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    return Ok();
+                }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+
+        }
+        private async Task<bool> GRABAR_IMPRIMIR(DBContext _context, int codremision, bool opcion_automatico)
+        {
+            // If ValidarCrearImprimir()
+            if (true)
+            {
+                // ####validar nombre a facturar y nit
+                /*
+                 
+                If Trim(factnomb.Text.Replace(" ", "")) = "SINNOMBRE" Then
+                    factnit.Text = "0"
+                Else
+                    If sia_funciones.Ventas.Instancia.Validar_NIT_Correcto(factnit.Text, sia_funciones.Ventas.Instancia.Tipo_Documento_Cliente_segun_Remision(id.Text, numeroid.Text)) Then
+                    Else
+                        MessageBox.Show("Debe indicar un N.I.T. o Nro de C.I. Valido.", "Validacion", MessageBoxButtons.OK, MessageBoxIcon.Exclamation)
+                        Exit Sub
+                    End If
+                End If
+
+                 */
+            }
+            return true;
+        }
+
+        private async Task<(bool resul, string msg)> CREAR_GRABAR_FACTURAS(DBContext _context, string idfactura, int nrocaja, string factnit,string condicion, string nrolugar, string tipo, string codtipo_comprobante, string usuario, string codempresa, int codtipopago, string codbanco, string codcuentab, string nrocheque, string idcuenta, string cufd, string complemento_ci, veremision cabecera, List<veremision_detalle> detalle, List<tablaFacturas> dgvfacturas)
+        {
+            bool resultado = true;
+            bool descarga = false;
+
+            int cuantas = detalle.Count();
+            List<int> CodFacturas_Grabadas = new List<int>();
+            int idnroactual = 0;
+            int nrofactura = 0;
+
+            if (cuantas > 0)
+            {
+                ///////////////////////////////////////////////////
+                int HOJA = 0;
+                // DETERMINAR CUANTAS HOJAS DE FACTURAS SERAN NECESARIAS PARA TODA LA NOTA DE REMISION
+                // EN FECHA; 17-03-2022 REUNION:
+                // JROMERO, CINTHYA VARGAS, MARIELA MONTAÑO, ALDRIN ALMANZA, ALEX ZAMBRANA, BRYAN DIAZ
+                // SE ACORDO QUE SE IMPRIMIRA UNA SOLA FACTURA (NRO DE FACTURA) AUNQE SE GENEREN VARIAS HOJAS
+                // ESTO SIGNIFICA: UN NOTA DE REMISION GENERA UN SOLO NUMERO DE FACTURA (QUE PUEDE TENER VARIAS HOJAS)
+                int NROITEMS = detalle.Count();
+                var ITEMSPORHOJA = await ventas.numitemscaja(_context, nrocaja);
+
+                int NumHojas = (NROITEMS % ITEMSPORHOJA == 0) ?
+                   (int)Math.Floor((double)NROITEMS / ITEMSPORHOJA) :
+                   (int)Math.Floor((double)NROITEMS / ITEMSPORHOJA) + 1;
+
+                if (resultado)
+                {
+                    for (HOJA = 1; HOJA <= NumHojas; HOJA++)
+                    {
+                        //////////////////////////////////////////////
+                        /////CREAR FACTURA
+                        //////////////////////////////////////////////
+                        if (HOJA == 1)
+                        {
+                            idnroactual = (await documento.ventasnumeroid(_context, idfactura));
+                        }
+                        else
+                        {
+                            idnroactual = idnroactual + 1;
+                        }
+                        // verificacion para ver si el documento descarga mercaderia
+                        // PONER EL OPUESTO SI LA NR DESCARGA TONS NO DESCARGAR
+                        // SI LA NOTA DE REMISION DESCARGA ENTONCES NO DESCARGAR
+                        if (HOJA == 1)
+                        {
+                            if (await ventas.iddescarga(_context, cabecera.id))
+                            {
+                                descarga = false;
+                            }
+                            else
+                            {
+                                descarga = true;
+                            }
+                        }
+                        // obtiene el numero
+                        if (HOJA == 1)
+                        {
+                            nrofactura = await ventas.caja_numerofactura(_context, nrocaja);
+                        }
+                        else
+                        {
+                            nrofactura = nrofactura + 1;
+                        }
+                        // obtener los valores actualizado segun la dosificacion(por si se cambio el CUFD)
+                        Datos_Dosificacion_Activa datos_dosificacion_activa = new Datos_Dosificacion_Activa();
+                        datos_dosificacion_activa = await siat.Obtener_Cufd_Dosificacion_Activa(_context, await funciones.FechaDelServidor(_context), cabecera.codalmacen);
+                        string msg = "";  // PARA DEVOLVER ESTA COSAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+                        string codigo_control = "";
+                        DateTime dtpfecha_limite = DateTime.Now.Date;
+                        if (datos_dosificacion_activa.cufd.Trim().Length > 0)
+                        {
+                            // eso para detectar si hay cambio de CUFD (cuando en el mismo dia se genera otro CUFD)
+                            if (cufd != datos_dosificacion_activa.cufd.Trim())
+                            {
+                                // eso para detectar si hay cambio de CUFD (cuando en el mismo dia se genera otro CUFD)
+                                msg = "El CUFD activo para fecha: " + (await funciones.FechaDelServidor(_context)).ToShortDateString() + " Ag: " + cabecera.codalmacen + " ha Cambiado!!!, confirme esta situacion.";
+                            }
+                            cufd = datos_dosificacion_activa.cufd.Trim();
+                            nrocaja = (short)datos_dosificacion_activa.nrocaja;
+                            codigo_control = datos_dosificacion_activa.codcontrol.Trim();
+                            dtpfecha_limite = datos_dosificacion_activa.fechainicio.Date;
+                        }
+                        else
+                        {
+                            // si no hay CUFD no se puede grabar la factura
+                            msg = "No se econtro una dosificacion de CUFD activa para fecha: " + (await funciones.FechaDelServidor(_context)).ToShortDateString() + " Ag: " + cabecera.codalmacen;
+                            return (false, msg);
+                        }
+
+                        string valor_CUF = "";
+                        DateTime fechaServ = await funciones.FechaDelServidor(_context);
+                        string horaServ = datos_proforma.getHoraActual();
+                        var versionTariAct = await ventas.VersionTarifaActual(_context);
+                        var factormeDat = await tipocambio._tipocambio(_context, await Empresa.monedabase(_context, codempresa), await tipocambio.monedatdc(_context, usuario, codempresa), fechaServ);
+                        // cadena para insertar
+                        vefactura vefacturaData = new vefactura
+                        {
+                            leyenda = "",
+                            tipo_docid = cabecera.tipo_docid,
+                            email = cabecera.email,
+                            en_linea_SIN = false,
+                            en_linea = false,
+
+                            cufd = cufd,
+                            cuf = valor_CUF,
+                            complemento_ci = complemento_ci,
+                            tipo_venta = 0,
+                            codproforma = 0,
+
+                            refacturar = false,
+                            estado_contra_entrega = cabecera.estado_contra_entrega,
+                            contra_entrega = cabecera.contra_entrega,
+                            nroticket = "ST",
+                            monto_anticipo = 0,
+
+                            idanticipo = "",
+                            numeroidanticipo = 0,
+                            fecha_cae = "",
+                            cae = "",
+                            fecha_anulacion = fechaServ,
+
+                            version_tarifa = versionTariAct,
+                            notadebito = false,
+                            id = idfactura,
+                            numeroid = idnroactual + 1,
+                            codalmacen = cabecera.codalmacen,
+
+                            codcliente = cabecera.codcliente,
+                            nomcliente = cabecera.nomcliente,
+                            nit = factnit,
+                            condicion = condicion,
+                            codvendedor = cabecera.codvendedor,
+
+                            codmoneda = cabecera.codmoneda,
+                            fecha = fechaServ,
+                            tdc = cabecera.tdc,
+                            nrocaja = (short)nrocaja,
+                            nroorden = "",
+
+                            alfanumerico = "",
+                            nrofactura = nrofactura,
+                            nroautorizacion = "",
+                            fechalimite = dtpfecha_limite,
+                            codigocontrol = codigo_control,
+
+                            nrolugar = nrolugar,
+                            tipo = tipo,
+                            codtipo_comprobante = codtipo_comprobante,
+                            descarga = descarga,
+                            transferida = false,
+
+                            codremision = cabecera.codigo,
+                            tipopago = cabecera.tipopago,
+                            subtotal = (decimal)dgvfacturas[HOJA - 1].subtotal,
+                            descuentos = (decimal)dgvfacturas[HOJA - 1].descuentos,
+                            recargos = (decimal)dgvfacturas[HOJA - 1].recargos,
+
+                            total = (decimal)dgvfacturas[HOJA - 1].total,
+                            anulada = false,
+                            transporte = cabecera.transporte,
+                            fletepor = cabecera.fletepor,
+                            direccion = cabecera.direccion,
+
+                            contabilizado = false,
+                            horareg = horaServ,
+                            fechareg = fechaServ,
+                            usuarioreg = usuario,
+                            factorme = factormeDat,
+
+                            iva = 0,
+                            idfc = "",
+                            numeroidfc = 0,
+                            codtipopago = codtipopago,
+                            codcuentab = codcuentab,
+
+                            codbanco = codbanco,
+                            nrocheque = nrocheque,
+                            idcuenta = idcuenta,
+                            odc = cabecera.odc,
+                            peso = 0
+
+
+                        };
+                        // guardar cabecera
+                        await _context.vefactura.AddAsync(vefacturaData);
+                        await _context.SaveChangesAsync();
+                        int codFactura = vefacturaData.codigo;
+                        ///ir grabando codigo para impresion
+                        CodFacturas_Grabadas.Add(codFactura);
+
+                        // Calcula el rango de elementos para esta "hoja"
+                        int start = (HOJA * ITEMSPORHOJA) - ITEMSPORHOJA;
+                        // int end = (HOJA * ITEMSPORHOJA) - 1;
+
+                        var detalleFactura = detalle.Select((item, index) => new vefactura1
+                        {
+                            codfactura = codFactura,
+                            coditem = item.coditem,
+                            cantidad = item.cantidad,
+                            udm = item.udm,
+                            preciolista = item.preciolista,
+                            niveldesc = item.niveldesc,
+                            preciodesc = item.preciodesc,
+                            precioneto = item.precioneto,
+                            codtarifa = item.codtarifa,
+                            coddescuento = item.coddescuento,
+                            total = item.total,
+                            distdescuento = (decimal)item.distdescuento,
+                            distrecargo = (decimal)item.distrecargo,
+                            preciodist = (decimal)item.preciodist,
+                            totaldist = (decimal)item.totaldist,
+                            porceniva = item.porceniva,
+                            codaduana = index.ToString()  // Asignar el índice como código de aduana
+                        }).Skip(start).Take(ITEMSPORHOJA).ToList();  // Limitar al rango de la hoja actual
+
+                        await _context.vefactura1.AddRangeAsync(detalleFactura);
+                        await _context.SaveChangesAsync();
+
+
+                        // actualizar el numero de id
+                        var numeracionData = await _context.venumeracion.Where(i => i.id == idfactura).FirstOrDefaultAsync();
+                        numeracionData.nroactual += 1;
+                        await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
+
+                        if (HOJA == 1)
+                        {
+                            // actualizar remision  a transferida
+                            var veremisionData = await _context.veremision.Where(i => i.codigo == cabecera.codigo).FirstOrDefaultAsync();
+                            veremisionData.transferida = true;
+                            await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
+
+                        }
+
+                        if (HOJA == NumHojas)
+                        {
+                            // solo cuando es la ultima hoja
+                            var dosificaData = await _context.vedosificacion.Where(i => i.nrocaja == nrocaja && i.almacen == cabecera.codalmacen && i.activa == true).FirstOrDefaultAsync();
+                            dosificaData.nroactual = dosificaData.nroactual + NumHojas;
+                            await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
+                        }
+
+                        //////////////////////////////////////////////
+                        /////fin CREAR FACTURA
+                        //////////////////////////////////////////////
+                    }
+                }
+                ///////////////////////////////////////////////////
+
+                if (resultado)
+                {
+                    if (descarga == true)  // si la nota de remision no descarga entonces aqui descargarla
+                    {
+                        if (await saldos.Veremision_ActualizarSaldo(_context,usuario,cabecera.codigo,Saldos.ModoActualizacion.Crear) == false)
+                        {
+                            // Desde 23/11/2023 registrar en el log si por alguna razon no actualiza en instoactual correctamente al disminuir el saldo de cantidad y la reserva en proforma
+                            await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, cabecera.codigo.ToString(), cabecera.id, cabecera.numeroid.ToString(), _controllerName, "No actualizo stock al restar cantidad en Facturar NR.", Log.TipoLog.Creacion);
+                            string msgAlert = "No se pudo actualizar todos los stocks actuales del almacen, Por favor haga correr una actualizacion de stocks cuando vea conveniente."; // devolver
+                        }
+                    }
+                }
+                // creo q aqui debe ir el log de registro de una factura grabada
+                // Desde 10-11-2022 se añadio para guardar en el log el grabado de una factura de NR
+
+                foreach (var factuCod in CodFacturas_Grabadas)
+                {
+                    var id_nroid_fact = await ventas.id_nroid_factura_cuf(_context, factuCod);
+                    if (id_nroid_fact.id != "" && id_nroid_fact.numeroId != 0)
+                    {
+                        await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, factuCod.ToString(), id_nroid_fact.id, id_nroid_fact.numeroId.ToString(), _controllerName, "Grabar", Log.TipoLog.Creacion);
+                    }
+                }
+            }
+            else
+            {
+                resultado = false;
+            }
+            // convertir a moneda de factura
+            if (resultado)
+            {
+                foreach (var factuCod in CodFacturas_Grabadas)
+                {
+                    // fecha de nota de remision para el tdc
+                    // sia_funciones.Ventas.Instancia.convertirfactura(CInt(CodFacturas_Grabadas(i)), sia_funciones.TipoCambio.Instancia.monedafact(sia_compartidos.temporales.Instancia.codempresa), CDate(cabecera.Rows(0)("fecha")), sia_compartidos.temporales.Instancia.codempresa)
+                    // fecha actual para el tdc
+                    // Desde 01-05-2023 se palntea que la nota de remision  todo documento debe salir ya en bolivianos, entonces aqui controlar si el codmoneda de la NR es BS
+                    // se NO SE DEBE REALIZAR LA CONVERSION, EN CAMBIO SI EN LA NR EL CODMONEDA ES US, SI SE DEBE CONVERTIR A BS
+                    await ventas.Convertir_Moneda_Factura_NSF_SIAT()
+
+                }
+            }
+
+            return (resultado,"");
         }
 
 

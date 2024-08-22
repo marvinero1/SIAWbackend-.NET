@@ -2673,7 +2673,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
                 ////////////////////////////////////////////////////////////
                 //verificar los precios permitidos al usuario
-                string cadena_precios_no_autorizados_al_us = await validar_Vta.Validar_Precios_Permitidos_Usuario(_context, veproforma.usuarioreg, tabla_detalle);
+                string cadena_precios_no_autorizados_al_us = await validar_Vta.Validar_Precios_Permitidos_Usuario(_context, usuario, tabla_detalle);
                 if (cadena_precios_no_autorizados_al_us.Trim().Length > 0)
                 {
                     return BadRequest(new { resp = "El documento tiene items a precio(s): " + cadena_precios_no_autorizados_al_us + " los cuales no estan asignados al usuario " + veproforma.usuarioreg + " verifique esta situacion!!!" });
@@ -5482,7 +5482,7 @@ namespace SIAW.Controllers.ventas.transaccion
                             ridanticipo = "",                       // VERFICICAR CON ANTICIPOS DE PROFORMA
                             rimprimir_etiqueta_cliente = "",        // VERIFICAR SI ES CLIENTE SIN NOMBRE
 
-                            crfecha_hr_inicial = (i.fecha_inicial ?? DateTime.Today).ToShortDateString() + " " + i.horareg,
+                            crfecha_hr_inicial = (i.fecha_inicial ?? DateTime.Today).ToShortDateString() + " " + i.hora_inicial,
                             crfecha_hr_autoriza = i.aprobada == true ? ((i.fechaaut ?? DateTime.Today).ToShortDateString() + " " + i.horaaut) : " ",
 
                         }).FirstOrDefaultAsync();

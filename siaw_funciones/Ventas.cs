@@ -44,7 +44,7 @@ namespace siaw_funciones
         private readonly Empresa empresa = new Empresa();
         private readonly SIAT siat = new SIAT();
         private readonly Items items = new Items();
-        private readonly Anticipos_Vta_Contado anticipos_vta_contado = new Anticipos_Vta_Contado();
+        //private readonly Anticipos_Vta_Contado anticipos_vta_contado = new Anticipos_Vta_Contado();
 
         //private readonly IDepositosCliente depositos_cliente;
 
@@ -6292,7 +6292,7 @@ namespace siaw_funciones
                     // verifica si la proforma tiene distribuciones, verifica el total distribuido
                     // esta modalidad esta vigente desde 01-04-2016
                     // **********************************************************************************
-                    double total_pagado_nr = await anticipos_vta_contado.Total_Anticipos_Aplicados_A_Remision(_context, dtremision.codigo, dtremision.codmoneda);
+                    double total_pagado_nr = await Anticipos_Vta_Contado.Total_Anticipos_Aplicados_A_Remision(_context, dtremision.codigo, dtremision.codmoneda);
                     total_pagado_nr = Math.Round(total_pagado_nr, 2);
                     if (total_pagado_nr >= (double)dtremision.total)
                     {
@@ -6348,6 +6348,188 @@ namespace siaw_funciones
                 return DateTime.Now.Date;
             }
         }
+
+
+        ///////////////////////////////////////////////////////////
+        // esta funcion devuelve el tipo de factura de una dsificacion CUFD
+        //////////////////////////////////////////////////////////
+        public async Task<int> cufd_tipofactura(DBContext _context, string cufd)
+        {
+            // 1: manual
+            // 2: registradora
+            // 3: computarizada
+            try
+            {
+                int resultado = await _context.vedosificacion.Where(i => i.cufd == cufd).Select(i => i.tipofac).FirstOrDefaultAsync();
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
+        ///////////////////////////////////////////////////////////////////////////////
+        // devulve si es que se debe dar la alerta de que se estan terminando la dosificacon
+        ///////////////////////////////////////////////////////////////////////////////
+        public async Task<string> alertadosificacion(DBContext _context, int nrocaja)
+        {
+            var tabla = await _context.vedosificacion.Where(i => i.activa == true && i.nrocaja == nrocaja).Select(i => new
+            {
+                i.nroactual,
+                i.nroalerta
+            }).FirstOrDefaultAsync();
+            if (tabla != null)
+            {
+                if (tabla.nroactual == tabla.nroalerta)
+                {
+                    return "La Dosificacion asignada a esta caja ha alcanzado su nivel de alerta, por favor prepare una neuva dosificacion para reemplazo cuando se acabe la presente.";
+                }
+            }
+            return "";
+        }
+
+        ///////////////////////////////////////////////////////////////////////////////
+        // devulve el numero de factura que le corresponde a una nueva factura en una caja dada
+        ///////////////////////////////////////////////////////////////////////////////
+        public async Task<int> caja_numerofactura(DBContext _context, int nrocaja)
+        {
+            int resultado = 0;
+            try
+            {
+                resultado = await _context.vedosificacion.Where(i => i.activa == true && i.nroactual == nrocaja).Select(i => i.nroactual).FirstOrDefaultAsync();
+            }
+            catch (Exception)
+            {
+                resultado = 0;
+            }
+            return (resultado + 1);
+        }
+        public async Task<(string id, int numeroId)> id_nroid_factura_cuf(DBContext _context, int codfactura)
+        {
+            try
+            {
+                // 1ro. busca el doc de la factura en base al codfactura
+                var tbl = await _context.vefactura.Where(i => i.codigo == codfactura).Select(i => new
+                {
+                    i.codigo,
+                    i.id,
+                    i.numeroid
+                }).FirstOrDefaultAsync();
+                if (tbl != null)
+                {
+                    return (tbl.id, tbl.numeroid);
+                }
+                else
+                {
+                    return ("", 0);
+                }
+            }
+            catch (Exception)
+            {
+                return ("", 0);
+            }
+        }
+
+        // IMPLEMENTADO EN FECHA: 18-03-2022
+        /// SOLO SE USA DESDE FACTURAR NR, PARA EL NUEVO SISTEMA DE FACTURACION DEL SIAT
+        /// esta funcion convierte una factura a un tipo de moneda dado
+        public async Task<bool> Convertir_Moneda_Factura_NSF_SIAT(DBContext _context, int codfactura, string codmoneda, DateTime fecha, string codempresa)
+        {
+            bool resultado = true;
+            int CODALMACEN = await empresa.AlmacenLocalEmpresa(_context, codempresa);
+            int _codDocSector = await _context.adsiat_parametros_facturacion.Where(i => i.codalmacen == CODALMACEN).Select(i => i.tipo_doc_sector).FirstOrDefaultAsync() ?? -1;
+            var tabla = await _context.vefactura.Where(i => i.codigo == codfactura).FirstOrDefaultAsync();
+            if (tabla == null)
+            {
+                return false;
+            }
+            if (tabla.codmoneda == codmoneda)
+            {
+                // YA ESTA EN MISMA MONEDA
+            }
+            else
+            {
+                double tdc = (double)await tipocambio._tipocambio(_context, codmoneda, tabla.codmoneda, tabla.fecha);
+                double tdc2 = (double)await tipocambio._tipocambio(_context, await Empresa.monedabase(_context, codempresa), codmoneda, tabla.fecha);
+
+                // REALIZAR CONVERSION DE LA CABECERA
+                tabla.codmoneda = codmoneda;
+                tabla.tdc = (decimal)tdc2;
+                tabla.subtotal = tabla.subtotal * (decimal)tdc;
+                tabla.recargos = tabla.recargos * (decimal)tdc;
+                tabla.descuentos = tabla.descuentos * (decimal)tdc;
+                tabla.total = tabla.total * (decimal)tdc;
+                tabla.iva = tabla.iva * (decimal)tdc;
+
+                int guarda = await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
+
+                if (guarda > 0)
+                {
+                    // actualiza el iva recalculando
+                    // sia_DAL.Datos.Instancia.EjecutarComando("update vefactura set iva=((subtotal/100)*porceniva) where codigo=" & CStr(codfactura) & " ")
+
+                    // ojo aqui se cambio en lugar que haga: total=subtotal+iva ahora hace: total=total+iva
+                    tabla.total = tabla.total + (tabla.iva ?? 0);
+                    await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
+
+                    if (_codDocSector == 1)
+                    {
+                        // REALIZAR CONVERSION DEL DETALLE
+                        // 1 : FACTURA COMPRA VENTA (2 DECIMALES)
+                        var detalleFactData = await _context.vefactura1.Where(i => i.codfactura == codfactura).ToListAsync();
+                        foreach (var reg in detalleFactData)
+                        {
+                            reg.precioneto = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, ((double)reg.precioneto * tdc));
+                            reg.preciolista = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, ((double)reg.preciolista * tdc));
+                            reg.preciodesc = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, ((double)(reg.preciodesc ?? 0) * tdc));
+                            reg.total = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, ((double)reg.total * tdc));
+                            reg.distdescuento = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, ((double)(reg.distdescuento ?? 0) * tdc));
+                            reg.distrecargo = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, ((double)(reg.distrecargo ?? 0) * tdc));
+                            reg.preciodist = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, ((double)(reg.preciodist ?? 0) * tdc));
+                            reg.totaldist = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, ((double)(reg.totaldist ?? 0) * tdc));
+                        }
+                        // Finalmente guardamos los cambios en la base de datos
+                        var guarda2 = await _context.SaveChangesAsync();
+                        if (guarda2 > 0)
+                        {
+                            resultado = true;
+                        }
+                        else
+                        {
+                            resultado = false;
+                        }
+
+                        // lo que se convirtio se debe redondear a 2 decimales para luego recalcular todo
+                        if (resultado)
+                        {
+                            // redondear los datos convertidos en la CABECERA
+
+                            // redondear los datos convertidos en el DETALLE (redondear a 5 decimales)
+
+                            // redondear los datos convertidos en el DETALLE (redondear a 5 decimales)
+
+                        }
+
+
+                    }
+                    else if(_codDocSector == 35)
+                    {
+
+                    }
+                }
+                else
+                {
+                    resultado = false;
+                }
+
+
+            }
+
+        }
+
+
+
+
 
 
         public async Task<List<ProformasWF>> Detalle_Proformas_Aprobadas_WF(string userConnectionString, string codempresa, string usuario)

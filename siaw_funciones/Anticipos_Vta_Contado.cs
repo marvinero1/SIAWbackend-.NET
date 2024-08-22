@@ -798,9 +798,9 @@ namespace siaw_funciones
             return resultado;
         }
 
-        public async Task<double> Total_Anticipos_Aplicados_A_Remision(DBContext _context, int codremision, string moneda)
+        public static async Task<double> Total_Anticipos_Aplicados_A_Remision(DBContext _context, int codremision, string moneda)
         {
-
+            TipoCambio tipoCambio = new TipoCambio();
             var dt = await _context.veremision
                 .Where(p1 => p1.anulada == false && p1.codigo == codremision)
                 .Join(_context.veproforma.Where(p2 => p2.anulada == false),

@@ -793,10 +793,10 @@ namespace SIAW.Controllers.ventas.modificacion
                         dbContexTransaction.Commit();
                         return Ok(new { resp = "Se Grabo la Proforma de manera Exitosa", codProf = result.codprof, alerts = msgAlerts });
                     }
-                    catch (Exception)
+                    catch (Exception ex)
                     {
                         dbContexTransaction.Rollback();
-                        return Problem("Error en el servidor");
+                        return Problem($"Error en el servidor: {ex.Message}");
                         throw;
                     }
                 }
@@ -1147,6 +1147,8 @@ namespace SIAW.Controllers.ventas.modificacion
             // Actualizar cabecera (veproforma)
             try
             {
+                _context.Entry(veproforma).State = EntityState.Modified;
+                await _context.SaveChangesAsync();
 
             }
             catch (Exception)
@@ -1154,9 +1156,7 @@ namespace SIAW.Controllers.ventas.modificacion
 
                 throw;
             }
-            _context.Entry(veproforma).State = EntityState.Modified;
-            await _context.SaveChangesAsync();
-
+            
 
 
             // guarda detalle (veproforma1)

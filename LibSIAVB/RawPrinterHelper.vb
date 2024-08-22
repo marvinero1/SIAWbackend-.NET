@@ -1,6 +1,7 @@
 ﻿Imports System.IO
 Imports System.Runtime.InteropServices
-
+Imports System.Drawing.Printing
+Imports System.Threading.Tasks
 Public Class RawPrinterHelper
     ' SendFileToPrinter()
     ' When the function is given a file name and a printer name,
@@ -53,6 +54,30 @@ Public Class RawPrinterHelper
                 ' Free the unmanaged memory that you allocated earlier.
                 Marshal.FreeCoTaskMem(pUnmanagedBytes)
             End Using
+        End Using
+
+        Return bSuccess
+    End Function
+
+
+    Public Shared Async Function PrintFileAsync(printerName As String, fileName As String) As Task(Of Boolean)
+        Dim bSuccess As Boolean = False
+
+        ' Create a PrintDocument object
+        Dim printDoc As New PrintDocument()
+        printDoc.PrinterSettings.PrinterName = printerName
+
+        ' Create a StreamReader to read the file content
+        Using sr As New StreamReader(fileName)
+
+            ' Print the document
+            Try
+                Await Task.Run(Sub() printDoc.Print())
+                bSuccess = True
+            Catch ex As Exception
+                ' Handle exceptions
+                Console.WriteLine($"Error printing file: {ex.Message}")
+            End Try
         End Using
 
         Return bSuccess

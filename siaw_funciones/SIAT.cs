@@ -162,6 +162,45 @@ namespace siaw_funciones
             return resultado;
         }
 
+        public async Task<Datos_Dosificacion_Activa> Obtener_Cufd_Dosificacion_Activa(DBContext _context, DateTime fecha, int codalmacen)
+        {
+            Datos_Dosificacion_Activa miresultado = new Datos_Dosificacion_Activa();
+            var dt = await _context.vedosificacion.Where(i => i.fechainicio == fecha.Date && i.almacen == codalmacen && i.activa == true).ToListAsync();
+            if (dt.Count() == 1) {
+                // solo si hay un registro devuelve datos en otro caso por seguridad no devuelve nada
+                // por ejemplo si hay mas de 1 dosificacion activa hay algo mal
+                miresultado.nrocaja = dt[0].nrocaja;
+                miresultado.codcontrol = dt[0].codigo_control;
+                miresultado.cufd = dt[0].cufd;
+                miresultado.fechainicio = (dt[0].fechainicio ?? fecha).Date;
+                miresultado.activa = dt[0].activa;
+                miresultado.tipo = dt[0].tipo;
+                miresultado.resultado = true;
+            }
+            else
+            {
+                miresultado.codcontrol = "";
+                miresultado.cufd = "";
+                miresultado.tipo = "";
+                miresultado.fechainicio = new DateTime(1900, 1, 1);
+                miresultado.activa = false;
+                miresultado.resultado = false;
+            }
+            return miresultado;
+        }
 
     }
+
+    public class Datos_Dosificacion_Activa
+    {
+        public string cufd { get; set; }
+        public string codcontrol { get; set; }
+        public DateTime fechainicio { get; set; }
+        public bool activa { get; set; }
+        public int nrocaja { get; set; }
+
+        public string tipo { get; set; }
+        public bool resultado { get; set; } = false;
+    }
+
 }
