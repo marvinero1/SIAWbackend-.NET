@@ -2648,7 +2648,7 @@ namespace siaw_funciones
                 {
                     if (DVTA.idpf_complemento.Trim().Length > 0 && DVTA.nroidpf_complemento.Trim().Length > 0 && DVTA.tipo_complemento == "complemento_para_descto_monto_min_desextra")
                     {
-                        _codproforma = await ventas.codproforma(_context, DVTA.nroidpf_complemento,Convert.ToInt32(DVTA.nroidpf_complemento));
+                        _codproforma = await ventas.codproforma(_context, DVTA.idpf_complemento, Convert.ToInt32(DVTA.nroidpf_complemento));
                         if (Convert.ToInt32(DVTA.nroidpf_complemento) > 0)
                         {
                             _moneda_total_pfcomplemento = await ventas.MonedaPF(_context, _codproforma);

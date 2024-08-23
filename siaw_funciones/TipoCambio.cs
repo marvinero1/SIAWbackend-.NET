@@ -227,6 +227,18 @@ namespace siaw_funciones
             return resultado;
         }
 
+        public async Task<string> monedafact(DBContext _context, string codempresa)
+        {
+            var resultado = await _context.adparametros.Where(v => v.codempresa == codempresa).Select(i => i.codmonedafact).FirstOrDefaultAsync();
+            if (resultado == null)
+            {
+                resultado = await Empresa.monedabase(_context, codempresa);
+            }
+            return resultado;
+        }
+
+
+
         public async Task<decimal> _conversion_alm(DBContext _context, string moneda_hasta, string moneda_desde, DateTime fecha, decimal monto, int codalmacen)
         {
             try

@@ -1275,7 +1275,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
                 foreach (var factuCod in CodFacturas_Grabadas)
                 {
-                    var id_nroid_fact = await ventas.id_nroid_factura_cuf(_context, factuCod);
+                    var id_nroid_fact = await Ventas.id_nroid_factura_cuf(_context, factuCod);
                     if (id_nroid_fact.id != "" && id_nroid_fact.numeroId != 0)
                     {
                         await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, factuCod.ToString(), id_nroid_fact.id, id_nroid_fact.numeroId.ToString(), _controllerName, "Grabar", Log.TipoLog.Creacion);
@@ -1296,7 +1296,83 @@ namespace SIAW.Controllers.ventas.transaccion
                     // fecha actual para el tdc
                     // Desde 01-05-2023 se palntea que la nota de remision  todo documento debe salir ya en bolivianos, entonces aqui controlar si el codmoneda de la NR es BS
                     // se NO SE DEBE REALIZAR LA CONVERSION, EN CAMBIO SI EN LA NR EL CODMONEDA ES US, SI SE DEBE CONVERTIR A BS
-                    await ventas.Convertir_Moneda_Factura_NSF_SIAT()
+                    await ventas.Convertir_Moneda_Factura_NSF_SIAT(_context,factuCod,await tipocambio.monedafact(_context,codempresa),await funciones.FechaDelServidor(_context),codempresa);
+
+                    // ACTUALIZAR CODGRUPOMER
+                    var dataFactura = await _context.vefactura.Where(i => i.codigo == factuCod).FirstOrDefaultAsync();
+
+                    int codNR = dataFactura.codremision ?? 0;
+                    List<veremision1> dataVeremision1 = await _context.veremision1.Where(i => i.codremision == codNR).ToListAsync();
+                    dataVeremision1 = await ventas.Remision_Cargar_Grupomer(_context, dataVeremision1);
+                    await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
+
+                    // ACTUALIZAR PESO
+                    decimal pesoFact = await ventas.Peso_Factura(_context,factuCod);
+                    dataFactura.peso = pesoFact;
+                    await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
+
+                    await ventas.Actualizar_Peso_Detalle_Factura(_context, factuCod);
+
+                    // actualizar el codigo producto del SIN
+                    var detalleFactura = await _context.vefactura1.Where(i => i.codfactura == factuCod).ToListAsync();
+                    foreach (var reg in detalleFactura)
+                    {
+                        string codProdSIN = await _context.initem.Where(i => i.codigo == reg.coditem).Select(i => i.codproducto_sin).FirstOrDefaultAsync() ?? "";
+                        reg.codproducto_sin = codProdSIN;
+                        if (reg.codproducto_sin == null) // arreglar nulos
+                        {
+                            reg.codproducto_sin = "";
+                        }
+                    }
+                    await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
+
+                    // actualizar leyenda
+                    dataFactura.leyenda = await siat.generar_leyenda_aleatoria(_context, dataFactura.codalmacen);
+                    await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
+
+                    // Desde 20-12-2022
+                    // actualizar la Codfactura_web
+                    string valor_Codigo_factura_web = await siat.Generar_Codigo_Factura_Web(_context, factuCod, dataFactura.codalmacen);
+                    dataFactura.codfactura_web = valor_Codigo_factura_web;
+                    await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
+
+                    // verificar si hay alguno que no tenga codigo
+                    /*
+                     
+                    Dim cadena_items_sin_codigo As String = ""
+                    Dim dtsincodigo_sin As New DataTable
+                    dtsincodigo_sin.Clear()
+                    dtsincodigo_sin = sia_DAL.Datos.Instancia.ObtenerDataTable("select coditem from vefactura1 where codproducto_sin='' and codfactura='" & CStr(CInt(CodFacturas_Grabadas(i))) & "'")
+
+                    For u As Integer = 0 To dtsincodigo_sin.Rows.Count - 1
+                        If cadena_items_sin_codigo.Trim.Length = 0 Then
+                            cadena_items_sin_codigo = dtsincodigo_sin.Rows(u)("coditem")
+                        Else
+                            cadena_items_sin_codigo &= " , " & dtsincodigo_sin.Rows(u)("coditem")
+                        End If
+                    Next
+                     
+                     */
+
+                    ///////////////////////////////////////////////////////////////////////////////////////////////////
+                    //              generar el cuf y actualizar el CUF generado en la factura
+                    ///////////////////////////////////////////////////////////////////////////////////////////////////
+                    string val_NIT = await empresa.NITempresa(_context, codempresa);
+                    Datos_Pametros_Facturacion_Ag Parametros_Facturacion_Ag = new Datos_Pametros_Facturacion_Ag();
+                    Parametros_Facturacion_Ag = await siat.Obtener_Parametros_Facturacion(_context, dataFactura.codalmacen);
+
+                    if (Parametros_Facturacion_Ag.resultado == true)
+                    {
+                        string valor_CUF = "";
+                        // obtener el ID-Numeroid de la factura
+                        var id_nroid_fact = await Ventas.id_nroid_factura_cuf(_context, factuCod);
+
+                    }
+                    else
+                    {
+
+                    }
+
 
                 }
             }

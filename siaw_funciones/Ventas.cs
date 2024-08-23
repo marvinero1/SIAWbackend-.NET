@@ -6404,7 +6404,7 @@ namespace siaw_funciones
             }
             return (resultado + 1);
         }
-        public async Task<(string id, int numeroId)> id_nroid_factura_cuf(DBContext _context, int codfactura)
+        public static async Task<(string id, int numeroId)> id_nroid_factura_cuf(DBContext _context, int codfactura)
         {
             try
             {
@@ -6503,19 +6503,95 @@ namespace siaw_funciones
                         if (resultado)
                         {
                             // redondear los datos convertidos en la CABECERA
-
-                            // redondear los datos convertidos en el DETALLE (redondear a 5 decimales)
-
-                            // redondear los datos convertidos en el DETALLE (redondear a 5 decimales)
-
+                            tabla.subtotal = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, ((double)tabla.subtotal));
+                            tabla.recargos = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, ((double)tabla.recargos));
+                            tabla.descuentos = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, ((double)tabla.descuentos));
+                            tabla.total = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, ((double)tabla.total));
+                            tabla.iva = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, ((double)(tabla.iva ?? 0)));
+                            await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
                         }
-
-
                     }
                     else if(_codDocSector == 35)
                     {
+                        // REALIZAR CONVERSION DEL DETALLE
+                        // 35 : FACTURA COMPRA VENTA BONIFICACIONES(5 DECIMALES) 
+                        var detalleFactData = await _context.vefactura1.Where(i => i.codfactura == codfactura).ToListAsync();
+                        foreach (var reg in detalleFactData)
+                        {
+                            reg.precioneto = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, (reg.precioneto * (decimal)tdc));
+                            reg.preciolista = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, (reg.preciolista * (decimal)tdc));
+                            reg.preciodesc = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, ((reg.preciodesc ?? 0) * (decimal)tdc));
+                            reg.total = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, (reg.total * (decimal)tdc));
+                            reg.distdescuento = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, ((reg.distdescuento ?? 0) * (decimal)tdc));
+                            reg.distrecargo = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, ((reg.distrecargo ?? 0) * (decimal)tdc));
+                            reg.preciodist = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, ((reg.preciodist ?? 0) * (decimal)tdc));
+                            reg.totaldist = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, ((reg.totaldist ?? 0) * (decimal)tdc));
+                        }
+                        // Finalmente guardamos los cambios en la base de datos
+                        var guarda2 = await _context.SaveChangesAsync();
+                        if (guarda2 > 0)
+                        {
+                            resultado = true;
+                        }
+                        else
+                        {
+                            resultado = false;
+                        }
 
+                        // lo que se convirtio se debe redondear a 2 decimales para luego recalcular todo
+                        if (resultado)
+                        {
+                            // redondear los datos convertidos en la CABECERA
+                            tabla.subtotal = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, ((double)tabla.subtotal));
+                            tabla.recargos = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, ((double)tabla.recargos));
+                            tabla.descuentos = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, ((double)tabla.descuentos));
+                            tabla.total = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, ((double)tabla.total));
+                            tabla.iva = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, ((double)(tabla.iva ?? 0)));
+                            await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
+                        }
                     }
+
+                    // RECALCULAR LOS DATOS DE LA CABECERA
+                    var detalleFactData_2 = await _context.vefactura1.Where(i => i.codfactura == codfactura).ToListAsync();
+                    foreach (var reg in detalleFactData_2)
+                    {
+                        // total
+                        reg.total = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, (reg.cantidad * reg.precioneto));
+                        // totaldist
+                        reg.totaldist = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, (reg.cantidad * (reg.preciodist ?? 0)));
+                        // distdescuento
+                        reg.distdescuento = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, (reg.total - (reg.totaldist ?? 0)));
+                    }
+                    var guarda3 = await _context.SaveChangesAsync();
+                    if (guarda3 > 0)
+                    {
+                        resultado = true;
+                    }
+                    else
+                    {
+                        resultado = false;
+                    }
+
+                    // TOTALIZAR LA CABECERA EN BASE AL DETALLE
+                    // subtotal
+                    decimal subtotal_tot = await _context.vefactura1.Where(i => i.codfactura == codfactura).SumAsync(i => i.total);
+                    tabla.subtotal = subtotal_tot;
+                    //descuentos
+                    decimal descuentos_tot = await _context.vefactura1.Where(i => i.codfactura == codfactura).SumAsync(i => i.distdescuento) ?? 0;
+                    tabla.descuentos = descuentos_tot;
+                    //total
+                    tabla.total = subtotal_tot - descuentos_tot;
+
+                    var guarda4 = await _context.SaveChangesAsync();
+                    if (guarda4 > 0)
+                    {
+                        resultado = true;
+                    }
+                    else
+                    {
+                        resultado = false;
+                    }
+
                 }
                 else
                 {
@@ -6524,7 +6600,52 @@ namespace siaw_funciones
 
 
             }
+            return resultado;
 
+
+        }
+
+
+        public async Task<decimal> Peso_Factura(DBContext _context, int codfactura)
+        {
+            decimal resultado = 0;
+            try
+            {
+                resultado = (await _context.vefactura1
+                    .Where(d => d.codfactura == codfactura)
+                    .Join(
+                        _context.initem,
+                        d => d.coditem,
+                        i => i.codigo,
+                        (d, i) => new { d.cantidad, i.peso }
+                    )
+                    .SumAsync(x => x.cantidad * x.peso) ?? 0);
+            }
+            catch (Exception)
+            {
+                resultado = 0;
+            }
+            return resultado;
+        }
+
+
+        public async Task<bool> Actualizar_Peso_Detalle_Factura(DBContext _context, int codfactura)
+        {
+            try
+            {
+                var detalleFact = await _context.vefactura1.Where(i => i.codfactura == codfactura).ToListAsync();
+                foreach (var reg in detalleFact)
+                {
+                    var pesoItem = await _context.initem.Where(i => i.codigo == reg.coditem).Select(i => i.peso).FirstOrDefaultAsync() ?? 0;
+                    reg.peso = pesoItem * reg.cantidad;
+                }
+                await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
         }
 
 

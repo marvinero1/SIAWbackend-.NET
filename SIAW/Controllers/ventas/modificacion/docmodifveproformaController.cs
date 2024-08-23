@@ -529,6 +529,11 @@ namespace SIAW.Controllers.ventas.modificacion
                         {
                             datosProforma.veproforma.contra_entrega = false;
                         }
+
+                        if (datosProforma.veproforma.tipo_complementopf >= 0 && datosProforma.veproforma.tipo_complementopf <= 1)
+                        {
+                            datosProforma.veproforma.tipo_complementopf = datosProforma.veproforma.tipo_complementopf + 1;
+                        }
                         if (datosProforma.veproforma.tipo_complementopf == null)
                         {
                             datosProforma.veproforma.tipo_complementopf = 0;
