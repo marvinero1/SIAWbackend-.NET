@@ -487,14 +487,23 @@ namespace SIAW.Controllers.ventas.modificacion
                     return BadRequest(new { resp = "No hay ningun item en su documento!!!" });
                 }
 
-                if (veproforma.anulada)
+                // VALIDACIONES OBTENIDAS POR BASE DE DATOS 
+                var profAnulAprobTrans = await _context.veproforma.Where(i=> i.codigo == veproforma.codigo).Select(i=> new
+                {
+                    i.codigo,
+                    i.anulada,
+                    i.aprobada,
+                    i.transferida
+                }).FirstOrDefaultAsync();
+
+                if (profAnulAprobTrans.anulada)
                 {
                     return BadRequest(new { resp = "Esta Proforma esta Anulada y por lo tanto no puede ser modificada!!!" });
                 }
 
-                if (veproforma.aprobada)
+                if (profAnulAprobTrans.aprobada)
                 {
-                    if (veproforma.transferida)
+                    if (profAnulAprobTrans.transferida)
                     {
                         return BadRequest(new { resp = "Esta Proforma ya fue aprobada y transferida, no puede ser modificada. Para modificarla debe desaprobar la Proforma." });
                     }

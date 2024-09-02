@@ -56,15 +56,15 @@ namespace siaw_funciones
                 return cadConection;
             }
         }
-        public string Getad_conexion_vpnFromDatabase_Sam(DBContext _context, int agencia)
+        public async Task<string> Getad_conexion_vpnFromDatabase_Sam(DBContext _context, int agencia)
         {
             //using (var _context = DbContextFactory.Create(userConnectionString))
             //{
             if (_context.ad_conexion_vpn == null)
             {
-                return null;
+                return "";
             }
-            var ad_conexion_vpn = _context.ad_conexion_vpn
+            var ad_conexion_vpn = await _context.ad_conexion_vpn
                 .Where(a => a.agencia == agencia.ToString())
                 .Select(a => new
                 {
@@ -74,10 +74,10 @@ namespace siaw_funciones
                     contrasena_sql = a.contrasena_sql,
                     bd_sql = a.bd_sql
                 })
-                .FirstOrDefault();
+                .FirstOrDefaultAsync();
             if (ad_conexion_vpn == null)
             {
-                return null;
+                return "";
             }
 
             var passDesencript = XorString(ad_conexion_vpn.contrasena_sql, "vpn");

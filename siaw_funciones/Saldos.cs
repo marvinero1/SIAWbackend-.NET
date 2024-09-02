@@ -43,57 +43,40 @@ namespace siaw_funciones
 
             return resultado;
         }
-        public async Task<List<sldosItemCompleto>> SaldoItem_Crtlstock_Lista_Para_Ventas(string userConnectionString, string agencia, int codalmacen, string coditem, string codempresa, string usuario)
-        {
-
-            List<sldosItemCompleto> resultado;
-            using (var _context = DbContextFactory.Create(userConnectionString))
-            {
-                //precio unitario del item
-                resultado = await SaldosCompleto(userConnectionString, agencia, codalmacen, coditem, codempresa, usuario);
-                //resultado = tabla;
-            }
-            return resultado;
-        }
         public async Task<decimal> SaldoItem_CrtlStock_Para_Ventas_Sam(DBContext _context, string codigo, int codalmacen, bool ctrlSeguridad, string idproforma, int numeroidproforma, bool include_saldos_a_cubrir, string codempresa, string usuario)
         {
-            List<sldosItemCompleto> saldos;
-            decimal resultado = 0;
+            //List<sldosItemCompleto> saldos;
+            //decimal resultado = 0;
             //using (var _context = DbContextFactory.Create(userConnectionString))
             //{
             //precio unitario del item
             //saldos = await SaldosCompleto(userConnectionString, agencia, codalmacen, coditem, codempresa, usuario);
-            saldos = await SaldoItem_Crtlstock_Tabla_Para_Ventas_Sam(_context, codigo, codalmacen, ctrlSeguridad, idproforma, numeroidproforma, include_saldos_a_cubrir, codempresa, usuario);
+            decimal saldos = await SaldoItem_Crtlstock_Tabla_Para_Ventas_Sam(_context, codigo, codalmacen, ctrlSeguridad, idproforma, numeroidproforma, include_saldos_a_cubrir, codempresa, usuario);
             //resultado = tabla;
             //}
             //for (int i = 0; (i <= (saldos.Count - 1)); i++)
             //{
-            resultado = (decimal)saldos[7].valor;
+            //resultado = (decimal)saldos[7].valor;
             //}
 
-            return resultado;
+            return saldos;
         }
-        public async Task<List<sldosItemCompleto>> SaldoItem_Crtlstock_Tabla_Para_Ventas_Sam(DBContext _context, string coditem, int codalmacen, bool ctrlSeguridad, string idproforma, int numeroidproforma, bool include_saldos_a_cubrir, string codempresa, string usuario)
+        public async Task<decimal> SaldoItem_Crtlstock_Tabla_Para_Ventas_Sam(DBContext _context, string coditem, int codalmacen, bool ctrlSeguridad, string idproforma, int numeroidproforma, bool include_saldos_a_cubrir, string codempresa, string usuario)
         {
             try
             {
-                List<sldosItemCompleto> listaSaldos = new List<sldosItemCompleto>();
-                sldosItemCompleto saldoItemTotal = new sldosItemCompleto();
-                sldosItemCompleto var8 = new sldosItemCompleto();
-                saldoItemTotal.descripcion = "Total Saldo";
                 bool Es_Ag_Local = true;
                 string cadena_items_conjunto = "";
                 bool item_reserva_para_conjunto = false;
                 int nro_items_del_conjunto = 0;
-                string CODITEM_REVISAR = "";
                 bool RESTRINGIR_VENTA_SUELTA = true;
-                double CANTIDAD = 0;
-                double CANTIDAD_PROFOR_APROBADAS = 0;
                 var context_original = _context;
 
                 //string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
                 //var conexion = _context;
                 //var conexion = DbContextFactory.Create(userConnectionString)
+                decimal saldoItemTotal = 0;
+
                 bool Es_Kit = await items.EsKit(_context, coditem);  // verifica si el item es kit o no 
                 bool obtener_saldos_otras_ags_localmente = await Obtener_Saldos_Otras_Agencias_Localmente_context(_context, codempresa); // si se obtener las cantidades reservadas de las proformas o no
                 bool obtener_cantidades_aprobadas_de_proformas = await Obtener_Cantidades_Aprobadas_De_Proformas(_context, codempresa); // si se obtener las cantidades reservadas de las proformas o no
@@ -104,9 +87,9 @@ namespace siaw_funciones
                 {
                     goto mi_fin;
                 }
-                var hay_reg_instoactual = _context.instoactual
+                var hay_reg_instoactual = await _context.instoactual
                 .Where(i => i.codalmacen == codalmacen && i.coditem == coditem)
-                .ToList();
+                .ToListAsync();
 
                 // Verificar si no se encontraron resultados
                 if (hay_reg_instoactual.Count == 0)
@@ -130,8 +113,8 @@ namespace siaw_funciones
                 else
                 {//actualizar el context del almacen recibido
                  // var conexion = DbContextFactory.Create(userConnectionString);
-                    var conexion = empaque_func.Getad_conexion_vpnFromDatabase_Sam(_context, codalmacen);
-                    if (conexion != null)
+                    var conexion = await empaque_func.Getad_conexion_vpnFromDatabase_Sam(_context, codalmacen);
+                    if (conexion != "")
                     {
                         //el context sera el mismo q se recibio al inicio
                         _context = DbContextFactory.Create(conexion);
@@ -142,7 +125,7 @@ namespace siaw_funciones
                 if (Es_Kit)
                 {
                     // SI ES KIT, OBTENER EL NÚMERO DE ITEMS QUE FORMAN EL KIT
-                    var conjunto = _context.inkit.Where(k => k.codigo == coditem).ToList();
+                    var conjunto = await _context.inkit.Where(k => k.codigo == coditem).ToListAsync();
                     nro_items_del_conjunto = conjunto.Count;
                     item_reserva_para_conjunto = false;
 
@@ -166,41 +149,13 @@ namespace siaw_funciones
                 {
                     nro_items_del_conjunto = 0;
 
-                    // SI NO ES KIT PERO EL ITEM SE USA PARA ARMAR CONJUNTOS
-                    //var query = from ctrlstock in _context.inctrlstock
-                    //            where ctrlstock.coditem == coditem
-                    //            select ctrlstock.coditem;
-
-                    //query = query.Union(
-                    //            from reserva in _context.inreserva
-                    //            where reserva.coditem == coditem && reserva.codalmacen == codalmacen
-                    //            select reserva.coditem.ToString());
-
-                    //var count = query.Count();
-
-                    /////////////////////////////////////////////////////////////////
-                    //var query1 = _context.inctrlstock
-                    //    .Where(ctrlstock => ctrlstock.coditem == coditem)
-                    //    .Select(ctrlstock => ctrlstock.coditem);
-
-                    //var query2 = _context.inreserva
-                    //    .Where(reserva => reserva.coditem == coditem && reserva.codalmacen == codalmacen)
-                    //    .Select(reserva => reserva.coditem);
-
-                    //// Convertir el tipo de datos de una de las columnas para que coincida con el otro
-                    //var query2Converted = query2.Select(item => item.ToString());
-
-                    //var concatenatedQuery = query1.Concat(query2Converted);
-
-                    //var count = concatenatedQuery.Count();
-
-                    var query1 = _context.inctrlstock
+                    var query1 = await _context.inctrlstock
                         .Where(ctrlstock => ctrlstock.coditem == coditem)
-                        .Select(ctrlstock => ctrlstock.coditem);
+                        .Select(ctrlstock => ctrlstock.coditem).ToListAsync();
 
-                    var query2 = _context.inreserva
+                    var query2 = await _context.inreserva
                         .Where(reserva => reserva.coditem == coditem && reserva.codalmacen == codalmacen)
-                        .Select(reserva => reserva.coditem);
+                        .Select(reserva => reserva.coditem).ToListAsync();
 
                     var combinedResults = query1.ToList().Concat(query2.ToList());
 
@@ -218,54 +173,28 @@ namespace siaw_funciones
                 codItemVta = instoactual.coditem;
                 if (Es_Kit)
                 {
-                    //saldosDetalleItem.txtReservaProf = "(-) PROFORMAS APROBADAS ITEM(" + instoactual.coditem + ") DEL CJTO(" + coditem + ")";
-                    sldosItemCompleto saldosDetalleItem = new sldosItemCompleto();
-                    saldosDetalleItem.descripcion = "(+) SALDO ACTUAL ITEM (" + instoactual.coditem + ") DEL CJTO(" + coditem + ")";
-                    saldosDetalleItem.valor = (double)instoactual.cantidad;
-                    listaSaldos.Add(saldosDetalleItem);
+                    saldoItemTotal = instoactual.cantidad ?? 0;
                 }
                 else
                 {
-                    //saldosDetalleItem.txtReservaProf = "(-) PROFORMAS APROBADAS: " + instoactual.coditem;
-                    sldosItemCompleto saldosDetalleItem = new sldosItemCompleto();
-                    saldosDetalleItem.descripcion = "(+)SALDO ACTUAL ITEM: " + instoactual.coditem;
-                    saldosDetalleItem.valor = (double)instoactual.cantidad;
-                    listaSaldos.Add(saldosDetalleItem);
+                    saldoItemTotal = instoactual.cantidad ?? 0;
                 }
-                saldoItemTotal.valor = (double)instoactual.cantidad;
-
 
                 // obtiene reservas en proforma
                 List<saldosObj> saldosReservProformas = await getReservasProf_Sam(_context, coditem, codalmacen, obtener_cantidades_aprobadas_de_proformas, Es_Kit);
+                // List<saldosObj> saldosReservProformas = await getReservasProf_Sam(_context, codItemVta, codalmacen, obtener_cantidades_aprobadas_de_proformas, Es_Kit);
 
 
                 string codigoBuscado = instoactual.coditem;
 
                 var reservaProf = saldosReservProformas.FirstOrDefault(obj => obj.coditem == codigoBuscado);
 
-                instoactual.coditem = coditem;
-                if (Es_Kit)
-                {
-                    sldosItemCompleto saldosDetalleItem = new sldosItemCompleto();
-                    saldosDetalleItem.descripcion = "(-) PROFORMAS APROBADAS ITEM(" + instoactual.coditem + ") DEL CJTO(" + coditem + ")";
-                    saldosDetalleItem.valor = (double)reservaProf.TotalP * -1;
-                    listaSaldos.Add(saldosDetalleItem);
-                }
-                else
-                {
-                    sldosItemCompleto saldosDetalleItem = new sldosItemCompleto();
-                    saldosDetalleItem.descripcion = "(-) PROFORMAS APROBADAS: " + instoactual.coditem;
-                    saldosDetalleItem.valor = (double)reservaProf.TotalP * -1;
-                    listaSaldos.Add(saldosDetalleItem);
-                }
-
-                saldoItemTotal.valor -= (double)reservaProf.TotalP;  // reduce saldo total
-                var8.valor = saldoItemTotal.valor;
-
+                saldoItemTotal -= reservaProf.TotalP;  // reduce saldo total
 
 
                 // (-) RESERVA STOCK MINIMO DE TIENDAS
-                bool Reserva_Stock_Max_Min = await get_if_reservaStock_item_Sam(_context, coditem);
+                // bool Reserva_Stock_Max_Min = await get_if_reservaStock_item_Sam(_context, coditem);
+                bool Reserva_Stock_Max_Min = await get_if_reservaStock_item_Sam(_context, codItemVta);
                 //bool ctrlSeguridad = await empresa.ControlarStockSeguridad2(userConnectionString, codempresa);
                 if (Reserva_Stock_Max_Min && ctrlSeguridad)
                 {
@@ -278,44 +207,23 @@ namespace siaw_funciones
                     {
                         STOCK_MINIMO = await get_stock_Para_Tiendas_Sam(_context, codItemVta, codalmacen);
                     }
-                    sldosItemCompleto saldoReserStockMaxMinTienda = new sldosItemCompleto();
-                    saldoReserStockMaxMinTienda.descripcion = "(-) RESERVA STOCK MINIMO DE TIENDAS";
-                    saldoReserStockMaxMinTienda.valor = STOCK_MINIMO * -1;
-                    listaSaldos.Add(saldoReserStockMaxMinTienda);
-                    saldoItemTotal.valor -= STOCK_MINIMO;  // reduce saldo total
+                    saldoItemTotal -= (decimal)STOCK_MINIMO;  // reduce saldo total
 
                 }
 
-
-                // pivote variable para agregar a la lista
-                sldosItemCompleto var1 = new sldosItemCompleto();
-
-                // obtiene items si no son kit, sus reservas para armar conjuntos.
                 double CANTIDAD_RESERVADA = 0;
                 if (include_saldos_a_cubrir && RESTRINGIR_VENTA_SUELTA)
                 {
-                    CANTIDAD_RESERVADA = await getReservasCjtos_Sam(_context, coditem, codalmacen, codempresa, Es_Kit, (double)instoactual.cantidad, (double)reservaProf.TotalP);
-                    var1.descripcion = "(-) SALDO RESERVADO PARA ARMAR CJTOS";
-                    var1.valor = CANTIDAD_RESERVADA * -1;
-                    listaSaldos.Add(var1);
-                    saldoItemTotal.valor -= CANTIDAD_RESERVADA;  // reduce saldo total
+                    // obtiene items si no son kit, sus reservas para armar conjuntos.
+                    // double CANTIDAD_RESERVADA = await getReservasCjtos_Sam(_context, coditem, codalmacen, codempresa, Es_Kit, (double)saldoItemTotal, (double)reservaProf.TotalP);
+                    CANTIDAD_RESERVADA = await getReservasCjtos_Sam(_context, codItemVta, codalmacen, codempresa, Es_Kit, (double)saldoItemTotal, (double)reservaProf.TotalP);
                 }
-                else
-                {
-                    CANTIDAD_RESERVADA = 0;
-                    var1.descripcion = "(-) SALDO RESERVADO PARA ARMAR CJTOS (no reserva en vta de cjto)";
-                    var1.valor = CANTIDAD_RESERVADA * -1;
-                    listaSaldos.Add(var1);
-                    saldoItemTotal.valor -= CANTIDAD_RESERVADA;  // reduce saldo total
-                }
-
+                saldoItemTotal -= (decimal)CANTIDAD_RESERVADA;  // reduce saldo total
                 // obtiene el saldo minimo que debe mantenerse en agencia
-                sldosItemCompleto var2 = new sldosItemCompleto();
-                double Saldo_Minimo_Item = await empaque_func.getSaldoMinimo_Sam(_context, coditem);
-                var2.descripcion = "(-) SALDO MINIMO DEL ITEM";
-                var2.valor = Saldo_Minimo_Item * -1;
-                listaSaldos.Add(var2);
-                saldoItemTotal.valor -= Saldo_Minimo_Item;  // reduce saldo total
+                // double Saldo_Minimo_Item = await empaque_func.getSaldoMinimo_Sam(_context, coditem);
+                double Saldo_Minimo_Item = await empaque_func.getSaldoMinimo_Sam(_context, codItemVta);
+
+                saldoItemTotal -= (decimal)Saldo_Minimo_Item;  // reduce saldo total
 
                 // obtiene reserva NM ingreso para sol-Urgente
                 bool validar_ingresos_solurgentes = await empaque_func.getValidaIngreSolurgente_Sam(_context, codempresa);
@@ -327,56 +235,63 @@ namespace siaw_funciones
                 {
                     //  RESTAR LAS CANTIDADES DE INGRESO POR NOTAS DE MOVIMIENTO URGENTES
                     // de facturas que aun no estan aprobadas
-                    string resp_total_reservado = await getSldIngresoReservNotaUrgent_Sam(_context, coditem, codalmacen);
+                    // string resp_total_reservado = await getSldIngresoReservNotaUrgent_Sam(_context, coditem, codalmacen);
+                    string resp_total_reservado = await getSldIngresoReservNotaUrgent_Sam(_context, codItemVta, codalmacen);
+
                     total_reservado = double.Parse(resp_total_reservado);
 
 
                     //AUMENTAR CANTIDAD PARA ESTA PROFORMA DE INGRESO POR NOTAS DE MOVIMIENTO URGENTES
-                    total_para_esta = await getSldReservNotaUrgentUnaProf_Sam(_context, coditem, codalmacen, idproforma, numeroidproforma);
+                    // total_para_esta = await getSldReservNotaUrgentUnaProf_Sam(_context, coditem, codalmacen, idproforma, numeroidproforma);
+                    total_para_esta = await getSldReservNotaUrgentUnaProf_Sam(_context, codItemVta, codalmacen, idproforma, numeroidproforma);
 
 
                     //AUMENTAR LA CANTIDAD DE LA PROFORMA DE ESTA NOTA QUE PUEDE ESTAR COMO RESERVADA.
-                    total_proforma = await getSldReservProf_Sam(_context, coditem, codalmacen, idproforma, numeroidproforma);
+                    // total_proforma = await getSldReservProf_Sam(_context, coditem, codalmacen, idproforma, numeroidproforma);
+                    total_proforma = await getSldReservProf_Sam(_context, codItemVta, codalmacen, idproforma, numeroidproforma);
 
                 }
 
-                sldosItemCompleto var3 = new sldosItemCompleto();
-                var3.descripcion = "(-) RESERVA NM INGRESO PARA SOL-URGENTE";
-                var3.valor = total_reservado * -1;
-                listaSaldos.Add(var3);
-                saldoItemTotal.valor -= total_reservado;  // reduce saldo total
+                saldoItemTotal -= (decimal)total_reservado;  // reduce saldo total
 
-                sldosItemCompleto var4 = new sldosItemCompleto();
-                var4.descripcion = "(+) INGRESOS SOLICITUDES URGENTE DE PROFORMA : -0";
-                var4.valor = total_para_esta;
-                listaSaldos.Add(var4);
-                saldoItemTotal.valor += total_para_esta;  // reduce saldo total
+                saldoItemTotal += (decimal)total_para_esta;  // reduce saldo total
 
-                sldosItemCompleto var5 = new sldosItemCompleto();
-                var5.descripcion = "(+) CANTIDAD RESERVADA PROFORMA APROBADA: -0";
-                var5.valor = total_proforma;
-                listaSaldos.Add(var5);
-                saldoItemTotal.valor += total_proforma;  // reduce saldo total
+                saldoItemTotal += (decimal)total_proforma;  // reduce saldo total
 
                 mi_fin:
                 _context = context_original;
-                if (saldoItemTotal.valor < 0)
+                if (saldoItemTotal < 0)
                 {
-                    saldoItemTotal.valor = 0;
+                    saldoItemTotal = 0;
                 }
-                listaSaldos.Add(saldoItemTotal);
-
-
-                return (listaSaldos);
+                return (saldoItemTotal);
 
             }
             catch (Exception)
             {
-                return null;
+                return 0;
             }
         }
         private async Task<instoactual> getEmpaquesItemSelect(string conexion, string coditem, int codalmacen, bool eskit)
         {
+            // ***************************///////////////////************************
+            // ***************************///////////////////************************
+            // Desde 13/08/2024 en los items que son ganchos J validar el saldo segun el gancho J suelto y segun la tabla inkit_saldo_base
+            using (var _context = DbContextFactory.Create(conexion))
+            {
+                var dt_ganchos = await _context.inkit_saldo_base.Where(i => i.codigo == coditem).OrderBy(i => i.codigo).FirstOrDefaultAsync();
+                if (dt_ganchos != null)
+                {
+                    coditem = dt_ganchos.item;       // hacemos que solo traiga el saldo actual del gancho J si esta registrado aca
+                    eskit = false;
+                }
+            }
+                
+
+            // ***************************///////////////////************************
+            // ***************************///////////////////************************
+
+
             instoactual instoactual = new instoactual();
 
             if (!eskit)  // como no es kit obtiene los datos de stock directamente
@@ -431,6 +346,20 @@ namespace siaw_funciones
         }
         private async Task<instoactual> getEmpaquesItemSelect_Sam(DBContext _context, string coditem, int codalmacen, bool eskit)
         {
+            // ***************************///////////////////************************
+            // ***************************///////////////////************************
+            // Desde 13/08/2024 en los items que son ganchos J validar el saldo segun el gancho J suelto y segun la tabla inkit_saldo_base
+
+            var dt_ganchos = await _context.inkit_saldo_base.Where(i => i.codigo == coditem).OrderBy(i => i.codigo).FirstOrDefaultAsync();
+            if (dt_ganchos != null)
+            {
+                coditem = dt_ganchos.item;       // hacemos que solo traiga el saldo actual del gancho J si esta registrado aca
+                eskit = false;
+            }
+
+            // ***************************///////////////////************************
+            // ***************************///////////////////************************
+
             instoactual instoactual = new instoactual();
 
             if (!eskit)  // como no es kit obtiene los datos de stock directamente
@@ -584,7 +513,8 @@ namespace siaw_funciones
                     {
                         resul = (double)(reserva.porcenvta * reserva.promvta);
                         resul = (double)Math.Round(resul, 2);
-                        reserva_para_cjto = _saldoActual - resul - reservaProf;
+                        // reserva_para_cjto = _saldoActual - resul - reservaProf;
+                        reserva_para_cjto = _saldoActual - resul;
                     }
                     else
                     {
@@ -676,7 +606,8 @@ namespace siaw_funciones
                     {
                         resul = (double)(reserva.porcenvta * reserva.promvta);
                         resul = (double)Math.Round(resul, 2);
-                        reserva_para_cjto = _saldoActual - resul - reservaProf;
+                        // reserva_para_cjto = _saldoActual - resul - reservaProf;
+                        reserva_para_cjto = _saldoActual - resul;
                     }
                     else
                     {
@@ -1005,186 +936,7 @@ namespace siaw_funciones
             }
             return respuestaValor;
         }
-        public async Task<List<sldosItemCompleto>> SaldosCompleto(string userConnectionString, string agencia, int codalmacen, string coditem, string codempresa, string usuario)
-        {
-            try
-            {
-                List<sldosItemCompleto> listaSaldos = new List<sldosItemCompleto>();
-                sldosItemCompleto saldoItemTotal = new sldosItemCompleto();
-                sldosItemCompleto var8 = new sldosItemCompleto();
-                saldoItemTotal.descripcion = "Total Saldo";
-
-               
-
-                //string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-                var conexion = userConnectionString;
-                bool eskit = await empaque_func.GetEsKit(conexion, coditem);  // verifica si el item es kit o no 
-                bool obtener_cantidades_aprobadas_de_proformas = await empaque_func.IfGetCantidadAprobadasProformas(userConnectionString, codempresa); // si se obtender las cantidades reservadas de las proformas o no
-
-                string codItemVta = "";
-
-                // Falta validacion para saber si traera datos de manera local o por vpn
-                // Obtener el contexto de base de datos correspondiente al usuario
-                bool usar_bd_opcional = await Obtener_Saldos_Otras_Agencias_Localmente(userConnectionString, codempresa);
-
-                if (usar_bd_opcional)
-                {
-                    conexion = empaque_func.Getad_conexion_vpnFromDatabase(userConnectionString, agencia);
-                    if (conexion == null)
-                    {
-                        conexion = userConnectionString;
-                    }
-                }
-
-
-
-                // obtiene saldos de agencia del item seleccionado
-                instoactual instoactual = await getEmpaquesItemSelect(conexion, coditem, codalmacen, eskit);
-                codItemVta = instoactual.coditem;
-                if (eskit)
-                {
-                    //saldosDetalleItem.txtReservaProf = "(-) PROFORMAS APROBADAS ITEM(" + instoactual.coditem + ") DEL CJTO(" + coditem + ")";
-                    sldosItemCompleto saldosDetalleItem = new sldosItemCompleto();
-                    saldosDetalleItem.descripcion = "(+) SALDO ACTUAL ITEM (" + instoactual.coditem + ") DEL CJTO(" + coditem + ")";
-                    saldosDetalleItem.valor = (double)instoactual.cantidad;
-                    listaSaldos.Add(saldosDetalleItem);
-                }
-                else
-                {
-                    //saldosDetalleItem.txtReservaProf = "(-) PROFORMAS APROBADAS: " + instoactual.coditem;
-                    sldosItemCompleto saldosDetalleItem = new sldosItemCompleto();
-                    saldosDetalleItem.descripcion = "(+)SALDO ACTUAL ITEM: " + instoactual.coditem;
-                    saldosDetalleItem.valor = (double)instoactual.cantidad;
-                    listaSaldos.Add(saldosDetalleItem);
-                }
-                saldoItemTotal.valor = (double)instoactual.cantidad;
-
-
-                // obtiene reservas en proforma
-                List<saldosObj> saldosReservProformas = await getReservasProf(conexion, coditem, codalmacen, obtener_cantidades_aprobadas_de_proformas, eskit);
-
-
-                string codigoBuscado = instoactual.coditem;
-
-                var reservaProf = saldosReservProformas.FirstOrDefault(obj => obj.coditem == codigoBuscado);
-
-                instoactual.coditem = coditem;
-                if (eskit)
-                {
-                    sldosItemCompleto saldosDetalleItem = new sldosItemCompleto();
-                    saldosDetalleItem.descripcion = "(-) PROFORMAS APROBADAS ITEM(" + instoactual.coditem + ") DEL CJTO(" + coditem + ")";
-                    saldosDetalleItem.valor = (double)reservaProf.TotalP * -1;
-                    listaSaldos.Add(saldosDetalleItem);
-                }
-                else
-                {
-                    sldosItemCompleto saldosDetalleItem = new sldosItemCompleto();
-                    saldosDetalleItem.descripcion = "(-) PROFORMAS APROBADAS: " + instoactual.coditem;
-                    saldosDetalleItem.valor = (double)reservaProf.TotalP * -1;
-                    listaSaldos.Add(saldosDetalleItem);
-                }
-
-                saldoItemTotal.valor -= (double)reservaProf.TotalP;  // reduce saldo total
-                var8.valor = saldoItemTotal.valor;
-
-
-
-                // (-) RESERVA STOCK MINIMO DE TIENDAS
-                bool Reserva_Stock_Max_Min = await get_if_reservaStock_item(userConnectionString, coditem);
-                bool ctrlSeguridad = await empresa.ControlarStockSeguridad(userConnectionString, codempresa);
-                if (Reserva_Stock_Max_Min && ctrlSeguridad)
-                {
-                    double STOCK_MINIMO = 0;
-                    if (eskit) 
-                    {
-                        STOCK_MINIMO = await get_stock_Para_Tiendas(userConnectionString, codItemVta, codalmacen);
-                    }
-                    else
-                    {
-                        STOCK_MINIMO = await get_stock_Para_Tiendas(userConnectionString, codItemVta, codalmacen);
-                    }
-                    sldosItemCompleto saldoReserStockMaxMinTienda = new sldosItemCompleto();
-                    saldoReserStockMaxMinTienda.descripcion = "(-) RESERVA STOCK MINIMO DE TIENDAS";
-                    saldoReserStockMaxMinTienda.valor = STOCK_MINIMO * -1;
-                    listaSaldos.Add(saldoReserStockMaxMinTienda);
-                    saldoItemTotal.valor -= STOCK_MINIMO;  // reduce saldo total
-
-                }
-
-
-                // pivote variable para agregar a la lista
-                sldosItemCompleto var1 = new sldosItemCompleto();
-
-                // obtiene items si no son kit, sus reservas para armar conjuntos.
-                double CANTIDAD_RESERVADA = await getReservasCjtos(userConnectionString, coditem, codalmacen, codempresa, eskit, (double)instoactual.cantidad, (double)reservaProf.TotalP);
-                var1.descripcion = "(-) SALDO RESERVADO PARA ARMAR CJTOS";
-                var1.valor = CANTIDAD_RESERVADA * -1;
-                listaSaldos.Add(var1);
-                saldoItemTotal.valor -= CANTIDAD_RESERVADA;  // reduce saldo total
-
-                // obtiene el saldo minimo que debe mantenerse en agencia
-                sldosItemCompleto var2 = new sldosItemCompleto();
-                double Saldo_Minimo_Item = await empaque_func.getSaldoMinimo(userConnectionString, coditem);
-                var2.descripcion = "(-) SALDO MINIMO DEL ITEM";
-                var2.valor = Saldo_Minimo_Item * -1;
-                listaSaldos.Add(var2);
-                saldoItemTotal.valor -= Saldo_Minimo_Item;  // reduce saldo total
-
-                // obtiene reserva NM ingreso para sol-Urgente
-                bool validar_ingresos_solurgentes = await empaque_func.getValidaIngreSolurgente(userConnectionString, codempresa);
-
-                double total_reservado = 0;
-                double total_para_esta = 0;
-                double total_proforma = 0;
-                if (validar_ingresos_solurgentes)
-                {
-                    //  RESTAR LAS CANTIDADES DE INGRESO POR NOTAS DE MOVIMIENTO URGENTES
-                    // de facturas que aun no estan aprobadas
-                    string resp_total_reservado = await getSldIngresoReservNotaUrgent(userConnectionString, coditem, codalmacen);
-                    total_reservado = double.Parse(resp_total_reservado);
-
-
-                    //AUMENTAR CANTIDAD PARA ESTA PROFORMA DE INGRESO POR NOTAS DE MOVIMIENTO URGENTES
-                    total_para_esta = await getSldReservNotaUrgentUnaProf(userConnectionString, coditem, codalmacen, "''", 0);
-
-
-                    //AUMENTAR LA CANTIDAD DE LA PROFORMA DE ESTA NOTA QUE PUEDE ESTAR COMO RESERVADA.
-                    total_proforma = await getSldReservProf(userConnectionString, coditem, codalmacen, "''", 0);
-
-                }
-
-                sldosItemCompleto var3 = new sldosItemCompleto();
-                var3.descripcion = "(-) RESERVA NM INGRESO PARA SOL-URGENTE";
-                var3.valor = total_reservado * -1;
-                listaSaldos.Add(var3);
-                saldoItemTotal.valor -= total_reservado;  // reduce saldo total
-
-                sldosItemCompleto var4 = new sldosItemCompleto();
-                var4.descripcion = "(+) INGRESOS SOLICITUDES URGENTE DE PROFORMA : -0";
-                var4.valor = total_para_esta;
-                listaSaldos.Add(var4);
-                saldoItemTotal.valor += total_para_esta;  // reduce saldo total
-
-                sldosItemCompleto var5 = new sldosItemCompleto();
-                var5.descripcion = "(+) CANTIDAD RESERVADA PROFORMA APROBADA: -0";
-                var5.valor = total_proforma;
-                listaSaldos.Add(var5);
-                saldoItemTotal.valor += total_proforma;  // reduce saldo total
-
-
-                listaSaldos.Add(saldoItemTotal);
-
-
-                return (listaSaldos);
-
-            }
-            catch (Exception)
-            {
-                return null;
-            }
-        }
-
-
+       
         public async Task<double> get_stock_Para_Tiendas(string userConnectionString, string coditem, int codalmacen)
         {
             using (var _context = DbContextFactory.Create(userConnectionString))
@@ -1405,7 +1157,6 @@ namespace siaw_funciones
                 instoactual instoactual = await getEmpaquesItemSelect(conexion, coditem, codalmacen, eskit);
                 saldoItemTotal = (decimal)instoactual.cantidad;
 
-
                 // obtiene reservas en proforma
                 List<saldosObj> saldosReservProformas = await getReservasProf(conexion, coditem, codalmacen, obtener_cantidades_aprobadas_de_proformas, eskit);
 
@@ -1420,18 +1171,22 @@ namespace siaw_funciones
 
 
                 // (-) RESERVA STOCK MINIMO DE TIENDAS
-                bool Reserva_Stock_Max_Min = await get_if_reservaStock_item(userConnectionString, coditem);
+                // bool Reserva_Stock_Max_Min = await get_if_reservaStock_item(userConnectionString, coditem);
+                bool Reserva_Stock_Max_Min = await get_if_reservaStock_item(userConnectionString, codigoBuscado);
+
                 bool ctrlSeguridad = await empresa.ControlarStockSeguridad(userConnectionString, codempresa);
                 if (Reserva_Stock_Max_Min && ctrlSeguridad)
                 {
                     double STOCK_MINIMO = 0;
                     if (eskit)
                     {
-                        STOCK_MINIMO = await get_stock_Para_Tiendas(userConnectionString, coditem, codalmacen);
+                        // STOCK_MINIMO = await get_stock_Para_Tiendas(userConnectionString, coditem, codalmacen);
+                        STOCK_MINIMO = await get_stock_Para_Tiendas(userConnectionString, codigoBuscado, codalmacen);
                     }
                     else
                     {
-                        STOCK_MINIMO = await get_stock_Para_Tiendas(userConnectionString, coditem, codalmacen);
+                        // STOCK_MINIMO = await get_stock_Para_Tiendas(userConnectionString, coditem, codalmacen);
+                        STOCK_MINIMO = await get_stock_Para_Tiendas(userConnectionString, codigoBuscado, codalmacen);
                     }
                     saldoItemTotal -= (decimal)STOCK_MINIMO;  // reduce saldo total
 
@@ -1439,11 +1194,14 @@ namespace siaw_funciones
 
 
                 // obtiene items si no son kit, sus reservas para armar conjuntos.
-                double CANTIDAD_RESERVADA = await getReservasCjtos(userConnectionString, coditem, codalmacen, codempresa, eskit, (double)instoactual.cantidad, (double)reservaProf.TotalP);
+                // double CANTIDAD_RESERVADA = await getReservasCjtos(userConnectionString, coditem, codalmacen, codempresa, eskit, (double)instoactual.cantidad, (double)reservaProf.TotalP);
+                double CANTIDAD_RESERVADA = await getReservasCjtos(userConnectionString, codigoBuscado, codalmacen, codempresa, eskit, (double)saldoItemTotal, (double)reservaProf.TotalP);
+
                 saldoItemTotal -= (decimal)CANTIDAD_RESERVADA;  // reduce saldo total
 
                 // obtiene el saldo minimo que debe mantenerse en agencia
-                double Saldo_Minimo_Item = await empaque_func.getSaldoMinimo(userConnectionString, coditem);
+                // double Saldo_Minimo_Item = await empaque_func.getSaldoMinimo(userConnectionString, coditem);
+                double Saldo_Minimo_Item = await empaque_func.getSaldoMinimo(userConnectionString, codigoBuscado);
                 saldoItemTotal -= (decimal)Saldo_Minimo_Item;  // reduce saldo total
 
                 // obtiene reserva NM ingreso para sol-Urgente
@@ -1456,17 +1214,18 @@ namespace siaw_funciones
                 {
                     //  RESTAR LAS CANTIDADES DE INGRESO POR NOTAS DE MOVIMIENTO URGENTES
                     // de facturas que aun no estan aprobadas
-                    string resp_total_reservado = await getSldIngresoReservNotaUrgent(userConnectionString, coditem, codalmacen);
+                    // string resp_total_reservado = await getSldIngresoReservNotaUrgent(userConnectionString, coditem, codalmacen);
+                    string resp_total_reservado = await getSldIngresoReservNotaUrgent(userConnectionString, codigoBuscado, codalmacen);
                     total_reservado = double.Parse(resp_total_reservado);
 
 
                     //AUMENTAR CANTIDAD PARA ESTA PROFORMA DE INGRESO POR NOTAS DE MOVIMIENTO URGENTES
-                    total_para_esta = await getSldReservNotaUrgentUnaProf(userConnectionString, coditem, codalmacen, "''", 0);
-
+                    // total_para_esta = await getSldReservNotaUrgentUnaProf(userConnectionString, coditem, codalmacen, "''", 0);
+                    total_para_esta = await getSldReservNotaUrgentUnaProf(userConnectionString, codigoBuscado, codalmacen, "''", 0);
 
                     //AUMENTAR LA CANTIDAD DE LA PROFORMA DE ESTA NOTA QUE PUEDE ESTAR COMO RESERVADA.
-                    total_proforma = await getSldReservProf(userConnectionString, coditem, codalmacen, "''", 0);
-
+                    // total_proforma = await getSldReservProf(userConnectionString, coditem, codalmacen, "''", 0);
+                    total_proforma = await getSldReservProf(userConnectionString, codigoBuscado, codalmacen, "''", 0);
                 }
 
                 saldoItemTotal -= (decimal)total_reservado;  // reduce saldo total
@@ -1487,6 +1246,113 @@ namespace siaw_funciones
             }
         }
         public async Task<List<Dtnegativos>> ValidarNegativosDocVenta(DBContext _context, List<itemDataMatriz> tabladetalle, int codalmacen, string idproforma, int numeroidproforma, List<string> mensajes, List<string> negativos, string cod_empresa, string usrreg)
+        {
+            bool controlarStockSeguridad = await empresa.ControlarStockSeguridad_context(_context, cod_empresa);
+            List<Dtnegativos> dtunido = new List<Dtnegativos>();
+            Dictionary<string, Dtnegativos> dicUnido = new Dictionary<string, Dtnegativos>();
+
+            foreach (var detalle in tabladetalle)
+            {
+                var esConjunto = await items.itemesconjunto(_context, detalle.coditem);
+                List<Validar_Vta.Dt_desglosado> dt_desglosado = new List<Validar_Vta.Dt_desglosado>();
+
+                if (esConjunto)
+                {
+                    var dt_partes = await _context.inkit
+                        .Where(i => i.codigo == detalle.coditem)
+                        .OrderBy(i => i.item)
+                        .Select(i => new { i.item, i.cantidad })
+                        .ToListAsync();
+
+                    foreach (var partes in dt_partes)
+                    {
+                        dt_desglosado.Add(new Validar_Vta.Dt_desglosado
+                        {
+                            kit = "SI",
+                            nro_partes = dt_partes.Count,
+                            coditem_cjto = dt_partes.Count > 1 ? detalle.coditem : "",
+                            coditem_suelto = dt_partes.Count == 1 ? detalle.coditem : "",
+                            codigo = partes.item,
+                            cantidad = detalle.cantidad * (double)(partes.cantidad ?? 0),
+                            cantidad_conjunto = dt_partes.Count > 1 ? detalle.cantidad * (double)(partes.cantidad??0) : 0,
+                            cantidad_suelta = dt_partes.Count == 1 ? detalle.cantidad * (double)(partes.cantidad??0) : 0
+                        });
+                    }
+                }
+                else
+                {
+                    dt_desglosado.Add(new Validar_Vta.Dt_desglosado
+                    {
+                        kit = "NO",
+                        nro_partes = 0,
+                        coditem_cjto = "",
+                        coditem_suelto = detalle.coditem,
+                        codigo = detalle.coditem,
+                        cantidad = detalle.cantidad,
+                        cantidad_conjunto = 0,
+                        cantidad_suelta = detalle.cantidad
+                    });
+                }
+
+                foreach (var desglosado in dt_desglosado)
+                {
+                    if (dicUnido.ContainsKey(desglosado.codigo))
+                    {
+                        dicUnido[desglosado.codigo].cantidad += (decimal)desglosado.cantidad;
+                        dicUnido[desglosado.codigo].cantidad_conjunto += (decimal)desglosado.cantidad_conjunto;
+                        dicUnido[desglosado.codigo].cantidad_suelta += (decimal)desglosado.cantidad_suelta;
+                    }
+                    else
+                    {
+                        dicUnido[desglosado.codigo] = new Dtnegativos
+                        {
+                            kit = desglosado.kit,
+                            nro_partes = desglosado.nro_partes,
+                            coditem_suelto = desglosado.coditem_suelto,
+                            coditem_cjto = desglosado.coditem_cjto,
+                            codigo = desglosado.codigo,
+                            descitem = await items.itemdescripcion(_context, desglosado.codigo) + " (" + await items.itemmedida(_context, desglosado.codigo) + ")",
+                            cantidad = (decimal)desglosado.cantidad,
+                            cantidad_conjunto = (decimal)desglosado.cantidad_conjunto,
+                            cantidad_suelta = (decimal)desglosado.cantidad_suelta
+                        };
+                    }
+                }
+            }
+
+            var dtunidoOrdenado = dicUnido.Values
+                .OrderByDescending(x => x.kit)
+                .ThenByDescending(x => x.nro_partes)
+                .ThenBy(x => x.coditem_cjto)
+                .ThenBy(x => x.codigo)
+                .ToList();
+
+            foreach (var unido in dtunidoOrdenado)
+            {
+                unido.saldo_descontando_reservas = await SaldoItem_CrtlStock_Para_Ventas_Sam(_context, unido.codigo, codalmacen, controlarStockSeguridad, idproforma, numeroidproforma, true, cod_empresa, usrreg);
+                unido.saldo_sin_descontar_reservas = await SaldoItem_CrtlStock_Para_Ventas_Sam(_context, unido.codigo, codalmacen, controlarStockSeguridad, idproforma, numeroidproforma, false, cod_empresa, usrreg);
+                unido.cantidad_reservada_para_cjtos = unido.saldo_sin_descontar_reservas - unido.saldo_descontando_reservas;
+
+                unido.obs = "Positivo";
+                if (await items.item_tipo(_context, unido.codigo) == "MERCADERIA")
+                {
+                    if (unido.cantidad_conjunto > 0 && unido.cantidad > unido.saldo_sin_descontar_reservas)
+                    {
+                        unido.obs = "Genera Negativo";
+                    }
+                    else if (unido.cantidad_suelta > 0 && unido.cantidad_suelta > unido.saldo_descontando_reservas)
+                    {
+                        unido.obs = "Genera Negativo";
+                    }
+                }
+            }
+
+            return dtunidoOrdenado;
+            // return dtunido;
+        }
+
+
+        public async Task<List<Dtnegativos>> ValidarNegativosDocVenta_origianl(DBContext _context, List<itemDataMatriz> tabladetalle, int codalmacen, string idproforma, int numeroidproforma, List<string> mensajes, List<string> negativos, string cod_empresa, string usrreg)
         {
             //1RA parte DESARMADO DE CONJUNTOS
             bool resultado = true;
@@ -1776,10 +1642,11 @@ namespace siaw_funciones
                 }
 
             }
-            /////
-            fin:
+        /////
+        fin:
             return dtunido;
         }
+
 
 
 

@@ -5178,32 +5178,33 @@ namespace siaw_funciones
                             List<itemDataMatrizMaxVta> dt_detalle_item = new List<itemDataMatrizMaxVta>();
                             dt_detalle_item.Clear();
 
-                            // Utilizar ConvertAll para convertir los elementos de tabladetalle a itemDataMatrizMaxVta
-                            dt_detalle_item = tabladetalle.ConvertAll(item =>
-                                new itemDataMatrizMaxVta
-                                {
-                                    coditem = item.coditem,
-                                    descripcion = item.descripcion,
-                                    medida = item.medida,
-                                    udm = item.udm,
-                                    porceniva = item.porceniva,
-                                    niveldesc = item.niveldesc,
-                                    porcendesc = item.porcendesc,
-                                    porcen_mercaderia = item.porcen_mercaderia,
-                                    cantidad_pedida = item.cantidad_pedida,
-                                    cantidad = (double)cantidad_ttl_vendida_pf_actual,
-                                    codtarifa = item.codtarifa,
-                                    coddescuento = item.coddescuento,
-                                    precioneto = item.precioneto,
-                                    preciodesc = item.preciodesc,
-                                    preciolista = item.preciolista,
-                                    total = item.total,
-                                    cumple = item.cumple,
-                                    nroitem = item.nroitem,
-                                    cantidad_pf_anterior = (double)cantidad_ttl_vendida_pf,
-                                    cantidad_pf_total = (double)cantidad_ttl_vendida_pf_total
-                                }
-                            );
+                            itemDataMatrizMaxVta nuevoItem = new itemDataMatrizMaxVta
+                            {
+                                coditem = detalle.coditem,
+                                descripcion = detalle.descripcion,
+                                medida = detalle.medida,
+                                udm = detalle.udm,
+                                porceniva = detalle.porceniva,
+                                niveldesc = detalle.niveldesc,
+                                porcendesc = detalle.porcendesc,
+                                porcen_mercaderia = detalle.porcen_mercaderia,
+                                cantidad_pedida = detalle.cantidad_pedida,
+                                cantidad = (double)cantidad_ttl_vendida_pf_actual,
+                                codtarifa = detalle.codtarifa,
+                                coddescuento = detalle.coddescuento,
+                                precioneto = detalle.precioneto,
+                                preciodesc = detalle.preciodesc,
+                                preciolista = detalle.preciolista,
+                                total = detalle.total,
+                                cumple = detalle.cumple,
+                                nroitem = detalle.nroitem,
+                                cantidad_pf_anterior = (double)cantidad_ttl_vendida_pf,
+                                cantidad_pf_total = (double)cantidad_ttl_vendida_pf_total
+                            };
+
+                            // Añadir el nuevo objeto a la lista dt_detalle_item
+                            dt_detalle_item.Add(nuevoItem);
+
                             //poner la cantidad original del item de la proforma actual
                             detalle.cantidad = (double)cantidad_ttl_vendida_pf_actual;
 
@@ -7159,15 +7160,23 @@ namespace siaw_funciones
             {
                 _tipo = await cliente.Tipo_Cliente(_context, liguales[i], false);
                 if ((_tipo == "NORMAL"))
-                {
-
-                }
+                { }
                 else
                 {
                     _cadena += "\r\n" + "El cliente: " + liguales[i] + " es tipo: " + _tipo;
                 }
 
             }
+            if (_cadena.Trim().Length > 0)
+            {
+                objres.resultado = false;
+                objres.observacion = _obs;
+                objres.obsdetalle = _cadena;
+                objres.datoA = "";
+                objres.datoB = "";
+                objres.accion = Acciones_Validar.Confirmar_SiNo;
+            }
+
             return objres;
         }
         public async Task<ResultadoValidacion> Validar_Cliente_Competencia_Permite_Desctos_De_LineaAsync(DBContext _context, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle)

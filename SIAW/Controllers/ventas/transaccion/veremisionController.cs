@@ -98,9 +98,10 @@ namespace SIAW.Controllers.ventas.transaccion
                     });
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                Console.WriteLine(ex.Message);
+                return Problem("Error en el servidor : " + ex.Message);
                 throw;
             }
         }
@@ -135,9 +136,10 @@ namespace SIAW.Controllers.ventas.transaccion
                     });
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                Console.WriteLine(ex.Message);
+                return Problem("Error en el servidor : " + ex.Message);
                 throw;
             }
         }
@@ -197,9 +199,10 @@ namespace SIAW.Controllers.ventas.transaccion
                     });
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                Console.WriteLine(ex.Message);
+                return Problem("Error en el servidor : " + ex.Message);
                 throw;
             }
         }
@@ -321,6 +324,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     // porcen_mercaderia = 0,
                     // porcendesc = 0
                 })
+                .OrderBy(i => i.coditem)
                 .ToListAsync();
 
 
@@ -1444,7 +1448,7 @@ namespace SIAW.Controllers.ventas.transaccion
             }
             if (resultado)
             {
-                if (!await hardCoded.ValidarDsctosVtaContraEntrega(DVTA.contra_entrega == "SI", tabladescuentos, DVTA.tipo_vta) == true)
+                if (!await hardCoded.ValidarDsctosVtaContraEntrega(DVTA.contra_entrega == "SI", tabladescuentos, DVTA.tipo_vta == "0" ? "CONTADO":"CREDITO") == true)
                 {
                     resultado = false;
                     return (false, "El documento tiene descuentos no permitidos para ventas Contra Entrega.", 0);
@@ -1693,7 +1697,17 @@ namespace SIAW.Controllers.ventas.transaccion
             //{
             //    objDocVta.tipo_vta = "0";
             //}
-            objDocVta.tipo_vta = DVTA.tipo_vta;
+            // objDocVta.tipo_vta = DVTA.tipo_vta;
+            if (DVTA.tipo_vta == "0")
+            {
+                objDocVta.tipo_vta = "CONTADO";
+            }
+            else
+            {
+                objDocVta.tipo_vta = "CREDITO";
+            }
+
+
             objDocVta.codalmacen = DVTA.codalmacen.ToString();
             objDocVta.codvendedor = DVTA.codvendedor.ToString();
             objDocVta.preciovta = objDocVta.codtarifadefecto.ToString();
@@ -3940,7 +3954,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     (r, i) => new
                     {
                         coditem = r.coditem,
-                        descipcion = i.descripcion,
+                        descipcion = i.descripcorta,
                         medida = i.medida,
                         udm = r.udm,
                         porceniva = r.porceniva ?? 0,
@@ -3954,7 +3968,9 @@ namespace SIAW.Controllers.ventas.transaccion
                         total = r.total,
                         cumple = 1,
                         peso = r.peso
-                    }).ToListAsync();
+                    })
+                .OrderBy(i => i.coditem)
+                .ToListAsync();
 
             // convertir a dataTable
             // Crear un DataTable y definir sus columnas

@@ -425,8 +425,47 @@ namespace siaw_funciones
             return $"{integerPartInWords} {decimalPartInWords}";
         }
 
+
+
+
+
+
+
+        public async Task<bool> Verificar_Conexion_Internet()
+        {
+            // Retorna True si existe conexion a la pagina solicitada
+            try
+            {
+                using (var client = new HttpClient())
+                {
+                    client.Timeout = TimeSpan.FromSeconds(5); // Establecer un tiempo de espera
+                    HttpResponseMessage response = await client.GetAsync("http://www.google.com/");
+                    return response.IsSuccessStatusCode;
+                }
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         ///////////////////////////// ENVIAR EMAILS
-        public bool EnviarEmail(string emailOrigen, string emailDestino, List<string>? emailsCC, string emailOrigenCredencial, string pwdEmailCredencialOrigen, string tituloMail, string cuerpoMail, byte[] pdfBytes, string nombreArchivo)
+        public async Task<bool> EnviarEmail(string emailDestino, List<string>? emailsCC, string emailOrigenCredencial, string pwdEmailCredencialOrigen, string tituloMail, string cuerpoMail, byte[] pdfBytes, string nombreArchivo)
         {
             bool resultado = true;
             try
@@ -439,13 +478,13 @@ namespace siaw_funciones
                 smtpServer.Credentials = new NetworkCredential(emailOrigenCredencial, pwdEmailCredencialOrigen);
 
                 // Configurar el servidor SMTP según el dominio del correo electrónico de origen
-                if (emailOrigen.EndsWith("@pertec.com.bo", StringComparison.OrdinalIgnoreCase))  // para que envie por Gmail
+                if (emailOrigenCredencial.EndsWith("@pertec.com.bo", StringComparison.OrdinalIgnoreCase))  // para que envie por Gmail
                 {
                     smtpServer.Host = "smtp.gmail.com";
-                    smtpServer.Port = 587;
+                    smtpServer.Port = 465;
                     smtpServer.EnableSsl = true;
                 }
-                else if (emailOrigen.EndsWith("@int.pertec.com.bo", StringComparison.OrdinalIgnoreCase))  // para que envie por titan de hostinger
+                else if (emailOrigenCredencial.EndsWith("@int.pertec.com.bo", StringComparison.OrdinalIgnoreCase))  // para que envie por titan de hostinger
                 {
                     smtpServer.Host = "smtp.titan.email";
                     smtpServer.Port = 587; 
@@ -456,7 +495,7 @@ namespace siaw_funciones
                     throw new Exception("Provedor de correo no soportado.");
                 }
 
-                email.From = new MailAddress(emailOrigen);
+                email.From = new MailAddress(emailOrigenCredencial);
                 //email.To.Add(emailDestino);
                 email.Subject = tituloMail;
                 email.IsBodyHtml = true;  // Permitir HTML en el cuerpo del correo
@@ -478,19 +517,127 @@ namespace siaw_funciones
                     {
                         var attachment = new Attachment(pdfStream, nombreArchivo, "application/pdf");
                         email.Attachments.Add(attachment);
-                        // Enviar correo
-                        smtpServer.Send(email);
+                        await smtpServer.SendMailAsync(email);
                     }
                 }
+                else
+                {
+                    await smtpServer.SendMailAsync(email);
+                }
+                // Enviar correo
+                // await smtpServer.SendMailAsync(email);
                 resultado = true;
             }
-            catch (Exception error_t)
+            catch (SmtpException smtpEx)
             {
-                // Aquí puedes registrar el error para mayor detalle
-                Console.WriteLine($"Error al enviar el correo: {error_t.Message}");
-                resultado = false;
+                Console.WriteLine($"Error SMTP al enviar el correo: {smtpEx.StatusCode} - {smtpEx.Message}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error general al enviar el correo: {ex.Message}");
+                return false;
             }
             return resultado;
         }
+
+
+
+
+
+
+
+
+        public async Task<bool> EnviarEmailAsync(
+        string emailOrigen,
+        string emailDestino,
+        List<string>? emailsCC,
+        string emailOrigenCredencial,
+        string pwdEmailCredencialOrigen,
+        string tituloMail,
+        string cuerpoMail,
+        byte[] pdfBytes,
+        string nombreArchivo)
+        {
+            try
+            {
+                // Desencriptar la contraseña si es necesario
+                string passwordDesencriptado = EncryptionHelper.DecryptString(pwdEmailCredencialOrigen);
+
+                using (SmtpClient smtpClient = new SmtpClient())
+                {
+                    // Configurar el servidor SMTP según el dominio del correo electrónico de origen
+                    if (emailOrigen.EndsWith("@pertec.com.bo", StringComparison.OrdinalIgnoreCase))
+                    {
+                        smtpClient.Host = "smtp.gmail.com";
+                        smtpClient.Port = 587;
+                        smtpClient.EnableSsl = true;
+                    }
+                    else if (emailOrigen.EndsWith("@int.pertec.com.bo", StringComparison.OrdinalIgnoreCase))
+                    {
+                        smtpClient.Host = "smtp.titan.email";
+                        smtpClient.Port = 587;
+                        smtpClient.EnableSsl = true;
+                    }
+                    else
+                    {
+                        throw new Exception("Proveedor de correo no soportado.");
+                    }
+
+                    smtpClient.Credentials = new NetworkCredential(emailOrigenCredencial, passwordDesencriptado);
+                    smtpClient.DeliveryMethod = SmtpDeliveryMethod.Network;
+                    smtpClient.Timeout = 20000; // Tiempo de espera en milisegundos
+
+                    using (MailMessage email = new MailMessage())
+                    {
+                        email.From = new MailAddress(emailOrigen);
+                        // email.To.Add(new MailAddress(emailDestino));
+                        email.Subject = tituloMail;
+                        email.Body = cuerpoMail;
+                        email.IsBodyHtml = true;
+
+                        // Agregar destinatarios en CC si existen
+                        if (emailsCC != null && emailsCC.Count > 0)
+                        {
+                            foreach (var emailCC in emailsCC)
+                            {
+                                email.To.Add(new MailAddress(emailCC));
+                            }
+                        }
+
+                        // Adjuntar archivo PDF si existe
+                        if (pdfBytes != null && pdfBytes.Length > 0)
+                        {
+                            using (var pdfStream = new MemoryStream(pdfBytes))
+                            {
+                                var attachment = new Attachment(pdfStream, nombreArchivo, "application/pdf");
+                                email.Attachments.Add(attachment);
+
+                                await smtpClient.SendMailAsync(email);
+                            }
+                        }
+                        else
+                        {
+                            await smtpClient.SendMailAsync(email);
+                        }
+                    }
+                }
+
+                Console.WriteLine("Correo enviado exitosamente.");
+                return true;
+            }
+            catch (SmtpException smtpEx)
+            {
+                Console.WriteLine($"Error SMTP al enviar el correo: {smtpEx.StatusCode} - {smtpEx.Message}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error general al enviar el correo: {ex.Message}");
+                return false;
+            }
+        }
+
+
     }
 }

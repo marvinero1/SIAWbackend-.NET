@@ -69,7 +69,7 @@ builder.Services.AddScoped<UppercaseMiddleware>();
 //builder.Services.AddScoped<IValidarVta, Validar_Vta>();
 
 // OBTENER CLAVE ENCRIPTADA
-/*
+
 var encryptedConnectionString = builder.Configuration["ConnectionStrings:pp"];
 Console.WriteLine(encryptedConnectionString);
 
@@ -79,7 +79,7 @@ Console.WriteLine(encriptado);
 var decryptedConnectionString = EncryptionHelper.DecryptString(encriptado);
 Console.WriteLine(decryptedConnectionString);
 
-*/
+
 var app = builder.Build();
 
 
@@ -100,11 +100,17 @@ app.UseAuthentication();
 
 app.UseMiddleware<UppercaseMiddleware>(); // Agregar aquí el middleware
 
+// Registro del middleware en `Program.cs`
+app.UseMiddleware<CustomExceptionMiddleware>();
+
+
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
 
 app.MapControllers();
+
+
 
 app.Run();
 

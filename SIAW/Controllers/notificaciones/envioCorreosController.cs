@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using siaw_funciones;
 
 namespace SIAW.Controllers.notificaciones
@@ -387,7 +388,10 @@ namespace SIAW.Controllers.notificaciones
                     ;
 
 
-                    bool envio = funciones.EnviarEmail(credenciales.correo, "", emailsCc, credenciales.correo, credenciales.passwordcorreo, titulo, detalle, pdfBytes, pdfFile.FileName);
+                    // bool envio = await funciones.EnviarEmail("", emailsCc, credenciales.correo, credenciales.passwordcorreo, titulo, detalle, pdfBytes, pdfFile.FileName);
+
+                    bool envio = await funciones.EnviarEmailAsync(credenciales.correo, "", emailsCc, credenciales.correo, credenciales.passwordcorreo, titulo, detalle, pdfBytes, pdfFile.FileName);
+
                     if (envio)
                     {
                         return Ok(new { resp = "Correo enviado con éxito." });
@@ -397,9 +401,10 @@ namespace SIAW.Controllers.notificaciones
                         return BadRequest(new { resp = "Error al enviar el correo." });
                     }
                 }
-                catch (DbUpdateException)
+                catch (Exception ex)
                 {
-                    return Problem("Error en el servidor");
+                    return Problem($"Error en el servidor: {ex.Message}");
+                    throw;
                 }
             }
         }

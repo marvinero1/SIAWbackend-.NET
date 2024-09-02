@@ -2215,7 +2215,7 @@ namespace siaw_funciones
                     //}
                     //else { empaque_descuento = (decimal)cant_empaque_descuento; }
                     empaque_precio = await EmpaquePrecio(_context, coditem, codtarifa);
-                    empaque_descuento = await EmpaquePrecio(_context, coditem, coddescuento);
+                    empaque_descuento = await EmpaqueDescuento(_context, coditem, coddescuento);
 
 
                     //si es cliente final y no controla empaque segun el archivo de clientes finales entonces no tiene empaque de precio

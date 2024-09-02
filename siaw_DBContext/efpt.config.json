@@ -2408,6 +2408,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[inkit_saldo_base]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[inlinea]",
          "ObjectType": 0
       },

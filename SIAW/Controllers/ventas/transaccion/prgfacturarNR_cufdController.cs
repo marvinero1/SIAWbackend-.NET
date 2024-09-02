@@ -1366,7 +1366,51 @@ namespace SIAW.Controllers.ventas.transaccion
                         string valor_CUF = "";
                         // obtener el ID-Numeroid de la factura
                         var id_nroid_fact = await Ventas.id_nroid_factura_cuf(_context, factuCod);
+                        if (id_nroid_fact.id != "" && id_nroid_fact.numeroId > 0)
+                        {
+                            ////////////////////
+                            // preguntar si hay conexion con el SIN para generar el CUF en tipo emision en linea(1) o fuera de linea (0)
+                            var serviOnline = await _context.adsiat_parametros_facturacion.Where(i=> i.codalmacen == dataFactura.codalmacen).Select(i=> new
+                            {
+                                i.servicio_internet_activo,
+                                i.servicio_sin_activo
+                            }).FirstOrDefaultAsync();
 
+                            bool adsiat_internet_activo = false;
+                            bool adsiat_sin_activo = false;
+                            if (serviOnline != null)
+                            {
+                                adsiat_internet_activo = serviOnline.servicio_internet_activo ?? false;
+                                adsiat_sin_activo = serviOnline.servicio_sin_activo ?? false;
+                            }
+
+                            if (adsiat_internet_activo && await funciones.Verificar_Conexion_Internet() == true)
+                            {
+                                // actualizar en_linea true porq SI hay conexion a internet
+                                dataFactura.en_linea = true;
+                                await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
+                                /*
+                                if (adsiat_sin_activo && await funciones.)   // ACA FALTA VALIDAR CON EL SIN OJOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+                                {
+
+                                }
+                                */
+                            }
+                            else
+                            {
+                                // actualizar en_linea false porq NO hay conexion a internet
+                                dataFactura.en_linea = false;
+                                // YA NO preguntar si hay conexion con el SIN porque si no hay internet no hay como comunicarse con el SIN
+                                dataFactura.en_linea_SIN = false;
+                                await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
+                            }
+
+
+                        }
+                        else
+                        {
+
+                        }
                     }
                     else
                     {

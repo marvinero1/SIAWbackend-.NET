@@ -300,9 +300,29 @@ namespace SIAW.Controllers.ventas.transaccion
 
                 // pivote variable para agregar a la lista
                 sldosItemCompleto var1 = new sldosItemCompleto();
+                double CANTIDAD_RESERVADA = 0;
+                /*
+                if (eskit)
+                {
+                    //CANTIDAD_RESERVADA = await getReservasCjtos(userConnectionString, coditem, codalmacen, codempresa, eskit, (double)instoactual.cantidad, (double)reservaProf.TotalP);
+                    CANTIDAD_RESERVADA = await getReservasCjtos(userConnectionString, coditem, codalmacen, codempresa, eskit, (double)saldoItemTotal.valor, (double)reservaProf.TotalP);
 
+                }
+                else
+                {
+                    CANTIDAD_RESERVADA = await getReservasCjtos(userConnectionString, coditem, codalmacen, codempresa, eskit, (double)saldoItemTotal.valor, (double)reservaProf.TotalP);
+                    //CANTIDAD_RESERVADA = await getReservasCjtos(userConnectionString, coditem, codalmacen, codempresa, eskit, (double)instoactual.cantidad, (double)reservaProf.TotalP);
+                }
+                */
                 // obtiene items si no son kit, sus reservas para armar conjuntos.
-                double CANTIDAD_RESERVADA = await getReservasCjtos(userConnectionString, coditem, codalmacen, codempresa, eskit, (double)instoactual.cantidad, (double)reservaProf.TotalP);
+                // double CANTIDAD_RESERVADA = await getReservasCjtos(userConnectionString, coditem, codalmacen, codempresa, eskit, (double)instoactual.cantidad, (double)reservaProf.TotalP);
+                // CANTIDAD_RESERVADA = await getReservasCjtos(userConnectionString, coditem, codalmacen, codempresa, eskit, (double)saldoItemTotal.valor, (double)reservaProf.TotalP);
+                CANTIDAD_RESERVADA = await getReservasCjtos(userConnectionString, codigoBuscado, codalmacen, codempresa, eskit, (double)saldoItemTotal.valor, (double)reservaProf.TotalP);
+                if (CANTIDAD_RESERVADA < 0)
+                {
+                    CANTIDAD_RESERVADA = 0;
+                }
+
                 var1.descripcion = "(-) SALDO RESERVADO PARA ARMAR CJTOS";
                 var1.valor = CANTIDAD_RESERVADA * -1;
                 listaSaldos.Add(var1);
@@ -310,7 +330,9 @@ namespace SIAW.Controllers.ventas.transaccion
 
                 // obtiene el saldo minimo que debe mantenerse en agencia
                 sldosItemCompleto var2 = new sldosItemCompleto();
-                double Saldo_Minimo_Item = await empaque_func.getSaldoMinimo(userConnectionString, coditem);
+                // double Saldo_Minimo_Item = await empaque_func.getSaldoMinimo(userConnectionString, coditem);
+                double Saldo_Minimo_Item = await empaque_func.getSaldoMinimo(userConnectionString, codigoBuscado);
+
                 var2.descripcion = "(-) SALDO MINIMO DEL ITEM";
                 var2.valor = Saldo_Minimo_Item * -1;
                 listaSaldos.Add(var2);
@@ -326,16 +348,19 @@ namespace SIAW.Controllers.ventas.transaccion
                 {
                     //  RESTAR LAS CANTIDADES DE INGRESO POR NOTAS DE MOVIMIENTO URGENTES
                     // de facturas que aun no estan aprobadas
-                    string resp_total_reservado = await getSldIngresoReservNotaUrgent(userConnectionString, coditem, codalmacen);
+                    // string resp_total_reservado = await getSldIngresoReservNotaUrgent(userConnectionString, coditem, codalmacen);
+                    string resp_total_reservado = await getSldIngresoReservNotaUrgent(userConnectionString, codigoBuscado, codalmacen);
                     total_reservado = double.Parse(resp_total_reservado);
 
 
                     //AUMENTAR CANTIDAD PARA ESTA PROFORMA DE INGRESO POR NOTAS DE MOVIMIENTO URGENTES
-                    total_para_esta = await getSldReservNotaUrgentUnaProf(userConnectionString, coditem, codalmacen, "''", 0);
+                    // total_para_esta = await getSldReservNotaUrgentUnaProf(userConnectionString, coditem, codalmacen, "''", 0);
+                    total_para_esta = await getSldReservNotaUrgentUnaProf(userConnectionString, codigoBuscado, codalmacen, "''", 0);
 
 
                     //AUMENTAR LA CANTIDAD DE LA PROFORMA DE ESTA NOTA QUE PUEDE ESTAR COMO RESERVADA.
-                    total_proforma = await getSldReservProf(userConnectionString, coditem, codalmacen, "''", 0);
+                    // total_proforma = await getSldReservProf(userConnectionString, coditem, codalmacen, "''", 0);
+                    total_proforma = await getSldReservProf(userConnectionString, codigoBuscado, codalmacen, "''", 0);
 
                 }
 
@@ -653,6 +678,12 @@ namespace SIAW.Controllers.ventas.transaccion
                 if (reserva2.Count > 0)
                 {
                     double cubrir_item = (double)reserva2[0].cantidad;
+                    cubrir_item = Math.Truncate(cubrir_item);
+                    CANTIDAD_RESERVADA += cubrir_item;
+                }
+                else
+                {
+                    double cubrir_item = 0;
                     CANTIDAD_RESERVADA += cubrir_item;
                 }
                 if (CANTIDAD_RESERVADA < 0)
@@ -678,7 +709,11 @@ namespace SIAW.Controllers.ventas.transaccion
                     {
                         resul = (double)(reserva.porcenvta * reserva.promvta);
                         resul = (double)Math.Round(resul, 2);
-                        reserva_para_cjto = _saldoActual - resul - reservaProf;
+                        // reserva_para_cjto = _saldoActual - resul - reservaProf;
+                        reserva_para_cjto = _saldoActual - resul;
+
+                        //reserva.saldo = _saldoActual;
+                        //reserva.saldo_para_vta_sueltos
                     }
                     else
                     {
@@ -716,6 +751,24 @@ namespace SIAW.Controllers.ventas.transaccion
 
         private async Task<instoactual> getEmpaquesItemSelect(string conexion, string coditem, int codalmacen, bool eskit)
         {
+            // ***************************///////////////////************************
+            // ***************************///////////////////************************
+            // Desde 13/08/2024 en los items que son ganchos J validar el saldo segun el gancho J suelto y segun la tabla inkit_saldo_base
+
+            using (var _context = DbContextFactory.Create(conexion))
+            {
+                var dt_ganchos = await _context.inkit_saldo_base.Where(i => i.codigo == coditem).OrderBy(i => i.codigo).FirstOrDefaultAsync();
+                if (dt_ganchos != null)
+                {
+                    coditem = dt_ganchos.item;       // hacemos que solo traiga el saldo actual del gancho J si esta registrado aca
+                    eskit = false;
+                }
+            }
+
+
+            // ***************************///////////////////************************
+            // ***************************///////////////////************************
+
             instoactual instoactual = null;
 
             if (!eskit)  // como no es kit obtiene los datos de stock directamente
@@ -1707,7 +1760,10 @@ namespace SIAW.Controllers.ventas.transaccion
                         {
                             datosProforma.veproforma.tipo_complementopf = 0;
                         }
-                        
+                        if (datosProforma.veproforma.pago_contado_anticipado == null)
+                        {
+                            datosProforma.veproforma.pago_contado_anticipado = false;
+                        }
 
 
                         datosProforma.veproforma.fechareg = DateTime.Today.Date;

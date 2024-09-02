@@ -620,6 +620,7 @@ namespace siaw_DBContext.Data
         public virtual DbSet<inkit> inkit { get; set; }
         public virtual DbSet<inkit_cambio_arandelas> inkit_cambio_arandelas { get; set; }
         public virtual DbSet<inkit_precio> inkit_precio { get; set; }
+        public virtual DbSet<inkit_saldo_base> inkit_saldo_base { get; set; }
         public virtual DbSet<inlinea> inlinea { get; set; }
         public virtual DbSet<inlinea_tuercas> inlinea_tuercas { get; set; }
         public virtual DbSet<inliquidacion> inliquidacion { get; set; }
@@ -21221,6 +21222,15 @@ namespace siaw_DBContext.Data
                 entity.Property(e => e.precio_item5).HasColumnType("decimal(20, 7)");
             });
 
+            modelBuilder.Entity<inkit_saldo_base>(entity =>
+            {
+                entity.HasNoKey();
+
+                entity.Property(e => e.codigo).HasMaxLength(8);
+
+                entity.Property(e => e.item).HasMaxLength(8);
+            });
+
             modelBuilder.Entity<inlinea>(entity =>
             {
                 entity.HasKey(e => e.codigo);
@@ -32385,8 +32395,6 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<selog_siat>(entity =>
             {
-                entity.HasNoKey();
-
                 entity.Property(e => e.codigo)
                     .HasMaxLength(30)
                     .IsUnicode(false);
@@ -32404,8 +32412,6 @@ namespace siaw_DBContext.Data
                 entity.Property(e => e.hora)
                     .HasMaxLength(5)
                     .IsUnicode(false);
-
-                entity.Property(e => e.id).ValueGeneratedOnAdd();
 
                 entity.Property(e => e.id_doc)
                     .HasMaxLength(15)

@@ -398,7 +398,7 @@ namespace SIAW.Controllers.z_pruebas
                     ;
 
 
-                    bool envio = funciones.EnviarEmail(credenciales.correo, "", emailsCc, credenciales.correo, credenciales.passwordcorreo, titulo, detalle, pdfBytes, pdfFile.FileName);
+                    bool envio = await funciones.EnviarEmail("", emailsCc, credenciales.correo, credenciales.passwordcorreo, titulo, detalle, pdfBytes, pdfFile.FileName);
                     if (envio)
                     {
                         return Ok("Correo enviado con éxito.");
