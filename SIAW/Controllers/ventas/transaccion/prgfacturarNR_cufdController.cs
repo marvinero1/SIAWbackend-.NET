@@ -1009,8 +1009,12 @@ namespace SIAW.Controllers.ventas.transaccion
             return true;
         }
 
-        private async Task<(bool resul, string msg)> CREAR_GRABAR_FACTURAS(DBContext _context, string idfactura, int nrocaja, string factnit,string condicion, string nrolugar, string tipo, string codtipo_comprobante, string usuario, string codempresa, int codtipopago, string codbanco, string codcuentab, string nrocheque, string idcuenta, string cufd, string complemento_ci, veremision cabecera, List<veremision_detalle> detalle, List<tablaFacturas> dgvfacturas)
+        private async Task<(bool resul, List<string> msgAlertas, List<string> eventos)> CREAR_GRABAR_FACTURAS(DBContext _context, string idfactura, int nrocaja, string factnit,string condicion, string nrolugar, string tipo, string codtipo_comprobante, string usuario, string codempresa, int codtipopago, string codbanco, string codcuentab, string nrocheque, string idcuenta, string cufd, string complemento_ci, veremision cabecera, List<veremision_detalle> detalle, List<tablaFacturas> dgvfacturas)
         {
+            // para devolver lista de registros logs
+            List<string> eventos = new List<string>();
+            List<string> msgAlertas = new List<string>();
+
             bool resultado = true;
             bool descarga = false;
 
@@ -1086,6 +1090,7 @@ namespace SIAW.Controllers.ventas.transaccion
                             {
                                 // eso para detectar si hay cambio de CUFD (cuando en el mismo dia se genera otro CUFD)
                                 msg = "El CUFD activo para fecha: " + (await funciones.FechaDelServidor(_context)).ToShortDateString() + " Ag: " + cabecera.codalmacen + " ha Cambiado!!!, confirme esta situacion.";
+                                msgAlertas.Add(msg);
                             }
                             cufd = datos_dosificacion_activa.cufd.Trim();
                             nrocaja = (short)datos_dosificacion_activa.nrocaja;
@@ -1096,7 +1101,8 @@ namespace SIAW.Controllers.ventas.transaccion
                         {
                             // si no hay CUFD no se puede grabar la factura
                             msg = "No se econtro una dosificacion de CUFD activa para fecha: " + (await funciones.FechaDelServidor(_context)).ToShortDateString() + " Ag: " + cabecera.codalmacen;
-                            return (false, msg);
+                            msgAlertas.Add(msg);
+                            return (false, msgAlertas, eventos);
                         }
 
                         string valor_CUF = "";
@@ -1267,6 +1273,7 @@ namespace SIAW.Controllers.ventas.transaccion
                             // Desde 23/11/2023 registrar en el log si por alguna razon no actualiza en instoactual correctamente al disminuir el saldo de cantidad y la reserva en proforma
                             await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, cabecera.codigo.ToString(), cabecera.id, cabecera.numeroid.ToString(), _controllerName, "No actualizo stock al restar cantidad en Facturar NR.", Log.TipoLog.Creacion);
                             string msgAlert = "No se pudo actualizar todos los stocks actuales del almacen, Por favor haga correr una actualizacion de stocks cuando vea conveniente."; // devolver
+                            msgAlertas.Add(msgAlert);
                         }
                     }
                 }
@@ -1368,6 +1375,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         var id_nroid_fact = await Ventas.id_nroid_factura_cuf(_context, factuCod);
                         if (id_nroid_fact.id != "" && id_nroid_fact.numeroId > 0)
                         {
+                            string TIPO_EMISION = "";
                             ////////////////////
                             // preguntar si hay conexion con el SIN para generar el CUF en tipo emision en linea(1) o fuera de linea (0)
                             var serviOnline = await _context.adsiat_parametros_facturacion.Where(i=> i.codalmacen == dataFactura.codalmacen).Select(i=> new
@@ -1390,14 +1398,26 @@ namespace SIAW.Controllers.ventas.transaccion
                                 dataFactura.en_linea = true;
                                 await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
                                 /*
+                                // If sia_ws_siat.serv_facturas.Instancia.VerificarComunicacion() = True And sia_DAL.adsiat_parametros_facturacion.Instancia.servicios_sin_activo(codalmacen.Text) = True Then
                                 if (adsiat_sin_activo && await funciones.)   // ACA FALTA VALIDAR CON EL SIN OJOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
                                 {
-
+                                    // emision en linea
+                                    TIPO_EMISION = "1";
+                                    dataFactura.en_linea_SIN = true;
+                                    await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
+                                }
+                                else
+                                {
+                                    // emision fuera de linea es 2 ////// emision masiva es 3
+                                    TIPO_EMISION = "2";
+                                    dataFactura.en_linea_SIN = false;
+                                    await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
                                 }
                                 */
                             }
                             else
                             {
+                                TIPO_EMISION = "2";
                                 // actualizar en_linea false porq NO hay conexion a internet
                                 dataFactura.en_linea = false;
                                 // YA NO preguntar si hay conexion con el SIN porque si no hay internet no hay como comunicarse con el SIN
@@ -1405,25 +1425,110 @@ namespace SIAW.Controllers.ventas.transaccion
                                 await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
                             }
 
+                            // generar el CUF enviando el parametro correcto si es EN LINEA o FUERA DE LINEA
+                            valor_CUF = await siat.Generar_CUF(_context, id_nroid_fact.id, id_nroid_fact.numeroId, dataFactura.codalmacen, val_NIT, Parametros_Facturacion_Ag.codsucursal, Parametros_Facturacion_Ag.modalidad, TIPO_EMISION, Parametros_Facturacion_Ag.tipofactura, Parametros_Facturacion_Ag.tiposector, nrofactura.ToString(), Parametros_Facturacion_Ag.ptovta, dataFactura.codigocontrol);
+                            // actualizar el CUF
+                            if (valor_CUF.Trim().Length > 0)
+                            {
+                                dataFactura.cuf = valor_CUF;
+                                await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
+                                string cadena_msj = "CUF generado exitosamente " + id_nroid_fact.id + "-" + id_nroid_fact.numeroId;
+                                string mensaje = DateTime.Now.Year.ToString("0000") +
+                                DateTime.Now.Month.ToString("00") +
+                                DateTime.Now.Day.ToString("00") + " " +
+                                DateTime.Now.Hour.ToString("00") + ":" +
+                                DateTime.Now.Minute.ToString("00") + " - " + cadena_msj;
+                                eventos.Add(mensaje);
+
+                                cadena_msj = "El CUF de la factura fue generado exitosamente por: " + valor_CUF;
+                                await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, factuCod.ToString(), id_nroid_fact.id, id_nroid_fact.numeroId.ToString(), _controllerName, cadena_msj, Log.TipoLog.Creacion);
+                                resultado = true;
+                            }
+                            else
+                            {
+                                string cadena_msj = "No se pudo generar el CUF de la factura " + id_nroid_fact.id + "-" + id_nroid_fact.numeroId + " consulte con el administrador del sistema!!!";
+                                string mensaje = DateTime.Now.Year.ToString("0000") +
+                                DateTime.Now.Month.ToString("00") +
+                                DateTime.Now.Day.ToString("00") + " " +
+                                DateTime.Now.Hour.ToString("00") + ":" +
+                                DateTime.Now.Minute.ToString("00") + " - " + cadena_msj;
+                                eventos.Add(mensaje);
+
+                                // DEVOLVER cadena_msj
+                                msgAlertas.Add(cadena_msj);
+                                resultado = false;
+                            }
 
                         }
                         else
                         {
+                            string cadena_msj = "No se pudo generar el CUF de la factura " + id_nroid_fact.id + "-" + id_nroid_fact.numeroId + " consulte con el administrador del sistema!!!";
+                            string mensaje = DateTime.Now.Year.ToString("0000") +
+                            DateTime.Now.Month.ToString("00") +
+                            DateTime.Now.Day.ToString("00") + " " +
+                            DateTime.Now.Hour.ToString("00") + ":" +
+                            DateTime.Now.Minute.ToString("00") + " - " + cadena_msj;
+                            eventos.Add(mensaje);
 
+                            // DEVOLVER cadena_msj
+                            msgAlertas.Add(cadena_msj);
+                            resultado = false;
                         }
                     }
                     else
                     {
+                        dataFactura.cuf = "";
+                        await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
 
+                        string cadena_msj = "No se pudo generar el CUF de la factura debido a que no se encontro los parametros de facturacion necesarios de la agencia!!!";
+                        string mensaje = DateTime.Now.Year.ToString("0000") +
+                        DateTime.Now.Month.ToString("00") +
+                        DateTime.Now.Day.ToString("00") + " " +
+                        DateTime.Now.Hour.ToString("00") + ":" +
+                        DateTime.Now.Minute.ToString("00") + " - " + cadena_msj;
+                        eventos.Add(mensaje);
+
+                        // DEVOLVER cadena_msj
+                        msgAlertas.Add(cadena_msj);
+                        resultado = false;
                     }
 
 
                 }
             }
 
-            return (resultado,"");
-        }
+            // ####################################################################################
+            // igualar suma de items a total del detalle con la cabecera
+            // ####################################################################################
+            /*
+             
+            If resultado Then
+                For i = 0 To 39
+                    If Trim(CodFacturas_Grabadas(i)) <> "" Then
+                        '////////////////////////////////////////////////////////////////////////////////
+                        '//se realizao adecuaciones en la igualacion cabecera detalle de las facturas
+                        'sia_funciones.Ventas.Instancia.Igualar_Factura_Cebecera_Detalle_NSF_SIAT(CInt(CodFacturas_Grabadas(i)), sia_compartidos.temporales.Instancia.codempresa)
+                        '####################################################################################
+                        sia_funciones.Ventas.Instancia.IgualarFacturasANotaRemision_SIAT(id.Text, CInt(numeroid.Text))
+                        '####################################################################################
+                    End If
+                Next
+            End If
+             
+             */
+            if (resultado)
+            {
+                await ventas.IgualarFacturasANotaRemision_SIAT(_context, cabecera.id, cabecera.numeroid, codempresa);
+            }
 
+            // ####################################################################################
+            // sia_funciones.Ventas.Instancia.IgualarFacturasANotaRemision_SIAT(id.Text, CInt(numeroid.Text))
+            // ####################################################################################
+
+
+
+            return (resultado, msgAlertas, eventos);
+        }
 
     }
 

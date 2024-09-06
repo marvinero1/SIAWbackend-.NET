@@ -307,7 +307,7 @@ namespace siaw_funciones
                     nroid_anticipo = x.p3.numeroid,
                     monto = (double)(x.p1.monto ?? 0),
                     tdc = (double)(x.p1.tdc ?? 0),
-                    codmoneda = x.p3.codmoneda,
+                    codmoneda = x.p2.codmoneda,
                     fechareg = x.p1.fechareg ?? new DateTime(1900,1,1),
                     usuarioreg = x.p1.usuarioreg,
                     horareg = x.p1.horareg,
@@ -351,17 +351,17 @@ namespace siaw_funciones
             objres.accion = Acciones_Validar.Ninguna;
 
             //si la venta es al credito no debe validar anticipos asignados
-            if (DVTA.tipo_vta == "CREDITO")
+            if (DVTA.tipo_vta == "CREDITO" || DVTA.tipo_vta == "1")
             {
                 return objres;
             }
             //si la venta es al CONTADO - CONTRA ENTREGA no debe validar anticipos asignados
-            if (DVTA.tipo_vta == "CONTADO" && DVTA.contra_entrega == "SI")
+            if ((DVTA.tipo_vta == "CONTADO" || DVTA.tipo_vta == "0") && DVTA.contra_entrega == "SI")
             {
                 return objres;
             }
             //si la venta es al CONTADO - CONTRA ENTREGA no debe validar anticipos asignados
-            if (DVTA.tipo_vta == "CONTADO" && DVTA.contra_entrega == "NO")
+            if ((DVTA.tipo_vta == "CONTADO" || DVTA.tipo_vta == "0") && DVTA.contra_entrega == "NO")
             {
                 if (await almacen.Es_Tienda(_context, Convert.ToInt32(DVTA.codalmacen)))
                 {

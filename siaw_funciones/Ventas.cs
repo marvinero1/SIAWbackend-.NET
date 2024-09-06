@@ -1,6 +1,7 @@
 ﻿using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Win32;
+using NuGet.Configuration;
 using siaw_DBContext.Data;
 using siaw_DBContext.Models;
 using siaw_DBContext.Models_Extra;
@@ -3509,7 +3510,7 @@ namespace siaw_funciones
             }
             return resultado;
         }
-        public async Task<DateTime> Fecha_de_Factura(DBContext _context, string id, int numeroid)
+        public static async Task<DateTime> Fecha_de_Factura(DBContext _context, string id, int numeroid)
         {
             DateTime resultado = DateTime.MinValue;
             try
@@ -3523,6 +3524,57 @@ namespace siaw_funciones
             catch
             {
                 resultado = DateTime.MinValue;
+            }
+            return resultado;
+        }
+        public static async Task<string> Horareg_De_Factura(DBContext _context, string id, int numeroid)
+        {
+            string resultado = "";
+            try
+            {
+                var resul = await _context.vefactura.Where(i => i.id == id && i.numeroid == numeroid).Select(i => i.horareg).FirstOrDefaultAsync();
+                if (resul != null)
+                {
+                    resultado = resul ?? "";
+                }
+            }
+            catch
+            {
+                resultado = "";
+            }
+            return resultado;
+        }
+        public static async Task<DateTime> Fecha_de_Nota_Credito(DBContext _context, string id, int numeroid)
+        {
+            DateTime resultado = DateTime.MinValue;
+            try
+            {
+                var resul = await _context.venotacredito.Where(i => i.id == id && i.numeroid == numeroid).Select(i => i.fecha).FirstOrDefaultAsync();
+                if (resul != null)
+                {
+                    resultado = (DateTime)resul;
+                }
+            }
+            catch
+            {
+                resultado = DateTime.MinValue;
+            }
+            return resultado;
+        }
+        public static async Task<string> Horareg_De_Nota_Credito(DBContext _context, string id, int numeroid)
+        {
+            string resultado = "";
+            try
+            {
+                var resul = await _context.venotacredito.Where(i => i.id == id && i.numeroid == numeroid).Select(i => i.horareg).FirstOrDefaultAsync();
+                if (resul != null)
+                {
+                    resultado = resul ?? "";
+                }
+            }
+            catch
+            {
+                resultado = "";
             }
             return resultado;
         }
@@ -5650,9 +5702,9 @@ namespace siaw_funciones
                                 .ToListAsync();
                 foreach (var codtarifab in detalle)
                 {
-                    if (!resultado.Contains(Convert.ToInt32(codtarifab)))
+                    if (!resultado.Contains(Convert.ToInt32(codtarifab.codtarifa_a)))
                     {
-                        resultado.Add(Convert.ToInt32(codtarifab));
+                        resultado.Add(Convert.ToInt32(codtarifab.codtarifa_a));
                     }
                 }
             }
@@ -6648,7 +6700,192 @@ namespace siaw_funciones
             }
         }
 
+        public async Task<bool> IgualarFacturasANotaRemision_SIAT(DBContext _context, string id, int numeroid, string codempresa)
+        {
+            try
+            {
+                // obtener el total de la nota de remision 'Convertir a BS
+                var datosRemision = await _context.veremision.Where(i => i.id == id && i.numeroid == numeroid).Select(i => new
+                {
+                    i.codigo,
+                    i.total,
+                    i.tdc
+                }).FirstOrDefaultAsync();
 
+                double tot_remision = (double)(datosRemision.total * datosRemision.tdc);
+                // Obtener el total de facturas
+                double tot_facturas = (double)await _context.vefactura.Where(i => i.anulada == false && i.codremision == datosRemision.codigo).SumAsync(i => i.total);
+                // COmprarar
+                double dif = tot_remision - tot_facturas;
+                dif = await siat.Redondear_SIAT(_context, codempresa, dif);
+
+                // Si hay diferencia ??
+                if (Math.Abs(dif) >= 0.01)
+                {
+                    // En la ultima factura igualar
+                    int codNR = await _context.veremision.Where(i => i.id == id && i.numeroid == numeroid).Select(i => i.codigo).FirstOrDefaultAsync();
+                    var dt_factura = await _context.vefactura.Where(i => i.anulada == false && i.codremision == codNR).OrderByDescending(i => i.numeroid).FirstOrDefaultAsync();
+                    
+                    double descuentos_f = (double)dt_factura.descuentos;
+
+                    double subtotal_f = (double)dt_factura.subtotal;
+
+                    //si la diferencia a mayo a cero se disminuye el descuento sino se aumenta
+                    //If dif > 0 Then
+                    //    dif *= -1
+                    //End If
+                    //26/07/2022
+                    //si la diferencia es menor a cero se aumenta al descuento 
+                    //si la diferencia es mayor a cero se reduce al descuento 
+                    if (descuentos_f > 0)
+                    {
+                        // si el descuento de la factura es mayor a 0 se debe realizar el ajuste en el descuento
+                        if (dif < 0)
+                        {
+                            // dif *= -1
+                            descuentos_f = descuentos_f + (dif * -1);
+                        }
+                        else
+                        {
+                            descuentos_f = descuentos_f - (dif);
+                        }
+                        // sia_DAL.Datos.Instancia.EjecutarComando("update vefactura set total=" & total_f.ToString("####0.00") & " where codigo=" & CStr(dt_factura.Rows(0)("codigo")) & " ")
+                        dt_factura.descuentos = (decimal)descuentos_f;
+                        // arreglar el total final
+                        dt_factura.total = (dt_factura.subtotal - (decimal)descuentos_f + dt_factura.recargos);
+                        // Guarda los cambios en la base de datos
+                        await _context.SaveChangesAsync();
+
+                        //Igualar el detalle
+                        var dt_factura1 = await _context.vefactura1.Where(i => i.codfactura == dt_factura.codigo).OrderByDescending(i => i.totaldist).FirstOrDefaultAsync();
+                        double total_d = (double)dt_factura1.totaldist;
+                        total_d = total_d + dif;
+                        // sia_DAL.Datos.Instancia.EjecutarComando("update vefactura1 set totaldist=" & total_d.ToString("####0.00") & " where codfactura=" & CStr(dt_factura1.Rows(0)("codfactura")) & " and coditem='" & CStr(dt_factura1.Rows(0)("coditem")) & "' ")
+                        // sia_DAL.Datos.Instancia.EjecutarComando("update vefactura1 set preciodist=totaldist/cantidad where codfactura=" & CStr(dt_factura1.Rows(0)("codfactura")) & " and coditem='" & CStr(dt_factura1.Rows(0)("coditem")) & "' ")
+
+                        // como el ajuste se hace en los descuentos ya no es necesario arreglar el total del detalle PERO SI EL TOTAL DIST
+                        // sia_DAL.Datos.Instancia.EjecutarComando("update vefactura1 set total=" & total_d.ToString("####0.00") & " where codfactura=" & CStr(dt_factura1.Rows(0)("codfactura")) & " and coditem='" & CStr(dt_factura1.Rows(0)("coditem")) & "' ")
+
+                        // se añadio estas 2 lineas el 26/07/2022 para igualar el totaldist - distdescuento
+                        // se corrigio el calculo de total dist debido a que desde 23/11/2025 ya se pueden realizar ventas con item repetido por tema de division de empaques caja cerrada
+                        dt_factura1.totaldist = (decimal)total_d;
+                        ////////////////////////////////////////////////
+                        dt_factura1.distdescuento = (dt_factura1.total - (decimal)total_d);
+                        dt_factura1.preciodist = ((decimal)total_d / dt_factura1.cantidad);
+                        // Guarda los cambios en la base de datos
+                        await _context.SaveChangesAsync();
+                    }
+                    else
+                    {
+                        // si el descuento de la factura es menor a 0 se debe realizar el ajuste en el subtotal de la factura y en preciolista del detalle de la factura
+                        // If dif < 0 Then
+                        //     'dif *= -1
+                        //     subtotal_f = subtotal_f + (dif * -1)
+                        // Else
+                        //     subtotal_f = subtotal_f - (dif)
+                        // End If
+                        subtotal_f = subtotal_f + (dif);
+
+                        // sia_DAL.Datos.Instancia.EjecutarComando("update vefactura set total=" & total_f.ToString("####0.00") & " where codigo=" & CStr(dt_factura.Rows(0)("codigo")) & " ")
+                        dt_factura.subtotal = (decimal)subtotal_f;
+
+                        // arreglar el total final
+                        dt_factura.total = ((decimal)subtotal_f - dt_factura.descuentos + dt_factura.recargos);
+                        // Guarda los cambios en la base de datos
+                        await _context.SaveChangesAsync();
+
+                        // Igualar el detalle
+                        var dt_factura1 = await _context.vefactura1.Where(i => i.codfactura == dt_factura.codigo).OrderByDescending(i => i.totaldist).FirstOrDefaultAsync();
+                        double total = (double)dt_factura1.total;
+                        total = total + dif;
+                        // sia_DAL.Datos.Instancia.EjecutarComando("update vefactura1 set totaldist=" & total_d.ToString("####0.00") & " where codfactura=" & CStr(dt_factura1.Rows(0)("codfactura")) & " and coditem='" & CStr(dt_factura1.Rows(0)("coditem")) & "' ")
+                        // sia_DAL.Datos.Instancia.EjecutarComando("update vefactura1 set preciodist=totaldist/cantidad where codfactura=" & CStr(dt_factura1.Rows(0)("codfactura")) & " and coditem='" & CStr(dt_factura1.Rows(0)("coditem")) & "' ")
+
+                        // como el ajuste se hace en los descuentos ya no es necesario arreglar el total del detalle PERO SI EL TOTAL DIST
+                        // sia_DAL.Datos.Instancia.EjecutarComando("update vefactura1 set total=" & total_d.ToString("####0.00") & " where codfactura=" & CStr(dt_factura1.Rows(0)("codfactura")) & " and coditem='" & CStr(dt_factura1.Rows(0)("coditem")) & "' ")
+                        if (dt_factura1.coddescuento == 0)
+                        {
+                            // si el item en cuestion no tiene descuentos de linea realizar de este modo
+                            // se añadio estas 2 lineas el 26/07/2022 para igualar el totaldist - distdescuento
+                            // se corrigio el calculo de total dist debido a que desde 23/11/2025 ya se pueden realizar ventas con item repetido por tema de division de empaques caja cerrada
+                            dt_factura1.total = (decimal)total;
+                            dt_factura1.totaldist = (decimal)total;
+                            /////////////////////////////////
+                            decimal precios = (decimal)total / dt_factura1.cantidad;
+                            dt_factura1.preciolista = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, precios);
+                            dt_factura1.precioneto = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, precios);
+                            dt_factura1.preciodesc = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, precios);
+                            dt_factura1.preciodist = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, precios);
+                            // Guarda los cambios en la base de datos
+                            await _context.SaveChangesAsync();
+                        }
+                        else
+                        {
+                            // si el item en cuestion tiene descuentos de linea realizar de este modo
+                            // se añadio estas 2 lineas el 26/07/2022 para igualar el totaldist - distdescuento
+                            // se corrigio el calculo de total dist debido a que desde 23/11/2025 ya se pueden realizar ventas con item repetido por tema de division de empaques caja cerrada
+
+                            // DESDE 27-01-2023 AQUI PREGUNTAR SI REALMENTE EXISTE DESCUENTO DE LINEA EN LOS PRECIOS YA QUE A PRECIO 3 O 2 SI PUEDE ESTAR ASIGNADO EL DESCUENTO DE LINEA EN CODDESCUENTO PERO EL PORCENTAJE 
+                            // DE DECUENTO DEL ITEM PUEDE SER 0 POR ENDE NO HAY DESCUENTO, EN ESTOS CASOS NO SOLO ACTUALIZAR EL NUEVO PRECIO EN PRECIONETO Y PRECIODIST SINO ACTUALIZAR EN TODOS LOS PRECIOS
+                            double precio_neto = (double)dt_factura1.precioneto;
+                            double precio_lista = (double)dt_factura1.preciolista;
+
+                            if (precio_neto == precio_lista)
+                            {
+                                dt_factura1.total = (decimal)total;
+                                dt_factura1.totaldist = (decimal)total;
+                                /////////////////////////////////
+                                decimal precios = (decimal)total / dt_factura1.cantidad;
+                                dt_factura1.preciolista = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, precios);
+                                dt_factura1.precioneto = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, precios);
+                                dt_factura1.preciodesc = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, precios);
+                                dt_factura1.preciodist = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, precios);
+                                // Guarda los cambios en la base de datos
+                                await _context.SaveChangesAsync();
+                            }
+                            else
+                            {
+                                dt_factura1.total = (decimal)total;
+                                dt_factura1.totaldist = (decimal)total;
+                                /////////////////////////////////
+                                decimal precios = (decimal)total / dt_factura1.cantidad;
+                                // dt_factura1.preciolista = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, precios);
+                                dt_factura1.precioneto = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, precios);
+                                // dt_factura1.preciodesc = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, precios);
+                                dt_factura1.preciodist = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, precios);
+                                // Guarda los cambios en la base de datos
+                                await _context.SaveChangesAsync();
+                            }
+                            // Antes del 27-01-2023 era asi
+                            // sia_DAL.Datos.Instancia.EjecutarComando("update vefactura1 set total=" & total.ToString("####0.00") & ", totaldist=" & total.ToString("####0.00") & " where codfactura=" & CStr(dt_factura1.Rows(0)("codfactura")) & " and coditem='" & CStr(dt_factura1.Rows(0)("coditem")) & "' and cantidad='" & CStr(dt_factura1.Rows(0)("cantidad")) & "' ")
+                            /////////////////////////////////////
+                            // 'sia_DAL.Datos.Instancia.EjecutarComando("update vefactura1 set preciolista=round(total/cantidad,5) where codfactura=" & CStr(dt_factura1.Rows(0)("codfactura")) & " and coditem='" & CStr(dt_factura1.Rows(0)("coditem")) & "' ")
+                            // sia_DAL.Datos.Instancia.EjecutarComando("update vefactura1 set precioneto=round(total/cantidad,5) where codfactura=" & CStr(dt_factura1.Rows(0)("codfactura")) & " and coditem='" & CStr(dt_factura1.Rows(0)("coditem")) & "' ")
+                            // 'sia_DAL.Datos.Instancia.EjecutarComando("update vefactura1 set preciodesc=round(total/cantidad,5) where codfactura=" & CStr(dt_factura1.Rows(0)("codfactura")) & " and coditem='" & CStr(dt_factura1.Rows(0)("coditem")) & "' ")
+                            // sia_DAL.Datos.Instancia.EjecutarComando("update vefactura1 set preciodist=round(totaldist/cantidad,5) where codfactura=" & CStr(dt_factura1.Rows(0)("codfactura")) & " and coditem='" & CStr(dt_factura1.Rows(0)("coditem")) & "' ")
+                        }
+                        // volver a calcular total totaldist y subtotal y total del detalle de la factura distdesceunto
+                        dt_factura1.total = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, (dt_factura1.cantidad * dt_factura1.precioneto));
+                        dt_factura1.totaldist = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, (dt_factura1.cantidad * (dt_factura1.preciodist ?? 0)));
+                        dt_factura1.distdescuento = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, (dt_factura1.total - (dt_factura1.totaldist ?? 0)));
+                        // Guarda los cambios en la base de datos
+                        await _context.SaveChangesAsync();
+                        // arreglar subtotal, descuentos, total de cabecera factura
+                        dt_factura.subtotal = await _context.vefactura1.Where(i => i.codfactura == dt_factura.codigo).SumAsync(i => i.total);
+                        dt_factura.descuentos = await _context.vefactura1.Where(i => i.codfactura == dt_factura.codigo).SumAsync(i => i.distdescuento) ?? 0;
+                        dt_factura.total = (dt_factura.subtotal - dt_factura.descuentos);
+                        // Guarda los cambios en la base de datos
+                        await _context.SaveChangesAsync();
+                    }
+                }
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+            return true;
+        }
 
 
 

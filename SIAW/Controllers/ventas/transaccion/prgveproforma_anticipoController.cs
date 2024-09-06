@@ -70,7 +70,7 @@ namespace SIAW.Controllers.ventas.transaccion
         // GET: api/vedesextra
         [HttpPost]
         [Route("validaAsignarAnticipo/{userConn}/{txtcodmoneda_proforma}/{txtcodmoneda_anticipo}/{txtmonto_asignar}/{txtmonto_rest}/{txtttl_proforma}/{codempresa}")]
-        public async Task<ActionResult<IEnumerable<object>>> validaAsignarAnticipo(string userConn, string txtcodmoneda_proforma, string txtcodmoneda_anticipo, double txtmonto_asignar, double txtmonto_rest, double txtttl_proforma, string codempresa, List<tabla_veproformaAnticipo> tabla_veproformaAnticipo)
+        public async Task<ActionResult<IEnumerable<object>>> validaAsignarAnticipo(string userConn, string txtcodmoneda_proforma, string txtcodmoneda_anticipo, double txtmonto_asignar, double txtmonto_rest, double txtttl_proforma, string codempresa, List<tabla_veproformaAnticipo>? tabla_veproformaAnticipo)
         {
             try
             {

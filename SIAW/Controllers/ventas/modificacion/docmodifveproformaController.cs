@@ -551,6 +551,10 @@ namespace SIAW.Controllers.ventas.modificacion
                         {
                             datosProforma.veproforma.tipo_complementopf = 0;
                         }
+                        if (datosProforma.veproforma.pago_contado_anticipado == null)
+                        {
+                            datosProforma.veproforma.pago_contado_anticipado = false;
+                        }
                         datosProforma.veproforma.fechareg = DateTime.Today.Date;
                         // datosProforma.veproforma.fechaaut = new DateTime(1900, 1, 1);     // PUEDE VARIAR SI ES PARA APROBAR
                         
@@ -673,8 +677,6 @@ namespace SIAW.Controllers.ventas.modificacion
                             }
                         }
 
-                        // Desde 23/11/2023 guardar el log de grabado aqui
-                        await log.RegistrarEvento(_context, veproforma.usuarioreg, Log.Entidades.SW_Proforma, result.codprof.ToString(), veproforma.id, result.numeroId.ToString(), this._controllerName, "Grabar Para Aprobar", Log.TipoLog.Creacion);
                         if (paraAprobar)
                         {
 
@@ -757,6 +759,9 @@ namespace SIAW.Controllers.ventas.modificacion
                                     }
 
                                     mensajeAprobacion = "La proforma fue grabada para aprobar y tambien aprobada.";
+                                    // Desde 23/11/2023 guardar el log de grabado aqui
+                                    await log.RegistrarEvento(_context, veproforma.usuarioreg, Log.Entidades.SW_Proforma, result.codprof.ToString(), veproforma.id, result.numeroId.ToString(), this._controllerName, "Grabar Para Aprobar", Log.TipoLog.Creacion);
+
                                 }
                                 else
                                 {
@@ -1035,6 +1040,32 @@ namespace SIAW.Controllers.ventas.modificacion
 
         private async Task<(bool bandera, string msg)> Validar_Datos_Cabecera(DBContext _context, string codempresa, string codcliente_real, veproforma veproforma)
         {
+            // VALIDACIONES PARA EVITAR NULOS
+            if (veproforma.id == null) { return (false, "No se esta recibiendo el ID del documento, Consulte con el Administrador del sistema."); }
+            if (veproforma.numeroid == null) { return (false, "No se esta recibiendo el número de ID del documento, Consulte con el Administrador del sistema."); }
+            if (veproforma.codalmacen == null) { return (false, "No se esta recibiendo el codigo de Almacen, Consulte con el Administrador del sistema."); }
+            if (veproforma.codvendedor == null) { return (false, "No se esta recibiendo el código de vendedor, Consulte con el Administrador del sistema."); }
+            if (veproforma.preparacion == null) { return (false, "No se esta recibiendo el tipo de preparación, Consulte con el Administrador del sistema."); }
+            if (veproforma.tipopago == null) { return (false, "No se esta recibiendo el tipo de pago, Consulte con el Administrador del sistema."); }
+            if (veproforma.contra_entrega == null) { return (false, "No se esta recibiendo si la venta es contra entrega o no, Consulte con el Administrador del sistema."); }
+            if (veproforma.estado_contra_entrega == null) { return (false, "No se esta recibiendo el estado contra entrega, Consulte con el Administrador del sistema."); }
+            if (veproforma.id == null) { return (false, "No se esta recibiendo el ID del documento, Consulte con el Administrador del sistema."); }
+            if (veproforma.codcliente == null) { return (false, "No se esta recibiendo el codigo de cliente, Consulte con el Administrador del sistema."); }
+            if (veproforma.nomcliente == null) { return (false, "No se esta recibiendo el nombre del cliente, Consulte con el Administrador del sistema."); }
+            if (veproforma.tipo_docid == null) { return (false, "No se esta recibiendo el tipo de documento, Consulte con el Administrador del sistema."); }
+            if (veproforma.nit == null) { return (false, "No se esta recibiendo el NIT/CI del cliente, Consulte con el Administrador del sistema."); }
+            if (veproforma.email == null) { return (false, "No se esta recibiendo el Email del cliente, Consulte con el Administrador del sistema."); }
+            if (veproforma.codmoneda == null) { return (false, "No se esta recibiendo el codigo de moneda, Consulte con el Administrador del sistema."); }
+
+            if (veproforma.pago_contado_anticipado == null) { return (false, "No se esta recibiendo si el pago de realiza de forma anticipada o No, Consulte con el Administrador del sistema."); }
+            if (veproforma.idpf_complemento == null) { return (false, "No se esta recibiendo el ID de proforma complemento, Consulte con el Administrador del sistema."); }
+            if (veproforma.nroidpf_complemento == null) { return (false, "No se esta recibiendo el Número ID de proforma complemento, Consulte con el Administrador del sistema."); }
+            if (veproforma.tipo_complementopf == null) { return (false, "No se esta recibiendo el tipo de proforma complemento, Consulte con el Administrador del sistema."); }
+            if (veproforma.niveles_descuento == null) { return (false, "No se esta recibiendo el nivel de descuento actual del cliente, Consulte con el Administrador del sistema."); }
+
+
+
+
             // POR AHORA VALIDACIONES QUE REQUIERAN CONSULTA A BASE DE DATOS.
             string id = veproforma.id;
             int codalmacen = veproforma.codalmacen;
@@ -1090,6 +1121,45 @@ namespace SIAW.Controllers.ventas.modificacion
             if (!respNITValido.EsValido)
             {
                 return (false, "Verifique que el NIT tenga el formato correcto!!! " + respNITValido.Mensaje);
+            }
+
+            if (veproforma.contra_entrega == true)
+            {
+                if (veproforma.estado_contra_entrega == "")
+                {
+                    return (false, "Debe especificar el estado de pago del pedido si este es: CONTRA ENTREGA ");
+                }
+            }
+            //verifica si el usuario definio como se entregara el pedido
+            if (veproforma.tipoentrega != "RECOGE CLIENTE" && veproforma.tipoentrega != "ENTREGAR")
+            {
+                return (false, "Debe definir si el pedido: Recogera el Cliente o si Pertec Realizara la Entrega");
+            }
+            //verificar si elegio enlazar con proforma complemento hayan los datos
+            if (veproforma.tipo_complementopf > 0)
+            {
+                if (veproforma.idpf_complemento.Trim().Length == 0)
+                {
+                    return (false, "Ha elegido complementar la proforma pero no indico el Id de la proforma con la cual desdea complementar!!!");
+                }
+                if (veproforma.nroidpf_complemento.ToString().Trim().Length == 0)
+                {
+                    return (false, "Ha elegido complementar la proforma pero no indico el NroId de la proforma con la cual desdea complementar!!!");
+                }
+            }
+            //validar email
+            if (veproforma.email.Trim().Length == 0)
+            {
+                return (false, "Si no especifica una direccion de email valida, no se podra enviar la factura en formato digital.");
+            }
+            //validar tipo de preparacion "CAJA CERRADA RECOJE CLIENTE/RECOJE CLIENTE"
+            //Dsd 29 - 11 - 2022 se corrigio la palabra RECOJE por RECOGE para que se igual al campo tipoentrega.text
+            if (veproforma.preparacion == "CAJA CERRADA RECOGE CLIENTE")
+            {
+                if (veproforma.tipoentrega != "RECOGE CLIENTE")
+                {
+                    return (false, "El tipo de preparacion de la proforma es: CAJA CERRADA RECOGE CLIENTE, por tanto el tipo de entrega debe ser: RECOGE CLIENTE. Verifique esta situacion!!!");
+                }
             }
 
             //validar el NIT en el SIN

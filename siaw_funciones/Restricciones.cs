@@ -31,6 +31,7 @@ namespace siaw_funciones
         private Saldos saldos = new Saldos();
         private Ventas ventas = new Ventas();
         private Inventario inventario = new Inventario();
+        private Empresa empresa = new Empresa();
         public async Task<double> empaqueminimo(DBContext _context, string codigo, int codtarifa, int coddescuento)
         {
             // sacar el empaque de tarifa
@@ -273,10 +274,14 @@ namespace siaw_funciones
             ////////////////////////////////
             DataRow[] mi_reg_maxvta = null;
             double porcen_vta_dias = 0;
+            bool obtener_saldos_otras_ags_localmente = await saldos.Obtener_Saldos_Otras_Agencias_Localmente_context(_context, cod_empresa); // si se obtener las cantidades reservadas de las proformas o no
+            bool obtener_cantidades_aprobadas_de_proformas = await saldos.Obtener_Cantidades_Aprobadas_De_Proformas(_context, cod_empresa); // si se obtener las cantidades reservadas de las proformas o no
+
             foreach (var unido in dtunido)
             {
-
-                saldo = await saldos.SaldoItem_CrtlStock_Para_Ventas_Sam(_context, unido.codigo, codalmacen, true, id_pf, nro_id_pf, true, cod_empresa, usrreg);
+                // SE MOVIO A FUERA DEL LLAMADO DE LA FUNCION PARA OPTIMIZAR
+                int AlmacenLocalEmpresa = await empresa.AlmacenLocalEmpresa_context(_context, cod_empresa);
+                saldo = await saldos.SaldoItem_CrtlStock_Para_Ventas_Sam(_context, unido.codigo, codalmacen, true, id_pf, nro_id_pf, true, cod_empresa, usrreg, obtener_saldos_otras_ags_localmente, obtener_cantidades_aprobadas_de_proformas, AlmacenLocalEmpresa);
                 if (saldo < 0) { saldo = 0; }
                 saldo = Math.Round(saldo, 2);
                 unido.saldo = (decimal)saldo;

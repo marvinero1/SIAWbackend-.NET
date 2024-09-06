@@ -359,6 +359,24 @@ namespace SIAW.Controllers.ventas.transaccion
             {
                 return BadRequest(new { resp = "No hay ningun item en su documento." });
             }
+            veremision veremision = datosRemision.veremision;
+            // 
+            // VALIDACIONES PARA EVITAR NULOS
+            if (veremision.id == null) { return BadRequest(new { resp = "No se esta recibiendo el ID del documento, Consulte con el Administrador del sistema." }); }
+            if (veremision.numeroid == null) { return BadRequest(new { resp = "No se esta recibiendo el número de ID del documento, Consulte con el Administrador del sistema." }); }
+            if (veremision.codalmacen == null) { return BadRequest(new { resp = "No se esta recibiendo el codigo de Almacen, Consulte con el Administrador del sistema." }); }
+            if (veremision.codvendedor == null) { return BadRequest(new { resp = "No se esta recibiendo el código de vendedor, Consulte con el Administrador del sistema." }); }
+            if (veremision.preparacion == null) { return BadRequest(new { resp = "No se esta recibiendo el tipo de preparación, Consulte con el Administrador del sistema." }); }
+            if (veremision.tipopago == null) { return BadRequest(new { resp = "No se esta recibiendo el tipo de pago, Consulte con el Administrador del sistema." }); }
+            if (veremision.contra_entrega == null) { return BadRequest(new { resp = "No se esta recibiendo si la venta es contra entrega o no, Consulte con el Administrador del sistema." }); }
+            if (veremision.estado_contra_entrega == null) { return BadRequest(new { resp = "No se esta recibiendo el estado contra entrega, Consulte con el Administrador del sistema." }); }
+            if (veremision.codcliente == null) { return BadRequest(new { resp = "No se esta recibiendo el codigo de cliente, Consulte con el Administrador del sistema." }); }
+            if (veremision.nomcliente == null) { return BadRequest(new { resp = "No se esta recibiendo el nombre del cliente, Consulte con el Administrador del sistema." }); }
+            if (veremision.tipo_docid == null) { return BadRequest(new { resp = "No se esta recibiendo el tipo de documento, Consulte con el Administrador del sistema." }); }
+            if (veremision.nit == null) { return BadRequest(new { resp = "No se esta recibiendo el NIT/CI del cliente, Consulte con el Administrador del sistema." }); }
+            if (veremision.email == null) { return BadRequest(new { resp = "No se esta recibiendo el Email del cliente, Consulte con el Administrador del sistema." }); }
+            if (veremision.codmoneda == null) { return BadRequest(new { resp = "No se esta recibiendo el codigo de moneda, Consulte con el Administrador del sistema." }); }
+
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
             using (var _context = DbContextFactory.Create(userConnectionString))
             {

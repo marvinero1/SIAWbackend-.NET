@@ -18,7 +18,7 @@ namespace siaw_DBContext.Models_Extra
         public bool? HabilitadoNr { get; set; }
         public bool? HabilitadoFc { get; set; }
         public string Descripcion { get; set; }
-        public string? CodServicio { get; set; }
+        public string? CodServicio { get; set; } = "0";
         // ... otras propiedades ...
         public int NroItems { get; set; }
         public double Descuentos { get; set; }
@@ -35,7 +35,7 @@ namespace siaw_DBContext.Models_Extra
         public string Valido { get; set; }
         public string Observacion { get; set; }
         public string ObsDetalle { get; set; }
-        public string DescServicio { get; set; }
+        public string DescServicio { get; set; } = "";
         public string DatoA { get; set; }
         public string DatoB { get; set; }
         public string ClaveServicio { get; set; }

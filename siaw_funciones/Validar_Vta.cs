@@ -4755,23 +4755,27 @@ namespace siaw_funciones
         }
         public async Task<ResultadoValidacion> Validar_Enlace_Proforma_Cliente_Referencia(DBContext _context, DatosDocVta DVTA, string codempresa)
         {
-            bool mismo_cliente = DVTA.codcliente == DVTA.codcliente_real;
+            bool mismo_cliente = true;
             string cadena = "";
-            ResultadoValidacion objres = new ResultadoValidacion
-            {
-                resultado = mismo_cliente,
-                observacion = "",
-                obsdetalle = cadena,
-                datoA = "",
-                datoB = "",
-                accion = Acciones_Validar.Ninguna
-            };
 
+            ResultadoValidacion objres = new ResultadoValidacion();
+            if (DVTA.codcliente == DVTA.codcliente_real)
+            {
+                mismo_cliente = true;
+                objres.resultado = true;
+                objres.observacion = "";
+                objres.obsdetalle = cadena;
+                objres.datoA = "";
+                objres.datoB = "";
+            }
+            else
+            {
+                mismo_cliente = false;
+            }
             if (mismo_cliente)
             {
                 return objres;
             }
-
             // Si el cliente de la proforma (al cual se factura) es diferente al cliente referencia (el que realiza la compra)
             // estamos hablando de un cliente que compra con factura a nombre de otro
             // y hay que controlar ciertos aspectos
@@ -4781,6 +4785,8 @@ namespace siaw_funciones
             // VERIFICAR CÓMO SON LOS CLIENTES
             if (cliente_DOC_tipo == "CASUAL" && cliente_REF_tipo == "NO_CASUAL")
             {
+                objres.resultado = true;
+                cadena = "";
                 return objres;
             }
 
@@ -4820,6 +4826,8 @@ namespace siaw_funciones
 
             return objres;
         }
+
+
         public async Task<ResultadoValidacion> Verificar_Descuentos_LineaNivel_Habilitados(DBContext _context, DatosDocVta DVTA, List<string> lista_desc_nivel, List<int> lista_precios, List<itemDataMatriz> tabladetalle, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
@@ -5824,7 +5832,7 @@ namespace siaw_funciones
                         else
                         {
                             //dias validos
-                            if ((await configuracion.DuracionHabilAsync(_context,Convert.ToInt32(DVTA.codalmacen), await ventas.Fecha_de_Factura(_context, DVTA.idFC_complementaria, Convert.ToInt32(DVTA.nroidFC_complementaria)), DVTA.fechadoc.Date) - 1) > await empresa.diascompleempresa(_context, codempresa))
+                            if ((await configuracion.DuracionHabilAsync(_context,Convert.ToInt32(DVTA.codalmacen), await Ventas.Fecha_de_Factura(_context, DVTA.idFC_complementaria, Convert.ToInt32(DVTA.nroidFC_complementaria)), DVTA.fechadoc.Date) - 1) > await empresa.diascompleempresa(_context, codempresa))
                             {
                                 resultado = false;
                                 cadena_obs += Environment.NewLine + "La factura de la cual este documento es complementario sobrepasa el limite de dias de diferencia.";

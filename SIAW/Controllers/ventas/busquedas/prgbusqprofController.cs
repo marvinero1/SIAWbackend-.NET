@@ -55,7 +55,7 @@ namespace SIAW.Controllers.ventas.busquedas
                         .OrderBy(i => i.fecha)
                         .ThenBy(i => i.id)
                         .ThenBy(i =>i.numeroid)
-                        .Take(100)
+                        //.Take(100)
                         .Select(i => new
                         {
                             i.codigo,

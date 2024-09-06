@@ -349,8 +349,8 @@ namespace SIAW.Controllers.ventas.transaccion
                     //  RESTAR LAS CANTIDADES DE INGRESO POR NOTAS DE MOVIMIENTO URGENTES
                     // de facturas que aun no estan aprobadas
                     // string resp_total_reservado = await getSldIngresoReservNotaUrgent(userConnectionString, coditem, codalmacen);
-                    string resp_total_reservado = await getSldIngresoReservNotaUrgent(userConnectionString, codigoBuscado, codalmacen);
-                    total_reservado = double.Parse(resp_total_reservado);
+                    total_reservado = await getSldIngresoReservNotaUrgent(userConnectionString, codigoBuscado, codalmacen);
+                    // total_reservado = double.Parse(resp_total_reservado);
 
 
                     //AUMENTAR CANTIDAD PARA ESTA PROFORMA DE INGRESO POR NOTAS DE MOVIMIENTO URGENTES
@@ -522,10 +522,10 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
-        private async Task<string> getSldIngresoReservNotaUrgent(string userConnectionString, string coditem, int codalmacen)
+        private async Task<double> getSldIngresoReservNotaUrgent(string userConnectionString, string coditem, int codalmacen)
         {
             // verifica si es almacen o tienda
-            string respuestaValor = "";
+            double respuestaValor = 0;
 
             bool esAlmacen = await empaque_func.esAlmacen(userConnectionString, codalmacen);
 
@@ -545,7 +545,12 @@ namespace SIAW.Controllers.ventas.transaccion
                         respuesta
                     );
 
-                    respuestaValor = respuesta.Value.ToString();
+                    // respuestaValor = Convert.ToSingle(respuesta.Value);
+                    if (double.TryParse(respuesta.Value.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double parsedValue))
+                    {
+                        respuestaValor = parsedValue;
+                    }
+
                 }
             }
             else
@@ -563,8 +568,11 @@ namespace SIAW.Controllers.ventas.transaccion
                         new SqlParameter("@codalmacen", SqlDbType.Int) { Value = codalmacen },
                         respuesta
                     );
-
-                    respuestaValor = respuesta.Value.ToString();
+                    if (double.TryParse(respuesta.Value.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double parsedValue))
+                    {
+                        respuestaValor = parsedValue;
+                    }
+                    // respuestaValor = Convert.ToSingle(respuesta.Value);
                 }
             }
             return respuestaValor;
@@ -1162,7 +1170,8 @@ namespace SIAW.Controllers.ventas.transaccion
                 verecargosDatos = RequestValidacion.detalleRecargos;
                 controles_recibidos = RequestValidacion.detalleControles;
 
-                var resultado = await validar_Vta.DocumentoValido(userConnectionString, cadena_controles, entidad, opcion_validar, datosDocVta, itemDataMatriz, vedesextraDatos, vedetalleEtiqueta, vedetalleanticipoProforma, verecargosDatos, controles_recibidos, codempresa, usuario); 
+                var resultado = await validar_Vta.DocumentoValido(userConnectionString, cadena_controles, entidad, opcion_validar, datosDocVta, itemDataMatriz, vedesextraDatos, vedetalleEtiqueta, vedetalleanticipoProforma, verecargosDatos, controles_recibidos, codempresa, usuario);
+                resultado = resultado.Select(p => { p.CodServicio = p.CodServicio == "" ? "0" : p.CodServicio; return p; }).ToList();
                 if (resultado != null)
                 {
                     ///
@@ -1867,8 +1876,6 @@ namespace SIAW.Controllers.ventas.transaccion
                             }
                         }
 
-                        // Desde 23/11/2023 guardar el log de grabado aqui
-                        await log.RegistrarEvento(_context, veproforma.usuarioreg, Log.Entidades.SW_Proforma, result.codprof.ToString(), veproforma.id, result.numeroId.ToString(), this._controllerName, "Grabar Para Aprobar", Log.TipoLog.Creacion);
                         if (paraAprobar)
                         {
 
@@ -1908,6 +1915,9 @@ namespace SIAW.Controllers.ventas.transaccion
                                     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
                                     mensajeAprobacion = "La proforma fue grabada para aprobar y tambien aprobada.";
+                                    // Desde 23/11/2023 guardar el log de grabado aqui
+                                    await log.RegistrarEvento(_context, veproforma.usuarioreg, Log.Entidades.SW_Proforma, result.codprof.ToString(), veproforma.id, result.numeroId.ToString(), this._controllerName, "Grabar Para Aprobar", Log.TipoLog.Creacion);
+
                                 }
                                 else
                                 {
@@ -2189,6 +2199,31 @@ namespace SIAW.Controllers.ventas.transaccion
 
         private async Task<(bool bandera, string msg)> Validar_Datos_Cabecera(DBContext _context, string codempresa, string codcliente_real, veproforma veproforma)
         {
+            // VALIDACIONES PARA EVITAR NULOS
+            if (veproforma.id == null) { return (false, "No se esta recibiendo el ID del documento, Consulte con el Administrador del sistema."); }
+            if (veproforma.numeroid == null) { return (false, "No se esta recibiendo el número de ID del documento, Consulte con el Administrador del sistema."); }
+            if (veproforma.codalmacen == null) { return (false, "No se esta recibiendo el codigo de Almacen, Consulte con el Administrador del sistema."); }
+            if (veproforma.codvendedor == null) { return (false, "No se esta recibiendo el código de vendedor, Consulte con el Administrador del sistema."); }
+            if (veproforma.preparacion == null) { return (false, "No se esta recibiendo el tipo de preparación, Consulte con el Administrador del sistema."); }
+            if (veproforma.tipopago == null) { return (false, "No se esta recibiendo el tipo de pago, Consulte con el Administrador del sistema."); }
+            if (veproforma.contra_entrega == null) { return (false, "No se esta recibiendo si la venta es contra entrega o no, Consulte con el Administrador del sistema."); }
+            if (veproforma.estado_contra_entrega == null) { return (false, "No se esta recibiendo el estado contra entrega, Consulte con el Administrador del sistema."); }
+            if (veproforma.id == null) { return (false, "No se esta recibiendo el ID del documento, Consulte con el Administrador del sistema."); }
+            if (veproforma.codcliente == null) { return (false, "No se esta recibiendo el codigo de cliente, Consulte con el Administrador del sistema."); }
+            if (veproforma.nomcliente == null) { return (false, "No se esta recibiendo el nombre del cliente, Consulte con el Administrador del sistema."); }
+            if (veproforma.tipo_docid == null) { return (false, "No se esta recibiendo el tipo de documento, Consulte con el Administrador del sistema."); }
+            if (veproforma.nit == null) { return (false, "No se esta recibiendo el NIT/CI del cliente, Consulte con el Administrador del sistema."); }
+            if (veproforma.email == null) { return (false, "No se esta recibiendo el Email del cliente, Consulte con el Administrador del sistema."); }
+            if (veproforma.codmoneda == null) { return (false, "No se esta recibiendo el codigo de moneda, Consulte con el Administrador del sistema."); }
+
+            if (veproforma.pago_contado_anticipado == null) { return (false, "No se esta recibiendo si el pago de realiza de forma anticipada o No, Consulte con el Administrador del sistema."); }
+            if (veproforma.idpf_complemento == null) { return (false, "No se esta recibiendo el ID de proforma complemento, Consulte con el Administrador del sistema."); }
+            if (veproforma.nroidpf_complemento == null) { return (false, "No se esta recibiendo el Número ID de proforma complemento, Consulte con el Administrador del sistema."); }
+            if (veproforma.tipo_complementopf == null) { return (false, "No se esta recibiendo el tipo de proforma complemento, Consulte con el Administrador del sistema."); }
+            if (veproforma.niveles_descuento == null) { return (false, "No se esta recibiendo el nivel de descuento actual del cliente, Consulte con el Administrador del sistema."); }
+
+
+
             // POR AHORA VALIDACIONES QUE REQUIERAN CONSULTA A BASE DE DATOS.
             string id = veproforma.id;
             int codalmacen = veproforma.codalmacen;
@@ -2246,6 +2281,45 @@ namespace SIAW.Controllers.ventas.transaccion
                 return (false, "Verifique que el NIT tenga el formato correcto!!! " + respNITValido.Mensaje);
             }
 
+            if (veproforma.contra_entrega == true)
+            {
+                if (veproforma.estado_contra_entrega == "")
+                {
+                    return (false, "Debe especificar el estado de pago del pedido si este es: CONTRA ENTREGA ");
+                }
+            }
+            //verifica si el usuario definio como se entregara el pedido
+            if (veproforma.tipoentrega != "RECOGE CLIENTE" && veproforma.tipoentrega != "ENTREGAR")
+            {
+                return (false, "Debe definir si el pedido: Recogera el Cliente o si Pertec Realizara la Entrega");
+            }
+            //verificar si elegio enlazar con proforma complemento hayan los datos
+            if (veproforma.tipo_complementopf > 0)
+            {
+                if (veproforma.idpf_complemento.Trim().Length == 0)
+                {
+                    return (false, "Ha elegido complementar la proforma pero no indico el Id de la proforma con la cual desdea complementar!!!");
+                }
+                if (veproforma.nroidpf_complemento.ToString().Trim().Length == 0)
+                {
+                    return (false, "Ha elegido complementar la proforma pero no indico el NroId de la proforma con la cual desdea complementar!!!");
+                }
+            }
+            //validar email
+            if (veproforma.email.Trim().Length == 0)
+            {
+                return (false, "Si no especifica una direccion de email valida, no se podra enviar la factura en formato digital.");
+            }
+            //validar tipo de preparacion "CAJA CERRADA RECOJE CLIENTE/RECOJE CLIENTE"
+            //Dsd 29 - 11 - 2022 se corrigio la palabra RECOJE por RECOGE para que se igual al campo tipoentrega.text
+            if (veproforma.preparacion == "CAJA CERRADA RECOGE CLIENTE")
+            {
+                if (veproforma.tipoentrega != "RECOGE CLIENTE")
+                {
+                    return (false, "El tipo de preparacion de la proforma es: CAJA CERRADA RECOGE CLIENTE, por tanto el tipo de entrega debe ser: RECOGE CLIENTE. Verifique esta situacion!!!");
+                }
+            }
+
             //validar el NIT en el SIN
             /*
             If resultado Then
@@ -2257,6 +2331,8 @@ namespace SIAW.Controllers.ventas.transaccion
              */
             return (true, "Error al guardar todos los datos.");
         }
+
+
 
         private async Task<bool> Grabar_Proforma_Etiqueta(DBContext _context, string idProf, int nroidpf, bool desclinea_segun_solicitud, string codcliente_real, veproforma dtpf)
         {
@@ -2972,12 +3048,12 @@ namespace SIAW.Controllers.ventas.transaccion
             //QUITAR
             return new
             {
-                subtotal = subtotal,
-                peso = peso,
-                recargo = recargo,
-                descuento = descuento,
-                iva = resultados.totalIva,
-                total = resultados.TotalGen,
+                subtotal = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context,subtotal),
+                peso = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, peso),
+                recargo = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, recargo),
+                descuento = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, descuento),
+                iva = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, resultados.totalIva),
+                total = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, resultados.TotalGen),
                 tablaIva = resultados.tablaiva,
 
                 tablaRecargos = respRecargo.tablarecargos,
@@ -4121,7 +4197,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 // de acuerdo a la nueva politica de desctos, vigente desde el 01-08-2022
                 if (codcliente != codcliente_real)
                 {
-                    return BadRequest(new { resp = "Cliente referencia no es el mismo que el cliente del pedido." });
+                    return StatusCode(203, new { respOculto = "Cliente referencia no es el mismo que el cliente del pedido." });
                 }
                 getTarifaPrincipal_Rodrigo data = objetoDescDepositos.getTarifaPrincipal;
 
@@ -4129,19 +4205,19 @@ namespace SIAW.Controllers.ventas.transaccion
                 // clientes casualas no deben tener descto por deposito seg/poliita desde el 01-08-2022
                 if (await cliente.Es_Cliente_Casual(_context, codcliente))
                 {
-                    return StatusCode(203, new { resp = "Cliente es casual, no puede tener descuento por depósito." });
+                    return StatusCode(203, new { respOculto = "Cliente es casual, no puede tener descuento por depósito." });
                 }
                 // verificar si es cliente competencia
                 if (await cliente.EsClienteCompetencia(_context, nit))
                 {
-                    return BadRequest(new { resp = "Cliente es cliente competencia, no puede tener descuento por depósito." });
+                    return StatusCode(203, new { respOculto = "Cliente es cliente competencia, no puede tener descuento por depósito." });
                 }
                 // verificar que los desctos esten habilitados para el precio principal de la proforma
                 var coddesextra_deposito = await configuracion.emp_coddesextra_x_deposito(_context, codempresa);
                 var tarifa_main = await validar_Vta.Tarifa_Monto_Min_Mayor_Rodrigo(_context, await validar_Vta.Lista_Precios_En_El_Documento(data.tabladetalle), data.DVTA);
                 if (await ventas.Descuento_Extra_Habilitado_Para_Precio(_context, coddesextra_deposito, tarifa_main) == false)
                 {
-                    return BadRequest(new { resp = "El descuento no esta habilitado para el precio principal de la proforma." });
+                    return StatusCode(203, new { respOculto = "El descuento no esta habilitado para el precio principal de la proforma." });
                 }
 
                 // la aplicacion del descuento por deposito no esta permitido para 
@@ -4160,7 +4236,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
                 /////////////////////////////////////////////////////////////////////////////////////////////
                 // DEPOSITOS PENDIENTE DE CBZAS CREDITO
-                var dt_depositos_pendientes = await cobranzas.Depositos_Cobranzas_Credito_Cliente_Sin_Aplicar(_context, "cliente", "", codcliente, nit, codcliente_real, buscar_por_nit, "APLICAR_DESCTO", 0, "Proforma_Nueva", codempresa, false, Depositos_Desde_Fecha, true);
+                var dt_depositos_pendientes = await cobranzas.Depositos_Cobranzas_Credito_Cliente_Sin_Aplicar(_context, "cliente", "", codcliente, nit, codcliente_real, buscar_por_nit, "APLICAR_DESCTO", codproforma, "Proforma_Nueva", codempresa, false, Depositos_Desde_Fecha, true);
 
                 foreach (var reg in dt_depositos_pendientes)
                 {
@@ -6057,6 +6133,52 @@ namespace SIAW.Controllers.ventas.transaccion
 
         }
 
+        [HttpGet]
+        [Route("getRedondeo2decimales/{userConn}/{numero}")]
+        public async Task<IActionResult> getRedondeo2decimales(string userConn, double numero)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    decimal numRedondeado = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, numero);
+                    return Ok(new
+                    {
+                        resultado = numRedondeado
+                    });
+                }
+
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+        }
+        [HttpGet]
+        [Route("getRedondeo5decimales/{userConn}/{numero}")]
+        public async Task<IActionResult> getRedondeo5decimales(string userConn, decimal numero)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    decimal numRedondeado = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, numero);
+                    return Ok(new
+                    {
+                        resultado = numRedondeado
+                    });
+                }
+
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+        }
     }
 
 

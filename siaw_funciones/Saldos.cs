@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using System.Runtime.Intrinsics.Arm;
 using NuGet.Configuration;
+using System.Globalization;
 
 
 namespace siaw_funciones
@@ -43,7 +44,7 @@ namespace siaw_funciones
 
             return resultado;
         }
-        public async Task<decimal> SaldoItem_CrtlStock_Para_Ventas_Sam(DBContext _context, string codigo, int codalmacen, bool ctrlSeguridad, string idproforma, int numeroidproforma, bool include_saldos_a_cubrir, string codempresa, string usuario)
+        public async Task<decimal> SaldoItem_CrtlStock_Para_Ventas_Sam(DBContext _context, string codigo, int codalmacen, bool ctrlSeguridad, string idproforma, int numeroidproforma, bool include_saldos_a_cubrir, string codempresa, string usuario, bool obtener_saldos_otras_ags_localmente, bool obtener_cantidades_aprobadas_de_proformas, int AlmacenLocalEmpresa)
         {
             //List<sldosItemCompleto> saldos;
             //decimal resultado = 0;
@@ -51,7 +52,7 @@ namespace siaw_funciones
             //{
             //precio unitario del item
             //saldos = await SaldosCompleto(userConnectionString, agencia, codalmacen, coditem, codempresa, usuario);
-            decimal saldos = await SaldoItem_Crtlstock_Tabla_Para_Ventas_Sam(_context, codigo, codalmacen, ctrlSeguridad, idproforma, numeroidproforma, include_saldos_a_cubrir, codempresa, usuario);
+            decimal saldos = await SaldoItem_Crtlstock_Tabla_Para_Ventas_Sam(_context, codigo, codalmacen, ctrlSeguridad, idproforma, numeroidproforma, include_saldos_a_cubrir, codempresa, usuario, obtener_saldos_otras_ags_localmente, obtener_cantidades_aprobadas_de_proformas, AlmacenLocalEmpresa);
             //resultado = tabla;
             //}
             //for (int i = 0; (i <= (saldos.Count - 1)); i++)
@@ -61,7 +62,7 @@ namespace siaw_funciones
 
             return saldos;
         }
-        public async Task<decimal> SaldoItem_Crtlstock_Tabla_Para_Ventas_Sam(DBContext _context, string coditem, int codalmacen, bool ctrlSeguridad, string idproforma, int numeroidproforma, bool include_saldos_a_cubrir, string codempresa, string usuario)
+        public async Task<decimal> SaldoItem_Crtlstock_Tabla_Para_Ventas_Sam(DBContext _context, string coditem, int codalmacen, bool ctrlSeguridad, string idproforma, int numeroidproforma, bool include_saldos_a_cubrir, string codempresa, string usuario, bool obtener_saldos_otras_ags_localmente, bool obtener_cantidades_aprobadas_de_proformas, int AlmacenLocalEmpresa)
         {
             try
             {
@@ -78,8 +79,9 @@ namespace siaw_funciones
                 decimal saldoItemTotal = 0;
 
                 bool Es_Kit = await items.EsKit(_context, coditem);  // verifica si el item es kit o no 
-                bool obtener_saldos_otras_ags_localmente = await Obtener_Saldos_Otras_Agencias_Localmente_context(_context, codempresa); // si se obtener las cantidades reservadas de las proformas o no
-                bool obtener_cantidades_aprobadas_de_proformas = await Obtener_Cantidades_Aprobadas_De_Proformas(_context, codempresa); // si se obtener las cantidades reservadas de las proformas o no
+                // SE MOVIO A FUERA DEL LLAMADO DE LA FUNCION PARA OPTIMIZAR
+                // bool obtener_saldos_otras_ags_localmente = await Obtener_Saldos_Otras_Agencias_Localmente_context(_context, codempresa); // si se obtener las cantidades reservadas de las proformas o no
+                // bool obtener_cantidades_aprobadas_de_proformas = await Obtener_Cantidades_Aprobadas_De_Proformas(_context, codempresa); // si se obtener las cantidades reservadas de las proformas o no
 
                 string codItemVta = "";
 
@@ -96,8 +98,9 @@ namespace siaw_funciones
                 {
                     goto mi_fin;
                 }
-
-                if (await empresa.AlmacenLocalEmpresa_context(_context, codempresa) == codalmacen)
+                // SE MOVIO A FUERA DEL LLAMADO DE LA FUNCION PARA OPTIMIZAR
+                // if (await empresa.AlmacenLocalEmpresa_context(_context, codempresa) == codalmacen)
+                if (AlmacenLocalEmpresa == codalmacen)
                 {
                     Es_Ag_Local = true;
                 }
@@ -236,9 +239,8 @@ namespace siaw_funciones
                     //  RESTAR LAS CANTIDADES DE INGRESO POR NOTAS DE MOVIMIENTO URGENTES
                     // de facturas que aun no estan aprobadas
                     // string resp_total_reservado = await getSldIngresoReservNotaUrgent_Sam(_context, coditem, codalmacen);
-                    string resp_total_reservado = await getSldIngresoReservNotaUrgent_Sam(_context, codItemVta, codalmacen);
-
-                    total_reservado = double.Parse(resp_total_reservado);
+                    total_reservado = await getSldIngresoReservNotaUrgent_Sam(_context, codItemVta, codalmacen);
+                    // total_reservado = double.Parse(resp_total_reservado);
 
 
                     //AUMENTAR CANTIDAD PARA ESTA PROFORMA DE INGRESO POR NOTAS DE MOVIMIENTO URGENTES
@@ -624,10 +626,10 @@ namespace siaw_funciones
             }
             return CANTIDAD_RESERVADA;
         }
-        private async Task<string> getSldIngresoReservNotaUrgent(string userConnectionString, string coditem, int codalmacen)
+        private async Task<double> getSldIngresoReservNotaUrgent(string userConnectionString, string coditem, int codalmacen)
         {
             // verifica si es almacen o tienda
-            string respuestaValor = "";
+            double respuestaValor = 0;
 
             bool esAlmacen = await empaque_func.esAlmacen(userConnectionString, codalmacen);
 
@@ -646,8 +648,11 @@ namespace siaw_funciones
                         new SqlParameter("@codalmacen", SqlDbType.Int) { Value = codalmacen },
                         respuesta
                     );
-
-                    respuestaValor = respuesta.Value.ToString();
+                    if (double.TryParse(respuesta.Value.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double parsedValue))
+                    {
+                        respuestaValor = parsedValue;
+                    }
+                    // respuestaValor = respuesta.Value.ToString();
                 }
             }
             else
@@ -665,16 +670,19 @@ namespace siaw_funciones
                         new SqlParameter("@codalmacen", SqlDbType.Int) { Value = codalmacen },
                         respuesta
                     );
-
-                    respuestaValor = respuesta.Value.ToString();
+                    if (double.TryParse(respuesta.Value.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double parsedValue))
+                    {
+                        respuestaValor = parsedValue;
+                    }
+                    // respuestaValor = respuesta.Value.ToString();
                 }
             }
             return respuestaValor;
         }
-        private async Task<string> getSldIngresoReservNotaUrgent_Sam(DBContext _context, string coditem, int codalmacen)
+        private async Task<double> getSldIngresoReservNotaUrgent_Sam(DBContext _context, string coditem, int codalmacen)
         {
             // verifica si es almacen o tienda
-            string respuestaValor = "";
+            double respuestaValor = 0;
 
             bool esAlmacen = await empaque_func.esAlmacen_Sam(_context, codalmacen);
 
@@ -694,7 +702,11 @@ namespace siaw_funciones
                     respuesta
                 );
 
-                respuestaValor = respuesta.Value.ToString();
+                // respuestaValor = respuesta.Value.ToString();
+                if (double.TryParse(respuesta.Value.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double parsedValue))
+                {
+                    respuestaValor = parsedValue;
+                }
                 //}
             }
             else
@@ -712,8 +724,11 @@ namespace siaw_funciones
                     new SqlParameter("@codalmacen", SqlDbType.Int) { Value = codalmacen },
                     respuesta
                 );
-
-                respuestaValor = respuesta.Value.ToString();
+                if (double.TryParse(respuesta.Value.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double parsedValue))
+                {
+                    respuestaValor = parsedValue;
+                }
+                // respuestaValor = respuesta.Value.ToString();
                 //}
             }
             return respuestaValor;
@@ -1215,8 +1230,8 @@ namespace siaw_funciones
                     //  RESTAR LAS CANTIDADES DE INGRESO POR NOTAS DE MOVIMIENTO URGENTES
                     // de facturas que aun no estan aprobadas
                     // string resp_total_reservado = await getSldIngresoReservNotaUrgent(userConnectionString, coditem, codalmacen);
-                    string resp_total_reservado = await getSldIngresoReservNotaUrgent(userConnectionString, codigoBuscado, codalmacen);
-                    total_reservado = double.Parse(resp_total_reservado);
+                    total_reservado = await getSldIngresoReservNotaUrgent(userConnectionString, codigoBuscado, codalmacen);
+                    // total_reservado = double.Parse(resp_total_reservado);
 
 
                     //AUMENTAR CANTIDAD PARA ESTA PROFORMA DE INGRESO POR NOTAS DE MOVIMIENTO URGENTES
@@ -1326,11 +1341,15 @@ namespace siaw_funciones
                 .ThenBy(x => x.coditem_cjto)
                 .ThenBy(x => x.codigo)
                 .ToList();
+            bool obtener_saldos_otras_ags_localmente = await Obtener_Saldos_Otras_Agencias_Localmente_context(_context, cod_empresa); // si se obtener las cantidades reservadas de las proformas o no
+            bool obtener_cantidades_aprobadas_de_proformas = await Obtener_Cantidades_Aprobadas_De_Proformas(_context, cod_empresa); // si se obtener las cantidades reservadas de las proformas o no
 
             foreach (var unido in dtunidoOrdenado)
             {
-                unido.saldo_descontando_reservas = await SaldoItem_CrtlStock_Para_Ventas_Sam(_context, unido.codigo, codalmacen, controlarStockSeguridad, idproforma, numeroidproforma, true, cod_empresa, usrreg);
-                unido.saldo_sin_descontar_reservas = await SaldoItem_CrtlStock_Para_Ventas_Sam(_context, unido.codigo, codalmacen, controlarStockSeguridad, idproforma, numeroidproforma, false, cod_empresa, usrreg);
+                // SE MOVIO A FUERA DEL LLAMADO DE LA FUNCION PARA OPTIMIZAR
+                int AlmacenLocalEmpresa = await empresa.AlmacenLocalEmpresa_context(_context, cod_empresa);
+                unido.saldo_descontando_reservas = await SaldoItem_CrtlStock_Para_Ventas_Sam(_context, unido.codigo, codalmacen, controlarStockSeguridad, idproforma, numeroidproforma, true, cod_empresa, usrreg, obtener_saldos_otras_ags_localmente, obtener_cantidades_aprobadas_de_proformas, AlmacenLocalEmpresa);
+                unido.saldo_sin_descontar_reservas = await SaldoItem_CrtlStock_Para_Ventas_Sam(_context, unido.codigo, codalmacen, controlarStockSeguridad, idproforma, numeroidproforma, false, cod_empresa, usrreg, obtener_saldos_otras_ags_localmente, obtener_cantidades_aprobadas_de_proformas, AlmacenLocalEmpresa);
                 unido.cantidad_reservada_para_cjtos = unido.saldo_sin_descontar_reservas - unido.saldo_descontando_reservas;
 
                 unido.obs = "Positivo";
@@ -1504,15 +1523,20 @@ namespace siaw_funciones
                 }
 
             }
+
+            bool obtener_saldos_otras_ags_localmente = await Obtener_Saldos_Otras_Agencias_Localmente_context(_context, cod_empresa); // si se obtener las cantidades reservadas de las proformas o no
+            bool obtener_cantidades_aprobadas_de_proformas = await Obtener_Cantidades_Aprobadas_De_Proformas(_context, cod_empresa); // si se obtener las cantidades reservadas de las proformas o no
+
             //obtener los saldos de los items
             foreach (var unido in dtunido)
             {
                 coditem_dv = unido.codigo;
-
-                _Saldo_Actual_Item_Con_Descto_Reservas = await SaldoItem_CrtlStock_Para_Ventas_Sam(_context, coditem_dv, codalmacen, controlarStockSeguridad, idproforma, numeroidproforma, true, cod_empresa, usrreg);
+                // SE MOVIO A FUERA DEL LLAMADO DE LA FUNCION PARA OPTIMIZAR
+                int AlmacenLocalEmpresa = await empresa.AlmacenLocalEmpresa_context(_context, cod_empresa);
+                _Saldo_Actual_Item_Con_Descto_Reservas = await SaldoItem_CrtlStock_Para_Ventas_Sam(_context, coditem_dv, codalmacen, controlarStockSeguridad, idproforma, numeroidproforma, true, cod_empresa, usrreg, obtener_saldos_otras_ags_localmente, obtener_cantidades_aprobadas_de_proformas, AlmacenLocalEmpresa);
                 _Saldo_Actual_Item_Con_Descto_Reservas = Math.Round(_Saldo_Actual_Item_Con_Descto_Reservas, 2, MidpointRounding.AwayFromZero);
 
-                _Saldo_Actual_Item_Sin_Descontando_Reservas = await SaldoItem_CrtlStock_Para_Ventas_Sam(_context, coditem_dv, codalmacen, controlarStockSeguridad, idproforma, numeroidproforma, false, cod_empresa, usrreg);
+                _Saldo_Actual_Item_Sin_Descontando_Reservas = await SaldoItem_CrtlStock_Para_Ventas_Sam(_context, coditem_dv, codalmacen, controlarStockSeguridad, idproforma, numeroidproforma, false, cod_empresa, usrreg, obtener_saldos_otras_ags_localmente, obtener_cantidades_aprobadas_de_proformas, AlmacenLocalEmpresa);
                 _Saldo_Actual_Item_Sin_Descontando_Reservas = Math.Round(_Saldo_Actual_Item_Sin_Descontando_Reservas, 2, MidpointRounding.AwayFromZero);
 
                 _Cantidad_Reservad_Para_Cjto = _Saldo_Actual_Item_Sin_Descontando_Reservas - _Saldo_Actual_Item_Con_Descto_Reservas;
@@ -1603,10 +1627,12 @@ namespace siaw_funciones
                 coditem_dv = unido.codigo;
                 if (await items.controla_negativo(_context, unido.codigo))
                 {
-                    _Saldo_Actual_Item_Con_Descto_Reservas = await SaldoItem_CrtlStock_Para_Ventas_Sam(_context, unido.codigo, codalmacen, controlarStockSeguridad, idproforma, numeroidproforma, true, cod_empresa, usrreg);
+                    // SE MOVIO A FUERA DEL LLAMADO DE LA FUNCION PARA OPTIMIZAR
+                    int AlmacenLocalEmpresa = await empresa.AlmacenLocalEmpresa_context(_context, cod_empresa);
+                    _Saldo_Actual_Item_Con_Descto_Reservas = await SaldoItem_CrtlStock_Para_Ventas_Sam(_context, unido.codigo, codalmacen, controlarStockSeguridad, idproforma, numeroidproforma, true, cod_empresa, usrreg, obtener_saldos_otras_ags_localmente, obtener_cantidades_aprobadas_de_proformas, AlmacenLocalEmpresa);
                     _Saldo_Actual_Item_Con_Descto_Reservas = Math.Round(_Saldo_Actual_Item_Con_Descto_Reservas, 2, MidpointRounding.AwayFromZero);
 
-                    _Saldo_Actual_Item_Sin_Descontando_Reservas = await SaldoItem_CrtlStock_Para_Ventas_Sam(_context, coditem_dv, codalmacen, controlarStockSeguridad, idproforma, numeroidproforma, false, cod_empresa, usrreg);
+                    _Saldo_Actual_Item_Sin_Descontando_Reservas = await SaldoItem_CrtlStock_Para_Ventas_Sam(_context, coditem_dv, codalmacen, controlarStockSeguridad, idproforma, numeroidproforma, false, cod_empresa, usrreg, obtener_saldos_otras_ags_localmente, obtener_cantidades_aprobadas_de_proformas, AlmacenLocalEmpresa);
                     _Saldo_Actual_Item_Sin_Descontando_Reservas = Math.Round(_Saldo_Actual_Item_Sin_Descontando_Reservas, 2, MidpointRounding.AwayFromZero);
 
                     _Cantidad_Reservad_Para_Cjto = _Saldo_Actual_Item_Sin_Descontando_Reservas - _Saldo_Actual_Item_Con_Descto_Reservas;

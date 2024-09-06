@@ -320,6 +320,79 @@ namespace siaw_funciones
         }
 
 
+        
+        public async Task<string> Generar_CUF(DBContext _context, string idFC, int nroidFC, int codalmacen, string _valorNit, string _valorSucursal, string _valorModalidad, string _valorTipoEmision, string _valorTipoFactura, string _valorTipoDocSector, string _valorNroFactura, string _valorPuntoVta, string codigo_ctrl)
+        {
+            string resultado = "";
+            string fecha_hora_factura = "";
+            // primero obtener el la fecha hora de la factura en el formato requerido
+            if (_valorTipoDocSector == "1" || _valorTipoDocSector == "35")
+            {
+                fecha_hora_factura = Fecha_Formato_Cuf(await Ventas.Fecha_de_Factura(_context, idFC, nroidFC), await Ventas.Horareg_De_Factura(_context, idFC, nroidFC));
+                fecha_hora_factura = Fecha_Formato_Cuf(await Ventas.Fecha_de_Factura(_context, idFC, nroidFC), await Ventas.Horareg_De_Factura(_context, idFC, nroidFC));
+            }
+            else
+            {
+                fecha_hora_factura = Fecha_Formato_Cuf(await Ventas.Fecha_de_Nota_Credito(_context, idFC, nroidFC), await Ventas.Horareg_De_Nota_Credito(_context, idFC, nroidFC));
+            }
+            _valorNit = funciones.Rellenar(_valorNit,13,"0",true);
+            resultado = _valorNit;
+            resultado += fecha_hora_factura + "999";
+
+            _valorSucursal = funciones.Rellenar(_valorSucursal,4,"0",true);
+            resultado += _valorSucursal;
+
+            resultado += _valorModalidad;
+            resultado += _valorTipoEmision;
+
+            resultado += _valorTipoFactura;
+
+            _valorTipoDocSector = funciones.Rellenar(_valorTipoDocSector,2,"0",true);
+            resultado += _valorTipoDocSector;
+
+            _valorNroFactura = funciones.Rellenar(_valorNroFactura,10,"0",true);
+            resultado += _valorNroFactura;
+
+            _valorPuntoVta = funciones.Rellenar(_valorPuntoVta,4,"0",true);
+            resultado += _valorPuntoVta;
+
+            /////////////////////////////////////////////////////////////////////////////////////////////////
+            // se obtiene el modulo 11 de la cadena y se lo adjunta al final de la cadena
+            string digito_verificador_Mod11 = "";
+            digito_verificador_Mod11 = Calcular_Digito_Mod11(resultado, 1, 9, false);
+            resultado += digito_verificador_Mod11;
+            /////////////////////////////////////////////////////////////////////////////////////////////////
+
+            /////////////////////////////////////////////////////////////////////////////////////////////////
+            // se aplica a ala cadena resultande Base 16
+            // convertir la cadena tipo numero decimala  base 16
+            string cuf_resultado = Transformar_Decimal_A_Base16(resultado);
+            /////////////////////////////////////////////////////////////////////////////////////////////////
+
+            /////////////////////////////////////////////////////////////////////////////////////////////////
+            // concatenar el codigo de control de CUFD asignado
+            cuf_resultado += codigo_ctrl;
+
+            // concatenar a al cadena anterior el codigo de control, obtenido en el servicio web de solicitud de solicitudcufd
+            return cuf_resultado;
+        }
+
+
+
+        public string Fecha_Formato_Cuf(DateTime mifecha, string hora)
+        {
+            // Obtener solo la parte de la fecha
+            DateTime mifecha_aux = mifecha.Date;
+
+            // Combinar la fecha y la hora
+            string fecha = mifecha_aux.ToString("dd/MM/yyyy") + " " + hora;
+            mifecha = Convert.ToDateTime(fecha);
+
+            // Convertir al formato deseado
+            string _fechaConvertido = mifecha.ToString("yyyyMMddHHmmss");
+
+            return _fechaConvertido;
+        }
 
         public string Calcular_Digito_Mod11(string cadena, int numDig, int limMult, bool x10)
         {
