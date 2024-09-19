@@ -161,7 +161,16 @@ namespace SIAW.Controllers.ventas.modificacion
                         return BadRequest(new { resp = "No se encontró una proforma con los datos proporcionados, revise los datos" });
                     }
 
-                    
+                    if (cabecera.tipo_complementopf == 0)
+                    {
+                        cabecera.tipo_complementopf = 3;
+                    }
+                    if (cabecera.tipo_complementopf == 1 || cabecera.tipo_complementopf == 2)
+                    {
+                        cabecera.tipo_complementopf = cabecera.tipo_complementopf - 1;
+                    }
+
+
                     int codvendedorClienteProf = await ventas.Vendedor_de_Cliente_De_Proforma(_context, idProforma, nroidProforma);
                     if (! await seguridad.autorizado_vendedores(_context, usuario, codvendedorClienteProf, codvendedorClienteProf))
                     {
@@ -1122,6 +1131,22 @@ namespace SIAW.Controllers.ventas.modificacion
             {
                 return (false, "Verifique que el NIT tenga el formato correcto!!! " + respNITValido.Mensaje);
             }
+
+            if (veproforma.tipopago == 1 && veproforma.contra_entrega == true) // 0 = CONTADO, 1 = CREDITO
+            {
+                return (false, "LA PROFORMA NO PUEDE SER TIPO CREDITO Y CONTADO CONTRA ENTREGA, VERIFIQUE ESTA SITUACIÓN.");
+            }
+            if (veproforma.tipopago == 0 && veproforma.pago_contado_anticipado == true && veproforma.contra_entrega == true) // 0 = CONTADO, 1 = CREDITO
+            {
+                return (false, "LA PROFORMA NO PUEDE SER TIPO CONTADO CONTRA-ENTREGA CON ANTICIPOS, VERIFIQUE ESTA SITUACIÓN.");
+            }
+            if (veproforma.tipopago == 1 && veproforma.pago_contado_anticipado == true) // 0 = CONTADO, 1 = CREDITO
+            {
+                return (false, "LA PROFORMA NO PUEDE SER TIPO CREDITO Y TENER ANTICIPOS, VERIFIQUE ESTA SITUACIÓN.");
+            }
+
+
+
 
             if (veproforma.contra_entrega == true)
             {

@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Win32;
 using NuGet.Configuration;
 using siaw_DBContext.Data;
@@ -92,9 +93,10 @@ namespace SIAW.Controllers.ventas.transaccion
                 }
 
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem($"Error en el servidor: {ex.Message}");
+                throw;
             }
         }
 
@@ -163,9 +165,10 @@ namespace SIAW.Controllers.ventas.transaccion
                     });
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem($"Error en el servidor: {ex.Message}");
+                throw;
             }
         }
 
@@ -976,15 +979,15 @@ namespace SIAW.Controllers.ventas.transaccion
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
+                    //var resultados = await CREAR_GRABAR_FACTURAS()
                     return Ok();
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem($"Error en el servidor: {ex.Message}");
                 throw;
             }
-
         }
         private async Task<bool> GRABAR_IMPRIMIR(DBContext _context, int codremision, bool opcion_automatico)
         {
@@ -1582,5 +1585,18 @@ namespace SIAW.Controllers.ventas.transaccion
         public bool valFactContado { get; set; }
         public bool valTipoCam { get; set; }
     }
+    public class dataDosificaCaja
+    {
+        public string nrocaja { get; set; }
+        public string cufd { get; set; }
+        public string codigo_control { get; set; }
+        public DateTime dtpfecha_limite { get; set; }
+        public string nrolugar { get; set; }
+        public string tipo { get; set; }
+        public string codtipo_comprobante { get; set; }
+        public string codtipo_comprobantedescripcion { get; set; }
+
+    }
+
 
 }

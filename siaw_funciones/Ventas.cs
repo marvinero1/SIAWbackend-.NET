@@ -667,6 +667,7 @@ namespace siaw_funciones
                     }
                 }
                 if (DBNull.Value.Equals(reg.subtotal_descto_extra) || reg.subtotal_descto_extra == 0)
+                // if (DBNull.Value.Equals(reg.subtotal_descto_extra))
                 {
                     reg.monto_descto = (reg.total / 100) * reg.porcentaje;
                     reg.subtotal_descto_extra = reg.total - reg.monto_descto;

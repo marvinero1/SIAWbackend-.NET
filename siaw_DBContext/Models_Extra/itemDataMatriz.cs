@@ -67,9 +67,9 @@
         public int coddesextra { get; set; }
         public decimal porcen { get; set; }
         public decimal montodoc { get; set; }
-        public int? codcobranza { get; set; }
-        public int? codcobranza_contado { get; set; }
-        public int? codanticipo { get; set; }
+        public int? codcobranza { get; set; } = 0;
+        public int? codcobranza_contado { get; set; } = 0;
+        public int? codanticipo { get; set; } = 0;
         public int id { get; set; }
 
         public string? aplicacion { get; set; }
@@ -90,8 +90,8 @@
         public decimal monto { get; set; }
         public string moneda { get; set; }
         public decimal montodoc { get; set; }
-        public int? codcobranza { get; set; }
-        public string? descripcion { get; set; }
+        public int? codcobranza { get; set; } = 0;
+        public string? descripcion { get; set; } = "";
 
     }
 
@@ -143,5 +143,6 @@
         public decimal? peso { get; set; }
         public int? nroitem { get; set; }
         public int id { get; set; }
+        public decimal porcen_mercaderia { get; set; }
     }
 }

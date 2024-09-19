@@ -32,6 +32,7 @@ namespace siaw_funciones
         private Ventas ventas = new Ventas();
         private Inventario inventario = new Inventario();
         private Empresa empresa = new Empresa();
+        private Almacen almacen = new Almacen();
         public async Task<double> empaqueminimo(DBContext _context, string codigo, int codtarifa, int coddescuento)
         {
             // sacar el empaque de tarifa
@@ -265,7 +266,7 @@ namespace siaw_funciones
             decimal saldo;
             decimal CANTIDAD_PERMITIDA_SEG_PORCEN = 0;
             decimal empaque_precio = 0;
-            List<double> lista_empaque_alternativo_precio;
+            // List<double> lista_empaque_alternativo_precio;
             bool cantidad_es_multiplo = true;
             DataTable dtsaldo = new DataTable();
 
@@ -276,12 +277,20 @@ namespace siaw_funciones
             double porcen_vta_dias = 0;
             bool obtener_saldos_otras_ags_localmente = await saldos.Obtener_Saldos_Otras_Agencias_Localmente_context(_context, cod_empresa); // si se obtener las cantidades reservadas de las proformas o no
             bool obtener_cantidades_aprobadas_de_proformas = await saldos.Obtener_Cantidades_Aprobadas_De_Proformas(_context, cod_empresa); // si se obtener las cantidades reservadas de las proformas o no
+            var esTienda = await almacen.Es_Tienda(_context, codalmacen);
+
+            // SE MOVIO A FUERA DEL LLAMADO DE LA FUNCION PARA OPTIMIZAR
+            int AlmacenLocalEmpresa = await empresa.AlmacenLocalEmpresa_context(_context, cod_empresa);
 
             foreach (var unido in dtunido)
             {
-                // SE MOVIO A FUERA DEL LLAMADO DE LA FUNCION PARA OPTIMIZAR
-                int AlmacenLocalEmpresa = await empresa.AlmacenLocalEmpresa_context(_context, cod_empresa);
-                saldo = await saldos.SaldoItem_CrtlStock_Para_Ventas_Sam(_context, unido.codigo, codalmacen, true, id_pf, nro_id_pf, true, cod_empresa, usrreg, obtener_saldos_otras_ags_localmente, obtener_cantidades_aprobadas_de_proformas, AlmacenLocalEmpresa);
+                
+                var resultado = await saldos.SaldoItem_CrtlStock_Para_Ventas_Sam(_context, unido.codigo, codalmacen, esTienda, true, id_pf, nro_id_pf, true, cod_empresa, usrreg, obtener_saldos_otras_ags_localmente, obtener_cantidades_aprobadas_de_proformas, AlmacenLocalEmpresa);
+                // saldo = await saldos.SaldoItem_CrtlStock_Para_Ventas_Sam(_context, unido.codigo, codalmacen, esTienda, true, id_pf, nro_id_pf, true, cod_empresa, usrreg, obtener_saldos_otras_ags_localmente, obtener_cantidades_aprobadas_de_proformas, AlmacenLocalEmpresa);
+
+                saldo = resultado.cantidad_ag_local_incluye_cubrir;
+
+
                 if (saldo < 0) { saldo = 0; }
                 saldo = Math.Round(saldo, 2);
                 unido.saldo = (decimal)saldo;
@@ -327,7 +336,7 @@ namespace siaw_funciones
                 empaque_precio = await ventas.EmpaquePrecio(_context, unido.codigo, unido.codtarifa);
                 unido.empaque_precio = (int)empaque_precio;
                 //obtener la lista de empaque alternativos con las cantidades por empaque y precio e item
-                lista_empaque_alternativo_precio = await ventas.Empaques_Alternativos_Lista(_context, unido.codtarifa, unido.codigo);
+                // lista_empaque_alternativo_precio = await ventas.Empaques_Alternativos_Lista(_context, unido.codtarifa, unido.codigo);
                 //si la cantidad del pedido es 0 no hay nada que validar
                 if (unido.cantidad_pf_total == 0 || unido.cantidad == 0)
                 {
@@ -395,7 +404,8 @@ namespace siaw_funciones
                         }
                         else
                         {
-                            if (unido.cantidad == empaque_precio || lista_empaque_alternativo_precio.Contains((double)unido.cantidad))
+                            // if (unido.cantidad == empaque_precio || lista_empaque_alternativo_precio.Contains((double)unido.cantidad))
+                            if (unido.cantidad == empaque_precio)
                             {
                                 unido.obs = "Cumple";
                             }

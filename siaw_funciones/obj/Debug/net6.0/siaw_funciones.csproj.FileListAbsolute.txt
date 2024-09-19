@@ -28,9 +28,9 @@ C:\laragon\www\siawbackend-.net\siaw_funciones\obj\Debug\net6.0\siaw_funciones.G
 C:\laragon\www\siawbackend-.net\siaw_funciones\obj\Debug\net6.0\siaw_funciones.AssemblyInfoInputs.cache
 C:\laragon\www\siawbackend-.net\siaw_funciones\obj\Debug\net6.0\siaw_funciones.AssemblyInfo.cs
 C:\laragon\www\siawbackend-.net\siaw_funciones\obj\Debug\net6.0\siaw_funciones.csproj.CoreCompileInputs.cache
+C:\laragon\www\siawbackend-.net\siaw_funciones\obj\Debug\net6.0\siaw_funciones.sourcelink.json
+C:\laragon\www\siawbackend-.net\siaw_funciones\obj\Debug\net6.0\siaw_fun.7DB6FAD6.Up2Date
 C:\laragon\www\siawbackend-.net\siaw_funciones\obj\Debug\net6.0\siaw_funciones.dll
 C:\laragon\www\siawbackend-.net\siaw_funciones\obj\Debug\net6.0\refint\siaw_funciones.dll
 C:\laragon\www\siawbackend-.net\siaw_funciones\obj\Debug\net6.0\siaw_funciones.genruntimeconfig.cache
 C:\laragon\www\siawbackend-.net\siaw_funciones\obj\Debug\net6.0\ref\siaw_funciones.dll
-C:\laragon\www\siawbackend-.net\siaw_funciones\obj\Debug\net6.0\siaw_funciones.sourcelink.json
-C:\laragon\www\siawbackend-.net\siaw_funciones\obj\Debug\net6.0\siaw_fun.7DB6FAD6.Up2Date

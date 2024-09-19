@@ -2,6 +2,8 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
+using Polly.Retry;
 using SIAW.Controllers.ventas.modificacion;
 using siaw_DBContext.Data;
 using siaw_DBContext.Models;
@@ -44,6 +46,12 @@ namespace SIAW.Controllers.ventas.transaccion
 
         private readonly Log log = new Log();
         private readonly string _controllerName = "veremisionController";
+
+        // Definir la política de reintento como una propiedad global
+        private readonly AsyncRetryPolicy _retryPolicy;
+
+
+
         public veremisionController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;
@@ -139,7 +147,7 @@ namespace SIAW.Controllers.ventas.transaccion
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
-                return Problem("Error en el servidor : " + ex.Message);
+                return Problem("Error en el servidor al validar transferencia de proforma en NR : " + ex.Message);
                 throw;
             }
         }
@@ -202,7 +210,7 @@ namespace SIAW.Controllers.ventas.transaccion
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
-                return Problem("Error en el servidor : " + ex.Message);
+                return Problem("Error en el servidor al transferir Proforma en NR : " + ex.Message);
                 throw;
             }
         }
@@ -221,6 +229,16 @@ namespace SIAW.Controllers.ventas.transaccion
                 .FirstOrDefaultAsync();
 
             string _codcliente_real = cabecera.codcliente_real;
+
+            
+            if (cabecera.tipo_complementopf == 0)
+            {
+                cabecera.tipo_complementopf = 3;
+            }
+            if (cabecera.tipo_complementopf == 1 || cabecera.tipo_complementopf == 2)
+            {
+                cabecera.tipo_complementopf = cabecera.tipo_complementopf - 1;
+            }
 
 
             // obtener razon social de cliente
@@ -353,6 +371,7 @@ namespace SIAW.Controllers.ventas.transaccion
         [Route("grabarNotaRemision/{userConn}/{id}/{usuario}/{desclinea_segun_solicitud}/{codProforma}/{id_pf}/{nroid_pf}/{codempresa}/{id_solurg}/{nroid_solurg}/{sin_validar}/{sin_validar_empaques}/{sin_validar_negativos}/{sin_validar_monto_min_desc}/{sin_validar_monto_total}/{sin_validar_doc_ant_inv}")]
         public async Task<object> grabarNotaRemision(string userConn, string id, string usuario, bool desclinea_segun_solicitud, int codProforma, string id_pf, int nroid_pf, string codempresa, string id_solurg, int nroid_solurg, bool sin_validar, bool sin_validar_empaques, bool sin_validar_negativos, bool sin_validar_monto_min_desc, bool sin_validar_monto_total, bool sin_validar_doc_ant_inv, SaveNRemisionCompleta datosRemision)
         {
+            bool resultado = false;
             // borrar los items con cantidad cero
             datosRemision.veremision1.RemoveAll(i => i.cantidad <= 0);
             if (datosRemision.veremision1.Count() <= 0)
@@ -380,26 +399,49 @@ namespace SIAW.Controllers.ventas.transaccion
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
-                using (var dbContexTransaction = _context.Database.BeginTransaction())
+                try
                 {
-                    try
-                    {
-                        /*
+                    /*
                         recalcularprecios()
                         Me.versubtotal()
                         Me.verdesextra()
                         Me.verrecargos()
                         Me.vertotal()
                         */
-                        /////**************************VALIDAR DATOS PARA GRABAR UNA NOTA DE REMISION
-                        var validacion = await Validar_Grabar_Nota_Remision(_context, sin_validar, sin_validar_empaques, sin_validar_negativos, sin_validar_monto_min_desc, sin_validar_monto_total, sin_validar_doc_ant_inv, id_pf, nroid_pf, codProforma, codempresa, usuario, datosRemision);
-                        if (validacion.resp == false)
-                        {
-                            //return BadRequest(new { resp = validacion.resp, validacion.msgAlert, validacion.dtnegativos_result, validacion.codigo_control });
-                            //return BadRequest(new { resp = validacion.resp, validacion.msgsAlert, validacion.dtnegativos_result, validacion.codigo_control });
-                            return StatusCode(203, new { resp = validacion.resp, validacion.msgsAlert, validacion.dtnegativos_result, validacion.codigo_control });
-                        }
-                        /////**************************
+                    /////**************************VALIDAR DATOS PARA GRABAR UNA NOTA DE REMISION
+                    
+                    var validacion = await Validar_Grabar_Nota_Remision(_context, sin_validar, sin_validar_empaques, sin_validar_negativos, sin_validar_monto_min_desc, sin_validar_monto_total, sin_validar_doc_ant_inv, id_pf, nroid_pf, codProforma, codempresa, usuario, datosRemision);
+                    if (validacion.resp == false)
+                    {
+                        //return BadRequest(new { resp = validacion.resp, validacion.msgAlert, validacion.dtnegativos_result, validacion.codigo_control });
+                        //return BadRequest(new { resp = validacion.resp, validacion.msgsAlert, validacion.dtnegativos_result, validacion.codigo_control });
+                        return StatusCode(203, new { resp = validacion.resp, validacion.msgsAlert, validacion.dtnegativos_result, validacion.codigo_control });
+                    }
+
+                    /////**************************
+
+                }
+                catch (Exception ex)
+                {
+                    return Problem($"Error en el servidor al Validar NR: {ex.Message}");
+                }
+
+                /*
+                // Usa la política de reintento desde la clase RetryPolicyService
+                await RetryPolicyService.RetryPolicy.ExecuteAsync(async () =>
+                {
+                    
+                });
+                */
+
+
+
+
+
+                using (var dbContexTransaction = _context.Database.BeginTransaction())
+                {
+                    try
+                    {
 
 
 
@@ -410,6 +452,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         {
                             return BadRequest(new { resp = doc_grabado.resp, msgAlert = "No se pudo Grabar la Nota de Remision con Exito." });
                         }
+                        resultado = true;
                         await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, doc_grabado.codNRemision.ToString(), datosRemision.veremision.id, doc_grabado.numeroId.ToString(), this._controllerName, "Grabar", Log.TipoLog.Creacion);
                         // devolver
                         string msgAlertGrabado = "Se grabo la Nota de Remision " + datosRemision.veremision.id + "-" + doc_grabado.numeroId + " con Exito.";
@@ -474,7 +517,7 @@ namespace SIAW.Controllers.ventas.transaccion
                          */
 
 
-                        dbContexTransaction.Commit();
+                        await dbContexTransaction.CommitAsync();
                         return Ok(new
                         {
                             resp = msgAlertGrabado,
@@ -487,12 +530,25 @@ namespace SIAW.Controllers.ventas.transaccion
                     }
                     catch (Exception ex)
                     {
-                        dbContexTransaction.Rollback();
-                        return Problem($"Error en el servidor: {ex.Message}");
+                        await dbContexTransaction.RollbackAsync();
+                        return Problem($"Error en el servidor al grabar NR: {ex.Message}");
                         throw;
                     }
                 }
+
+
+                /*
+                // Asegurarse de que se devuelva algo en todos los casos
+                if (resultado == false)
+                {
+                    return Problem("Ocurrió un error inesperado y no se pudo procesar la solicitud.");
+                }
+                */
+
             }
+            // Retorno en caso de éxito inesperado
+            //return Ok(new { resp = "Solicitud procesada correctamente." });
+
         }
 
 
@@ -3400,6 +3456,8 @@ namespace SIAW.Controllers.ventas.transaccion
 
                         // Asignar el nombre de la impresora
                         string impresora = await _context.inalmacen.Where(i => i.codigo ==veremision.codalmacen).Select(i => i.impresora_nr).FirstOrDefaultAsync() ?? "";
+                        string pathFile = await mostrardocumento_directo(_context, codClienteReal, codEmpresa, codclientedescripcion, preparacion, veremision);
+
                         if (impresora == "")
                         {
                             return BadRequest(new { resp = "No se encontró una impresora registrada para este código de almacen, consulte con el administrador." });
@@ -3410,7 +3468,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         if (config.IsValid)
                         {
                             // generamos el archivo .txt y regresamos la ruta
-                            string pathFile = await mostrardocumento_directo(_context, codClienteReal, codEmpresa, codclientedescripcion, preparacion, veremision);
+                            //string pathFile = await mostrardocumento_directo(_context, codClienteReal, codEmpresa, codclientedescripcion, preparacion, veremision);
                             // Configurar e iniciar el trabajo de impresión
                             // Aquí iría el código para configurar el documento a imprimir y lanzar la impresión
                             bool impremiendo = await RawPrinterHelper.SendFileToPrinterAsync(config.PrinterName, pathFile);
@@ -3447,7 +3505,7 @@ namespace SIAW.Controllers.ventas.transaccion
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
-                return Problem("Error en el servidor : " + ex.Message);
+                return Problem("Error en el servidor al imprimir NR: " + ex.Message);
                 throw;
             }
         }

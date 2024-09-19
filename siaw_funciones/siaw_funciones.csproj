@@ -7,12 +7,13 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <Optimize>True</Optimize>
+    <Optimize>False</Optimize>
     <DebugType>embedded</DebugType>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <DebugType>embedded</DebugType>
+    <Optimize>False</Optimize>
   </PropertyGroup>
 
   <ItemGroup>
@@ -28,15 +29,15 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\siaw_DBContext\siaw_DBContext.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
     <EditorConfigFiles Remove="C:\laragon\www\siawbackend-.net\siaw_funciones\.editorconfig" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include="C:\laragon\www\siawbackend-.net\siaw_funciones\.editorconfig" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\siaw_DBContext\siaw_DBContext.csproj" />
   </ItemGroup>
 
 </Project>

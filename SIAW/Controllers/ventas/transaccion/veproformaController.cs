@@ -107,9 +107,10 @@ namespace SIAW.Controllers.ventas.transaccion
                     return Ok(result);
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor al obtener tipo Doc Identidad: " + ex.Message);
+                throw;
             }
         }
 
@@ -454,9 +455,10 @@ namespace SIAW.Controllers.ventas.transaccion
                 return Ok(resultados);
 
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor al obtener los saldos detallados: " + ex.Message);
+                throw;
             }
         }
 
@@ -879,9 +881,9 @@ namespace SIAW.Controllers.ventas.transaccion
                     return Ok(empaques);
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor al obtener empaques: " + ex.Message);
                 throw;
             }
         }
@@ -952,9 +954,9 @@ namespace SIAW.Controllers.ventas.transaccion
                     });
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor al obtener precios de items: " + ex.Message);
                 throw;
             }
         }
@@ -1003,9 +1005,9 @@ namespace SIAW.Controllers.ventas.transaccion
                     porcenMaxVnta = "Max Vta: " + porcenMaxVnta + "% del saldo"
                 });
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor : " + ex.Message);
                 throw;
             }
         }
@@ -1047,9 +1049,10 @@ namespace SIAW.Controllers.ventas.transaccion
                 }
 
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor : " + ex.Message);
+                throw;
             }
         }
         //Para obtener si un item esta habilitado para ventas o no
@@ -1091,9 +1094,10 @@ namespace SIAW.Controllers.ventas.transaccion
                     return Ok(nroactual);
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor : " + ex.Message);
+                throw;
             }
         }
 
@@ -1124,10 +1128,10 @@ namespace SIAW.Controllers.ventas.transaccion
                         return Ok(new { resp = "Cliente creado exitosamente" });
 
                     }
-                    catch (Exception)
+                    catch (Exception ex)
                     {
                         dbContexTransaction.Rollback();
-                        return Problem("Error en el servidor");
+                        return Problem("Error en el servidor al crear cliente : " + ex.Message);
                         throw;
                     }
                 }
@@ -1181,9 +1185,9 @@ namespace SIAW.Controllers.ventas.transaccion
                 }
                 else { return BadRequest(new { resp = "No se pudo validar el documento." }); }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor al validar Proforma: " + ex.Message);
                 throw;
             }
 
@@ -1229,10 +1233,10 @@ namespace SIAW.Controllers.ventas.transaccion
                         return Ok(new { resp = "Se ha actualizado exitosamente el email del cliente en sus Datos y en datos de la Tienda del Cliente." });
 
                     }
-                    catch (Exception)
+                    catch (Exception ex)
                     {
                         dbContexTransaction.Rollback();
-                        return Problem("Error en el servidor");
+                        return Problem("Error en el servidor al actualizar el correo del cliente: " + ex.Message);
                         throw;
                     }
                 }
@@ -1267,9 +1271,9 @@ namespace SIAW.Controllers.ventas.transaccion
 
                     return Ok(respuestas);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    return Problem("Error en el servidor");
+                    return Problem("Error en el servidor : " + ex.Message);
                     throw;
                 }
             }
@@ -1382,9 +1386,10 @@ namespace SIAW.Controllers.ventas.transaccion
                 }
 
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor al añadir items por Matriz Uno a uno: " + ex.Message);
+                throw;
             }
         }
 
@@ -1426,7 +1431,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         }
                     }*/
 
-                    var resultado = await calculoPreciosMatriz(_context, codempresa, usuario, userConnectionString, data);
+                    var resultado = await calculoPreciosMatriz(_context, codempresa, usuario, userConnectionString, data, true);
 
                     if (resultado == null)
                     {
@@ -1435,9 +1440,10 @@ namespace SIAW.Controllers.ventas.transaccion
                     return Ok(resultado);
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor al añadir items por matriz en grupo: " + ex.Message);
+                throw;
             }
         }
 
@@ -1472,9 +1478,10 @@ namespace SIAW.Controllers.ventas.transaccion
                     return Ok(new { total = empaque * cantEmpaques });
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor : " + ex.Message);
+                throw;
             }
         }
 
@@ -1521,9 +1528,10 @@ namespace SIAW.Controllers.ventas.transaccion
                     return Ok(data);
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor : " + ex.Message);
+                throw;
             }
         }
 
@@ -1582,18 +1590,24 @@ namespace SIAW.Controllers.ventas.transaccion
                     return Ok(data);
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor : " + ex.Message);
+                throw;
             }
         }
 
 
 
 
-        private async Task<List<itemDataMatriz>> calculoPreciosMatriz(DBContext _context, string codEmpresa, string usuario, string userConnectionString, List<cargadofromMatriz> data)
+        private async Task<List<itemDataMatriz>> calculoPreciosMatriz(DBContext _context, string codEmpresa, string usuario, string userConnectionString, List<cargadofromMatriz> data, bool calcular_porcentaje)
         {
             List<itemDataMatriz> resultado = new List<itemDataMatriz>();
+            string monedabase = "";
+            int _descuento_precio = 0;
+            //porcentaje de mercaderia
+            decimal porcen_merca = 0;
+            var controla_stok_seguridad = await empresa.ControlarStockSeguridad(userConnectionString, codEmpresa);
             foreach (var reg in data)
             {
                 //precio unitario del item
@@ -1602,30 +1616,35 @@ namespace SIAW.Controllers.ventas.transaccion
                     .Select(i => i.precio)
                     .FirstOrDefaultAsync() ?? 0;
                 //convertir a la moneda el precio item
-                var monedabase = await ventas.monedabasetarifa(_context, reg.tarifa);
+                monedabase = await ventas.monedabasetarifa(_context, reg.tarifa);
                 precioItem = await tipocambio._conversion(_context, reg.codmoneda, monedabase, reg.fecha, (decimal)precioItem);
                 precioItem = await cliente.Redondear_5_Decimales(_context, (decimal)precioItem);
-                //porcentaje de mercaderia
-                decimal porcen_merca = 0;
-                if (reg.codalmacen > 0)
+                porcen_merca = reg.porcen_mercaderia;
+                if (calcular_porcentaje == true)
                 {
-                    var controla_stok_seguridad = await empresa.ControlarStockSeguridad(userConnectionString, codEmpresa);
-                    if (controla_stok_seguridad == true)
+                    if (reg.codalmacen > 0)
                     {
-                        //List<sldosItemCompleto> sld_ctrlstock_para_vtas = await saldos.SaldoItem_CrtlStock_Para_Ventas(userConnectionString, "311", codalmacen, coditem, "PE", "dpd3");
-                        var sld_ctrlstock_para_vtas = await saldos.SaldoItem_CrtlStock_Para_Ventas(userConnectionString, "", reg.codalmacen, reg.coditem, codEmpresa, usuario);
-                        if (sld_ctrlstock_para_vtas > 0)
+                        if (controla_stok_seguridad == true)
                         {
-                            porcen_merca = reg.cantidad * 100 / sld_ctrlstock_para_vtas;
+                            //List<sldosItemCompleto> sld_ctrlstock_para_vtas = await saldos.SaldoItem_CrtlStock_Para_Ventas(userConnectionString, "311", codalmacen, coditem, "PE", "dpd3");
+                            var sld_ctrlstock_para_vtas = await saldos.SaldoItem_CrtlStock_Para_Ventas(userConnectionString, "", reg.codalmacen, reg.coditem, codEmpresa, usuario);
+                            if (sld_ctrlstock_para_vtas > 0)
+                            {
+                                porcen_merca = reg.cantidad * 100 / sld_ctrlstock_para_vtas;
+                            }
+                            else { porcen_merca = 0; }
                         }
                         else { porcen_merca = 0; }
                     }
-                    else { porcen_merca = 0; }
+                    else
+                    {
+                        porcen_merca = 0;
+                    }
                 }
-                else { porcen_merca = 0; }
+
 
                 // descuento asignar asutomaticamente dependiendo de cantidad
-                var _descuento_precio = await ventas.Codigo_Descuento_Especial_Precio(_context, reg.tarifa);
+                _descuento_precio = await ventas.Codigo_Descuento_Especial_Precio(_context, reg.tarifa);
                 // pregunta si la cantidad ingresada cumple o no el empaque para descuento
                 if (await ventas.Cumple_Empaque_De_DesctoEspecial(_context, reg.coditem, reg.tarifa, _descuento_precio, reg.cantidad, reg.codcliente))
                 {
@@ -1691,7 +1710,7 @@ namespace SIAW.Controllers.ventas.transaccion
             {
                 return null;
             }
-            resultado = resultado.OrderBy(i => i.nroitem).ThenByDescending(i=>i.coddescuento).ToList();
+            resultado = resultado.OrderBy(i => i.nroitem).ThenByDescending(i => i.coddescuento).ToList();
             return resultado;
         }
 
@@ -1970,7 +1989,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     catch (Exception ex)
                     {
                         dbContexTransaction.Rollback();
-                        return Problem($"Error en el servidor: {ex.Message}");
+                        return Problem($"Error en el servidor al guardar Proforma: {ex.Message}");
                         throw;
                     }
                 }
@@ -2280,6 +2299,19 @@ namespace SIAW.Controllers.ventas.transaccion
             {
                 return (false, "Verifique que el NIT tenga el formato correcto!!! " + respNITValido.Mensaje);
             }
+            if (veproforma.tipopago==1 && veproforma.contra_entrega == true) // 0 = CONTADO, 1 = CREDITO
+            {
+                return (false, "LA PROFORMA NO PUEDE SER TIPO CREDITO Y CONTADO CONTRA ENTREGA, VERIFIQUE ESTA SITUACIÓN.");
+            }
+            if (veproforma.tipopago == 0 && veproforma.pago_contado_anticipado==true && veproforma.contra_entrega == true) // 0 = CONTADO, 1 = CREDITO
+            {
+                return (false, "LA PROFORMA NO PUEDE SER TIPO CONTADO CONTRA-ENTREGA CON ANTICIPOS, VERIFIQUE ESTA SITUACIÓN.");
+            }
+            if (veproforma.tipopago == 1 && veproforma.pago_contado_anticipado == true) // 0 = CONTADO, 1 = CREDITO
+            {
+                return (false, "LA PROFORMA NO PUEDE SER TIPO CREDITO Y TENER ANTICIPOS, VERIFIQUE ESTA SITUACIÓN.");
+            }
+
 
             if (veproforma.contra_entrega == true)
             {
@@ -2777,7 +2809,8 @@ namespace SIAW.Controllers.ventas.transaccion
                 desc_linea_seg_solicitud = desclinea_segun_solicitud ? "SI" : "NO",  //(SI o NO)
                 codmoneda = veproforma.codmoneda,
                 fecha = veproforma.fecha,
-                nroitem = i.nroitem
+                nroitem = i.nroitem,
+                porcen_mercaderia = i.porcen_mercaderia
             }).ToList();
 
             var tabla_detalle = veproforma1_2.Select(i => new itemDataMatriz
@@ -2790,7 +2823,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 empaque = i.empaque,
                 cantidad_pedida = (double)i.cantidad_pedida,
                 cantidad = (double)i.cantidad,
-                porcen_mercaderia = 0,
+                porcen_mercaderia = Convert.ToDouble(i.porcen_mercaderia),
                 codtarifa = i.codtarifa,
                 coddescuento = i.coddescuento,
                 preciolista = (double)i.preciolista,
@@ -2875,13 +2908,13 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
-                var resultado = await calculoPreciosMatriz(_context, codempresa, usuario, userConnectionString, data);
+                var resultado = await calculoPreciosMatriz(_context, codempresa, usuario, userConnectionString, data, false);
                 if (resultado == null)
                 {
                     return BadRequest(new { resp = "No se encontro informacion con los datos proporcionados." });
                 }
 
-                var totales = await RECALCULARPRECIOS(_context, false, codempresa, cmbtipo_complementopf,codcliente_real, resultado, verecargoprof, veproforma, vedesextraprof);
+                var totales = await RECALCULARPRECIOS(_context, false, codempresa, cmbtipo_complementopf, codcliente_real, resultado, verecargoprof, veproforma, vedesextraprof);
 
 
                 return Ok(new
@@ -2926,9 +2959,9 @@ namespace SIAW.Controllers.ventas.transaccion
                     };
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor al recalcular recargos: " + ex.Message);
                 throw;
             }
         }
@@ -2972,9 +3005,9 @@ namespace SIAW.Controllers.ventas.transaccion
                     return BadRequest(new { resp = "No se seleccionaron descuentos extras" });
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor al recalcular descuentos: " + ex.Message);
                 throw;
             }
         }
@@ -3008,9 +3041,9 @@ namespace SIAW.Controllers.ventas.transaccion
                 }
 
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor : " + ex.Message);
                 throw;
             }
         }
@@ -3614,9 +3647,9 @@ namespace SIAW.Controllers.ventas.transaccion
                     });
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor al transferir desde cotizacion : " + ex.Message);
                 throw;
             }
         }
@@ -3707,9 +3740,9 @@ namespace SIAW.Controllers.ventas.transaccion
                     });
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor al transferir desde proforma: " + ex.Message);
                 throw;
             }
         }
@@ -3846,7 +3879,7 @@ namespace SIAW.Controllers.ventas.transaccion
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
 
-                var resultado = await calculoPreciosMatriz(_context, codempresa, usuario, userConnectionString, data);
+                var resultado = await calculoPreciosMatriz(_context, codempresa, usuario, userConnectionString, data, false);
                 if (resultado == null)
                 {
                     return BadRequest(new { resp = "No se encontro informacion con los datos proporcionados." });
@@ -3926,9 +3959,9 @@ namespace SIAW.Controllers.ventas.transaccion
                     });
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor : " + ex.Message);
                 throw;
             }
         }
@@ -3952,9 +3985,9 @@ namespace SIAW.Controllers.ventas.transaccion
                     });
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor al obtener tarifa principal: " + ex.Message);
                 throw;
             }
         }
@@ -3990,9 +4023,10 @@ namespace SIAW.Controllers.ventas.transaccion
 
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor al validar Recargos para agregar: " + ex.Message);
+                throw;
             }
         }
 
@@ -4120,9 +4154,10 @@ namespace SIAW.Controllers.ventas.transaccion
                 }
 
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor al validar desc. Extra para agregar en PF : " + ex.Message);
+                throw;
             }
         }
 
@@ -4172,11 +4207,11 @@ namespace SIAW.Controllers.ventas.transaccion
                     return Ok(new { tabladescuentos });
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor al quitar desc. por deposito PF : " + ex.Message);
                 throw;
-            }        
+            }
         }
 
         // GET: api/aplicar_descuento_por_deposito/5
@@ -4185,192 +4220,201 @@ namespace SIAW.Controllers.ventas.transaccion
         public async Task<ActionResult<object>> aplicar_descuento_por_deposito(string userConn, string codcliente, string codcliente_real, string nit, string codempresa, double subtotal, string codmoneda, int codproforma, objetoDescDepositos objetoDescDepositos)
         {
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-            using (var _context = DbContextFactory.Create(userConnectionString))
+            
+            try
             {
-                // primero borrar el descuento por deposito
-                List<tabladescuentos> tabladescuentos = objetoDescDepositos.tabladescuentos;
-                tabladescuentos = await borrar_descuento_por_deposito(_context, codempresa, tabladescuentos);
-
-
-                // si el cliente referencia no es el mismo al cliente al cual saldra el pedido
-                // entonces no se busca desctos por deposito
-                // de acuerdo a la nueva politica de desctos, vigente desde el 01-08-2022
-                if (codcliente != codcliente_real)
+                using (var _context = DbContextFactory.Create(userConnectionString))
                 {
-                    return StatusCode(203, new { respOculto = "Cliente referencia no es el mismo que el cliente del pedido." });
-                }
-                getTarifaPrincipal_Rodrigo data = objetoDescDepositos.getTarifaPrincipal;
+                    // primero borrar el descuento por deposito
+                    List<tabladescuentos> tabladescuentos = objetoDescDepositos.tabladescuentos;
+                    tabladescuentos = await borrar_descuento_por_deposito(_context, codempresa, tabladescuentos);
 
 
-                // clientes casualas no deben tener descto por deposito seg/poliita desde el 01-08-2022
-                if (await cliente.Es_Cliente_Casual(_context, codcliente))
-                {
-                    return StatusCode(203, new { respOculto = "Cliente es casual, no puede tener descuento por depósito." });
-                }
-                // verificar si es cliente competencia
-                if (await cliente.EsClienteCompetencia(_context, nit))
-                {
-                    return StatusCode(203, new { respOculto = "Cliente es cliente competencia, no puede tener descuento por depósito." });
-                }
-                // verificar que los desctos esten habilitados para el precio principal de la proforma
-                var coddesextra_deposito = await configuracion.emp_coddesextra_x_deposito(_context, codempresa);
-                var tarifa_main = await validar_Vta.Tarifa_Monto_Min_Mayor_Rodrigo(_context, await validar_Vta.Lista_Precios_En_El_Documento(data.tabladetalle), data.DVTA);
-                if (await ventas.Descuento_Extra_Habilitado_Para_Precio(_context, coddesextra_deposito, tarifa_main) == false)
-                {
-                    return StatusCode(203, new { respOculto = "El descuento no esta habilitado para el precio principal de la proforma." });
-                }
-
-                // la aplicacion del descuento por deposito no esta permitido para 
-                // proformas con codigo de cliente sin nombre
-
-                // +++++SE QUITO LA RESTRICCION DE NO PERMITIR APLICAR DESCTOS POR DEPOSITOS A VENTAS CONTADO SIN NOMBRE EN FECHA 15-05-2019
-
-                // If Not sia_funciones.Cliente.Instancia.EsClienteSinNombre(codcliente.Text, False) Then
-                // verificacion si le corresponde descuento por deposito
-                DateTime Depositos_Desde_Fecha = await configuracion.Depositos_Nuevos_Desde_Fecha(_context);
-                bool buscar_por_nit = false;
-                if (await cliente.EsClienteSinNombre(_context, codcliente))
-                {
-                    buscar_por_nit = true;
-                }
-
-                /////////////////////////////////////////////////////////////////////////////////////////////
-                // DEPOSITOS PENDIENTE DE CBZAS CREDITO
-                var dt_depositos_pendientes = await cobranzas.Depositos_Cobranzas_Credito_Cliente_Sin_Aplicar(_context, "cliente", "", codcliente, nit, codcliente_real, buscar_por_nit, "APLICAR_DESCTO", codproforma, "Proforma_Nueva", codempresa, false, Depositos_Desde_Fecha, true);
-
-                foreach (var reg in dt_depositos_pendientes)
-                {
-                    reg.tipo_pago = "es_cbza_credito";
-                    if (reg.tipo == 0)
+                    // si el cliente referencia no es el mismo al cliente al cual saldra el pedido
+                    // entonces no se busca desctos por deposito
+                    // de acuerdo a la nueva politica de desctos, vigente desde el 01-08-2022
+                    if (codcliente != codcliente_real)
                     {
-                        // la moneda de pago igual a dela cobrzna
-                        reg.monpago = reg.moncbza;
+                        return StatusCode(203, new { respOculto = "Cliente referencia no es el mismo que el cliente del pedido." });
                     }
-                    else
+                    getTarifaPrincipal_Rodrigo data = objetoDescDepositos.getTarifaPrincipal;
+
+
+                    // clientes casualas no deben tener descto por deposito seg/poliita desde el 01-08-2022
+                    if (await cliente.Es_Cliente_Casual(_context, codcliente))
                     {
-                        reg.monpago = await cobranzas.Moneda_De_Pago_de_una_Cobranza2(_context, reg.codcobranza, reg.codremision);
+                        return StatusCode(203, new { respOculto = "Cliente es casual, no puede tener descuento por depósito." });
                     }
-                }
-                var dt_credito_depositos_pendientes = await cobranzas.Totalizar_Cobranzas_Depositos_Pendientes(_context, dt_depositos_pendientes);
+                    // verificar si es cliente competencia
+                    if (await cliente.EsClienteCompetencia(_context, nit))
+                    {
+                        return StatusCode(203, new { respOculto = "Cliente es cliente competencia, no puede tener descuento por depósito." });
+                    }
+                    // verificar que los desctos esten habilitados para el precio principal de la proforma
+                    var coddesextra_deposito = await configuracion.emp_coddesextra_x_deposito(_context, codempresa);
+                    var tarifa_main = await validar_Vta.Tarifa_Monto_Min_Mayor_Rodrigo(_context, await validar_Vta.Lista_Precios_En_El_Documento(data.tabladetalle), data.DVTA);
+                    if (await ventas.Descuento_Extra_Habilitado_Para_Precio(_context, coddesextra_deposito, tarifa_main) == false)
+                    {
+                        return StatusCode(203, new { respOculto = "El descuento no esta habilitado para el precio principal de la proforma." });
+                    }
 
-                /////////////////////////////////////////////////////////////////////////////////////////////
+                    // la aplicacion del descuento por deposito no esta permitido para 
+                    // proformas con codigo de cliente sin nombre
 
+                    // +++++SE QUITO LA RESTRICCION DE NO PERMITIR APLICAR DESCTOS POR DEPOSITOS A VENTAS CONTADO SIN NOMBRE EN FECHA 15-05-2019
 
-                /*
-                 
-                '/////////////////////////////////////////////////////////////////////////////////////////////
-                '//DEPOSITOS PENDIENTE DE CBZAS CONTADO
-                'dt_depositos_pendientes.Clear()
-                'dt_depositos_pendientes = sia_funciones.Cobranzas.Instancia.Depositos_Cobranzas_Contado_Cliente_Sin_Aplicar(codcliente_real, codigo.Text, "Proforma_Nueva", sia_compartidos.temporales.Instancia.codempresa)
-                'If Not dt_depositos_pendientes.Columns.Contains("tipo_pago") Then dt_depositos_pendientes.Columns.Add("tipo_pago", System.Type.GetType("System.String"))
-                'For y As Integer = 0 To dt_depositos_pendientes.Rows.Count - 1
-                '    dt_depositos_pendientes.Rows(y)("tipo_pago") = "es_cbza_contado"
-                'Next
+                    // If Not sia_funciones.Cliente.Instancia.EsClienteSinNombre(codcliente.Text, False) Then
+                    // verificacion si le corresponde descuento por deposito
+                    DateTime Depositos_Desde_Fecha = await configuracion.Depositos_Nuevos_Desde_Fecha(_context);
+                    bool buscar_por_nit = false;
+                    if (await cliente.EsClienteSinNombre(_context, codcliente))
+                    {
+                        buscar_por_nit = true;
+                    }
 
-                'dt_contado_depositos_pendientes.Clear()
-                'dt_contado_depositos_pendientes = sia_funciones.Cobranzas.Instancia.Totalizar_Cobranzas_Depositos_Pendientes(dt_depositos_pendientes)
-                '/////////////////////////////////////////////////////////////////////////////////////////////
+                    /////////////////////////////////////////////////////////////////////////////////////////////
+                    // DEPOSITOS PENDIENTE DE CBZAS CREDITO
+                    var dt_depositos_pendientes = await cobranzas.Depositos_Cobranzas_Credito_Cliente_Sin_Aplicar(_context, "cliente", "", codcliente, nit, codcliente_real, buscar_por_nit, "APLICAR_DESCTO", codproforma, "Proforma_Nueva", codempresa, false, Depositos_Desde_Fecha, true);
 
+                    foreach (var reg in dt_depositos_pendientes)
+                    {
+                        reg.tipo_pago = "es_cbza_credito";
+                        if (reg.tipo == 0)
+                        {
+                            // la moneda de pago igual a dela cobrzna
+                            reg.monpago = reg.moncbza;
+                        }
+                        else
+                        {
+                            reg.monpago = await cobranzas.Moneda_De_Pago_de_una_Cobranza2(_context, reg.codcobranza, reg.codremision);
+                        }
+                    }
+                    var dt_credito_depositos_pendientes = await cobranzas.Totalizar_Cobranzas_Depositos_Pendientes(_context, dt_depositos_pendientes);
 
-
-                '/////////////////////////////////////////////////////////////////////////////////////////////
-                '//DEPOSITOS PENDIENTES DE ANTICIPOS PARA VENTAS CONTADO APLICADOS EN PROFORMAS DIRECTAMENTE
-                'dt_depositos_pendientes.Clear()
-                'dt_depositos_pendientes = sia_funciones.Cobranzas.Instancia.Depositos_Anticipos_Contado_Cliente_Sin_Aplicar(codcliente_real, 0, "Proforma_Nueva", sia_compartidos.temporales.Instancia.codempresa)
-                'If Not dt_depositos_pendientes.Columns.Contains("tipo_pago") Then dt_depositos_pendientes.Columns.Add("tipo_pago", System.Type.GetType("System.String"))
-                'For y As Integer = 0 To dt_depositos_pendientes.Rows.Count - 1
-                '    dt_depositos_pendientes.Rows(y)("tipo_pago") = "es_anticipo_contado"
-                'Next
-                'dt_anticipos_depositos_pendientes.Clear()
-                'dt_anticipos_depositos_pendientes = sia_funciones.Cobranzas.Instancia.Totalizar_Cobranzas_Depositos_Pendientes(dt_depositos_pendientes)
-                '/////////////////////////////////////////////////////////////////////////////////////////////
-
-                 */
-
-
-                // esta instruccion es para copiar la estructura de una de las tablas a la tabla final de resultado: dt_depositos_pendientes
-
-                /*
-                 If dt_credito_depositos_pendientes.Rows.Count > 0 Then
-                    dt_depositos_pendientes = dt_credito_depositos_pendientes.Copy
-                    dt_depositos_pendientes.Clear()
-                ElseIf dt_contado_depositos_pendientes.Rows.Count > 0 Then
-                    dt_depositos_pendientes = dt_contado_depositos_pendientes.Copy
-                    dt_depositos_pendientes.Clear()
-                ElseIf dt_anticipos_depositos_pendientes.Rows.Count > 0 Then
-                    dt_depositos_pendientes = dt_anticipos_depositos_pendientes.Copy
-                    dt_depositos_pendientes.Clear()
-                End If
-                 */
-                // ***********************************************************************************************************
-                // ********************************UNIR EN UNA SOLA TABLA***************************************************
-                // ***********************************************************************************************************
-                // copiar los depositos pendientes de cbzas credito
-                /*For h As Integer = 0 To dt_credito_depositos_pendientes.Rows.Count - 1
-                    dt_depositos_pendientes.ImportRow(dt_credito_depositos_pendientes.Rows(h))
-                Next
-                */
+                    /////////////////////////////////////////////////////////////////////////////////////////////
 
 
+                    /*
 
-                // DE MOMENTO SE PUEDE UTILIZAR SOLO ESTO: 
-                ////////////////////////////////////////// dt_credito_depositos_pendientes //////////////////////////////////////////////////////
+                    '/////////////////////////////////////////////////////////////////////////////////////////////
+                    '//DEPOSITOS PENDIENTE DE CBZAS CONTADO
+                    'dt_depositos_pendientes.Clear()
+                    'dt_depositos_pendientes = sia_funciones.Cobranzas.Instancia.Depositos_Cobranzas_Contado_Cliente_Sin_Aplicar(codcliente_real, codigo.Text, "Proforma_Nueva", sia_compartidos.temporales.Instancia.codempresa)
+                    'If Not dt_depositos_pendientes.Columns.Contains("tipo_pago") Then dt_depositos_pendientes.Columns.Add("tipo_pago", System.Type.GetType("System.String"))
+                    'For y As Integer = 0 To dt_depositos_pendientes.Rows.Count - 1
+                    '    dt_depositos_pendientes.Rows(y)("tipo_pago") = "es_cbza_contado"
+                    'Next
+
+                    'dt_contado_depositos_pendientes.Clear()
+                    'dt_contado_depositos_pendientes = sia_funciones.Cobranzas.Instancia.Totalizar_Cobranzas_Depositos_Pendientes(dt_depositos_pendientes)
+                    '/////////////////////////////////////////////////////////////////////////////////////////////
 
 
 
-                // copiar los depositos pendientes de cbzas contado
-                /*For h As Integer = 0 To dt_contado_depositos_pendientes.Rows.Count - 1
-                    dt_depositos_pendientes.ImportRow(dt_contado_depositos_pendientes.Rows(h))
-                Next
-                */
-                // copiar los depositos de anticipos contado aplicados a proforma
-                /*For h As Integer = 0 To dt_anticipos_depositos_pendientes.Rows.Count - 1
-                    dt_depositos_pendientes.ImportRow(dt_anticipos_depositos_pendientes.Rows(h))
-                Next
-                */
-                /*
-                //***********************************************************************************************************
-                'Desde 17-04-2023 Se debe añadir un nuevo campo monpago para determinar con ese tipo de moneda el descueto por deposito
-                'ese campo monpago es la moneda con q se realizo el pago y dio el descuento por deposito respectivo
-                'If Not dt_depositos_pendientes.Columns.Contains("monpago") Then
-                '    'Desde 17-04-2023
-                '    dt_depositos_pendientes.Columns.Add("monpago", System.Type.GetType("System.String"))
-                'End If
-                'Dim j As Integer = 0
-                'Dim reg_1 As DataRow
-                'For j = 0 To dt_depositos_pendientes.Rows.Count - 1
-                '    reg_1 = dt_depositos_pendientes.Rows(j)
-                '    reg_1("monpago") = sia_funciones.Cobranzas.Instancia.Moneda_De_Pago_de_una_Cobranza2(reg_1("codcobranza"), reg_1("monto_dis"))
-                'Next
-                 */
-                string message = "";
-                if (dt_credito_depositos_pendientes.Count() > 0)
-                {
-                    // message = "El cliente tiene descuentos por deposito pendientes de aplicacion, desea aplicar el descuento a esta proforma?";
-                    message = "El cliente tiene descuentos por deposito pendientes de aplicacion, se aplicaran a esta proforma";
-                }
+                    '/////////////////////////////////////////////////////////////////////////////////////////////
+                    '//DEPOSITOS PENDIENTES DE ANTICIPOS PARA VENTAS CONTADO APLICADOS EN PROFORMAS DIRECTAMENTE
+                    'dt_depositos_pendientes.Clear()
+                    'dt_depositos_pendientes = sia_funciones.Cobranzas.Instancia.Depositos_Anticipos_Contado_Cliente_Sin_Aplicar(codcliente_real, 0, "Proforma_Nueva", sia_compartidos.temporales.Instancia.codempresa)
+                    'If Not dt_depositos_pendientes.Columns.Contains("tipo_pago") Then dt_depositos_pendientes.Columns.Add("tipo_pago", System.Type.GetType("System.String"))
+                    'For y As Integer = 0 To dt_depositos_pendientes.Rows.Count - 1
+                    '    dt_depositos_pendientes.Rows(y)("tipo_pago") = "es_anticipo_contado"
+                    'Next
+                    'dt_anticipos_depositos_pendientes.Clear()
+                    'dt_anticipos_depositos_pendientes = sia_funciones.Cobranzas.Instancia.Totalizar_Cobranzas_Depositos_Pendientes(dt_depositos_pendientes)
+                    '/////////////////////////////////////////////////////////////////////////////////////////////
 
-                var seAplicoDsctoPorDeposito = await ventas.AdicionarDescuentoPorDeposito(_context, subtotal, codmoneda, tabladescuentos, dt_credito_depositos_pendientes, objetoDescDepositos.tblcbza_deposito, codproforma, codcliente_real, codempresa);
+                     */
 
-                if (seAplicoDsctoPorDeposito.bandera)
-                {
-                    // devolver mensaje, data de descuentos y mensaje grande de Descuentos por deposito llamado desde una clase
-                    var cadena_msg = await cobranzas.mostrar_mensajes_depositos_aplicar(_context,codempresa, dt_depositos_pendientes, seAplicoDsctoPorDeposito.tabladescuentos);
+
+                    // esta instruccion es para copiar la estructura de una de las tablas a la tabla final de resultado: dt_depositos_pendientes
+
+                    /*
+                     If dt_credito_depositos_pendientes.Rows.Count > 0 Then
+                        dt_depositos_pendientes = dt_credito_depositos_pendientes.Copy
+                        dt_depositos_pendientes.Clear()
+                    ElseIf dt_contado_depositos_pendientes.Rows.Count > 0 Then
+                        dt_depositos_pendientes = dt_contado_depositos_pendientes.Copy
+                        dt_depositos_pendientes.Clear()
+                    ElseIf dt_anticipos_depositos_pendientes.Rows.Count > 0 Then
+                        dt_depositos_pendientes = dt_anticipos_depositos_pendientes.Copy
+                        dt_depositos_pendientes.Clear()
+                    End If
+                     */
+                    // ***********************************************************************************************************
+                    // ********************************UNIR EN UNA SOLA TABLA***************************************************
+                    // ***********************************************************************************************************
+                    // copiar los depositos pendientes de cbzas credito
+                    /*For h As Integer = 0 To dt_credito_depositos_pendientes.Rows.Count - 1
+                        dt_depositos_pendientes.ImportRow(dt_credito_depositos_pendientes.Rows(h))
+                    Next
+                    */
+
+
+
+                    // DE MOMENTO SE PUEDE UTILIZAR SOLO ESTO: 
+                    ////////////////////////////////////////// dt_credito_depositos_pendientes //////////////////////////////////////////////////////
+
+
+
+                    // copiar los depositos pendientes de cbzas contado
+                    /*For h As Integer = 0 To dt_contado_depositos_pendientes.Rows.Count - 1
+                        dt_depositos_pendientes.ImportRow(dt_contado_depositos_pendientes.Rows(h))
+                    Next
+                    */
+                    // copiar los depositos de anticipos contado aplicados a proforma
+                    /*For h As Integer = 0 To dt_anticipos_depositos_pendientes.Rows.Count - 1
+                        dt_depositos_pendientes.ImportRow(dt_anticipos_depositos_pendientes.Rows(h))
+                    Next
+                    */
+                    /*
+                    //***********************************************************************************************************
+                    'Desde 17-04-2023 Se debe añadir un nuevo campo monpago para determinar con ese tipo de moneda el descueto por deposito
+                    'ese campo monpago es la moneda con q se realizo el pago y dio el descuento por deposito respectivo
+                    'If Not dt_depositos_pendientes.Columns.Contains("monpago") Then
+                    '    'Desde 17-04-2023
+                    '    dt_depositos_pendientes.Columns.Add("monpago", System.Type.GetType("System.String"))
+                    'End If
+                    'Dim j As Integer = 0
+                    'Dim reg_1 As DataRow
+                    'For j = 0 To dt_depositos_pendientes.Rows.Count - 1
+                    '    reg_1 = dt_depositos_pendientes.Rows(j)
+                    '    reg_1("monpago") = sia_funciones.Cobranzas.Instancia.Moneda_De_Pago_de_una_Cobranza2(reg_1("codcobranza"), reg_1("monto_dis"))
+                    'Next
+                     */
+                    string message = "";
+                    if (dt_credito_depositos_pendientes.Count() > 0)
+                    {
+                        // message = "El cliente tiene descuentos por deposito pendientes de aplicacion, desea aplicar el descuento a esta proforma?";
+                        message = "El cliente tiene descuentos por deposito pendientes de aplicacion, se aplicaran a esta proforma";
+                    }
+
+                    var seAplicoDsctoPorDeposito = await ventas.AdicionarDescuentoPorDeposito(_context, subtotal, codmoneda, tabladescuentos, dt_credito_depositos_pendientes, objetoDescDepositos.tblcbza_deposito, codproforma, codcliente_real, codempresa);
+
+                    if (seAplicoDsctoPorDeposito.bandera)
+                    {
+                        // devolver mensaje, data de descuentos y mensaje grande de Descuentos por deposito llamado desde una clase
+                        var cadena_msg = await cobranzas.mostrar_mensajes_depositos_aplicar(_context, codempresa, dt_depositos_pendientes, seAplicoDsctoPorDeposito.tabladescuentos);
+                        return Ok(new
+                        {
+                            tabladescuentos = seAplicoDsctoPorDeposito.tabladescuentos,
+                            msgDesctApli = seAplicoDsctoPorDeposito.mensaje,
+                            msgVentCob = cadena_msg,
+                            megAlert = message
+                        });
+                    }
                     return Ok(new
                     {
-                        tabladescuentos = seAplicoDsctoPorDeposito.tabladescuentos,
+                        tabladescuentos = tabladescuentos,
                         msgDesctApli = seAplicoDsctoPorDeposito.mensaje,
-                        msgVentCob = cadena_msg,
-                        megAlert = message
+                        msgVentCob = "",
+                        megAlert = "No se encontraron descuentos por deposito pendientes de aplicación."
                     });
                 }
-                return Ok(new
-                {
-                    tabladescuentos = tabladescuentos,
-                    msgDesctApli = seAplicoDsctoPorDeposito.mensaje,
-                    msgVentCob = "",
-                    megAlert = "No se encontraron descuentos por deposito pendientes de aplicación."
-                });
+            }
+            catch (Exception ex)
+            {
+                return Problem("Error en el servidor al aplicar descuento por Deposito: " + ex.Message);
+                throw;
             }
         }
 
@@ -4398,9 +4442,10 @@ namespace SIAW.Controllers.ventas.transaccion
                     return Ok(new { mensaje = "ENTREGAR" });
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor : " + ex.Message);
+                throw;
             }
         }
 
@@ -4447,9 +4492,9 @@ namespace SIAW.Controllers.ventas.transaccion
                     return BadRequest(new { reg = "Debe seleccionar items para poder validar los empaques cerrados."});
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor : " + ex.Message);
                 throw;
             }
         }
@@ -4479,9 +4524,9 @@ namespace SIAW.Controllers.ventas.transaccion
                     return BadRequest(new { reg = "Debe seleccionar items para poder validar los empaques cerrados." });
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor : " + ex.Message);
                 throw;
             }
         }
@@ -4568,11 +4613,11 @@ namespace SIAW.Controllers.ventas.transaccion
                             nroitem = i.nroitem
                         }).ToList();
 
-                    var tablaDetalleExtra = await calculoPreciosMatriz(_context, codempresa, usuario, userConnectionString, data);
+                    var tablaDetalleExtra = await calculoPreciosMatriz(_context, codempresa, usuario, userConnectionString, data,false);
 
                     if (tablaDetalleExtra == null)
                     {
-                        return BadRequest(new { resp = "No se encontro informacion con los datos proporcionados." });
+                        return StatusCode(203,new { resp = "Los items ya cumplen con empaques, no se dividiran." });
                     }
                     tabladetalle = tabladetalle.Concat(tablaDetalleExtra).OrderBy(i=>i.coditem).ThenByDescending(i=> i.coddescuento).ToList();
 
@@ -4584,9 +4629,9 @@ namespace SIAW.Controllers.ventas.transaccion
 
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor al dividir items : " + ex.Message);
                 throw;
             }
         }
@@ -4677,9 +4722,9 @@ namespace SIAW.Controllers.ventas.transaccion
                     });
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor al aplicar descuento especial segun precio: " + ex.Message);
                 throw;
             }
         }
@@ -4723,9 +4768,9 @@ namespace SIAW.Controllers.ventas.transaccion
                     });
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor al validar descuento especial por empaque: " + ex.Message);
                 throw;
             }
         }
@@ -4753,7 +4798,7 @@ namespace SIAW.Controllers.ventas.transaccion
                             cumpleMin = i.cumpleMin
                         }).ToList();
 
-                var tablaDetalleNew = await calculoPreciosMatriz(_context, codempresa, usuario, userConnectionString, data);
+                var tablaDetalleNew = await calculoPreciosMatriz(_context, codempresa, usuario, userConnectionString, data, false);
                 return (resultados.result, tablaDetalleNew);
             }
             return (false, tabladetalle);
@@ -4787,9 +4832,9 @@ namespace SIAW.Controllers.ventas.transaccion
                     });
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor : " + ex.Message);
                 throw;
             }
         }
@@ -4867,12 +4912,12 @@ namespace SIAW.Controllers.ventas.transaccion
                 }
 
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor al obtener ultimas proformas: " + ex.Message);
                 throw;
             }
-            
+
         }
 
         [HttpGet]
@@ -4992,9 +5037,9 @@ namespace SIAW.Controllers.ventas.transaccion
                     }
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor : " + ex.Message);
                 throw;
             }
         }
@@ -5013,9 +5058,9 @@ namespace SIAW.Controllers.ventas.transaccion
                 }
 
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor : " + ex.Message);
                 throw;
             }
         }
@@ -5102,9 +5147,9 @@ namespace SIAW.Controllers.ventas.transaccion
                     }
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor al recuperar proforma complemento: " + ex.Message);
                 throw;
             }
         }
@@ -5159,12 +5204,12 @@ namespace SIAW.Controllers.ventas.transaccion
                 //await funciones.DecryptData(Path.Combine(_targetDirectory, primerArchivo), Path.Combine(_targetDirectory, "profor.xml"), key, IV2);
                 return Ok(new { respXml = xmlDecript });
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor al importar proforma: " + ex.Message);
                 throw;
             }
-           
+
         }
 
 
@@ -5255,9 +5300,9 @@ namespace SIAW.Controllers.ventas.transaccion
                     vedesclienteList
                 });
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor al importar proforma en JSON: " + ex.Message);
                 throw;
             }
             finally
@@ -5322,9 +5367,9 @@ namespace SIAW.Controllers.ventas.transaccion
                     return Ok(result.resp);
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor al exportar proforma ZIP: " + ex.Message);
                 throw;
             }
         }
@@ -5944,9 +5989,9 @@ namespace SIAW.Controllers.ventas.transaccion
                 }
 
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor al obtener los datos para PDF: " + ex.Message);
                 throw;
             }
         }
@@ -5982,9 +6027,9 @@ namespace SIAW.Controllers.ventas.transaccion
                 }
 
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor : " + ex.Message);
                 throw;
             }
         }
@@ -6050,9 +6095,9 @@ namespace SIAW.Controllers.ventas.transaccion
                 }
 
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor : " + ex.Message);
                 throw;
             }
         }
@@ -6150,9 +6195,9 @@ namespace SIAW.Controllers.ventas.transaccion
                 }
 
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor : " + ex.Message);
                 throw;
             }
         }
@@ -6173,9 +6218,9 @@ namespace SIAW.Controllers.ventas.transaccion
                 }
 
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor : " + ex.Message);
                 throw;
             }
         }
@@ -6277,6 +6322,7 @@ namespace SIAW.Controllers.ventas.transaccion
         public string ? medida { get; set; }
         public int orden_pedido { get; set; }
         public int ? nroitem { get; set; }
+        public decimal porcen_mercaderia { get; set; }
     }
     public class getTarifaPrincipal_Rodrigo
     {

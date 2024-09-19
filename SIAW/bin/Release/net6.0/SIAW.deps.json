@@ -14,6 +14,7 @@
           "Microsoft.EntityFrameworkCore.SqlServer": "6.0.18",
           "Microsoft.EntityFrameworkCore.Tools": "6.0.18",
           "Microsoft.VisualStudio.Web.CodeGeneration.Design": "6.0.14",
+          "Polly": "8.4.1",
           "Swashbuckle.AspNetCore": "6.2.3",
           "siaw_DBContext": "1.0.0",
           "siaw_funciones": "1.0.0"
@@ -565,7 +566,7 @@
       "MessagePack/2.1.152": {
         "dependencies": {
           "MessagePack.Annotations": "2.1.152",
-          "Microsoft.Bcl.AsyncInterfaces": "5.0.0",
+          "Microsoft.Bcl.AsyncInterfaces": "6.0.0",
           "System.Memory": "4.5.5",
           "System.Reflection.Emit": "4.6.0",
           "System.Reflection.Emit.Lightweight": "4.6.0",
@@ -641,11 +642,22 @@
           }
         }
       },
-      "Microsoft.Bcl.AsyncInterfaces/5.0.0": {
+      "Microsoft.Bcl.AsyncInterfaces/6.0.0": {
         "runtime": {
           "lib/netstandard2.1/Microsoft.Bcl.AsyncInterfaces.dll": {
-            "assemblyVersion": "5.0.0.0",
-            "fileVersion": "5.0.20.51904"
+            "assemblyVersion": "6.0.0.0",
+            "fileVersion": "6.0.21.52210"
+          }
+        }
+      },
+      "Microsoft.Bcl.TimeProvider/8.0.0": {
+        "dependencies": {
+          "Microsoft.Bcl.AsyncInterfaces": "6.0.0"
+        },
+        "runtime": {
+          "lib/netstandard2.0/Microsoft.Bcl.TimeProvider.dll": {
+            "assemblyVersion": "8.0.0.0",
+            "fileVersion": "8.0.23.53103"
           }
         }
       },
@@ -1037,7 +1049,7 @@
       "Microsoft.CodeAnalysis.Workspaces.Common/4.0.0": {
         "dependencies": {
           "Humanizer.Core": "2.14.1",
-          "Microsoft.Bcl.AsyncInterfaces": "5.0.0",
+          "Microsoft.Bcl.AsyncInterfaces": "6.0.0",
           "Microsoft.CodeAnalysis.Common": "4.0.0",
           "System.Composition": "1.0.31",
           "System.IO.Pipelines": "5.0.1"
@@ -1392,7 +1404,7 @@
         "dependencies": {
           "MessagePack": "2.1.152",
           "MessagePackAnalyzer": "2.1.152",
-          "Microsoft.Bcl.AsyncInterfaces": "5.0.0",
+          "Microsoft.Bcl.AsyncInterfaces": "6.0.0",
           "System.Collections.Immutable": "6.0.0"
         },
         "runtime": {
@@ -1687,6 +1699,28 @@
           "lib/netstandard2.0/NuGet.Versioning.dll": {
             "assemblyVersion": "6.3.1.1",
             "fileVersion": "6.3.1.1"
+          }
+        }
+      },
+      "Polly/8.4.1": {
+        "dependencies": {
+          "Polly.Core": "8.4.1"
+        },
+        "runtime": {
+          "lib/net6.0/Polly.dll": {
+            "assemblyVersion": "8.0.0.0",
+            "fileVersion": "8.4.1.3582"
+          }
+        }
+      },
+      "Polly.Core/8.4.1": {
+        "dependencies": {
+          "Microsoft.Bcl.TimeProvider": "8.0.0"
+        },
+        "runtime": {
+          "lib/net6.0/Polly.Core.dll": {
+            "assemblyVersion": "8.0.0.0",
+            "fileVersion": "8.4.1.3582"
           }
         }
       },
@@ -2595,7 +2629,10 @@
           "siaw_funciones": "1.0.0"
         },
         "runtime": {
-          "LibSIAVB.dll": {}
+          "LibSIAVB.dll": {
+            "assemblyVersion": "1.0.0",
+            "fileVersion": "1.0.0.0"
+          }
         }
       },
       "siaw_DBContext/1.0.0": {
@@ -2606,7 +2643,10 @@
           "Microsoft.VisualStudio.Web.CodeGeneration.Design": "6.0.14"
         },
         "runtime": {
-          "siaw_DBContext.dll": {}
+          "siaw_DBContext.dll": {
+            "assemblyVersion": "1.0.0",
+            "fileVersion": "1.0.0.0"
+          }
         }
       },
       "siaw_funciones/1.0.0": {
@@ -2619,7 +2659,10 @@
           "siaw_DBContext": "1.0.0"
         },
         "runtime": {
-          "siaw_funciones.dll": {}
+          "siaw_funciones.dll": {
+            "assemblyVersion": "1.0.0",
+            "fileVersion": "1.0.0.0"
+          }
         }
       }
     }
@@ -3043,12 +3086,19 @@
       "path": "microsoft.aspnetcore.razor.language/6.0.0",
       "hashPath": "microsoft.aspnetcore.razor.language.6.0.0.nupkg.sha512"
     },
-    "Microsoft.Bcl.AsyncInterfaces/5.0.0": {
+    "Microsoft.Bcl.AsyncInterfaces/6.0.0": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-W8DPQjkMScOMTtJbPwmPyj9c3zYSFGawDW3jwlBOOsnY+EzZFLgNQ/UMkK35JmkNOVPdCyPr2Tw7Vv9N+KA3ZQ==",
-      "path": "microsoft.bcl.asyncinterfaces/5.0.0",
-      "hashPath": "microsoft.bcl.asyncinterfaces.5.0.0.nupkg.sha512"
+      "sha512": "sha512-UcSjPsst+DfAdJGVDsu346FX0ci0ah+lw3WRtn18NUwEqRt70HaOQ7lI72vy3+1LxtqI3T5GWwV39rQSrCzAeg==",
+      "path": "microsoft.bcl.asyncinterfaces/6.0.0",
+      "hashPath": "microsoft.bcl.asyncinterfaces.6.0.0.nupkg.sha512"
+    },
+    "Microsoft.Bcl.TimeProvider/8.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-f5Kr5JepAbiGo7uDmhgvMqhntwxqXNn6/IpTBSSI4cuHhgnJGrLxFRhMjVpRkLPp6zJXO0/G0l3j9p9zSJxa+w==",
+      "path": "microsoft.bcl.timeprovider/8.0.0",
+      "hashPath": "microsoft.bcl.timeprovider.8.0.0.nupkg.sha512"
     },
     "Microsoft.Build/17.3.2": {
       "type": "package",
@@ -3518,6 +3568,20 @@
       "sha512": "sha512-T/igBDLXCd+pH3YTWgGVNvYSOwbwaT30NyyM9ONjvlHlmaUjKBJpr9kH0AeL+Ado4EJsBhU3qxXVc6lyrpRcMw==",
       "path": "nuget.versioning/6.3.1",
       "hashPath": "nuget.versioning.6.3.1.nupkg.sha512"
+    },
+    "Polly/8.4.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-kBxql53peR0bjxeEuuY114GD2rmC0tkUwE1xuKUlnd74ULEsGu3OwcLH56KkwxBPUbOysPa7stT9SJ6pKGTzlg==",
+      "path": "polly/8.4.1",
+      "hashPath": "polly.8.4.1.nupkg.sha512"
+    },
+    "Polly.Core/8.4.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-bg4kE7mFwXc6FJ8NLknTgVgLAMlbToWC7vpdqAITv8lPzKpp9v7aWJPc04GRoZQaJhVY/tdr8K2/VW2aTmaA1Q==",
+      "path": "polly.core/8.4.1",
+      "hashPath": "polly.core.8.4.1.nupkg.sha512"
     },
     "runtime.debian.8-x64.runtime.native.System.Security.Cryptography.OpenSsl/4.3.0": {
       "type": "package",

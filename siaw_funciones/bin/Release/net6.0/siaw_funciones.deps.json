@@ -2580,7 +2580,10 @@
           "Microsoft.VisualStudio.Web.CodeGeneration.Design": "6.0.14"
         },
         "runtime": {
-          "siaw_DBContext.dll": {}
+          "siaw_DBContext.dll": {
+            "assemblyVersion": "1.0.0",
+            "fileVersion": "1.0.0.0"
+          }
         }
       }
     }

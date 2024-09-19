@@ -12,7 +12,8 @@ using Microsoft.EntityFrameworkCore;
 using System.Runtime.Intrinsics.Arm;
 using NuGet.Configuration;
 using System.Globalization;
-
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace siaw_funciones
 {
@@ -34,6 +35,7 @@ namespace siaw_funciones
         private Empresa empresa = new Empresa();
         private Items items = new Items();
         private Log log = new Log();
+        private Almacen almacen = new Almacen();
         public async Task<decimal> SaldoItem_CrtlStock_Para_Ventas(string userConnectionString, string agencia, int codalmacen, string coditem, string codempresa, string usuario)
         {
             //List<sldosItemCompleto> saldos;
@@ -43,26 +45,139 @@ namespace siaw_funciones
             //resultado = tabla;
 
             return resultado;
+
         }
-        public async Task<decimal> SaldoItem_CrtlStock_Para_Ventas_Sam(DBContext _context, string codigo, int codalmacen, bool ctrlSeguridad, string idproforma, int numeroidproforma, bool include_saldos_a_cubrir, string codempresa, string usuario, bool obtener_saldos_otras_ags_localmente, bool obtener_cantidades_aprobadas_de_proformas, int AlmacenLocalEmpresa)
+        public async Task<(decimal cantidad_ag_local, decimal cantidad_ag_local_incluye_cubrir)> SaldoItem_CrtlStock_Para_Ventas_Sam(DBContext _context, string codigo, int codalmacen, bool esTienda, bool ctrlSeguridad, string idproforma, int numeroidproforma, bool include_saldos_a_cubrir, string codempresa, string usuario, bool obtener_saldos_otras_ags_localmente, bool obtener_cantidades_aprobadas_de_proformas, int AlmacenLocalEmpresa)
         {
+
             //List<sldosItemCompleto> saldos;
             //decimal resultado = 0;
             //using (var _context = DbContextFactory.Create(userConnectionString))
             //{
             //precio unitario del item
             //saldos = await SaldosCompleto(userConnectionString, agencia, codalmacen, coditem, codempresa, usuario);
-            decimal saldos = await SaldoItem_Crtlstock_Tabla_Para_Ventas_Sam(_context, codigo, codalmacen, ctrlSeguridad, idproforma, numeroidproforma, include_saldos_a_cubrir, codempresa, usuario, obtener_saldos_otras_ags_localmente, obtener_cantidades_aprobadas_de_proformas, AlmacenLocalEmpresa);
-            //resultado = tabla;
-            //}
-            //for (int i = 0; (i <= (saldos.Count - 1)); i++)
-            //{
-            //resultado = (decimal)saldos[7].valor;
-            //}
+            var resultados = await SaldoItem_Crtlstock_Tabla_Para_Ventas_Sam(_context, codigo, codalmacen, esTienda, ctrlSeguridad, idproforma, numeroidproforma, include_saldos_a_cubrir, codempresa, usuario, obtener_saldos_otras_ags_localmente, obtener_cantidades_aprobadas_de_proformas, AlmacenLocalEmpresa);
+            
+            var detalleSaldos = resultados.detalleSaldos;
+            // var detalleSaldosVariables = resultados.detalleSaldosVariables;
 
-            return saldos;
+            if (detalleSaldos == null)
+            {
+                return (0,0);
+            }
+            decimal cantidad_ag_local = detalleSaldos.Sum(i => i.cantidad_ag_local);
+            decimal cantidad_ag_local_incluye_cubrir = detalleSaldos.Sum(i => i.cantidad_ag_local_incluye_cubrir);
+
+            cantidad_ag_local = cantidad_ag_local < 0 ? 0 : cantidad_ag_local;
+            cantidad_ag_local_incluye_cubrir = cantidad_ag_local_incluye_cubrir < 0 ? 0 : cantidad_ag_local_incluye_cubrir;
+
+            return (cantidad_ag_local, cantidad_ag_local_incluye_cubrir);
         }
-        public async Task<decimal> SaldoItem_Crtlstock_Tabla_Para_Ventas_Sam(DBContext _context, string coditem, int codalmacen, bool ctrlSeguridad, string idproforma, int numeroidproforma, bool include_saldos_a_cubrir, string codempresa, string usuario, bool obtener_saldos_otras_ags_localmente, bool obtener_cantidades_aprobadas_de_proformas, int AlmacenLocalEmpresa)
+
+        public async Task<(List<saldoItem>? detalleSaldos, List<saldoVariable>? detalleSaldosVariables)> SaldoItem_Crtlstock_Tabla_Para_Ventas_Sam(DBContext _context, string coditem, int codalmacen, bool esTienda, bool ctrlSeguridad, string idproforma, int numeroidproforma, bool include_saldos_a_cubrir, string codempresa, string usuario, bool obtener_saldos_otras_ags_localmente, bool obtener_cantidades_aprobadas_de_proformas, int AlmacenLocalEmpresa)
+        {
+            try
+            {
+                // Obtener la conexión gestionada por DbContext
+                var connection = _context.Database.GetDbConnection();
+
+                //await connection.OpenAsync();
+
+                if (connection.State != ConnectionState.Open)
+                {
+                    await connection.OpenAsync();
+                }
+                // Obtener la transacción actual de DbContext, si existe
+                var currentTransaction = _context.Database.CurrentTransaction;
+
+
+                var detalleSaldos = new List<saldoItem> ();
+                var detalleSaldosVariables = new List<saldoVariable> ();
+
+                using (var cmd = connection.CreateCommand())
+                {
+                    cmd.CommandText = "SP_SaldoItem_Crtlstock_Tabla_Para_Ventas";
+                    cmd.CommandType = CommandType.StoredProcedure;
+
+                    // Asignar la transacción actual al comando, si existe
+                    if (currentTransaction != null)
+                    {
+                        cmd.Transaction = currentTransaction.GetDbTransaction();
+                    }
+
+                    // Añadir los parámetros al comando
+                    cmd.Parameters.Add(new SqlParameter("@coditem", coditem));
+                    cmd.Parameters.Add(new SqlParameter("@codalmacen", codalmacen));
+                    cmd.Parameters.Add(new SqlParameter("@idproforma", idproforma));
+                    cmd.Parameters.Add(new SqlParameter("@numeroidproforma", numeroidproforma));
+                    cmd.Parameters.Add(new SqlParameter("@Es_tienda", esTienda));
+                    cmd.Parameters.Add(new SqlParameter("@obtener_cantidades_aprobadas_de_proformas", obtener_cantidades_aprobadas_de_proformas));
+                    cmd.Parameters.Add(new SqlParameter("@ctrlSeguridad", ctrlSeguridad));
+                    cmd.Parameters.Add(new SqlParameter("@include_saldos_a_cubrir", include_saldos_a_cubrir));
+                    cmd.Parameters.Add(new SqlParameter("@codempresa", codempresa));
+
+                    // Parámetro de salida
+                    var outputCantidad = new SqlParameter("@CANTIDAD", SqlDbType.Decimal)
+                    {
+                        Direction = ParameterDirection.Output,
+                        Precision = 18,
+                        Scale = 2
+                    };
+                    cmd.Parameters.Add(outputCantidad);
+
+                    // Ejecutar el comando y capturar el resultado
+                    using (var reader = await cmd.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            var saldoItem = new saldoItem
+                            {
+                                codalmacen = reader.GetInt32(reader.GetOrdinal("codalmacen")),
+                                coditem = reader.GetString(reader.GetOrdinal("coditem")),
+                                descripcion = reader.GetString(reader.GetOrdinal("descripcion")),
+                                cantidad_ag_local = reader.GetDecimal(reader.GetOrdinal("cantidad_ag_local")),
+                                cantidad_ag_local_incluye_cubrir = reader.GetDecimal(reader.GetOrdinal("cantidad_ag_local_incluye_cubrir"))
+                            };
+
+                            detalleSaldos.Add(saldoItem);
+                        }
+
+                        // Avanzar al siguiente conjunto de resultados (Tabla DetalleVenta)
+                        if (await reader.NextResultAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                var detalleVariableSaldo = new saldoVariable
+                                {
+                                    promvta = reader.GetDecimal(reader.GetOrdinal("promvta")),
+                                    smin = reader.GetDecimal(reader.GetOrdinal("smin")),
+                                    porcenvta = reader.GetDecimal(reader.GetOrdinal("porcenvta")),
+                                    saldo = reader.GetDecimal(reader.GetOrdinal("saldo")),
+                                    reserva_para_cjto = reader.GetDecimal(reader.GetOrdinal("reserva_para_cjto")),
+                                    saldo_para_vta_sueltos = reader.GetDecimal(reader.GetOrdinal("saldo_para_vta_sueltos"))
+                                };
+
+                                detalleSaldosVariables.Add(detalleVariableSaldo);
+                            }
+                        }
+                    }
+                }
+
+                connection.Close();
+
+
+
+                return (detalleSaldos, detalleSaldosVariables);
+
+            }
+            catch (Exception)
+            {
+                return (null, null);
+            }
+        }
+
+
+        public async Task<decimal> SaldoItem_Crtlstock_Tabla_Para_Ventas_Sam_anterior(DBContext _context, string coditem, int codalmacen, bool ctrlSeguridad, string idproforma, int numeroidproforma, bool include_saldos_a_cubrir, string codempresa, string usuario, bool obtener_saldos_otras_ags_localmente, bool obtener_cantidades_aprobadas_de_proformas, int AlmacenLocalEmpresa)
         {
             try
             {
@@ -1260,11 +1375,12 @@ namespace siaw_funciones
                 return 0;
             }
         }
-        public async Task<List<Dtnegativos>> ValidarNegativosDocVenta(DBContext _context, List<itemDataMatriz> tabladetalle, int codalmacen, string idproforma, int numeroidproforma, List<string> mensajes, List<string> negativos, string cod_empresa, string usrreg)
+        public async Task<List<Dtnegativos>> ValidarNegativosDocVenta_paraProbar(DBContext _context, List<itemDataMatriz> tabladetalle, int codalmacen, string idproforma, int numeroidproforma, List<string> mensajes, List<string> negativos, string cod_empresa, string usrreg)
         {
             bool controlarStockSeguridad = await empresa.ControlarStockSeguridad_context(_context, cod_empresa);
             List<Dtnegativos> dtunido = new List<Dtnegativos>();
-            Dictionary<string, Dtnegativos> dicUnido = new Dictionary<string, Dtnegativos>();
+            List<Dtnegativos> dicUnido = new List<Dtnegativos>();
+            //Dictionary<string, Dtnegativos> dicUnido = new Dictionary<string, Dtnegativos>();
 
             foreach (var detalle in tabladetalle)
             {
@@ -1311,7 +1427,30 @@ namespace siaw_funciones
 
                 foreach (var desglosado in dt_desglosado)
                 {
-                    if (dicUnido.ContainsKey(desglosado.codigo))
+                    var registroExistente = dicUnido.FirstOrDefault(i => i.codigo == desglosado.codigo && i.nro_partes == desglosado.nro_partes);
+                    if (registroExistente == null)
+                    {
+                        Dtnegativos newReg = new Dtnegativos();
+                        newReg.kit = desglosado.kit;
+                        newReg.nro_partes = desglosado.nro_partes;
+                        newReg.coditem_suelto = desglosado.coditem_suelto;
+                        newReg.coditem_cjto = desglosado.coditem_cjto;
+                        newReg.codigo = desglosado.codigo;
+                        newReg.descitem = await items.itemdescripcion(_context, desglosado.codigo) + " (" + await items.itemmedida(_context, desglosado.codigo) + ")";
+                        newReg.cantidad = (decimal)desglosado.cantidad;
+                        newReg.cantidad_conjunto = (decimal)desglosado.cantidad_conjunto;
+                        newReg.cantidad_suelta = (decimal)desglosado.cantidad_suelta;
+
+                        dicUnido.Add(newReg);
+                    }
+                    else
+                    {
+                        registroExistente.cantidad += (decimal)desglosado.cantidad;
+                        registroExistente.cantidad_conjunto += (decimal)desglosado.cantidad_conjunto;
+                        registroExistente.cantidad_suelta += (decimal)desglosado.cantidad_suelta;
+                    }
+                    /*
+                    if (dicUnido.ContainsKey(desglosado.codigo) && desglosado.nro_partes == dicUnido[desglosado.codigo].nro_partes)
                     {
                         dicUnido[desglosado.codigo].cantidad += (decimal)desglosado.cantidad;
                         dicUnido[desglosado.codigo].cantidad_conjunto += (decimal)desglosado.cantidad_conjunto;
@@ -1332,10 +1471,11 @@ namespace siaw_funciones
                             cantidad_suelta = (decimal)desglosado.cantidad_suelta
                         };
                     }
+                    */
                 }
             }
 
-            var dtunidoOrdenado = dicUnido.Values
+            var dtunidoOrdenado = dicUnido
                 .OrderByDescending(x => x.kit)
                 .ThenByDescending(x => x.nro_partes)
                 .ThenBy(x => x.coditem_cjto)
@@ -1343,13 +1483,22 @@ namespace siaw_funciones
                 .ToList();
             bool obtener_saldos_otras_ags_localmente = await Obtener_Saldos_Otras_Agencias_Localmente_context(_context, cod_empresa); // si se obtener las cantidades reservadas de las proformas o no
             bool obtener_cantidades_aprobadas_de_proformas = await Obtener_Cantidades_Aprobadas_De_Proformas(_context, cod_empresa); // si se obtener las cantidades reservadas de las proformas o no
+            var esTienda = await almacen.Es_Tienda(_context, codalmacen);
+            // SE MOVIO A FUERA DEL LLAMADO DE LA FUNCION PARA OPTIMIZAR
+            int AlmacenLocalEmpresa = await empresa.AlmacenLocalEmpresa_context(_context, cod_empresa);
 
             foreach (var unido in dtunidoOrdenado)
             {
-                // SE MOVIO A FUERA DEL LLAMADO DE LA FUNCION PARA OPTIMIZAR
-                int AlmacenLocalEmpresa = await empresa.AlmacenLocalEmpresa_context(_context, cod_empresa);
-                unido.saldo_descontando_reservas = await SaldoItem_CrtlStock_Para_Ventas_Sam(_context, unido.codigo, codalmacen, controlarStockSeguridad, idproforma, numeroidproforma, true, cod_empresa, usrreg, obtener_saldos_otras_ags_localmente, obtener_cantidades_aprobadas_de_proformas, AlmacenLocalEmpresa);
-                unido.saldo_sin_descontar_reservas = await SaldoItem_CrtlStock_Para_Ventas_Sam(_context, unido.codigo, codalmacen, controlarStockSeguridad, idproforma, numeroidproforma, false, cod_empresa, usrreg, obtener_saldos_otras_ags_localmente, obtener_cantidades_aprobadas_de_proformas, AlmacenLocalEmpresa);
+                
+                var resultadoSaldos = await SaldoItem_CrtlStock_Para_Ventas_Sam(_context, unido.codigo, codalmacen, esTienda, controlarStockSeguridad, idproforma, numeroidproforma, true, cod_empresa, usrreg, obtener_saldos_otras_ags_localmente, obtener_cantidades_aprobadas_de_proformas, AlmacenLocalEmpresa);
+
+                // unido.saldo_descontando_reservas = await SaldoItem_CrtlStock_Para_Ventas_Sam(_context, unido.codigo, codalmacen, esTienda, controlarStockSeguridad, idproforma, numeroidproforma, true, cod_empresa, usrreg, obtener_saldos_otras_ags_localmente, obtener_cantidades_aprobadas_de_proformas, AlmacenLocalEmpresa);
+                // unido.saldo_sin_descontar_reservas = await SaldoItem_CrtlStock_Para_Ventas_Sam(_context, unido.codigo, codalmacen, esTienda, controlarStockSeguridad, idproforma, numeroidproforma, false, cod_empresa, usrreg, obtener_saldos_otras_ags_localmente, obtener_cantidades_aprobadas_de_proformas, AlmacenLocalEmpresa);
+
+                unido.saldo_descontando_reservas = resultadoSaldos.cantidad_ag_local_incluye_cubrir;
+                unido.saldo_sin_descontar_reservas = resultadoSaldos.cantidad_ag_local;
+
+
                 unido.cantidad_reservada_para_cjtos = unido.saldo_sin_descontar_reservas - unido.saldo_descontando_reservas;
 
                 unido.obs = "Positivo";
@@ -1371,7 +1520,7 @@ namespace siaw_funciones
         }
 
 
-        public async Task<List<Dtnegativos>> ValidarNegativosDocVenta_origianl(DBContext _context, List<itemDataMatriz> tabladetalle, int codalmacen, string idproforma, int numeroidproforma, List<string> mensajes, List<string> negativos, string cod_empresa, string usrreg)
+        public async Task<List<Dtnegativos>> ValidarNegativosDocVenta(DBContext _context, List<itemDataMatriz> tabladetalle, int codalmacen, string idproforma, int numeroidproforma, List<string> mensajes, List<string> negativos, string cod_empresa, string usrreg)
         {
             //1RA parte DESARMADO DE CONJUNTOS
             bool resultado = true;
@@ -1526,17 +1675,26 @@ namespace siaw_funciones
 
             bool obtener_saldos_otras_ags_localmente = await Obtener_Saldos_Otras_Agencias_Localmente_context(_context, cod_empresa); // si se obtener las cantidades reservadas de las proformas o no
             bool obtener_cantidades_aprobadas_de_proformas = await Obtener_Cantidades_Aprobadas_De_Proformas(_context, cod_empresa); // si se obtener las cantidades reservadas de las proformas o no
+            var esTienda = await almacen.Es_Tienda(_context, codalmacen);
 
             //obtener los saldos de los items
             foreach (var unido in dtunido)
             {
                 coditem_dv = unido.codigo;
                 // SE MOVIO A FUERA DEL LLAMADO DE LA FUNCION PARA OPTIMIZAR
+
                 int AlmacenLocalEmpresa = await empresa.AlmacenLocalEmpresa_context(_context, cod_empresa);
-                _Saldo_Actual_Item_Con_Descto_Reservas = await SaldoItem_CrtlStock_Para_Ventas_Sam(_context, coditem_dv, codalmacen, controlarStockSeguridad, idproforma, numeroidproforma, true, cod_empresa, usrreg, obtener_saldos_otras_ags_localmente, obtener_cantidades_aprobadas_de_proformas, AlmacenLocalEmpresa);
+
+                var resultadoSaldos = await SaldoItem_CrtlStock_Para_Ventas_Sam(_context, coditem_dv, codalmacen, esTienda, controlarStockSeguridad, idproforma, numeroidproforma, true, cod_empresa, usrreg, obtener_saldos_otras_ags_localmente, obtener_cantidades_aprobadas_de_proformas, AlmacenLocalEmpresa);
+
+                // _Saldo_Actual_Item_Con_Descto_Reservas = await SaldoItem_CrtlStock_Para_Ventas_Sam(_context, coditem_dv, codalmacen, esTienda, controlarStockSeguridad, idproforma, numeroidproforma, true, cod_empresa, usrreg, obtener_saldos_otras_ags_localmente, obtener_cantidades_aprobadas_de_proformas, AlmacenLocalEmpresa);
+
+                _Saldo_Actual_Item_Con_Descto_Reservas = resultadoSaldos.cantidad_ag_local_incluye_cubrir;
                 _Saldo_Actual_Item_Con_Descto_Reservas = Math.Round(_Saldo_Actual_Item_Con_Descto_Reservas, 2, MidpointRounding.AwayFromZero);
 
-                _Saldo_Actual_Item_Sin_Descontando_Reservas = await SaldoItem_CrtlStock_Para_Ventas_Sam(_context, coditem_dv, codalmacen, controlarStockSeguridad, idproforma, numeroidproforma, false, cod_empresa, usrreg, obtener_saldos_otras_ags_localmente, obtener_cantidades_aprobadas_de_proformas, AlmacenLocalEmpresa);
+                // _Saldo_Actual_Item_Sin_Descontando_Reservas = await SaldoItem_CrtlStock_Para_Ventas_Sam(_context, coditem_dv, codalmacen, esTienda, controlarStockSeguridad, idproforma, numeroidproforma, false, cod_empresa, usrreg, obtener_saldos_otras_ags_localmente, obtener_cantidades_aprobadas_de_proformas, AlmacenLocalEmpresa);
+
+                _Saldo_Actual_Item_Sin_Descontando_Reservas = resultadoSaldos.cantidad_ag_local;
                 _Saldo_Actual_Item_Sin_Descontando_Reservas = Math.Round(_Saldo_Actual_Item_Sin_Descontando_Reservas, 2, MidpointRounding.AwayFromZero);
 
                 _Cantidad_Reservad_Para_Cjto = _Saldo_Actual_Item_Sin_Descontando_Reservas - _Saldo_Actual_Item_Con_Descto_Reservas;
@@ -1629,10 +1787,15 @@ namespace siaw_funciones
                 {
                     // SE MOVIO A FUERA DEL LLAMADO DE LA FUNCION PARA OPTIMIZAR
                     int AlmacenLocalEmpresa = await empresa.AlmacenLocalEmpresa_context(_context, cod_empresa);
-                    _Saldo_Actual_Item_Con_Descto_Reservas = await SaldoItem_CrtlStock_Para_Ventas_Sam(_context, unido.codigo, codalmacen, controlarStockSeguridad, idproforma, numeroidproforma, true, cod_empresa, usrreg, obtener_saldos_otras_ags_localmente, obtener_cantidades_aprobadas_de_proformas, AlmacenLocalEmpresa);
+
+                    var resultadoSaldos = await SaldoItem_CrtlStock_Para_Ventas_Sam(_context, unido.codigo, codalmacen, esTienda, controlarStockSeguridad, idproforma, numeroidproforma, true, cod_empresa, usrreg, obtener_saldos_otras_ags_localmente, obtener_cantidades_aprobadas_de_proformas, AlmacenLocalEmpresa);
+
+                    // _Saldo_Actual_Item_Con_Descto_Reservas = await SaldoItem_CrtlStock_Para_Ventas_Sam(_context, unido.codigo, codalmacen, esTienda, controlarStockSeguridad, idproforma, numeroidproforma, true, cod_empresa, usrreg, obtener_saldos_otras_ags_localmente, obtener_cantidades_aprobadas_de_proformas, AlmacenLocalEmpresa);
+                    _Saldo_Actual_Item_Con_Descto_Reservas = resultadoSaldos.cantidad_ag_local_incluye_cubrir;
                     _Saldo_Actual_Item_Con_Descto_Reservas = Math.Round(_Saldo_Actual_Item_Con_Descto_Reservas, 2, MidpointRounding.AwayFromZero);
 
-                    _Saldo_Actual_Item_Sin_Descontando_Reservas = await SaldoItem_CrtlStock_Para_Ventas_Sam(_context, coditem_dv, codalmacen, controlarStockSeguridad, idproforma, numeroidproforma, false, cod_empresa, usrreg, obtener_saldos_otras_ags_localmente, obtener_cantidades_aprobadas_de_proformas, AlmacenLocalEmpresa);
+                    // _Saldo_Actual_Item_Sin_Descontando_Reservas = await SaldoItem_CrtlStock_Para_Ventas_Sam(_context, coditem_dv, codalmacen, esTienda, controlarStockSeguridad, idproforma, numeroidproforma, false, cod_empresa, usrreg, obtener_saldos_otras_ags_localmente, obtener_cantidades_aprobadas_de_proformas, AlmacenLocalEmpresa);
+                    _Saldo_Actual_Item_Sin_Descontando_Reservas = resultadoSaldos.cantidad_ag_local;
                     _Saldo_Actual_Item_Sin_Descontando_Reservas = Math.Round(_Saldo_Actual_Item_Sin_Descontando_Reservas, 2, MidpointRounding.AwayFromZero);
 
                     _Cantidad_Reservad_Para_Cjto = _Saldo_Actual_Item_Sin_Descontando_Reservas - _Saldo_Actual_Item_Con_Descto_Reservas;
@@ -1859,5 +2022,21 @@ namespace siaw_funciones
             EliminarSoloModificados
         }
     }
-    
+}
+public class saldoItem
+{
+    public int codalmacen { get; set; }
+    public string coditem { get; set; }
+    public string descripcion { get; set; }
+    public decimal cantidad_ag_local { get; set; }
+    public decimal cantidad_ag_local_incluye_cubrir { get; set; }
+}
+public class saldoVariable
+{
+    public decimal promvta { get; set; }
+    public decimal smin { get; set; }
+    public decimal porcenvta { get; set; }
+    public decimal saldo { get; set; }
+    public decimal reserva_para_cjto { get; set; }
+    public decimal saldo_para_vta_sueltos { get; set; }
 }
