@@ -1792,7 +1792,18 @@ namespace SIAW.Controllers.ventas.transaccion
                         {
                             datosProforma.veproforma.pago_contado_anticipado = false;
                         }
-
+                        if (datosProforma.veproforma.obs == null)
+                        {
+                            datosProforma.veproforma.obs = "---";
+                        }
+                        if (datosProforma.veproforma.obs2 == null)
+                        {
+                            datosProforma.veproforma.obs2 = "";
+                        }
+                        if (datosProforma.veproforma.porceniva == null)
+                        {
+                            datosProforma.veproforma.porceniva = 0;
+                        }
 
                         datosProforma.veproforma.fechareg = DateTime.Today.Date;
                         datosProforma.veproforma.fechaaut = new DateTime(1900, 1, 1);     // PUEDE VARIAR SI ES PARA APROBAR

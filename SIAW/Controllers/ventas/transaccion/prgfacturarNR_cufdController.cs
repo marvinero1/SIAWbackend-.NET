@@ -577,6 +577,12 @@ namespace SIAW.Controllers.ventas.transaccion
                     registro.monto = await siat.Redondear_SIAT(_context, codEmpresa, registro.total);
                     registro.monto = Math.Round(registro.monto, 2, MidpointRounding.AwayFromZero);
                 }
+
+                registro.subtotal = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, registro.subtotal);
+                registro.descuentos = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, registro.descuentos);
+                registro.recargos = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, registro.recargos);
+                registro.total = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, registro.total);
+
                 lista.Add(registro);
                 totfactura = _TTLFACTURA.Total_Dist;
             }
@@ -952,6 +958,12 @@ namespace SIAW.Controllers.ventas.transaccion
                         registro.iva = 0;
                         registro.total = await siat.Redondear_SIAT(_context, codempresa, total);
                     }
+
+                    registro.subtotal = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, registro.subtotal);
+                    registro.descuentos = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, registro.descuentos);
+                    registro.recargos = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, registro.recargos);
+                    registro.total = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, registro.total);
+
                     lista.Add(registro);
                     super_total = super_total + registro.total;
                     total = 0;
@@ -967,10 +979,11 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
+   
 
         [HttpPost]
-        [Route("grabarFacturasNR/{userConn}")]
-        public async Task<ActionResult<IEnumerable<object>>> grabarFacturasNR(string userConn, data_get_facturasNR data_get_facturasNR)
+        [Route("grabarFacturasNR/{userConn}/{codNoraremi}")]
+        public async Task<ActionResult<IEnumerable<object>>> grabarFacturasNR(string userConn, int codNoraremi, dataCrearGrabarFacturas dataCreGrbFact)
         {
             try
             {
@@ -979,7 +992,16 @@ namespace SIAW.Controllers.ventas.transaccion
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
-                    //var resultados = await CREAR_GRABAR_FACTURAS()
+                    var cabeceraNR = await _context.veremision.Where(i => i.codigo == codNoraremi).FirstOrDefaultAsync();
+                    if (cabeceraNR == null)
+                    {
+                        return BadRequest(new { resp = "No se encontró la nota de remision, consulte con el administrador del sistema" });
+                    }
+                    var resultados = await CREAR_GRABAR_FACTURAS(_context, dataCreGrbFact.idfactura, dataCreGrbFact.nrocaja, dataCreGrbFact.factnit, dataCreGrbFact.condicion,
+                        dataCreGrbFact.nrolugar, dataCreGrbFact.tipo, dataCreGrbFact.codtipo_comprobante, dataCreGrbFact.usuario, dataCreGrbFact.codempresa, dataCreGrbFact.codtipopago,
+                        dataCreGrbFact.codbanco, dataCreGrbFact.codcuentab, dataCreGrbFact.nrocheque, dataCreGrbFact.idcuenta, dataCreGrbFact.cufd, dataCreGrbFact.complemento_ci,
+                        cabeceraNR, dataCreGrbFact.detalle, dataCreGrbFact.dgvfacturas
+                        );
                     return Ok();
                 }
             }
@@ -1597,6 +1619,33 @@ namespace SIAW.Controllers.ventas.transaccion
         public string codtipo_comprobantedescripcion { get; set; }
 
     }
+
+    public class dataCrearGrabarFacturas
+    {
+        public string idfactura { get; set; }
+        public int nrocaja { get; set; }
+        public string factnit {  get; set; }
+        public string condicion { get; set; }
+        public string nrolugar { get; set; }
+        public string tipo { get; set; }
+        public string codtipo_comprobante { get; set; }
+        public string usuario { get; set; }
+        public string codempresa { get; set; }
+        public int codtipopago { get; set; }
+        public string codbanco { get; set; }
+        public string codcuentab {  get; set; }
+        public string nrocheque { get; set; }
+        public string idcuenta { get; set; }
+        public string cufd {  get; set; }
+        public string complemento_ci {  get; set; }
+        public veremision cabecera { get; set; }
+        public List<veremision_detalle> detalle {  get; set; }
+        public List<tablaFacturas> dgvfacturas {  get; set; }
+    }
+
+
+        
+
 
 
 }
