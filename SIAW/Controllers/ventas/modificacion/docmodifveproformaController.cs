@@ -572,6 +572,10 @@ namespace SIAW.Controllers.ventas.modificacion
                         {
                             datosProforma.veproforma.obs2 = "";
                         }
+                        if (datosProforma.veproforma.odc == null)
+                        {
+                            datosProforma.veproforma.odc = "";
+                        }
                         if (datosProforma.veproforma.porceniva == null)
                         {
                             datosProforma.veproforma.porceniva = 0;

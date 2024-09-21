@@ -593,11 +593,13 @@ namespace SIAW.Controllers.ventas.transaccion
                 lista = facturasDiv.lista;
                 totfactura = facturasDiv.totfactura;
             }
+            var condicion = await cliente.CondicionFrenteAlIva(_context, cabecera.codcliente);
             var facturasInfo = new
             {
                 cabecera,
                 lista,
                 totfactura,
+                condicion,
                 detalle
             };
 

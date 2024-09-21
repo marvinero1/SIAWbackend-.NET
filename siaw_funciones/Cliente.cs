@@ -2543,6 +2543,23 @@ namespace siaw_funciones
             }
         }
 
+        ///////////////////////////////////////////////////////////////////////////////
+        // Esta funcion devuelve la condicion frente al IVA
+        ///////////////////////////////////////////////////////////////////////////////
+        public async Task<string> CondicionFrenteAlIva(DBContext _context, string codcliente)
+        {
+            try
+            {
+                string condicion = await _context.vecliente.Where(i=> i.codigo == codcliente).Select(i=> i.condicion).FirstOrDefaultAsync() ?? "";
+                return condicion;
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
+
+
         public async Task<bool> Es_Cliente_Competencia(DBContext _context, string nit_cliente)
         {
             string codcliente_seg_nit = await Cliente_Segun_Nit(_context,nit_cliente);
