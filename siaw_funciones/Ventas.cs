@@ -6701,6 +6701,41 @@ namespace siaw_funciones
             }
         }
 
+        public async Task<string> Datos_Factura_CUF(DBContext _context, int codigo)
+        {
+            string resultado = "";
+            try
+            {
+                var tabla = await _context.vefactura.Where(i => i.codigo == codigo).Select(i => new
+                {
+                    i.id,
+                    i.numeroid,
+                    i.nrofactura,
+                    i.cuf,
+                    i.cufd,
+                    i.fechalimite
+                }).FirstOrDefaultAsync();
+                if (tabla != null)
+                {
+                    resultado = tabla.id + " - " + tabla.numeroid + " Nro.Fact: " + tabla.nrofactura + " CUF: " + tabla.cuf + "  FLim: " + (tabla.fechalimite ?? DateTime.Today).ToShortDateString();
+                }
+                else
+                {
+                    resultado = "no se encontro";
+                }
+            }
+            catch (Exception)
+            {
+                resultado = "no se encontro";
+            }
+            return resultado;
+        }
+
+        public async Task<string> Factura_Tiene_CUF(DBContext _context, int codigo)
+        {
+
+        }
+
         public async Task<bool> IgualarFacturasANotaRemision_SIAT(DBContext _context, string id, int numeroid, string codempresa)
         {
             try

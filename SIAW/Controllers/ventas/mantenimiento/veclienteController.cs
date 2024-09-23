@@ -51,6 +51,8 @@ namespace SIAW.Controllers.ventas.mantenimiento
                                          (joined.Vivienda == null || joined.Vivienda.central == true))
                         .Select(joined => new { Cliente = joined.Cliente, Vivienda = joined.Vivienda })
                         .FirstOrDefaultAsync();
+
+
                     if (vecliente == null)
                     {
                         return NotFound( new { resp = "No se encontro un registro con este código" });

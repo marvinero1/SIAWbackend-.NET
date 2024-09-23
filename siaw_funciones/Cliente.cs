@@ -2599,5 +2599,28 @@ namespace siaw_funciones
             return false;
         }
 
+
+        public async Task MarcarClienteHabitual(DBContext _context, string codcliente)
+        {
+            try
+            {
+                var cliente = await _context.vecliente.Where(i => i.codigo == codcliente).FirstOrDefaultAsync();
+                if (cliente != null)
+                {
+                    cliente.situacion = "HABITUAL";
+                    await _context.SaveChangesAsync();
+                }
+                else
+                {
+                    Console.WriteLine("Cliente not found.");
+                }
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+        }
+
     }
 }

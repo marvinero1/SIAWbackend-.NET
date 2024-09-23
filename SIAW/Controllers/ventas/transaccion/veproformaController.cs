@@ -38,6 +38,7 @@ using System.Xml.Linq;
 using Humanizer;
 using System.Globalization;
 using ICSharpCode.SharpZipLib.Core;
+using Polly;
 
 namespace SIAW.Controllers.ventas.transaccion
 {
@@ -192,7 +193,80 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
+        /// <summary>
+        /// Obtiene saldos de manera completa
+        /// </summary>
+        /// <param name="userConn"></param>
+        /// <returns></returns>
+        // GET: api/ad_conexion_vpn/5
+        [HttpPost]
+        [Route("getsaldoDetalleSP/{userConn}")]
+        public async Task<ActionResult<List<sldosItemCompleto>>> getsaldoDetalleSP (string userConn, RequestDataSaldosSP RequestDataSaldosSP)
+        {
+            string agencia = RequestDataSaldosSP.agencia;
+            int codalmacen = RequestDataSaldosSP.codalmacen;
+            string coditem = RequestDataSaldosSP.coditem;
+            string codempresa = RequestDataSaldosSP.codempresa;
+            string usuario = RequestDataSaldosSP.usuario;
+            string idProforma = RequestDataSaldosSP.idProforma;
+            int nroIdProforma = RequestDataSaldosSP.nroIdProforma;
 
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                // Falta validacion para saber si traera datos de manera local o por vpn
+                // Obtener el contexto de base de datos correspondiente a la empresa
+                string titulo = "";
+                bool usar_bd_opcional = await saldos.Obtener_Saldos_Otras_Agencias_Localmente(userConnectionString, codempresa);
+                if (!usar_bd_opcional)
+                {
+                    userConnectionString = empaque_func.Getad_conexion_vpnFromDatabase(userConnectionString, agencia);
+                    titulo = "Los Saldos (Para Ventas) del Item Se obtienen por medio de VPN";
+                    if (userConnectionString == null)
+                    {
+                        return BadRequest(new { resp = "No se pudo obtener la cadena de conexión" });
+                    }
+                }
+                else
+                {
+                    titulo = "Los Saldos (Para Ventas) del Item Se obtienen Localmente";
+                }
+
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    bool obtener_saldos_otras_ags_localmente = await saldos.Obtener_Saldos_Otras_Agencias_Localmente_context(_context, codempresa); // si se obtener las cantidades reservadas de las proformas o no
+                    bool obtener_cantidades_aprobadas_de_proformas = await saldos.Obtener_Cantidades_Aprobadas_De_Proformas(_context, codempresa); // si se obtener las cantidades reservadas de las proformas o no
+                    var esTienda = await almacen.Es_Tienda(_context, codalmacen);
+                    bool ctrlSeguridad = true;
+                    bool include_saldos_a_cubrir = true;
+                    int AlmacenLocalEmpresa = await empresa.AlmacenLocalEmpresa_context(_context, codempresa);
+
+                    var resultados = await saldos.SaldoItem_Crtlstock_Tabla_Para_Ventas_Sam(_context, coditem, codalmacen, esTienda, ctrlSeguridad, idProforma, nroIdProforma, include_saldos_a_cubrir, codempresa, usuario, obtener_saldos_otras_ags_localmente, obtener_cantidades_aprobadas_de_proformas, AlmacenLocalEmpresa);
+                    var detalleSaldos = resultados.detalleSaldos;
+                    if (detalleSaldos == null)
+                    {
+                        return BadRequest(new { resp = "No se pudo obtener los saldos del item seleccionado" });
+                    }
+                    decimal cantidad_ag_local_incluye_cubrir = detalleSaldos.Sum(i => i.cantidad_ag_local_incluye_cubrir);
+                    cantidad_ag_local_incluye_cubrir = cantidad_ag_local_incluye_cubrir < 0 ? 0 : cantidad_ag_local_incluye_cubrir;
+                    return Ok(new
+                    {
+                        titulo,
+                        detalleSaldo = resultados.detalleSaldos,
+                        saldoVariable = resultados.detalleSaldosVariables,
+                        totalSaldo = cantidad_ag_local_incluye_cubrir
+                    });
+                }
+
+            }
+            catch (Exception ex)
+            {
+                return Problem("Error en el servidor al obtener empaques: " + ex.Message);
+                throw;
+            }
+        }
 
 
 
@@ -6383,6 +6457,18 @@ namespace SIAW.Controllers.ventas.transaccion
         public bool desclinea_segun_solicitud { get; set; }
         public string idsoldesctos { get; set; }
         public int nroidsoldesctos { get; set; }
+    }
+
+
+    public class RequestDataSaldosSP
+    {
+        public string agencia { get; set; }
+        public int codalmacen { get; set; }
+        public string coditem { get; set; }
+        public string codempresa { get; set; }
+        public string usuario { get; set; }
+        public string idProforma { get; set; }
+        public int nroIdProforma { get; set; }
     }
 
 }
