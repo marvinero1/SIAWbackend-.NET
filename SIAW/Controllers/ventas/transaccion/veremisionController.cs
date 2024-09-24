@@ -3157,10 +3157,13 @@ namespace SIAW.Controllers.ventas.transaccion
 
             try
             {
-                // grabar descto si hay descuentos
-                if (vedesextraremi.Count() > 0)
+                if (vedesextraremi!= null)
                 {
-                    await grabardesextra(_context, codNRemision, vedesextraremi);
+                    // grabar descto si hay descuentos
+                    if (vedesextraremi.Count() > 0)
+                    {
+                        await grabardesextra(_context, codNRemision, vedesextraremi);
+                    }
                 }
             }
             catch (Exception)
@@ -3169,10 +3172,13 @@ namespace SIAW.Controllers.ventas.transaccion
             }
             try
             {
-                // grabar recargo si hay recargos
-                if (verecargoremi.Count > 0)
+                if (verecargoremi != null)
                 {
-                    await grabarrecargo(_context, codNRemision, verecargoremi);
+                    // grabar recargo si hay recargos
+                    if (verecargoremi.Count > 0)
+                    {
+                        await grabarrecargo(_context, codNRemision, verecargoremi);
+                    }
                 }
             }
             catch (Exception)
@@ -3181,10 +3187,13 @@ namespace SIAW.Controllers.ventas.transaccion
             }
             try
             {
-                // grabar iva
-                if (veremision_iva.Count > 0)
+                if (veremision_iva != null)
                 {
-                    await grabariva(_context, codNRemision, veremision_iva);
+                    // grabar iva
+                    if (veremision_iva.Count > 0)
+                    {
+                        await grabariva(_context, codNRemision, veremision_iva);
+                    }
                 }
             }
             catch (Exception)

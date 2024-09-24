@@ -2739,24 +2739,32 @@ namespace SIAW.Controllers.ventas.transaccion
                 throw;
             }
             // grabar descto por deposito si hay descuentos
-
-            if (vedesextraprof.Count() > 0)
+            if (vedesextraprof != null)
             {
-                await grabardesextra(_context, codProforma, vedesextraprof);
+                if (vedesextraprof.Count() > 0)
+                {
+                    await grabardesextra(_context, codProforma, vedesextraprof);
+                }
             }
 
-            // grabar recargo si hay recargos
-            if (verecargoprof.Count > 0)
+            if (verecargoprof != null)
             {
-                await grabarrecargo(_context, codProforma, verecargoprof);
+                // grabar recargo si hay recargos
+                if (verecargoprof.Count > 0)
+                {
+                    await grabarrecargo(_context, codProforma, verecargoprof);
+                }
             }
 
-            // grabar iva
-
-            if (veproforma_iva.Count > 0)
+            if (veproforma_iva != null)
             {
-                await grabariva(_context, codProforma, veproforma_iva);
+                // grabar iva
+                if (veproforma_iva.Count > 0)
+                {
+                    await grabariva(_context, codProforma, veproforma_iva);
+                }
             }
+            
 
             bool resultado = new bool();
             // grabar descto por deposito

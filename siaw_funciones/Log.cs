@@ -33,6 +33,28 @@ namespace siaw_funciones
             return true;
 
         }
+
+        public async Task<bool> RegistrarEvento_Siat(DBContext _context, string usuario, Entidades entidad, string codigo, string id_doc, string numeroid_doc, string ventana, string detalle, TipoLog_Siat tipo)
+        {
+            string fecha = datosProforma.getFechaActual();
+            string hora = datosProforma.getHoraActual();
+            selog_siat datos = new selog_siat();
+            datos.usuario = usuario;
+            datos.fecha = DateTime.Parse(fecha);
+            datos.hora = hora;
+            datos.entidad = entidad.ToString();
+            datos.codigo = codigo;
+            datos.id_doc = id_doc;
+            datos.numeroid_doc = numeroid_doc;
+            datos.ventana = ventana;
+            datos.detalle = detalle;
+            datos.tipo = tipo.ToString();
+            _context.selog_siat.Add(datos);
+            await _context.SaveChangesAsync();
+            return true;
+
+        }
+
         public enum Entidades
         {
             SW_Nota_Movimiento = 0,
@@ -65,6 +87,16 @@ namespace siaw_funciones
             Ejecucion,
             Autorizacion,
             Edicion
+        }
+        public enum TipoLog_Siat
+        {
+            Creacion = 0,
+            Envio_Factura,
+            Envio_Paquete_Facturas,
+            Anulacion_Facturas,
+            Modificacion_Estado_En_Linea,
+            Estado_Facturas,
+            Validar_Nit
         }
     }
 

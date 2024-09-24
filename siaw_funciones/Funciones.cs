@@ -548,7 +548,7 @@ namespace siaw_funciones
 
 
 
-        public async Task<bool> EnviarEmailAsync(
+        public async Task<string> EnviarEmailAsync(
         string emailOrigen,
         string emailDestino,
         List<string>? emailsCC,
@@ -622,22 +622,46 @@ namespace siaw_funciones
                         }
                     }
                 }
-
+                /*
                 Console.WriteLine("Correo enviado exitosamente.");
                 return true;
+                */
+                return ("Correo enviado exitosamente.");
             }
             catch (SmtpException smtpEx)
             {
+                /*
                 Console.WriteLine($"Error SMTP al enviar el correo: {smtpEx.StatusCode} - {smtpEx.Message}");
                 return false;
+                */
+                return ($"Error SMTP al enviar el correo: {smtpEx.StatusCode} - {smtpEx.Message}");
             }
             catch (Exception ex)
             {
+                /*
                 Console.WriteLine($"Error general al enviar el correo: {ex.Message}");
                 return false;
+                */
+                return ($"Error general al enviar el correo: {ex.Message}");
             }
         }
 
+
+        public async Task<string> Fecha_TimeStamp(DateTime mifecha, string hora)
+        {
+            string _fecha_convertido = "";
+            DateTime mifecha_aux = mifecha.Date;
+
+            string fecha = $"{mifecha_aux:dd/MM/yyyy} {hora}";
+            mifecha = DateTime.Parse(fecha);
+
+            // Debe devolver este formato
+            // 2022-03-11T08:07:01.404
+            _fecha_convertido = mifecha.ToString("yyyy-MM-ddTHH:mm:ss");
+            _fecha_convertido += ".999";
+
+            return await Task.FromResult(_fecha_convertido);
+        }
 
     }
 }

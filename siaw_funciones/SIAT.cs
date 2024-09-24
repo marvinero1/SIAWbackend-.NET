@@ -554,6 +554,32 @@ namespace siaw_funciones
             }
         }
 
+        public async Task<string> CodMoneda_Homolado_SIN(DBContext _context, string micodmoneda)
+        {
+            try
+            {
+                int resultado = 1;
+                //using (_context)
+                //{
+                var result = await _context.admoneda
+                    .Where(v => v.codigo == micodmoneda)
+                    .Select(v => v.codmoneda_sin)
+                    .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = result ?? 1;
+                }
+                else { resultado = 1; }
+                //}
+                return resultado.ToString();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return "0";
+            }
+        }
+
 
     }
 

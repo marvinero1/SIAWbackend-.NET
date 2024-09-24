@@ -390,8 +390,10 @@ namespace SIAW.Controllers.notificaciones
 
                     // bool envio = await funciones.EnviarEmail("", emailsCc, credenciales.correo, credenciales.passwordcorreo, titulo, detalle, pdfBytes, pdfFile.FileName);
 
-                    bool envio = await funciones.EnviarEmailAsync(credenciales.correo, "", emailsCc, credenciales.correo, credenciales.passwordcorreo, titulo, detalle, pdfBytes, pdfFile.FileName);
+                    var envio = await funciones.EnviarEmailAsync(credenciales.correo, "", emailsCc, credenciales.correo, credenciales.passwordcorreo, titulo, detalle, pdfBytes, pdfFile.FileName);
 
+                    return Ok(envio);
+                    /*
                     if (envio)
                     {
                         return Ok(new { resp = "Correo enviado con éxito." });
@@ -400,6 +402,7 @@ namespace SIAW.Controllers.notificaciones
                     {
                         return BadRequest(new { resp = "Error al enviar el correo." });
                     }
+                    */
                 }
                 catch (Exception ex)
                 {

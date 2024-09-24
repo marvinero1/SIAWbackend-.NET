@@ -199,5 +199,35 @@ namespace siaw_funciones
 
             return infisico.Value.Date;
         }
+
+        public async Task<string> Codigo_UDM_SIN(DBContext _context, string unidaddm)
+        {
+            try
+            {
+                int resultado = 0;
+                var query = await _context.inudemed
+                    .Where(i => i.Codigo == unidaddm)
+                        .Select(i => new
+                        {
+                            i.codmedida_sin
+                        })
+                    .FirstOrDefaultAsync();
+                if (query != null)
+                {
+                    resultado = query.codmedida_sin ?? 0;
+                }
+                else
+                {
+                    resultado = 0;
+                }
+                return resultado.ToString();
+            }
+            catch (Exception)
+            {
+                return "0";
+            }
+
+        }
+
     }
 }

@@ -9,6 +9,7 @@ using siaw_DBContext.Data;
 using siaw_DBContext.Models;
 using siaw_DBContext.Models_Extra;
 using siaw_funciones;
+using siaw_ws_siat;
 using System.ComponentModel.DataAnnotations;
 using System.Runtime.ConstrainedExecution;
 using System.Runtime.Intrinsics.Arm;
@@ -29,10 +30,13 @@ namespace SIAW.Controllers.ventas.transaccion
         private readonly siaw_funciones.datosProforma datos_proforma = new siaw_funciones.datosProforma();
         private readonly siaw_funciones.Saldos saldos = new siaw_funciones.Saldos();
 
+        private readonly Seguridad seguridad = new Seguridad();
         private readonly SIAT siat = new SIAT();
         private readonly Empresa empresa = new Empresa();
         private readonly Documento documento = new Documento();
         private readonly Log log = new Log();
+
+        private readonly Serv_Facturas serv_Facturas = new Serv_Facturas();
 
         private readonly string _controllerName = "prgfacturarNR_cufdController";
 
@@ -1026,24 +1030,46 @@ namespace SIAW.Controllers.ventas.transaccion
                     {
                         return BadRequest(new { resp = "La fecha actual excede la fecha limite del CUFD, verifique esta situacion!!!" });
                     }
-
-                    var resultados = await CREAR_GRABAR_FACTURAS(_context, dataCreGrbFact.idfactura, dataCreGrbFact.nrocaja, dataCreGrbFact.factnit, dataCreGrbFact.condicion,
-                        dataCreGrbFact.nrolugar, dataCreGrbFact.tipo, dataCreGrbFact.codtipo_comprobante, dataCreGrbFact.usuario, dataCreGrbFact.codempresa, dataCreGrbFact.codtipopago,
-                        dataCreGrbFact.codbanco, dataCreGrbFact.codcuentab, dataCreGrbFact.nrocheque, dataCreGrbFact.idcuenta, dataCreGrbFact.cufd, dataCreGrbFact.complemento_ci,
-                        cabeceraNR, dataCreGrbFact.detalle, dataCreGrbFact.dgvfacturas
-                        );
-
-                    if (resultados.resul == false)
+                    // COMO GRABA DESDE ACA, DESDE ACA INICIAMOS EL COMMIT 
+                    List<int>codFacturas = new List<int>();
+                    List<string> msgAlertas = new List<string>();
+                    List<string> eventosLog = new List<string>();
+                    using (var dbContexTransaction = _context.Database.BeginTransaction())
                     {
-                        resultados.eventos.Add("La factura no pude ser grabada por lo cual no se envio al SIN!!!");
-                        return BadRequest(new
+                        try
                         {
-                            resp = "Ocurrio algun error al grabar la factura verifique los resultados de la facturacion!!!",
-                            resultados.resul,
-                            resultados.msgAlertas,
-                            resultados.eventos
-                        });
+                            var resultados = await CREAR_GRABAR_FACTURAS(_context, dataCreGrbFact.idfactura, dataCreGrbFact.nrocaja, dataCreGrbFact.factnit, dataCreGrbFact.condicion,
+                            dataCreGrbFact.nrolugar, dataCreGrbFact.tipo, dataCreGrbFact.codtipo_comprobante, dataCreGrbFact.usuario, dataCreGrbFact.codempresa, dataCreGrbFact.codtipopago,
+                            dataCreGrbFact.codbanco, dataCreGrbFact.codcuentab, dataCreGrbFact.nrocheque, dataCreGrbFact.idcuenta, dataCreGrbFact.cufd, dataCreGrbFact.complemento_ci,
+                            cabeceraNR, dataCreGrbFact.detalle, dataCreGrbFact.dgvfacturas
+                            );
+
+                            if (resultados.resul == false)
+                            {
+                                await dbContexTransaction.RollbackAsync();
+                                resultados.eventos.Add("La factura no pude ser grabada por lo cual no se envio al SIN!!!");
+                                return BadRequest(new
+                                {
+                                    resp = "Ocurrio algun error al grabar la factura verifique los resultados de la facturacion!!!",
+                                    resultados.resul,
+                                    resultados.msgAlertas,
+                                    resultados.eventos
+                                });
+                            }
+                            else
+                            {
+                                await dbContexTransaction.CommitAsync();
+                                codFacturas = resultados.CodFacturas_Grabadas;
+                                msgAlertas = resultados.msgAlertas;
+                                eventosLog = resultados.eventos;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine("Mesaje de error al intentar guardar facturas: " + ex.ToString());
+                        }
                     }
+                        
 
 
                     // DESPUES DE ESTO, FALTA LO SIGUIENTE:
@@ -1079,7 +1105,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     List<string> cadena = new List<string>();
                     cadena.Add("Se han generado los datos de facturacion con exito.");
                     cadena.Add("Factura(s): ");
-                    foreach (var reg in resultados.CodFacturas_Grabadas)
+                    foreach (var reg in codFacturas)
                     {
                         cadena.Add("* " + await ventas.Datos_Factura_CUF(_context, reg));
                     }
@@ -1087,52 +1113,43 @@ namespace SIAW.Controllers.ventas.transaccion
                     // devolver la cadena en la respuesta
 
                     bool todoOk = true;
-                    foreach (var reg in resultados.CodFacturas_Grabadas)
+                    foreach (var reg in codFacturas)
                     {
-                        if (await ventas.Factura_Tiene_CUF())
+                        if (await ventas.Factura_Tiene_CUF(_context,reg) == false)
                         {
-
+                            msgAlertas.Add("Al menos una de las facturas no tiene CUF, por favor verifique esto antes de realizar al impresion.");
+                            todoOk = false;
+                            break;
+                        }
+                        if (await ventas.Factura_Tiene_CUFD(_context, reg) == false)
+                        {
+                            msgAlertas.Add("Al menos una de las facturas no tiene CUFD, por favor verifique esto antes de realizar al impresion.");
+                            todoOk = false;
+                            break;
                         }
                     }
-                    /*
 
-                            Dim todoOk As Boolean = True
-                            For x = 0 To 39
-                                If Trim(CodFacturas_Grabadas(x)) <> "" Then
-                                    If sia_funciones.Ventas.Instancia.Factura_Tiene_CUF(CStr(CodFacturas_Grabadas(x))) Then
-                                    Else
-                                        MessageBox.Show("Al menos una de las facturas no tiene CUF, por favor verifique esto antes de realizar al impresion.", "Validacion", MessageBoxButtons.OK, MessageBoxIcon.Exclamation)
-                                        todoOk = False
-                                        Exit For
-                                    End If
-                                    If sia_funciones.Ventas.Instancia.Factura_Tiene_CUFD(CStr(CodFacturas_Grabadas(x))) Then
-                                    Else
-                                        MessageBox.Show("Al menos una de las facturas no tiene CUFD, por favor verifique esto antes de realizar al impresion.", "Validacion", MessageBoxButtons.OK, MessageBoxIcon.Exclamation)
-                                        todoOk = False
-                                        Exit For
-                                    End If
-                                End If
-                            Next
+                    if (opcion_automatico == false)
+                    {
+                        if (todoOk)
+                        {
 
-                            If opcion_automatico = False Then
-                                If todoOk Then
-                                    If sia_funciones.Ventas.Instancia.cufd_tipofactura(cufd.Text) = 1 Then
-                                        MessageBox.Show("Atencion!!! como la factura es de una dosificacion CUFD manual, no se imprimira. ", "Grabar", MessageBoxButtons.OK, MessageBoxIcon.Information)
-                                    ElseIf MessageBox.Show(cadena, "Confirmacion", MessageBoxButtons.OK, MessageBoxIcon.Information) = Windows.Forms.DialogResult.OK Then
+                            // ENVIAR_FACTURA_POR_EMAIL()
+
+                            // PARA EL CASO DE QUE NO SE DEBE IMPRIMIR, AVISAR A MARVIN
+                            if (await ventas.cufd_tipofactura(_context,dataCreGrbFact.cufd) == 1)
+                            {
+                                msgAlertas.Add("Atencion!!! como la factura es de una dosificacion CUFD manual, no se imprimira. ");
+                            }
 
 
+                            if (cabeceraNR.tipopago == 0)
+                            {
+                                // ##### CONTABILIZAR
 
-                                        If factura_se_imprime = True Then
-                                            '//solo si la factura es aceptada en en el SIN se enviara por mail la factura al cliente
-                                            IMPRIMIR_FACTURAS()
-                                            ENVIAR_FACTURA_POR_EMAIL()
-
-                                        End If
-
-
-                                        If sia_funciones.Ventas.Instancia.Remision_TipoPago(id.Text, CInt(numeroid.Text)) = 0 Then
-                                            '##### CONTABILIZAR
-                                            If sia_funciones.Seguridad.Instancia.rol_contabiliza(sia_funciones.Seguridad.Instancia.usuario_rol(sia_compartidos.temporales.Instancia.usuario)) Then
+                                /*
+                                 
+                                If sia_funciones.Seguridad.Instancia.rol_contabiliza(sia_funciones.Seguridad.Instancia.usuario_rol(sia_compartidos.temporales.Instancia.usuario)) Then
                                                 If sia_funciones.Configuracion.Instancia.emp_preg_cont_ventascontado(sia_compartidos.temporales.Instancia.codempresa) Then
                                                     If MessageBox.Show("Desea contabilizar estos documentos ?", "Confirmacion", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) = Windows.Forms.DialogResult.Yes Then
                                                         Dim frm As New sia_compartidos.prgDatosContabilizar
@@ -1157,20 +1174,27 @@ namespace SIAW.Controllers.ventas.transaccion
                                                     End If
                                                 End If
                                             End If
-                                            '##### FIN CONTABILIZAR
-                                        End If
-                                    End If
-                                End If
-
-                                '//limpia los datos de la dosificacion CUFD activa
-                                limpiar.PerformClick()
-
-                            End If
-                     
-                     */
+                                 
+                                 */
 
 
-                    return Ok();
+
+                                // ##### FIN CONTABILIZAR
+                            }
+
+
+                        }
+                        // limpia los datos de la dosificacion CUFD activa
+                        // limpiar.PerformClick()
+                    }
+                   
+
+                    return Ok(new
+                    {
+                        resp = "Facturas registras con Exito",
+                        msgAlertas,
+                        eventosLog
+                    });
                 }
             }
             catch (Exception ex)
@@ -1613,9 +1637,9 @@ namespace SIAW.Controllers.ventas.transaccion
                                 // actualizar en_linea true porq SI hay conexion a internet
                                 dataFactura.en_linea = true;
                                 await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
-                                /*
+                                
                                 // If sia_ws_siat.serv_facturas.Instancia.VerificarComunicacion() = True And sia_DAL.adsiat_parametros_facturacion.Instancia.servicios_sin_activo(codalmacen.Text) = True Then
-                                if (adsiat_sin_activo && await funciones.)   // ACA FALTA VALIDAR CON EL SIN OJOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+                                if (adsiat_sin_activo && await serv_Facturas.VerificarComunicacion(_context,cabecera.codalmacen))   // ACA FALTA VALIDAR CON EL SIN OJOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
                                 {
                                     // emision en linea
                                     TIPO_EMISION = "1";
@@ -1629,7 +1653,7 @@ namespace SIAW.Controllers.ventas.transaccion
                                     dataFactura.en_linea_SIN = false;
                                     await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
                                 }
-                                */
+                                
                             }
                             else
                             {

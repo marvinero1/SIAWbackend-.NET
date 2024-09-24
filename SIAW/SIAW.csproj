@@ -64,6 +64,7 @@
     <ProjectReference Include="..\LibSIAVB\LibSIAVB.vbproj" />
     <ProjectReference Include="..\siaw_DBContext\siaw_DBContext.csproj" />
     <ProjectReference Include="..\siaw_funciones\siaw_funciones.csproj" />
+    <ProjectReference Include="..\siaw_ws_siat\siaw_ws_siat.csproj" />
   </ItemGroup>
 
 </Project>

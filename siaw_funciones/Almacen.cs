@@ -69,5 +69,21 @@ namespace siaw_funciones
             }
             return resultado;
         }
+
+        public async Task<string> telefonoalmacen(DBContext _context, int codalmacen)
+        {
+            try
+            {
+                var resultado = await _context.inalmacen
+                .Where(i => i.codigo == codalmacen)
+                .Select(i => i.telefono)
+                .FirstOrDefaultAsync() ?? "";
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
     }
 }

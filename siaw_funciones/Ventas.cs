@@ -6731,9 +6731,54 @@ namespace siaw_funciones
             return resultado;
         }
 
-        public async Task<string> Factura_Tiene_CUF(DBContext _context, int codigo)
+        public async Task<bool> Factura_Tiene_CUF(DBContext _context, int codfactura)
         {
+            try
+            {
+                var cuf = await _context.vefactura.Where(i => i.codigo == codfactura).Select(i => i.cuf).FirstOrDefaultAsync();
+                if (cuf == null)
+                {
+                    return false;
+                }
+                if (cuf.Trim() == "")
+                {
+                    return false;
+                }
+                if (cuf.Trim() == "0")
+                {
+                    return false;
+                }
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
 
+        public async Task<bool> Factura_Tiene_CUFD(DBContext _context, int codfactura)
+        {
+            try
+            {
+                var cufd = await _context.vefactura.Where(i => i.codigo == codfactura).Select(i => i.cufd).FirstOrDefaultAsync();
+                if (cufd == null)
+                {
+                    return false;
+                }
+                if (cufd.Trim() == "")
+                {
+                    return false;
+                }
+                if (cufd.Trim() == "0")
+                {
+                    return false;
+                }
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
         }
 
         public async Task<bool> IgualarFacturasANotaRemision_SIAT(DBContext _context, string id, int numeroid, string codempresa)
