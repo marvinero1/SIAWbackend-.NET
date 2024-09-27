@@ -347,5 +347,24 @@ namespace siaw_funciones
             resultado = descripcion.Trim();
             return resultado;
         }
+
+        public async Task<string> nombretipopago(DBContext _context, int cotippago)
+        {
+            string resultado;
+            string descripcion = "";
+            var result = await _context.cotippago
+                .Where(v => v.codigo == cotippago)
+                .Select(parametro => new
+                {
+                    parametro.descripcion
+                })
+                .FirstOrDefaultAsync();
+            if (result != null)
+            {
+                descripcion = result.descripcion;
+            }
+            resultado = descripcion.Trim();
+            return resultado;
+        }
     }
 }

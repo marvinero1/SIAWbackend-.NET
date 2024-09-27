@@ -468,6 +468,16 @@ namespace SIAW.Controllers.ventas.modificacion
             List<veproforma_iva> veproforma_iva = datosProforma.veproforma_iva;
 
             */
+            if (veproforma.tdc == null)
+            {
+                return BadRequest(new { resp = "No se esta recibiendo el tipo de cambio verifique esta situación." });
+            }
+
+            if (veproforma.tdc == 0)
+            {
+                return BadRequest(new { resp = "El tipo de cambio esta como 0 verifique esta situación." });
+            }
+
             if (codProforma != veproforma.codigo)
             {
                 return BadRequest(new { resp = "Existe un problema con los codigos de Proforma, consulte al administrador de Sistemas!!!" });

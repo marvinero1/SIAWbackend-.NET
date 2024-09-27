@@ -189,7 +189,7 @@ namespace siaw_funciones
             return cadConection;
         }
 
-        static string XorString(string targetString, string maskValue)
+        public string XorString(string targetString, string maskValue)
         {
             int index = 0;
             StringBuilder returnValue = new StringBuilder();

@@ -82,5 +82,7 @@ namespace siaw_DBContext.Models
         public string email { get; set; }
         public string leyenda { get; set; }
         public string codfactura_web { get; set; }
+        public int? cod_estado_siat { get; set; }
+        public string cod_recepcion_siat { get; set; }
     }
 }

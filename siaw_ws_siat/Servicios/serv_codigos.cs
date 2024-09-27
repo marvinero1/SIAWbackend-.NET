@@ -70,6 +70,9 @@ public class ServCodigos
     private string endpointAddress = "";
     private string token = "";
 
+    private verificarComunicacionResponse MyResult_Comunicacion;
+    private respuestaComunicacion MyResult_Comunicacion_resp;
+
     private respuestaComunicacion MyResult;
     private respuestaCuisMasivo MyResult1;
 
@@ -178,7 +181,7 @@ public class ServCodigos
 
         return miRespuesta;
     }
-    public async Task<ResultadoVerificarNIT> Verificar_Nit(DBContext _context, int codambiente, int codmodalidad, string codsistema, int codsucursal,string cuis, string nit, string nit_verificar, int almacen)
+    public async Task<ResultadoVerificarNIT> Verificar_Nit(DBContext _context, int codambiente, int codmodalidad, string codsistema, int codsucursal,string cuis, long nit, long nit_verificar, int almacen)
     {
         var ini = await Obtener_EndPoint_Token(_context, almacen);
         var miRespuesta = new ResultadoVerificarNIT();
@@ -208,8 +211,8 @@ public class ServCodigos
                 codigoSistema = codsistema,
                 codigoSucursal = codsucursal,
                 cuis = cuis,
-                nit = Convert.ToInt32(nit),
-                nitParaVerificacion = Convert.ToInt32(nit_verificar)
+                nit = nit,
+                nitParaVerificacion = nit_verificar
             };
 
             MyResult_Verificar_NIT = await servicio.verificarNitAsync(sol_Veri_nit);
@@ -250,5 +253,38 @@ public class ServCodigos
         }
 
         return miRespuesta;
+    }
+    public async Task<bool> VerificarComunicacion(DBContext _context, int almacen)
+    {
+        var ini = await Obtener_EndPoint_Token(_context, almacen);
+        bool miRespuesta = false;
+        var binding = new BasicHttpBinding
+        {
+            SendTimeout = TimeSpan.FromSeconds(1000),
+            MaxBufferSize = int.MaxValue,
+            MaxReceivedMessageSize = int.MaxValue,
+            AllowCookies = true,
+            ReaderQuotas = XmlDictionaryReaderQuotas.Max
+        };
+
+        ServicePointManager.Expect100Continue = true;
+        ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072; // TLS 1.2
+        binding.Security.Mode = BasicHttpSecurityMode.Transport;
+
+        var address = new EndpointAddress(endpointAddress);
+        var servicio = new ServicioFacturacionCodigosClient(binding, address);
+        servicio.Endpoint.EndpointBehaviors.Add(new CustomAuthenticationBehaviour(token));
+        try
+        {
+            MyResult_Comunicacion = await servicio.verificarComunicacionAsync();
+            MyResult_Comunicacion_resp = MyResult_Comunicacion.RespuestaComunicacion;
+            miRespuesta = MyResult_Comunicacion_resp.transaccion;
+            return miRespuesta;
+
+        }
+        catch (Exception e)
+        {
+            return false;
+        }
     }
 }

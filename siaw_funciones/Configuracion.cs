@@ -789,8 +789,127 @@ namespace siaw_funciones
                 return false;
             }
         }
+        public async Task<string> usr_idcuenta(DBContext _context, string usuario)
+        {
+            try
+            {
+                string resultado = await _context.adusparametros.Where(i => i.usuario == usuario).Select(i=> i.idcuenta).FirstOrDefaultAsync() ?? "";
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
+        public async Task<int> parametros_ctasporcobrar_tipopago(DBContext _context, string codempresa)
+        {
+            try
+            {
+                int resultado = await _context.adparametros.Where(i => i.codempresa == codempresa).Select(i => i.cotippago).FirstOrDefaultAsync() ?? 0;
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
+        public async Task<string> Dircertif_Pruebas(DBContext _context, string codempresa)
+        {
+            try
+            {
+                string resultado = "";
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var result = await _context.adparametros
+                    .Where(v => v.codempresa == codempresa)
+                    .Select(parametro => parametro.dircertif_pruebas)
+                   .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = (string)result;
+                }
+                return resultado;
+                //}
+            }
+            catch (Exception)
+            {
+                return "Sin parametro";
+            }
+        }
 
-
+        public async Task<string> Pwd_Certif_Pruebas(DBContext _context, string codempresa)
+        {
+            try
+            {
+                string resultado = "";
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var result = await _context.adparametros
+                    .Where(v => v.codempresa == codempresa)
+                    .Select(parametro => parametro.pwd_certif_pruebas)
+                   .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = (string)result;
+                }
+                return resultado;
+                //}
+            }
+            catch (Exception)
+            {
+                return "Sin parametro";
+            }
+        }
+        public async Task<string> Pwd_Certif_Produccion(DBContext _context, string codempresa)
+        {
+            try
+            {
+                string resultado = "";
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var result = await _context.adparametros
+                    .Where(v => v.codempresa == codempresa)
+                    .Select(parametro => parametro.pwd_certif_produccion)
+                   .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = (string)result;
+                }
+                return resultado;
+                //}
+            }
+            catch (Exception)
+            {
+                return "Sin parametro";
+            }
+        }
+        public async Task<string> Dircertif_Produccion(DBContext _context, string codempresa)
+        {
+            try
+            {
+                string resultado = "";
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var result = await _context.adparametros
+                    .Where(v => v.codempresa == codempresa)
+                    .Select(parametro => parametro.dircertif_produccion)
+                   .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = (string)result;
+                }
+                return resultado;
+                //}
+            }
+            catch (Exception)
+            {
+                return "Sin parametro";
+            }
+        }
     }
 }
  

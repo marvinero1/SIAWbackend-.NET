@@ -6163,6 +6163,7 @@ namespace siaw_funciones
             return objres;
         }
 
+
         public async Task<ResultadoValidacion> Validar_Complementar_Proforma_Para_Descto_Extra(DBContext _context, List<itemDataMatriz> tabladetalle, DatosDocVta DVTA, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
@@ -6318,13 +6319,38 @@ namespace siaw_funciones
 
             if (Sql.Count() > 0)
             {
-                cadena += Environment.NewLine + "El cliente: " + DVTA.codcliente + " ya realizo el/los sgte(s) complemento(s) en el mes actual, y no puede realizar mas complementos: ";
+                //cadena += Environment.NewLine + "El cliente: " + DVTA.codcliente + " ya realizo el/los sgte(s) complemento(s) en el mes actual, y no puede realizar mas complementos: ";
+                //foreach (var lista in Sql)
+                //{
+                //     cadena += Environment.NewLine + "Proforma: " + lista.id +"-"+ lista.numeroid + " de Fecha: " + lista.fecha + " Complementada con: " + lista.idpf_complemento + "-" + lista.nroidpf_complemento;
+                //     resultado = false;
+
+                //}
+                //Desde 25/09/2024 se debe modificar el control, por instruccion de JRA en realidad un cliente puede realizar mas de 1 complemento en el mismo mes pero de distintas proformas pero no entre si;
+                //'es decir por ejemplo se complemento la proforma PF-1 con la PF-2, y ahora quiere complementar la PF-3 con la PF-4 eso debe permitir el sistema; 
+                //'pero no debe permitir complementar entre esas proformas ya complementadas, no debe permitir complementar la PF-5 con la PF-1 o PF-2 o PF-3 o PF-4
                 foreach (var lista in Sql)
                 {
-                     cadena += Environment.NewLine + "Proforma: " + lista.id +"-"+ lista.numeroid + " de Fecha: " + lista.fecha + " Complementada con: " + lista.idpf_complemento + "-" + lista.nroidpf_complemento;
-                     resultado = false;
-                
+                    if (lista.id == DVTA.idpf_complemento && lista.numeroid.ToString() == DVTA.nroidpf_complemento)
+                    {
+                        cadena += Environment.NewLine + "El cliente: " + DVTA.codcliente + " ya realizo el/los sgte(s) complemento(s) en el mes actual, y no puede realizar mas complementos: ";
+                        cadena += Environment.NewLine + "Proforma: " + lista.id + "-" + lista.numeroid + " de Fecha: " + lista.fecha + " Complementada con: " + lista.idpf_complemento + "-" + lista.nroidpf_complemento;
+                        resultado = false;
+                    }
+                    else
+                    {
+                        if (resultado)
+                        {
+                            if (lista.idpf_complemento == DVTA.idpf_complemento && lista.nroidpf_complemento.ToString() == DVTA.nroidpf_complemento)
+                            {
+                                cadena += Environment.NewLine + "El cliente: " + DVTA.codcliente + " ya realizo el/los sgte(s) complemento(s) en el mes actual, y no puede realizar mas complementos: ";
+                                cadena += Environment.NewLine + "Proforma: " + lista.id + "-" + lista.numeroid + " de Fecha: " + lista.fecha + " Complementada con: " + lista.idpf_complemento + "-" + lista.nroidpf_complemento;
+                                resultado = false;
+                            }
+                        }
+                    }
                 }
+
             }
             //VERIFICAR QUE LA PROFORMA ACTUAL Y LA COMPLEMENTO SEAN AL MISMO TIPO DE PRECIO
             //se puede complementar con proformas de distinto precio segun indicado por JRA en fecha 30-08-2022
@@ -6371,7 +6397,8 @@ namespace siaw_funciones
             }
             return objres;
         }
-        
+
+
         public async Task<ResultadoValidacion> Validar_Empaques_caja_cerrada_Descuento(DBContext _context, List<itemDataMatriz> tabladetalle, DatosDocVta DVTA, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();

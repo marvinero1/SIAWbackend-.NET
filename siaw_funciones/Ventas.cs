@@ -6449,7 +6449,7 @@ namespace siaw_funciones
             int resultado = 0;
             try
             {
-                resultado = await _context.vedosificacion.Where(i => i.activa == true && i.nroactual == nrocaja).Select(i => i.nroactual).FirstOrDefaultAsync();
+                resultado = await _context.vedosificacion.Where(i => i.activa == true && i.nrocaja == nrocaja).Select(i => i.nroactual).FirstOrDefaultAsync();
             }
             catch (Exception)
             {
@@ -6457,6 +6457,34 @@ namespace siaw_funciones
             }
             return (resultado + 1);
         }
+
+        public async Task<(string id, int numeroId, int? codremision)> id_nroid_factura(DBContext _context, int codfactura)
+        {
+            try
+            {
+                var tbl = await _context.vefactura
+                    .Where(v => v.codigo == codfactura)
+                    .Select(v => new
+                    {
+                        v.codigo,
+                        v.tipopago,
+                        v.id,
+                        v.numeroid,
+                        v.codremision
+                    })
+                    .FirstOrDefaultAsync();
+                if (tbl != null)
+                {
+                    return (tbl.id, tbl.numeroid, tbl.codremision);
+                }
+                return ("NSE", 0, 0);
+            }
+            catch (Exception)
+            {
+                return ("NSE", 0, 0);
+            }
+        }
+
         public static async Task<(string id, int numeroId)> id_nroid_factura_cuf(DBContext _context, int codfactura)
         {
             try

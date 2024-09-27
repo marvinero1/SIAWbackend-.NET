@@ -8,6 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
+using System.Xml.Schema;
 using System.Xml.Serialization;
 
 // 
@@ -23,7 +24,20 @@ using System.Xml.Serialization;
 [System.Xml.Serialization.XmlTypeAttribute(AnonymousType=true)]
 [System.Xml.Serialization.XmlRootAttribute(Namespace="", IsNullable=false)]
 public partial class facturaElectronicaCompraVentaBon {
-    
+
+    [XmlAttribute("noNamespaceSchemaLocation", Namespace = XmlSchema.InstanceNamespace)]
+    public string SchemaLocation
+    {
+        get
+        {
+            return "facturaElectronicaCompraVentaBon.xsd";
+        }
+        set
+        {
+            // Ignore... purely needed for serialization.
+        }
+    }
+
     private facturaElectronicaCompraVentaBonCabecera cabeceraField;
     
     private facturaElectronicaCompraVentaBonDetalle[] detalleField;

@@ -39,6 +39,7 @@ using Humanizer;
 using System.Globalization;
 using ICSharpCode.SharpZipLib.Core;
 using Polly;
+using siaw_ws_siat;
 
 namespace SIAW.Controllers.ventas.transaccion
 {
@@ -74,6 +75,10 @@ namespace SIAW.Controllers.ventas.transaccion
         private readonly Log log = new Log();
         private readonly Depositos_Cliente depositos_cliente = new Depositos_Cliente();
         private readonly string _controllerName = "veproformaController";
+
+
+        private readonly Funciones_SIAT funciones_SIAT = new Funciones_SIAT();
+        private readonly ServFacturas serv_Facturas = new ServFacturas();
 
         public veproformaController(UserConnectionManager userConnectionManager)
         {
@@ -1806,6 +1811,15 @@ namespace SIAW.Controllers.ventas.transaccion
 
             */
 
+            if (veproforma.tdc == null)
+            {
+                return BadRequest(new { resp = "No se esta recibiendo el tipo de cambio verifique esta situación." });
+            }
+
+            if (veproforma.tdc == 0)
+            {
+                return BadRequest(new { resp = "El tipo de cambio esta como 0 verifique esta situación." });
+            }
 
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
@@ -2886,6 +2900,17 @@ namespace SIAW.Controllers.ventas.transaccion
             var vedesextraprof = datosProforma.vedesextraprof;
             var verecargoprof = datosProforma.verecargoprof;
             var veproforma_iva = datosProforma.veproforma_iva;
+
+            if (veproforma.tdc == null)
+            {
+                return BadRequest(new { resp = "No se esta recibiendo el tipo de cambio verifique esta situación." });
+            }
+
+            if (veproforma.tdc == 0)
+            {
+                return BadRequest(new { resp = "El tipo de cambio esta como 0 verifique esta situación." });
+            }
+
 
             if (veproforma1_2.Count() < 1)
             {
@@ -6321,6 +6346,101 @@ namespace SIAW.Controllers.ventas.transaccion
                 throw;
             }
         }
+
+
+        [HttpGet]
+        [Route("validarNITenSIN/{userConn}/{codempresa}/{usuario}/{codalmacen}/{nit_a_verificar}/{tipo_doc}")]
+        public async Task<IActionResult> validarNITenSIN(string userConn, string codempresa, string usuario, int codalmacen, string nit_a_verificar, int tipo_doc)
+        {
+            if (tipo_doc != 5)
+            {
+                return StatusCode(203, new
+                {
+                    resp = "El tipo de documento no es del tipo NIT"
+                });
+            }
+            if (nit_a_verificar.Trim().Length == 0)
+            {
+                return StatusCode(203, new
+                {
+                    resp = "El NIT ingresado se encuentra vacio, verifique esta situación"
+                });
+            }
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+
+                    var serviOnline = await _context.adsiat_parametros_facturacion.Where(i => i.codalmacen == codalmacen).Select(i => new
+                    {
+                        i.servicio_internet_activo,
+                        i.servicio_sin_activo
+                    }).FirstOrDefaultAsync();
+
+                    bool adsiat_internet_activo = false;
+                    bool adsiat_sin_activo = false;
+                    if (serviOnline != null)
+                    {
+                        adsiat_internet_activo = serviOnline.servicio_internet_activo ?? false;
+                        adsiat_sin_activo = serviOnline.servicio_sin_activo ?? false;
+                    }
+                    if (adsiat_internet_activo && await funciones.Verificar_Conexion_Internet() == true)
+                    {
+                        if (adsiat_sin_activo && await serv_Facturas.VerificarComunicacion(_context, codalmacen))   
+                        {
+                            string miNIT = await empresa.NITempresa(_context, codempresa);
+                            string nit_es_valido = await funciones_SIAT.Verificar_NIT_SIN_2024(_context, codalmacen, long.Parse(miNIT), long.Parse(nit_a_verificar), usuario);
+                            int status = new int();
+                            switch (nit_es_valido)
+                            {
+                                case "VALIDO":
+                                    status = 1;
+                                    break;
+                                case "ERROR":
+                                    status = 2;
+                                    break;
+                                case "OTRO":
+                                    status = 3;
+                                    break;
+                                case "INVALIDO":
+                                    status = 4;
+                                    break;
+                                default:
+                                    status = 0; // Si ningún caso coincide, puedes definir un valor predeterminado
+                                    break;
+                            }
+                            return Ok(new
+                            {
+                                nit_es_valido,
+                                status
+                            });
+                        }
+                        else
+                        {
+                            return StatusCode(203, new
+                            {
+                                resp = "No se tiene comunicación con Impuestos o se deshabilitó la comunicacion con Impuestos, verifique esta situación."
+                            });
+                        }
+                    }
+                    else
+                    {
+                        return StatusCode(203, new
+                        {
+                            resp = "No se tiene comunicación con Internet o se deshabilitó la comunicacion con Internet, verifique esta situación."
+                        });
+                    }  
+                }
+            }
+            catch (Exception ex)
+            {
+                return Problem("Error en el servidor : " + ex.Message);
+                throw;
+            }
+        }
+
+
     }
 
 

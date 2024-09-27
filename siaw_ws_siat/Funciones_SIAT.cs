@@ -16,6 +16,10 @@ using System.Security.Cryptography.X509Certificates;
 using System.Xml;
 using System.Security.Cryptography.Xml;
 using Microsoft.Data.SqlClient.Server;
+using Microsoft.AspNetCore.Http;
+using NuGet.Configuration;
+using System.Runtime.Intrinsics.Arm;
+using Microsoft.Extensions.Logging;
 
 namespace siaw_ws_siat
 {
@@ -34,7 +38,7 @@ namespace siaw_ws_siat
         }
         private readonly Adsiat_Parametros_facturacion adsiat_parametros_facturacion = new Adsiat_Parametros_facturacion();
         private readonly ServCodigos servcodigos = new ServCodigos();
-        private readonly Serv_Facturas serv_facturas = new Serv_Facturas();
+        private readonly ServFacturas servfacturas = new ServFacturas();
         private readonly Log log = new Log();
         private readonly Empresa empresa = new Empresa();
         private readonly Funciones funciones = new Funciones();
@@ -42,6 +46,7 @@ namespace siaw_ws_siat
         private readonly Nombres nombres = new Nombres();
         private readonly Almacen almacen = new Almacen();
         private readonly Inventario inventario = new Inventario();
+        private readonly Ventas ventas = new Ventas();
 
 
         public class DatosParametrosFacturacionAg
@@ -58,7 +63,7 @@ namespace siaw_ws_siat
             public string NitCliente { get; set; } = "";
             public string CodSistema { get; set; } = "";
         }
-        public async Task<bool> Verificar_NIT_SIN_Antes(DBContext _context, int codalm, string miNIT, string miNITAverificar, string usuario)
+        public async Task<bool> Verificar_NIT_SIN_Antes(DBContext _context, int codalm, long miNIT, long miNITAverificar, string usuario)
         {
             bool resultado = false;
 
@@ -67,8 +72,8 @@ namespace siaw_ws_siat
             int codSucursal = await adsiat_parametros_facturacion.Sucursal(_context, codalm);
             string codSistema = await adsiat_parametros_facturacion.CodigoSistema(_context, codSucursal);
             string cuis = await adsiat_parametros_facturacion.CUIS(_context, codSucursal);
-            string nit = miNIT;
-            string nitAverificar = miNITAverificar;
+            long nit = miNIT;
+            long nitAverificar = miNITAverificar;
             string lista_mensaje = "";
             string _mensaje = "";
 
@@ -89,7 +94,7 @@ namespace siaw_ws_siat
             {
                 foreach (var mensaje in resRecepcion.ListaMsg)
                 {
-                    await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, nitAverificar, nitAverificar, nitAverificar, "VerificarNIT", mensaje, Log.TipoLog_Siat.Validar_Nit);
+                    await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, nitAverificar.ToString(), nitAverificar.ToString(), nitAverificar.ToString(), "VerificarNIT", mensaje, Log.TipoLog_Siat.Validar_Nit);
 
                 }
                 resultado = true;
@@ -98,7 +103,7 @@ namespace siaw_ws_siat
             {
                 foreach (var mensaje in resRecepcion.ListaMsg)
                 {
-                    await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, nitAverificar, nitAverificar, nitAverificar, "VerificarNIT", mensaje, Log.TipoLog_Siat.Validar_Nit);
+                    await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, nitAverificar.ToString(), nitAverificar.ToString(), nitAverificar.ToString(), "VerificarNIT", mensaje, Log.TipoLog_Siat.Validar_Nit);
                 }
 
                 if (resRecepcion.Codigo == "992")
@@ -117,7 +122,7 @@ namespace siaw_ws_siat
 
             return resultado;
         }
-        public async Task<string> Verificar_NIT_SIN_2024(DBContext _context, int codalm, string miNIT, string miNITAverificar, string usuario)
+        public async Task<string> Verificar_NIT_SIN_2024(DBContext _context, int codalm, long miNIT, long miNITAverificar, string usuario)
         {
             //Desde 20/09/2024 se detecto que muchas veces el servicio de impuestos que valida un NIT valido puede devolver el codigo 992 - ERROR DE SERVICIO DE PADRON
             //    'provocando que al seleccionar tipo carnet un numero carnet lo vea como NIT  valido lo cual no esta correcto, se cambio para que devuelva los siguientes valores segun la respuesta de impuestos
@@ -131,8 +136,8 @@ namespace siaw_ws_siat
             int codSucursal = await adsiat_parametros_facturacion.Sucursal(_context, codalm);
             string codSistema = await adsiat_parametros_facturacion.CodigoSistema(_context, codSucursal);
             string cuis = await adsiat_parametros_facturacion.CUIS(_context, codSucursal);
-            string nit = miNIT;
-            string nitAverificar = miNITAverificar;
+            long nit = miNIT;
+            long nitAverificar = miNITAverificar;
             string lista_mensaje = "";
             string _mensaje = "";
 
@@ -153,7 +158,7 @@ namespace siaw_ws_siat
             {
                 foreach (var mensaje in resRecepcion.ListaMsg)
                 {
-                    await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, nitAverificar, nitAverificar, nitAverificar, "VerificarNIT", mensaje, Log.TipoLog_Siat.Validar_Nit);
+                    await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, nitAverificar.ToString(), nitAverificar.ToString(), nitAverificar.ToString(), "VerificarNIT", mensaje, Log.TipoLog_Siat.Validar_Nit);
 
                 }
                 resultado = "VALIDO";
@@ -162,7 +167,7 @@ namespace siaw_ws_siat
             {
                 foreach (var mensaje in resRecepcion.ListaMsg)
                 {
-                    await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, nitAverificar, nitAverificar, nitAverificar, "VerificarNIT", mensaje, Log.TipoLog_Siat.Validar_Nit);
+                    await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, nitAverificar.ToString(), nitAverificar.ToString(), nitAverificar.ToString(), "VerificarNIT", mensaje, Log.TipoLog_Siat.Validar_Nit);
                 }
 
                 if (resRecepcion.Codigo == "992")
@@ -184,7 +189,7 @@ namespace siaw_ws_siat
             }
             return resultado;
         }
-        public async Task<bool> Verificar_NIT_SIN_Factura(DBContext _context, int codalm, string miNIT, string miNITAverificar, string usuario)
+        public async Task<bool> Verificar_NIT_SIN_Factura(DBContext _context, int codalm, long miNIT, long miNITAverificar, string usuario)
         {
             bool resultado = false;
 
@@ -193,8 +198,8 @@ namespace siaw_ws_siat
             int codSucursal = await adsiat_parametros_facturacion.Sucursal(_context, codalm);
             string codSistema = await adsiat_parametros_facturacion.CodigoSistema(_context, codSucursal);
             string cuis = await adsiat_parametros_facturacion.CUIS(_context, codSucursal);
-            string nit = miNIT;
-            string nitAverificar = miNITAverificar;
+            long nit = miNIT;
+            long nitAverificar = miNITAverificar;
             string lista_mensaje = "";
             string _mensaje = "";
 
@@ -215,7 +220,7 @@ namespace siaw_ws_siat
             {
                 foreach (var mensaje in resRecepcion.ListaMsg)
                 {
-                    await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, nitAverificar, nitAverificar, nitAverificar, "VerificarNIT", mensaje, Log.TipoLog_Siat.Validar_Nit);
+                    await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, nitAverificar.ToString(), nitAverificar.ToString(), nitAverificar.ToString(), "VerificarNIT", mensaje, Log.TipoLog_Siat.Validar_Nit);
 
                 }
                 resultado = true;
@@ -224,7 +229,7 @@ namespace siaw_ws_siat
             {
                 foreach (var mensaje in resRecepcion.ListaMsg)
                 {
-                    await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, nitAverificar, nitAverificar, nitAverificar, "VerificarNIT", mensaje, Log.TipoLog_Siat.Validar_Nit);
+                    await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, nitAverificar.ToString(), nitAverificar.ToString(), nitAverificar.ToString(), "VerificarNIT", mensaje, Log.TipoLog_Siat.Validar_Nit);
                 }
 
                 //if (resRecepcion.Codigo == "992")
@@ -277,14 +282,38 @@ namespace siaw_ws_siat
                     .Where(x => x.vefactura1.codfactura == codfactura)
                     .OrderBy(x => x.vefactura1.coditem)
                     .ThenBy(x => x.initem.medida)
-                    .Select(x => new
-                    {
-                        x.initem.descripabr,
-                        x.initem.descripcion,
-                        x.initem.descripcorta,
-                        x.vefactura1 // Selecciona todas las columnas de vefactura1
-                    })
-                    .ToListAsync();
+                     .Select(x => new
+                     {
+                         // Selecciona todas las propiedades de vefactura1 usando el operador 'new' para un objeto anónimo
+                         //vefactura1 = x.vefactura1, // Aquí se incluyen todas las columnas de vefactura1
+                                                    // También selecciona las columnas que deseas de initem
+                         descripabr = x.initem.descripcion,
+                         descripcion = x.initem.descripabr,
+                         descripcorta = x.initem.descripcorta,
+
+                         codfactura  = x.vefactura1.codfactura,
+                         coditem = x.vefactura1.coditem,
+                         cantidad = x.vefactura1.cantidad,
+                         udm = x.vefactura1.udm,
+                         precioneto = x.vefactura1.precioneto,
+                         preciolista = x.vefactura1.preciolista,
+                         preciodesc = x.vefactura1.preciodesc,
+                         niveldesc = x.vefactura1.niveldesc,
+                         codtarifa = x.vefactura1.codtarifa,
+                         coddescuento = x.vefactura1.coddescuento,
+                         total = x.vefactura1.total,
+                         distdescuento = x.vefactura1.distdescuento,
+                         distrecargo = x.vefactura1.distrecargo,
+                         preciodist = x.vefactura1.preciodist,
+                         totaldist = x.vefactura1.totaldist,
+                         porceniva = x.vefactura1.porceniva,
+                         codaduana = x.vefactura1.codaduana,
+                         codgrupomer = x.vefactura1.codgrupomer,
+                         peso = x.vefactura1.peso,
+                         codproducto_sin = x.vefactura1.codproducto_sin
+
+                     })
+                        .ToListAsync();
                     var result1 = datos1.Distinct().ToList();
                     dtvefactura1 = funciones.ToDataTable(result1);
                 }
@@ -306,7 +335,8 @@ namespace siaw_ws_siat
                         codigoPuntoVenta = ParamFcAg.ptovta,
                     };
                     fechaTimestamp = await funciones.Fecha_TimeStamp(Convert.ToDateTime(dtvefactura.Rows[0]["fecha"].ToString()), (string)dtvefactura.Rows[0]["horareg"]);
-                    DateTime fechaFinal = DateTime.Parse(fechaTimestamp);
+                    //DateTime fechaFinal = DateTime.Parse(fechaTimestamp);
+                    DateTime fechaFinal = DateTime.ParseExact(fechaTimestamp, "yyyy-MM-ddTHH:mm:ss.fff", System.Globalization.CultureInfo.InvariantCulture);
                     Factura_cabecera.fechaEmision = fechaFinal;
                     Factura_cabecera.nombreRazonSocial = (string?)dtvefactura.Rows[0]["nomcliente"];
                    tipo_documento = Convert.ToInt32(dtvefactura.Rows[0]["tipo_docid"]);
@@ -343,9 +373,9 @@ namespace siaw_ws_siat
                             //es NIT validar si efectivamente es un NIT valido
                             if (await funciones.Verificar_Conexion_Internet() && await adsiat_parametros_facturacion.ServiciosInternetActivo(_context, (int)dtvefactura.Rows[0]["codalmacen"]))
                             {//preguntar si hay conexion al SIN
-                                if (await serv_facturas.VerificarComunicacion(_context, (int)dtvefactura.Rows[0]["codalmacen"]) && await adsiat_parametros_facturacion.ServiciosSinActivo(_context, (int)dtvefactura.Rows[0]["codalmacen"]))
+                                if (await servfacturas.VerificarComunicacion(_context, (int)dtvefactura.Rows[0]["codalmacen"]) && await adsiat_parametros_facturacion.ServiciosSinActivo(_context, (int)dtvefactura.Rows[0]["codalmacen"]))
                                 {//'preguntar si el codigoTipoDocumentoIdentidad es NIT o no para enviar el parametro 1:CI, 5:NIT
-                                    if (await Verificar_NIT_SIN_Factura(_context, (int)dtvefactura.Rows[0]["codalmacen"], nit_empresa, dtvefactura.Rows[0]["nit"].ToString(),usuario))
+                                    if (await Verificar_NIT_SIN_Factura(_context, (int)dtvefactura.Rows[0]["codalmacen"], long.Parse(nit_empresa), long.Parse((string)dtvefactura.Rows[0]["nit"]),usuario))
                                     {//si es true es NIT activo
                                         Factura_cabecera.codigoTipoDocumentoIdentidad = "5";
                                         Factura_cabecera.codigoExcepcion = "0";
@@ -457,6 +487,10 @@ namespace siaw_ws_siat
                     }
                     else
                     {
+                        if (!Directory.Exists(Path.Combine(AppContext.BaseDirectory, "certificado")))
+                        {
+                            Directory.CreateDirectory(Path.Combine(AppContext.BaseDirectory, "certificado"));
+                        }
                         ruta_factura_xml = Path.Combine(AppContext.BaseDirectory, "certificado", $"{idfc}_{nroidfc}.xml");
                     }
 
@@ -560,8 +594,167 @@ namespace siaw_ws_siat
             }
             return resultado;
         }
+        public async Task<(bool resul, List<string> msgAlertas, List<string> eventos)> ENVIAR_FACTURA_AL_SIN(DBContext _context, string codigocontrol, string codempresa, string usuario, string micufd, long miNIT, string miCUF, byte[] archivogzip, string mihashArchivo, int codalm, int codFactura, string idFac, int nroIdFac)
+        {
+            // para devolver lista de registros logs
+            List<string> eventos = new List<string>();
+            List<string> msgAlertas = new List<string>();
+            bool resultado = false;
+            var resRecepcion = new ServFacturas.ResultadoRecepcionFactura();
 
+            int codAmbiente = await adsiat_parametros_facturacion.Ambiente(_context, codalm);
+            int codDocSector = await adsiat_parametros_facturacion.TipoDocSector(_context, codalm);
+            int codEmision = await adsiat_parametros_facturacion.TipoEmision(_context, codalm);
+            int codModalidad = await adsiat_parametros_facturacion.Modalidad(_context, codalm);
+            int codPtoVta = await adsiat_parametros_facturacion.PuntoDeVta(_context, codalm);
+            int codSucursal = await adsiat_parametros_facturacion.Sucursal(_context, codalm);
+            string codSistema = await adsiat_parametros_facturacion.CodigoSistema(_context, codSucursal);
+            string cuis = await adsiat_parametros_facturacion.CUIS(_context, codSucursal);
+            long nit = miNIT;
+            string cufd = micufd;
+            int tipoFacturaDocumento = await adsiat_parametros_facturacion.TipoFactura(_context, codalm);
+            string cuf = miCUF;
+            byte[] archivo = archivogzip;
+            string hashArchivo = mihashArchivo;
+            string lista_mensaje = "";
+            string _mensaje = "";
+            string fecha_envio = await FechaDelServidorTimeStamp(_context);
 
+            resRecepcion = await servfacturas.Recepcion_Factura(_context, fecha_envio, codalm, codAmbiente, codDocSector, codEmision, codModalidad, codPtoVta, codSistema, codSucursal, cuis, cufd, nit, tipoFacturaDocumento, archivo, hashArchivo);
+            lista_mensaje = "";
+            foreach (var mensaje in resRecepcion.ListaMsg)
+            {
+                if (lista_mensaje.Trim().Length == 0)
+                {
+                    lista_mensaje = mensaje;
+                }
+                else
+                {
+                    lista_mensaje += Environment.NewLine + mensaje;
+                }
+            }
+            if (resRecepcion.Transaccion)
+            {
+                _mensaje = "La conexion con el SIN para enviar la factura fue exitosa, el resultado del envio es: " + resRecepcion.CodEstado + "-" + resRecepcion.CodEstadoDesc + "-" + resRecepcion.CodRecepcion;
+                eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + _mensaje);
+                foreach (var mensaje in resRecepcion.ListaMsg)
+                {
+                    await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFac, nroIdFac.ToString(), "ENVIAR_FACTURA_AL_SIN", mensaje, Log.TipoLog_Siat.Creacion);
+                }
+                resultado = true;
+            }
+            else
+            {
+                _mensaje = "Se tienen obervaciones en el envio de la factura: " + resRecepcion.CodEstado + "-" + resRecepcion.CodEstadoDesc;
+                eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + _mensaje);
+                foreach (var mensaje in resRecepcion.ListaMsg)
+                {
+                    await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFac, nroIdFac.ToString(), "ENVIAR_FACTURA_AL_SIN", mensaje, Log.TipoLog_Siat.Creacion);
+                }
+                resultado = false;
+                //'Desde 08/07/2023 aqui ver si conviene cambiar los siguientes campos en_linea='0' , en_linea_sin='0', volver a generar CUF y actualizar
+                //'Porq en teoria la factura salio ya rechazada por lo tanto se empaquetara como fuera de linea y asi evitaremos actualizar el CUF
+                //'desde el empaquetar al momento de empaquetar facturas
+                //'//actualizar en_linea true porq SI hay conexion a internet
+                //'/Desde 14/08/2023 solo si se recibe la respuesta 902 RECHAZADA LA FACTURA SE CAMBIARA SU CUF SINO ALERTA QUE SE COMUNIQUE CON EL AREA DE SISTEMAS
+                if (resRecepcion.CodEstado == 902)
+                {
+                    string valNIT = await empresa.NITempresa(_context, codempresa);
+                    string tipoEmision = "";
+                    string msj = "";
+                    Datos_Pametros_Facturacion_Ag parametrosFacturacionAg1 = new Datos_Pametros_Facturacion_Ag();
+                    parametrosFacturacionAg1 = await siat.Obtener_Parametros_Facturacion(_context, codalm);
+
+                    //int nrofactura = //ventas.factura_nrofactura(codFactura);
+                    int nrofactura = 0;
+                    // Buscar la factura por el código
+                    var factura2 = _context.vefactura.SingleOrDefault(f => f.codigo == codFactura);
+                    if (factura2 != null)
+                    {
+                        // Actualizar los valores
+                        nrofactura = factura2.nrofactura;
+                        factura2.en_linea = false;
+                        factura2.en_linea_SIN = false;
+                        // Guardar cambios en la base de datos
+                        _context.SaveChanges();
+                        msj = "El estado en línea y en línea SIN de la factura fue cambiado exitosamente a FUERA DE LÍNEA";
+                        await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFac, nroIdFac.ToString(), "prgfacturarNR_cufdController", msj, Log.TipoLog_Siat.Creacion);
+                    }
+
+                    if (parametrosFacturacionAg1.resultado)
+                    {
+                        tipoEmision = "2";
+                        string valorCUF = await siat.Generar_CUF(_context, idFac, nroIdFac, codalm, valNIT, parametrosFacturacionAg1.codsucursal, parametrosFacturacionAg1.modalidad, tipoEmision, parametrosFacturacionAg1.tipofactura, parametrosFacturacionAg1.tiposector, nrofactura.ToString(), parametrosFacturacionAg1.ptovta, codigocontrol);
+                        if (factura2 != null)
+                        {
+                            // Actualizar los valores
+                            factura2.cuf = valorCUF;
+                            // Guardar cambios en la base de datos
+                            _context.SaveChanges();
+                            msj = "El CUF de la factura fue cambiado exitosamente por: " + valorCUF;
+                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + _mensaje);
+                            await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFac, nroIdFac.ToString(), "prgfacturarNR_cufdController", msj, Log.TipoLog_Siat.Creacion);
+                        }
+                    }
+                    else
+                    {
+                        // Actualizar el CUF
+                        if (factura2 != null)
+                        {
+                            // Actualizar los valores
+                            factura2.cuf = "";
+                            // Guardar cambios en la base de datos
+                            _context.SaveChanges();
+                            //msj = "No se pudo generar el CUF correcto, se puso un CUF vacío.";
+                            string cadenaMsj = $"No se pudo generar el CUF de la factura {idFac}-{nroIdFac} debido a que no se encontraron los parámetros de facturación necesarios de la agencia!!!";
+                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + cadenaMsj);
+                            await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFac, nroIdFac.ToString(), "prgfacturarNR_cufdController", cadenaMsj, Log.TipoLog_Siat.Creacion);
+                        }
+                        resultado = false;
+                    }
+                }
+                else
+                {
+                    resultado = false;
+                    msgAlertas.Add("¡COMUNÍQUESE URGENTEMENTE CON EL ÁREA DE SISTEMAS PARA LA REVISIÓN DE ESTA FACTURA!");
+                }
+            }
+
+            // Actualizar la cod_recepcion_siat
+            var codRecepcionSiat = resRecepcion.CodRecepcion;
+            var codEstadoSiat = resRecepcion.CodEstado;
+            var factura = _context.vefactura.SingleOrDefault(f => f.codigo == codFactura);
+            if (factura != null)
+            {
+                // Actualizar los valores
+                factura.cod_recepcion_siat = codRecepcionSiat;
+                factura.cod_estado_siat = codEstadoSiat;
+                // Guardar cambios en la base de datos
+                _context.SaveChanges();
+                await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFac, nroIdFac.ToString(), "prgfacturarNR_cufdController", $"Cod_Recepcion|{codRecepcionSiat}|Cod_estado_siat|{codEstadoSiat}", Log.TipoLog_Siat.Creacion);
+            }
+
+            return (resultado, msgAlertas,eventos);
+        }
+        public async Task<string> FechaDelServidorTimeStamp(DBContext _context)
+        {
+            DateTime miFecha = DateTime.Now;
+            string resultado = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff");
+
+            try
+            {
+                // Suponiendo que _context es tu DbContext de Entity Framework
+                DateTime fecha = await funciones.FechaDelServidor_TimeStamp(_context);
+                miFecha = fecha;
+                resultado = miFecha.ToString("yyyy-MM-ddTHH:mm:ss.fff");
+                //resultado += "1"; // Añades "1" como en tu código original
+            }
+            catch (Exception ex)
+            {
+                resultado = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff");
+            }
+            return resultado;
+        }
         //public async Task<Datos_Pametros_Facturacion_Ag> Obtener_Parametros_Facturacion(DBContext _context, int codalmacen)
         //{
         //    var resultado = new DatosParametrosFacturacionAg();

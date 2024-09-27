@@ -662,6 +662,28 @@ namespace siaw_funciones
 
             return await Task.FromResult(_fecha_convertido);
         }
+        public async Task<DateTime> FechaDelServidor_TimeStamp(DBContext _context)
+        {
+            DateTime resultado = DateTime.Now;
 
+
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                //resultado = _context.FechaServidor.FromSqlRaw("SELECT GETDATE() AS fecha").FirstOrDefault()?.Fecha ?? DateTime.Now;
+                var query = await _context.Database.ExecuteSqlRawAsync("SELECT GETDATE() AS fecha");
+                resultado = query > 0 ? DateTime.Now : resultado;
+                //}
+            }
+            catch (Exception ex)
+            {
+                // Manejar la excepción según tus necesidades
+                Console.WriteLine($"Error: {ex.Message}");
+            }
+
+            return resultado;
+        }
     }
 }

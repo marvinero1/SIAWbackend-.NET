@@ -434,99 +434,27 @@ namespace SIAW.Controllers.ventas.transaccion
                 });
                 */
 
-
-
-
-
+                int codNRemision = 0;
+                int numeroId = 0;
+                bool mostrarModificarPlanCuotas = false;
+                List<planPago_object>? plandeCuotas = new List<planPago_object>();
                 using (var dbContexTransaction = _context.Database.BeginTransaction())
                 {
                     try
                     {
-
-
-
                         // El front debe llamar a las funciones de totalizar antes de mandar a grabar
                         var doc_grabado = await Grabar_Documento(_context, id, usuario, desclinea_segun_solicitud, codProforma, codempresa, datosRemision);
                         // si doc_grabado.mostrarModificarPlanCuotas  == true    Marvin debe desplegar ventana para modificar plan de cuotas, es ventana nueva aparte
                         if (doc_grabado.resp != "ok")
                         {
+                            await dbContexTransaction.RollbackAsync();
                             return BadRequest(new { resp = doc_grabado.resp, msgAlert = "No se pudo Grabar la Nota de Remision con Exito." });
                         }
-                        resultado = true;
-                        await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, doc_grabado.codNRemision.ToString(), datosRemision.veremision.id, doc_grabado.numeroId.ToString(), this._controllerName, "Grabar", Log.TipoLog.Creacion);
-                        // devolver
-                        string msgAlertGrabado = "Se grabo la Nota de Remision " + datosRemision.veremision.id + "-" + doc_grabado.numeroId + " con Exito.";
-
-                        //Actualizar Credito
-                        //sia_funciones.Creditos.Instancia.Actualizar_Credito_2020(codcliente.Text, sia_compartidos.temporales.Instancia.usuario, sia_compartidos.temporales.Instancia.codempresa, True, Me.Usar_Bd_Opcional)
-
-                        // Actualizar Credito
-                        await creditos.Actualizar_Credito_2023(_context, datosRemision.veremision.codcliente, usuario, codempresa, true);
-
-                        // enlazar a la solicitud urgente
-                        string msgSolUrg = "";
-                        if (id_solurg.Trim() != "" && nroid_solurg > 0)  // si no es sol urgente, Marvin debe mandar id en vacio "" y nroid en 0
-                        {
-                            try
-                            {
-                                var insolUrg = await _context.insolurgente.Where(i => i.id == id_solurg && i.numeroid == nroid_solurg).FirstOrDefaultAsync();
-                                insolUrg.fid = datosRemision.veremision.id;
-                                insolUrg.fnumeroid = doc_grabado.numeroId;
-                                await _context.SaveChangesAsync();
-                                msgSolUrg = "La nota de remision fue enlazada con la solicitud urgente: " + id_solurg + "-" + nroid_solurg;
-                            }
-                            catch (Exception)
-                            {
-                                msgSolUrg = "La nota de remision no pudo ser enlazada a la solicitud Urgente, contacte con el administrador de sistemas.";
-                                //throw;
-                            }
-
-                        }
-
-                        /*
-                        If tipopago.SelectedIndex = 1 Then
-                            '##### CONTABILIZAR
-                            If sia_funciones.Seguridad.Instancia.rol_contabiliza(sia_funciones.Seguridad.Instancia.usuario_rol(sia_compartidos.temporales.Instancia.usuario)) Then
-                                If sia_funciones.Configuracion.Instancia.emp_preg_cont_ventascredito(sia_compartidos.temporales.Instancia.codempresa) Then
-                                    If MessageBox.Show("Desea contabilizar este documento ?", "Confirmacion", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) = Windows.Forms.DialogResult.Yes Then
-                                        Dim frm As New sia_compartidos.prgDatosContabilizar
-                                        frm.ShowDialog()
-                                        If frm.eligio Then
-                                            If frm.nuevo Then
-                                                sia_funciones.Contabilidad.Instancia.Contabilizar_Venta_a_Credito(sia_compartidos.temporales.Instancia.codempresa, sia_funciones.Empresa.Instancia.monedabase(sia_compartidos.temporales.Instancia.codempresa), sia_funciones.Documento.Instancia.Codigo_Remision(id.Text, CInt(numeroid.Text)), frm.id_elegido, frm.tipo_elegido, 0, True, False) ', True, True, False, True)
-                                            Else
-                                                sia_funciones.Contabilidad.Instancia.Contabilizar_Venta_a_Credito(sia_compartidos.temporales.Instancia.codempresa, sia_funciones.Empresa.Instancia.monedabase(sia_compartidos.temporales.Instancia.codempresa), sia_funciones.Documento.Instancia.Codigo_Remision(id.Text, CInt(numeroid.Text)), "", "", frm.codigo_elegido, True, False) ', True, True, False, True)
-                                            End If
-                                        Else
-                                        End If
-                                        frm.Dispose()
-                                    End If
-                                End If
-                            End If
-                            '##### FIN CONTABILIZAR
-                        End If
-
-
-
-                        limpiardoc()
-                        mostrardatos("0")
-                        leerparametros()
-                        ponerpordefecto()
-                        id.Focus()
-
-                         */
-
-
+                        // SI ESTA TODO OK QUE LO GUARDE EN VARIABLES LO QUE RECIBE PARA USAR MAS ADELANTE
+                        codNRemision = doc_grabado.codNRemision;
+                        numeroId = doc_grabado.numeroId;
+                        mostrarModificarPlanCuotas = doc_grabado.mostrarModificarPlanCuotas;
                         await dbContexTransaction.CommitAsync();
-                        return Ok(new
-                        {
-                            resp = msgAlertGrabado,
-                            codNotRemision = doc_grabado.codNRemision,
-                            nroIdRemision = doc_grabado.numeroId,
-                            mostrarVentanaModifPlanCuotas = doc_grabado.mostrarModificarPlanCuotas,
-                            planCuotas = doc_grabado.plandeCuotas,
-                            msgSolUrg = msgSolUrg
-                        });
                     }
                     catch (Exception ex)
                     {
@@ -536,6 +464,98 @@ namespace SIAW.Controllers.ventas.transaccion
                     }
                 }
 
+
+
+
+
+                try
+                {
+                    resultado = true;
+                    await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, codNRemision.ToString(), datosRemision.veremision.id, numeroId.ToString(), this._controllerName, "Grabar", Log.TipoLog.Creacion);
+                    // devolver
+                    string msgAlertGrabado = "Se grabo la Nota de Remision " + datosRemision.veremision.id + "-" + numeroId + " con Exito.";
+
+                    //Actualizar Credito
+                    //sia_funciones.Creditos.Instancia.Actualizar_Credito_2020(codcliente.Text, sia_compartidos.temporales.Instancia.usuario, sia_compartidos.temporales.Instancia.codempresa, True, Me.Usar_Bd_Opcional)
+
+                    // Actualizar Credito
+                    await creditos.Actualizar_Credito_2023(_context, datosRemision.veremision.codcliente, usuario, codempresa, true);
+
+                    // enlazar a la solicitud urgente
+                    string msgSolUrg = "";
+                    if (id_solurg.Trim() != "" && nroid_solurg > 0)  // si no es sol urgente, Marvin debe mandar id en vacio "" y nroid en 0
+                    {
+                        try
+                        {
+                            var insolUrg = await _context.insolurgente.Where(i => i.id == id_solurg && i.numeroid == nroid_solurg).FirstOrDefaultAsync();
+                            insolUrg.fid = datosRemision.veremision.id;
+                            insolUrg.fnumeroid = numeroId;
+                            await _context.SaveChangesAsync();
+                            msgSolUrg = "La nota de remision fue enlazada con la solicitud urgente: " + id_solurg + "-" + nroid_solurg;
+                        }
+                        catch (Exception)
+                        {
+                            msgSolUrg = "La nota de remision no pudo ser enlazada a la solicitud Urgente, contacte con el administrador de sistemas.";
+                            //throw;
+                        }
+                    }
+
+                    /*
+                    If tipopago.SelectedIndex = 1 Then
+                        '##### CONTABILIZAR
+                        If sia_funciones.Seguridad.Instancia.rol_contabiliza(sia_funciones.Seguridad.Instancia.usuario_rol(sia_compartidos.temporales.Instancia.usuario)) Then
+                            If sia_funciones.Configuracion.Instancia.emp_preg_cont_ventascredito(sia_compartidos.temporales.Instancia.codempresa) Then
+                                If MessageBox.Show("Desea contabilizar este documento ?", "Confirmacion", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) = Windows.Forms.DialogResult.Yes Then
+                                    Dim frm As New sia_compartidos.prgDatosContabilizar
+                                    frm.ShowDialog()
+                                    If frm.eligio Then
+                                        If frm.nuevo Then
+                                            sia_funciones.Contabilidad.Instancia.Contabilizar_Venta_a_Credito(sia_compartidos.temporales.Instancia.codempresa, sia_funciones.Empresa.Instancia.monedabase(sia_compartidos.temporales.Instancia.codempresa), sia_funciones.Documento.Instancia.Codigo_Remision(id.Text, CInt(numeroid.Text)), frm.id_elegido, frm.tipo_elegido, 0, True, False) ', True, True, False, True)
+                                        Else
+                                            sia_funciones.Contabilidad.Instancia.Contabilizar_Venta_a_Credito(sia_compartidos.temporales.Instancia.codempresa, sia_funciones.Empresa.Instancia.monedabase(sia_compartidos.temporales.Instancia.codempresa), sia_funciones.Documento.Instancia.Codigo_Remision(id.Text, CInt(numeroid.Text)), "", "", frm.codigo_elegido, True, False) ', True, True, False, True)
+                                        End If
+                                    Else
+                                    End If
+                                    frm.Dispose()
+                                End If
+                            End If
+                        End If
+                        '##### FIN CONTABILIZAR
+                    End If
+
+
+
+                    limpiardoc()
+                    mostrardatos("0")
+                    leerparametros()
+                    ponerpordefecto()
+                    id.Focus()
+
+                     */
+
+
+                    return Ok(new
+                    {
+                        resp = msgAlertGrabado,
+                        codNotRemision = codNRemision,
+                        nroIdRemision = numeroId,
+                        mostrarVentanaModifPlanCuotas = mostrarModificarPlanCuotas,
+                        planCuotas = plandeCuotas,
+                        msgSolUrg = msgSolUrg
+                    });
+                }
+                catch (Exception)
+                {
+                    return Ok(new
+                    {
+                        resp = "Se grabo la Nota de Remision pero hay un problema en la actualizacion de creditos o enlace con solicitud urgente, consulte con el Administrador del sistema.",
+                        codNotRemision = codNRemision,
+                        nroIdRemision = numeroId,
+                        mostrarVentanaModifPlanCuotas = mostrarModificarPlanCuotas,
+                        planCuotas = plandeCuotas,
+                        msgSolUrg = ""
+                    });
+                }
 
                 /*
                 // Asegurarse de que se devuelva algo en todos los casos

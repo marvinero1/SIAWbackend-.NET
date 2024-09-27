@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -580,7 +581,58 @@ namespace siaw_funciones
             }
         }
 
+        public async Task<string> GenerarSHA256DeArchivoAsync(string rutaArchivo)
+        {
+            string hashHuella = "";
 
+            try
+            {
+                var crc32 = new CRC32(); // Asegúrate de que tienes una implementación de CRC32.
+                int crc = 0;
+
+                // Cálculo de CRC32
+                using (FileStream f = new FileStream(rutaArchivo, FileMode.Open, FileAccess.Read, FileShare.Read, 8192, FileOptions.Asynchronous))
+                {
+                    crc = crc32.GetCrc32(f);
+                }
+
+                // Cálculo de MD5
+                using (FileStream f = new FileStream(rutaArchivo, FileMode.Open, FileAccess.Read, FileShare.Read, 8192, FileOptions.Asynchronous))
+                {
+                    using (MD5 md5 = MD5.Create())
+                    {
+                        byte[] md5Hash = await Task.Run(() => md5.ComputeHash(f));
+                        StringBuilder buff = new StringBuilder();
+                        foreach (byte hashByte in md5Hash)
+                        {
+                            buff.AppendFormat("{0:X2}", hashByte); // Cambiado a X2 para que cada byte se represente con dos dígitos.
+                        }
+                        // Aquí puedes utilizar buff.ToString() para mostrar el hash MD5 si es necesario
+                    }
+                }
+
+                // Cálculo de SHA256
+                using (FileStream f = new FileStream(rutaArchivo, FileMode.Open, FileAccess.Read, FileShare.Read, 8192, FileOptions.Asynchronous))
+                {
+                    using (SHA256 sha256 = SHA256.Create())
+                    {
+                        byte[] sha256Hash = await Task.Run(() => sha256.ComputeHash(f));
+                        StringBuilder buff = new StringBuilder();
+                        foreach (byte hashByte in sha256Hash)
+                        {
+                            buff.AppendFormat("{0:X2}", hashByte); // Cambiado a X2 para que cada byte se represente con dos dígitos.
+                        }
+                        hashHuella = buff.ToString();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error al generar al HASH: " + ex.Message);
+            }
+
+            return hashHuella;
+        }
     }
 
     public class Datos_Dosificacion_Activa

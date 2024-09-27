@@ -61265,6 +61265,8 @@ namespace siaw_DBContext.Data
                     .HasMaxLength(50)
                     .IsUnicode(false);
 
+                entity.Property(e => e.cod_recepcion_siat).HasMaxLength(50);
+
                 entity.Property(e => e.codbanco)
                     .HasMaxLength(3)
                     .IsUnicode(false);
@@ -61419,7 +61421,7 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<vefactura1>(entity =>
             {
-                entity.HasNoKey();
+                entity.HasKey(e => e.codigo);
 
                 entity.Property(e => e.cantidad).HasColumnType("decimal(18, 2)");
 

@@ -27,5 +27,6 @@ namespace siaw_DBContext.Models
         public int? codgrupomer { get; set; }
         public decimal? peso { get; set; }
         public string codproducto_sin { get; set; }
+        public int codigo { get; set; }
     }
 }

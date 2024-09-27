@@ -110,9 +110,10 @@ namespace siaw_ws_siat
             {
                 return 0;
             }
+            
         }
 
-        public async Task<int> TipoEmision(int codAlmacen, DBContext dbContext)
+        public async Task<int> TipoEmision( DBContext dbContext, int codAlmacen)
         {
             var param = await dbContext.adsiat_parametros_facturacion
                 .Where(p => p.codalmacen == codAlmacen)
