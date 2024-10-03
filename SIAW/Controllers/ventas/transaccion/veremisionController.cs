@@ -417,22 +417,12 @@ namespace SIAW.Controllers.ventas.transaccion
                         //return BadRequest(new { resp = validacion.resp, validacion.msgsAlert, validacion.dtnegativos_result, validacion.codigo_control });
                         return StatusCode(203, new { resp = validacion.resp, validacion.msgsAlert, validacion.dtnegativos_result, validacion.codigo_control });
                     }
-
                     /////**************************
-
                 }
                 catch (Exception ex)
                 {
                     return Problem($"Error en el servidor al Validar NR: {ex.Message}");
                 }
-
-                /*
-                // Usa la política de reintento desde la clase RetryPolicyService
-                await RetryPolicyService.RetryPolicy.ExecuteAsync(async () =>
-                {
-                    
-                });
-                */
 
                 int codNRemision = 0;
                 int numeroId = 0;
@@ -463,15 +453,17 @@ namespace SIAW.Controllers.ventas.transaccion
                         throw;
                     }
                 }
-
-
-
-
-
+                try
+                {
+                    await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, codNRemision.ToString(), datosRemision.veremision.id, numeroId.ToString(), this._controllerName, "Grabar", Log.TipoLog.Creacion);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Error al guardar Log de veremision" + ex.Message);
+                }
                 try
                 {
                     resultado = true;
-                    await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, codNRemision.ToString(), datosRemision.veremision.id, numeroId.ToString(), this._controllerName, "Grabar", Log.TipoLog.Creacion);
                     // devolver
                     string msgAlertGrabado = "Se grabo la Nota de Remision " + datosRemision.veremision.id + "-" + numeroId + " con Exito.";
 
@@ -500,40 +492,6 @@ namespace SIAW.Controllers.ventas.transaccion
                         }
                     }
 
-                    /*
-                    If tipopago.SelectedIndex = 1 Then
-                        '##### CONTABILIZAR
-                        If sia_funciones.Seguridad.Instancia.rol_contabiliza(sia_funciones.Seguridad.Instancia.usuario_rol(sia_compartidos.temporales.Instancia.usuario)) Then
-                            If sia_funciones.Configuracion.Instancia.emp_preg_cont_ventascredito(sia_compartidos.temporales.Instancia.codempresa) Then
-                                If MessageBox.Show("Desea contabilizar este documento ?", "Confirmacion", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) = Windows.Forms.DialogResult.Yes Then
-                                    Dim frm As New sia_compartidos.prgDatosContabilizar
-                                    frm.ShowDialog()
-                                    If frm.eligio Then
-                                        If frm.nuevo Then
-                                            sia_funciones.Contabilidad.Instancia.Contabilizar_Venta_a_Credito(sia_compartidos.temporales.Instancia.codempresa, sia_funciones.Empresa.Instancia.monedabase(sia_compartidos.temporales.Instancia.codempresa), sia_funciones.Documento.Instancia.Codigo_Remision(id.Text, CInt(numeroid.Text)), frm.id_elegido, frm.tipo_elegido, 0, True, False) ', True, True, False, True)
-                                        Else
-                                            sia_funciones.Contabilidad.Instancia.Contabilizar_Venta_a_Credito(sia_compartidos.temporales.Instancia.codempresa, sia_funciones.Empresa.Instancia.monedabase(sia_compartidos.temporales.Instancia.codempresa), sia_funciones.Documento.Instancia.Codigo_Remision(id.Text, CInt(numeroid.Text)), "", "", frm.codigo_elegido, True, False) ', True, True, False, True)
-                                        End If
-                                    Else
-                                    End If
-                                    frm.Dispose()
-                                End If
-                            End If
-                        End If
-                        '##### FIN CONTABILIZAR
-                    End If
-
-
-
-                    limpiardoc()
-                    mostrardatos("0")
-                    leerparametros()
-                    ponerpordefecto()
-                    id.Focus()
-
-                     */
-
-
                     return Ok(new
                     {
                         resp = msgAlertGrabado,
@@ -556,18 +514,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         msgSolUrg = ""
                     });
                 }
-
-                /*
-                // Asegurarse de que se devuelva algo en todos los casos
-                if (resultado == false)
-                {
-                    return Problem("Ocurrió un error inesperado y no se pudo procesar la solicitud.");
-                }
-                */
-
             }
-            // Retorno en caso de éxito inesperado
-            //return Ok(new { resp = "Solicitud procesada correctamente." });
 
         }
 
@@ -3169,9 +3116,9 @@ namespace SIAW.Controllers.ventas.transaccion
                         return ("No se pudo encontrar la proforma para transferirla, por favor consulte con el administrador del sistema.", 0, 0, false, null);
                     }
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    return ("Error al transferir la proforma, por favor consulte con el administrador del sistema.", 0, 0, false, null);
+                    return ("Error al transferir la proforma, por favor consulte con el administrador del sistema: " + ex.Message, 0, 0, false, null);
                 }
             }
 
@@ -3186,9 +3133,9 @@ namespace SIAW.Controllers.ventas.transaccion
                     }
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return ("Error al Guardar descuentos extras de Nota de Remision, por favor consulte con el administrador del sistema.", 0, 0, false, null);
+                return ("Error al Guardar descuentos extras de Nota de Remision, por favor consulte con el administrador del sistema: " +ex.Message, 0, 0, false, null);
             }
             try
             {
@@ -3201,9 +3148,9 @@ namespace SIAW.Controllers.ventas.transaccion
                     }
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return ("Error al Guardar recargos de Nota de Remision, por favor consulte con el administrador del sistema.", 0, 0, false, null);
+                return ("Error al Guardar recargos de Nota de Remision, por favor consulte con el administrador del sistema: " + ex.Message, 0, 0, false, null);
             }
             try
             {
@@ -3216,34 +3163,48 @@ namespace SIAW.Controllers.ventas.transaccion
                     }
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return ("Error al Guardar iva de Nota de Remision, por favor consulte con el administrador del sistema.", 0, 0, false, null);
+                return ("Error al Guardar iva de Nota de Remision, por favor consulte con el administrador del sistema: " + ex.Message, 0, 0, false, null);
             }
 
 
             // actualizar stock actual si es que descarga mercaderia
-            try
+            if (descarga)
             {
-                if (descarga)
+                bool actualizaNR = new bool();
+                // Desde 15/11/2023 registrar en el log si por alguna razon no actualiza en instoactual correctamente al disminuir el saldo de cantidad y la reserva en proforma
+                try
                 {
-                    // Desde 15/11/2023 registrar en el log si por alguna razon no actualiza en instoactual correctamente al disminuir el saldo de cantidad y la reserva en proforma
-                    if (await saldos.Veremision_ActualizarSaldo(_context,usuario,codNRemision, Saldos.ModoActualizacion.Crear)==false)
+                    actualizaNR = await saldos.Veremision_ActualizarSaldo(_context, usuario, codNRemision, Saldos.ModoActualizacion.Crear);
+                }
+                catch (Exception ex)
+                {
+                    return ("Error al Actualizar stock de NR desde Nota de Remision, por favor consulte con el administrador del sistema: " + ex.Message, 0, 0, false, null);
+                }
+                if (actualizaNR == false)
+                {
+                    await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, codNRemision.ToString(), veremision.id, veremision.numeroid.ToString(), this._controllerName, "No actualizo stock al restar cantidad en NR.", Log.TipoLog.Creacion);
+                }
+                else
+                {
+                    bool resultActPF = new bool();
+                    string msgActPF = "";
+                    try
                     {
-                        await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, codNRemision.ToString(), veremision.id, veremision.numeroid.ToString(), this._controllerName, "No actualizo stock al restar cantidad en NR.", Log.TipoLog.Creacion);
+                        var actualizaProfSaldo = await ventas.revertirstocksproforma(_context, codProforma, codempresa);
+                        resultActPF = actualizaProfSaldo.resultado;
+                        msgActPF = actualizaProfSaldo.msg;
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        if (await ventas.revertirstocksproforma(_context,codProforma,codempresa) == false)
-                        {
-                            await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, codNRemision.ToString(), veremision.id, veremision.numeroid.ToString(), this._controllerName, "No actualizo stock al restar reserva en PF.", Log.TipoLog.Creacion);
-                        }
+                        return ("Error al Actualizar stock de PF desde Nota de Remision, por favor consulte con el administrador del sistema: " + ex.Message, 0, 0, false, null);
+                    }
+                    if (resultActPF == false)
+                    {
+                        await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, codNRemision.ToString(), veremision.id, veremision.numeroid.ToString(), this._controllerName, msgActPF, Log.TipoLog.Creacion);
                     }
                 }
-            }
-            catch (Exception)
-            {
-                throw;
             }
 
 

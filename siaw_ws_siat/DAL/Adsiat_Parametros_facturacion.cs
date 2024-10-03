@@ -239,5 +239,42 @@ namespace siaw_ws_siat
                 return 0;
             }
         }
+
+
+
+        public async Task<string> Generar_Cadena_QR_Link_Factura_SIN(DBContext _context, string _valorNIT, string _valorCuf, string _valorNroFactura, string _valorTamaño, int codAlmacen)
+        {
+            string cadena_QR = "";
+            /*
+             
+            ' ''Donde:
+            ' ''Ruta: Es una ruta o enlace a los servicios de la Administración Tributaria, la ruta definitiva será publicada una vez salga al ambiente de producción.
+            ' ''valorNit: Es el valor del NIT del emisor de la Factura o Nota de Crédito-Débito.
+            ' ''valorCuf: Es el Código Único de la Factura de la Factura o Nota de Crédito-Débito.
+            ' ''valorNroFactura: Es el número correlativo de la Factura o Nota de Crédito-Débito.
+            ' ''valorTamaño: es el tamaño para la pre visualización 1 = rollo, 2 = media hoja, si no se incluye este parámetro su valor por defecto será 1.
+             
+             */
+
+            // int _codSucursal = await Sucursal(_context, codAlmacen);
+            int _codAmbiente = await Ambiente(_context, codAlmacen);
+            //string _codSistema = await CodigoSistema(_context, _codSucursal);
+            if (_codAmbiente == 2)
+            {
+                // version para pruebas
+                cadena_QR = "https://pilotosiat.impuestos.gob.bo/consulta/QR?nit=" + _valorNIT + "&cuf=" + _valorCuf + "&numero=" + _valorNroFactura + "&t=" + _valorTamaño + "";
+            }
+            else if(_codAmbiente == 1)
+            {
+                // para produccion
+                cadena_QR = "https://siat.impuestos.gob.bo/consulta/QR?nit=" + _valorNIT + "&cuf=" + _valorCuf + "&numero=" + _valorNroFactura + "&t=" + _valorTamaño + "";
+            }
+            else
+            {
+                // version para pruebas
+                cadena_QR = "https://pilotosiat.impuestos.gob.bo/consulta/QR?nit=" + _valorNIT + "&cuf=" + _valorCuf + "&numero=" + _valorNroFactura + "&t=" + _valorTamaño + "";
+            }
+            return cadena_QR;
+        }
     }
 }

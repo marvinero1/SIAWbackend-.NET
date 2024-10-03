@@ -647,6 +647,85 @@ namespace siaw_funciones
         }
 
 
+        public async Task<(bool result, string msg)> EnviarEmailFacturas(string emailDestino, string emailOrigenCredencial, string pwdEmailCredencialOrigen, string tituloMail, string cuerpoMail, byte[] pdfBytes, string nombreArchivo, byte[] xmlBytes, string nombreArchivoXml)
+        {
+            bool resultado = true;
+            string msg = "";
+            try
+            {
+                SmtpClient smtpServer = new SmtpClient();
+                MailMessage email = new MailMessage();
+
+                smtpServer.UseDefaultCredentials = false;
+                // pwdEmailCredencialOrigen = EncryptionHelper.DecryptString(pwdEmailCredencialOrigen);
+                smtpServer.Credentials = new NetworkCredential(emailOrigenCredencial, pwdEmailCredencialOrigen);
+
+                // Configurar el servidor SMTP para dominio de Google
+                smtpServer.Host = "smtp.gmail.com";
+                smtpServer.Port = 465;
+                smtpServer.EnableSsl = true;
+
+                email.From = new MailAddress(emailOrigenCredencial);
+                email.To.Add(emailDestino);
+                email.Subject = tituloMail;
+                email.IsBodyHtml = false;  // No permitir HTML en el cuerpo del correo
+                email.Body = cuerpoMail;
+
+
+                // Adjuntar archivo PDF
+                if (pdfBytes != null && pdfBytes.Length > 0)
+                {
+                    using (var pdfStream = new MemoryStream(pdfBytes, writable: false))
+                    {
+                        var attachment = new Attachment(pdfStream, nombreArchivo, "application/pdf");
+                        email.Attachments.Add(attachment);
+                    }
+                }
+                // Adjuntar archivo XML
+                if (xmlBytes != null && xmlBytes.Length > 0)
+                {
+                    using (var xmlStream = new MemoryStream(xmlBytes, writable: false))
+                    {
+                        var xmlAttachment = new Attachment(xmlStream, nombreArchivoXml, "application/xml");
+                        email.Attachments.Add(xmlAttachment);
+                    }
+                }
+
+                if (email.Attachments.Count == 2)
+                {
+                    await smtpServer.SendMailAsync(email);
+                    resultado = true;
+                }
+                else
+                {
+                    resultado = false;
+                    msg = "No se pudo adjuntar el PDF o XML consulte con el administrador.";
+                }
+            }
+            catch (SmtpException smtpEx)
+            {
+                Console.WriteLine($"Error SMTP al enviar el correo: {smtpEx.StatusCode} - {smtpEx.Message}");
+                return (false, $"Error SMTP al enviar el correo: {smtpEx.StatusCode} - {smtpEx.Message}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error general al enviar el correo: {ex.Message}");
+                return (false, $"Error general al enviar el correo: {ex.Message}");
+            }
+            return (resultado,msg);
+        }
+
+
+
+
+
+
+
+
+
+
+
+
         public async Task<string> Fecha_TimeStamp(DateTime mifecha, string hora)
         {
             string _fecha_convertido = "";

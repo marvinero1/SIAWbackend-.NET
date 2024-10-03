@@ -1095,6 +1095,8 @@ namespace SIAW.Controllers.ventas.transaccion
                             });
                         }
                     }
+                    // HASTA ACA EL COMMIT 
+                    string nomArchivoXML = "";
 
                     if (se_creo_factura)
                     {
@@ -1131,6 +1133,7 @@ namespace SIAW.Controllers.ventas.transaccion
                                         xml_generado.eventos
                                     });
                                 }
+                                nomArchivoXML = xml_generado.nomArchivoXML;
                             }
 
                         }
@@ -1188,7 +1191,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         {
 
                             // ENVIAR_FACTURA_POR_EMAIL()
-
+                            // COMO EL PDF SE GENERA EN FRONT SE TERMINA ACA LA FUNCION Y EN OTRA RUTA SE HARA EL ENVIO.
                             // PARA EL CASO DE QUE NO SE DEBE IMPRIMIR, AVISAR A MARVIN
                             if (await ventas.cufd_tipofactura(_context,dataCreGrbFact.cufd) == 1)
                             {
@@ -1245,6 +1248,8 @@ namespace SIAW.Controllers.ventas.transaccion
                     return Ok(new
                     {
                         resp = "Facturas registras con Exito",
+                        nomArchivoXML,   // se envia nombre del archivo xml para que nos lo devuelva
+                        codFactura = codFacturas[0],  // De momento solo enviamnos el primer codigo de factura para que nos lo devuelva
                         msgAlertas,
                         eventosLog
                     });
@@ -1842,7 +1847,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
-        private async Task<(bool resul, bool factura_se_imprime, List<string> msgAlertas, List<string> eventos)> GENERAR_XML_FACTURA_FIRMAR_ENVIAR(DBContext _context, List<int> CodFacturas_Grabadas, string codempresa, string usuario, int codalmacen, string ruta_certificado, string Clave_Certificado_Digital, string codigocontrol)
+        private async Task<(bool resul, bool factura_se_imprime, List<string> msgAlertas, List<string> eventos, string nomArchivoXML)> GENERAR_XML_FACTURA_FIRMAR_ENVIAR(DBContext _context, List<int> CodFacturas_Grabadas, string codempresa, string usuario, int codalmacen, string ruta_certificado, string Clave_Certificado_Digital, string codigocontrol)
         {
             // para devolver lista de registros logs
             List<string> eventos = new List<string>();
@@ -1875,6 +1880,7 @@ namespace SIAW.Controllers.ventas.transaccion
             //CREAR XML - FIRMARLO - COMPRIMIR EN GZIP - CONVERTIR EN BYTES - SACAR HASH - ENVIAR AL SIN
             //////////////////////////////////////////////////////////////////////////////////////////////
             byte[] miComprimidoGZIP = null;
+            string nomArchivoXML = "";
             foreach (var codFacturas in CodFacturas_Grabadas)
             {
                 if (!string.IsNullOrWhiteSpace(codFacturas.ToString()))
@@ -1906,8 +1912,9 @@ namespace SIAW.Controllers.ventas.transaccion
                         // Firmar XML
                         //definir el nombre del archivo
                         archivoPDF = id + "_" + numeroid + ".pdf";
+                        nomArchivoXML = $"{id}_{numeroid}_Dsig.xml";
                         rutaFacturaXml = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "certificado", $"{id}_{numeroid}.xml");
-                        rutaFacturaXmlSigned = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "certificado", $"{id}_{numeroid}_Dsig.xml");
+                        rutaFacturaXmlSigned = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "certificado", nomArchivoXML);
                         if (miresultado)
                         {
                             miresultado = await funciones_SIAT.Firmar_XML_Con_SHA256(rutaFacturaXml, ruta_certificado, Clave_Certificado_Digital, rutaFacturaXmlSigned);
@@ -2088,7 +2095,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     }
                 }
             }
-            return (resultado, factura_se_imprime, msgAlertas, eventos);
+            return (resultado, factura_se_imprime, msgAlertas, eventos, nomArchivoXML);
         }
 
 
@@ -2220,7 +2227,204 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
 
+        [HttpGet]
+        [Route("getDataFactura/{userConn}/{codFactura}/{codigoempresa}")]
+        public async Task<object> getDataFactura(string userConn, int codFactura, string codigoempresa)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
 
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var cabecera = await _context.vefactura.Where(i => i.codigo == codFactura).FirstOrDefaultAsync();
+                    var detalle = await _context.vefactura1
+                        .Join(_context.initem,
+                              v => v.coditem, // Clave en Vefactura1
+                              i => i.codigo,  // Clave en Initem
+                              (v, i) => new
+                              {
+                                  v.codfactura,
+                                  v.coditem,
+                                  v.codproducto_sin,
+                                  i.descripcion,
+                                  i.medida,
+                                  v.cantidad,
+                                  v.udm,
+                                  v.codtarifa,
+                                  v.coddescuento,
+                                  v.preciolista,
+                                  v.niveldesc,
+                                  v.preciodesc,
+                                  v.precioneto,
+                                  v.total,
+                                  v.distdescuento,
+                                  v.distrecargo,
+                                  v.preciodist,
+                                  v.totaldist,
+                                  v.codaduana
+                              })
+                        .Where(v => v.codfactura == codFactura)
+                        .OrderBy(v => v.coditem).ToListAsync();
+
+                    if (cabecera == null)
+                    {
+                        return BadRequest(new { resp = "No se encontró una factura con el codigo proporcionado, consulte al administrador" });
+                    }
+                    string imp_totalliteral = "SON: " + funciones.ConvertDecimalToWords(cabecera.total).ToUpper() + " " + await nombres.nombremoneda(_context, cabecera.codmoneda);
+                    string nitEmpresa = await empresa.NITempresa(_context, codigoempresa);
+                    // generar cadena para QR
+                    string cadena_QR = await adsiat_Parametros_Facturacion.Generar_Cadena_QR_Link_Factura_SIN(_context, nitEmpresa, cabecera.cuf, cabecera.nrofactura.ToString(), "2", cabecera.codalmacen);
+
+                    return Ok(new
+                    {
+                        cadena_QR,
+                        imp_totalliteral,
+                        cabecera,
+                        detalle
+                    });
+                }
+
+            }
+            catch (Exception ex)
+            {
+                return Problem($"Error en el servidor: {ex.Message}");
+                throw;
+            }
+        }
+
+        [HttpPost]
+        [Route("enviarFacturaEmail/{userConn}/{codempresa}/{usuario}/{codFactura}/{nomArchXML}")]
+        public async Task<object> enviarFacturaEmail(string userConn, string codempresa, string usuario, int codFactura, string nomArchXML, [FromForm] IFormFile pdfFile)
+        {
+            if (pdfFile == null || pdfFile.Length == 0)
+            {
+                return BadRequest(new { resp = "No se ha proporcionado un archivo PDF válido." });
+            }
+            try
+            {
+                List<string> eventos = new List<string>();
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    //verificar si se envia el mail
+                    if (await configuracion.emp_enviar_factura_por_email(_context, codempresa) == false)
+                    {
+                        string mi_msg = " Envio de facturas en PDF mas archivo XML por email esta deshabilitado!!!";
+                        eventos.Add(mi_msg);
+                        await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), pdfFile.FileName, pdfFile.FileName, _controllerName, mi_msg, Log.TipoLog_Siat.Creacion);
+                        return StatusCode(203, new { eventos = mi_msg, resp = "" });
+                    }
+
+                    string email_enviador = await configuracion.Obtener_Email_Origen_Envia_Facturas(_context);
+                    string _email_origen_credencial = email_enviador;
+                    string _pwd_email_credencial_origen = await configuracion.Obtener_Clave_Email_Origen_Envia_Facturas(_context);
+
+                    if (email_enviador.Trim().Length == 0)
+                    {
+                        string mi_msg = "No se encontro en la configuracion el email que envia las facturas, consulte con el administrador del sistema.";
+                        eventos.Add(mi_msg);
+                        await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), "", "", _controllerName, mi_msg, Log.TipoLog_Siat.Creacion);
+                        return StatusCode(203, new { eventos = mi_msg, resp = "" });
+                    }
+                    /*
+                     If _email_origen_credencial.Trim.Length = 0 Then
+                        mi_msg = "No se encontro en la configuracion el email credencial que envia las facturas, consulte con el administrador del sistema."
+                        Registrar_Evento(mi_msg)
+                        sia_log.Log.Instancia.RegistrarEvento_Siat(sia_compartidos.temporales.Instancia.usuario, sia_log.Entidades.Factura, CodFacturas_Grabadas(0).ToString, "", "", Me.Name, mi_msg, sia_log.TipoLog.Creacion)
+                        Return False
+                    End If
+                     */
+                    if (_pwd_email_credencial_origen.Trim().Length == 0)
+                    {
+                        string mi_msg = "No se encontro la credencial del email que envia las facturas, consulte con el administrador del sistema.";
+                        eventos.Add(mi_msg);
+                        await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), "", "", _controllerName, mi_msg, Log.TipoLog_Siat.Creacion);
+                        return StatusCode(203, new { eventos = mi_msg, resp = "" });
+                    }
+
+                    var DTFC = await _context.vefactura.Where(i => i.codigo == codFactura).Select(i => new
+                    {
+                        i.codigo,
+                        i.id,
+                        i.numeroid,
+                        i.fecha,
+                        i.codcliente,
+                        i.nomcliente,
+                        i.nit,
+                        i.total,
+                        i.codmoneda,
+                        i.email,
+                        i.nrofactura
+                    }).FirstOrDefaultAsync();
+                    if (DTFC == null)
+                    {
+                        return BadRequest(new { resp = "No se encontraron datos con el codigo de proform, consulte con el administrador del sistema." });
+                    }
+                    string titulo = "Pertec SRL le envia adjunto su factura de compra Nro.: " + DTFC.nrofactura.ToString();
+
+
+                    string detalle = "Señor:";
+                    detalle += Environment.NewLine + DTFC.nomcliente;
+                    detalle += Environment.NewLine + "Presente.-";
+                    detalle += Environment.NewLine;
+                    detalle += Environment.NewLine;
+                    detalle += Environment.NewLine + "Pertec S.R.L. informa que el día de hoy se emitió la factura electrónica adjunta al presente";
+                    detalle += Environment.NewLine + "mensaje. Dicho documento puede ser impreso y utilizado como un documento válido para Crédito Fiscal.";
+                    detalle += Environment.NewLine;
+                    detalle += Environment.NewLine + "Si tiene problemas en descargar la factura, también puede obtenerla desde nuestra página web:";
+                    detalle += Environment.NewLine + "www.pertec.com.bo o a través de su Whatsapp.";
+                    detalle += Environment.NewLine;
+                    detalle += Environment.NewLine + "En caso de consultas o errores, por favor comunicarse dentro del mes de emisión de la factura";
+                    detalle += Environment.NewLine + "con su ejecutivo de ventas y/o Departamento de Servicio al Cliente.";
+                    detalle += Environment.NewLine;
+                    detalle += Environment.NewLine + "Agradeciendo su preferencia, nos es grato saludarlo.";
+                    detalle += Environment.NewLine;
+                    detalle += Environment.NewLine + "Atentamente,";
+                    detalle += Environment.NewLine + "PERTEC S.R.L.";
+
+                    string direcc_mail_cliente = DTFC.email;
+                    byte[] pdfBytes;
+                    using (var memoryStream = new MemoryStream())
+                    {
+                        await pdfFile.CopyToAsync(memoryStream);
+                        pdfBytes = memoryStream.ToArray();
+                    }
+
+                    string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
+                    string pathDirectory = Path.Combine(currentDirectory, "certificado");
+                    // rutaFacturaXmlSigned = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "certificado", nomArchivoXML);
+                    byte[] xmlFile = System.IO.File.ReadAllBytes(Path.Combine(pathDirectory, nomArchXML));
+
+                    // solo por pruebas cambiaremos el email destino del cliente por uno de nosotros, comentar en produccion
+                    direcc_mail_cliente = "analista.nal.informatica2@pertec.com.bo";
+
+                    var resultado = await funciones.EnviarEmailFacturas(direcc_mail_cliente, _email_origen_credencial, _pwd_email_credencial_origen, titulo, detalle, pdfBytes, pdfFile.FileName, xmlFile, nomArchXML);
+                    if (resultado.result == false)
+                    {
+                        // envio fallido
+                        string mi_msg = "No se pudo enviar la factura y el archivo XML al email del cliente!!!";
+                        eventos.Add(mi_msg);
+                        await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), "", "", _controllerName, mi_msg, Log.TipoLog_Siat.Creacion);
+                        return BadRequest(new { eventos = mi_msg, resp = resultado.msg });
+
+                    }
+                    string mi_msg1 = "La factura y el archivo XML fueron enviados exitosamente al email del cliente!!!";
+                    eventos.Add(mi_msg1);
+                    await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), "", "", _controllerName, mi_msg1, Log.TipoLog_Siat.Creacion);
+
+                    return Ok(new { eventos = mi_msg1, resp = "" });
+
+                }
+
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+        }
     }
 
     // CLASES AUXILIARES

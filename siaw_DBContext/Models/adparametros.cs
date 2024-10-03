@@ -259,5 +259,7 @@ namespace siaw_DBContext.Models
         public string moneda_monto_min_urg_provincia { get; set; }
         public int? porcentaje_sugerencia_empaque { get; set; }
         public int? dias_revision_depositos_no_facturados { get; set; }
+        public string mail_envia_facturas { get; set; }
+        public string pwd_mail_envia_facturas { get; set; }
     }
 }

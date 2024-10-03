@@ -910,6 +910,57 @@ namespace siaw_funciones
                 return "Sin parametro";
             }
         }
+        public async Task<bool> emp_enviar_factura_por_email(DBContext _context, string codempresa)
+        {
+            bool resultado = false;
+            try
+            {
+                resultado = await _context.adparametros.Where(i => i.codempresa == codempresa).Select(i => i.enviar_mail_factura).FirstOrDefaultAsync() ?? false;
+            }
+            catch (Exception)
+            {
+                resultado = false;
+            }
+            return resultado;
+        }
+        public async Task<string> Obtener_Email_Origen_Envia_Facturas(DBContext _context)
+        {
+            try
+            {
+                string resultado = "";
+                var result = await _context.adparametros
+                    .Select(parametro => parametro.mail_envia_facturas)
+                   .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = result;
+                }
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
+        public async Task<string> Obtener_Clave_Email_Origen_Envia_Facturas(DBContext _context)
+        {
+            try
+            {
+                string resultado = "";
+                var result = await _context.adparametros
+                    .Select(parametro => parametro.pwd_mail_envia_facturas)
+                   .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = result;
+                }
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
     }
 }
  

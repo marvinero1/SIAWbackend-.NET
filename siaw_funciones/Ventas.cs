@@ -4132,10 +4132,11 @@ namespace siaw_funciones
 
 
 
-        public async Task<bool> revertirstocksproforma(DBContext _context, int codigo, string codempresa)
+        public async Task<(bool resultado, string msg)> revertirstocksproforma(DBContext _context, int codigo, string codempresa)
         {
             bool resultado = true;
             int codalmacen = new int();
+            string msg = "";
             if (await configuracion.emp_proforma_reserva(_context,codempresa))
             {
                 var tabla_aux = await _context.veproforma.Where(i => i.codigo == codigo).Select(i => new
@@ -4177,9 +4178,10 @@ namespace siaw_funciones
                             await _context.SaveChangesAsync();
                         }
                     }
-                    catch (Exception)
+                    catch (Exception ex)
                     {
                         resultado = false;
+                        msg = "Error en revertirstocksproforma1:" + ex.Message;
                     }
 
                     foreach (var reg  in tabla)
@@ -4196,16 +4198,23 @@ namespace siaw_funciones
                                 try
                                 {
                                     var itemInstroactual = await _context.instoactual.Where(i => i.codalmacen == codalmacen && i.coditem == item.item).FirstOrDefaultAsync();
+                                    if (itemInstroactual == null)
+                                    {
+                                        resultado = false;
+                                        break; 
+                                    }
                                     itemInstroactual.proformas = itemInstroactual.proformas - (reg.cantaut * item.cantidad);
                                     _context.Entry(itemInstroactual).State = EntityState.Modified;
-                                    await _context.SaveChangesAsync();
+                                    
                                 }
-                                catch (Exception)
+                                catch (Exception ex)
                                 {
                                     resultado = false;
+                                    msg = "Error en revertirstocksproforma2:" + ex.Message;
                                     break;
                                 }
                             }
+                            // await _context.SaveChangesAsync();
                             if (!resultado)
                             {
                                 break;
@@ -4216,16 +4225,27 @@ namespace siaw_funciones
                             try
                             {
                                 var itemInstroactual = await _context.instoactual.Where(i => i.codalmacen == codalmacen && i.coditem == reg.coditem).FirstOrDefaultAsync();
+                                if (itemInstroactual == null)
+                                {
+                                    resultado = false;
+                                    break; 
+                                }
                                 itemInstroactual.proformas = itemInstroactual.proformas - (reg.cantaut);
                                 _context.Entry(itemInstroactual).State = EntityState.Modified;
-                                await _context.SaveChangesAsync();
+                                // await _context.SaveChangesAsync();
                             }
-                            catch (Exception)
+                            catch (Exception ex)
                             {
                                 resultado = false;
+                                msg = "Error en revertirstocksproforma3:" + ex.Message;
                                 break;
                             }
                         }
+                    }
+                    // Guardamos todos los cambios al final si es que no hay errores
+                    if (resultado)
+                    {
+                        await _context.SaveChangesAsync();
                     }
                 }
                 // actualizar a 0 si hay negativos
@@ -4241,12 +4261,12 @@ namespace siaw_funciones
                         await _context.SaveChangesAsync();
                     }
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    // throw;
+                    msg = "Error en revertirstocksproforma4:" + ex.Message;
                 }
             }
-            return resultado;
+            return (resultado, msg);
         }
 
 

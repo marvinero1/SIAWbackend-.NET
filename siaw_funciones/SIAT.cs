@@ -17,6 +17,7 @@ namespace siaw_funciones
         private readonly Empresa empresa = new Empresa();
         private readonly Funciones funciones = new Funciones();
         //Clase necesaria para el uso del DBContext del proyecto siaw_Context
+
         public static class DbContextFactory
         {
             public static DBContext Create(string connectionString)
@@ -633,6 +634,12 @@ namespace siaw_funciones
 
             return hashHuella;
         }
+
+
+
+
+        
+
     }
 
     public class Datos_Dosificacion_Activa

@@ -6548,6 +6548,8 @@ namespace siaw_DBContext.Data
 
                 entity.Property(e => e.iva).HasColumnType("decimal(18, 2)");
 
+                entity.Property(e => e.mail_envia_facturas).HasMaxLength(50);
+
                 entity.Property(e => e.mail_recepcion_facturas).HasMaxLength(50);
 
                 entity.Property(e => e.maxdiaspp).HasDefaultValueSql("(0)");
@@ -6627,6 +6629,8 @@ namespace siaw_DBContext.Data
                 entity.Property(e => e.pwd_certif_produccion).HasMaxLength(100);
 
                 entity.Property(e => e.pwd_certif_pruebas).HasMaxLength(100);
+
+                entity.Property(e => e.pwd_mail_envia_facturas).HasMaxLength(50);
 
                 entity.Property(e => e.pwd_mail_recepcion_facturas).HasMaxLength(50);
 
