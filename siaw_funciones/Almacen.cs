@@ -85,5 +85,35 @@ namespace siaw_funciones
                 return "";
             }
         }
+        public async Task<string> faxalmacen(DBContext _context, int codalmacen)
+        {
+            try
+            {
+                var resultado = await _context.inalmacen
+                .Where(i => i.codigo == codalmacen)
+                .Select(i => i.fax)
+                .FirstOrDefaultAsync() ?? "";
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
+        public async Task<string> lugaralmacen(DBContext _context, int codalmacen)
+        {
+            try
+            {
+                var resultado = await _context.inalmacen
+                .Where(i => i.codigo == codalmacen)
+                .Select(i => i.lugar)
+                .FirstOrDefaultAsync() ?? "";
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
     }
 }

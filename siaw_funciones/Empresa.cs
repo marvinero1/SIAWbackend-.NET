@@ -336,11 +336,11 @@ namespace siaw_funciones
         public async Task<string> municipio_empresa(DBContext _context, string codigoempresa)
         {
             //Esta funcion devuelve la moneda base de una determinada empresa
-            string codmoneda = await _context.adempresa
+            string municipio = await _context.adempresa
                 .Where(i => i.codigo == codigoempresa)
                 .Select(i => i.municipio)
                 .FirstOrDefaultAsync() ?? "";
-            return codmoneda;
+            return municipio;
         }
 
 

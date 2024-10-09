@@ -7018,6 +7018,53 @@ namespace siaw_funciones
 
 
 
+        public string leyenda_para_factura_en_linea(bool en_linea_SIN)
+        {
+            string resultado = "";
+            if (en_linea_SIN)
+            {
+                resultado = "Este documento es la Representación Gráfica de un Documento Fiscal Digital emitido en una modalidad de facturación en línea";
+            }
+            else
+            {
+                resultado = " Este documento es la Representación Gráfica de un  Documento Fiscal Digital emitido fuera de línea, verifique su envío con su proveedor o en la página web www.impuestos.gob.bo";
+            }
+            return resultado;
+        }
+
+
+
+        // FACTURACION DE MOSTRADOR
+        public async Task<int> VendedorClave(DBContext _context, string clave)
+        {
+            try
+            {
+                var resultado = await _context.vevendedor.Where(i => i.clave == clave).Select(i=> new { i.codigo }).OrderBy(i=> i.codigo).FirstOrDefaultAsync();
+                if (resultado == null)
+                {
+                    return -1;
+                }
+                return resultado.codigo;
+            }
+            catch (Exception)
+            {
+                return -1;
+            }
+        }
+
+        public async Task<object> Obtener_Tipos_Descuento_Nivel(DBContext _context)
+        {
+            var result = await _context.vedesitem_parametros
+                    .Where(v => v.habilitado == true && !new[] { "Z", "X" }.Contains(v.nivel))
+                    .OrderBy(v => v.nivel)
+                    .Select(i => new
+                    {
+                        desc_nivel = i.nivel + " : " + i.descripcion
+                    })
+                    .ToListAsync();
+            return result;
+        }
+
 
         public async Task<List<ProformasWF>> Detalle_Proformas_Aprobadas_WF(string userConnectionString, string codempresa, string usuario)
         {

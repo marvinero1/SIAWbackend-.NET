@@ -1793,6 +1793,177 @@ namespace SIAW.Controllers.ventas.transaccion
             return resultado;
         }
 
+        [HttpPost]
+        [Route("aplicarDescuentoCliente/{userConn}")]
+        public async Task<ActionResult<object>> aplicarDescuentoCliente(string userConn, RequestAddDescNCliente RequestAddDescNCliente)
+        {
+            string cmbtipo_desc_nivel = RequestAddDescNCliente.cmbtipo_desc_nivel;
+            DateTime fechaProf = RequestAddDescNCliente.fechaProf.Date;
+            int codtarifa_main = RequestAddDescNCliente.codtarifa_main;
+            string codcliente = RequestAddDescNCliente.codcliente;
+            string codcliente_real = RequestAddDescNCliente.codcliente_real;
+            string codclientedescripcion = RequestAddDescNCliente.codclientedescripcion;
+
+            string[] datos_desc = new string[2];
+            datos_desc = cmbtipo_desc_nivel.Split(new char[] { ':' });
+            if (datos_desc[0] == null)
+            {
+                return BadRequest(new { resp = "No se selecciono el tipo de descuento, verifique esta situación" });
+            }
+            if (datos_desc[0].Trim() == "")
+            {
+                return BadRequest(new { resp = "No se selecciono el tipo de descuento, verifique esta situación" });
+            }
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    string NIVEL_ELEGIDO = datos_desc[0].Trim();
+                    if (await ventas.Descuento_Linea_Habilitado(_context, NIVEL_ELEGIDO) == false)
+                    {
+                        return BadRequest(new { resp = "El Descuento: " + NIVEL_ELEGIDO + "-" + datos_desc[1] + " esta deshabilitado!!!" });
+                    }
+
+                    // Dsd 25-11-2022 se implemento el control de verificar la fecha de inicio y fin de validez de un vedesitem en vedesitem_parametros
+                    DateTime fechaServ = (await funciones.FechaDelServidor(_context)).Date;
+                    if (fechaServ < await ventas.Descuento_Linea_Fecha_Desde(_context,NIVEL_ELEGIDO))
+                    {
+                        return BadRequest(new { resp = "El Descuento: " + NIVEL_ELEGIDO + "-" + datos_desc[1] + " no puede ser aplicado, la proforma no debe ser anterior a la fecha inicial de la promocion!!!" });
+                    }
+                    if (fechaServ > await ventas.Descuento_Linea_Fecha_Hasta(_context,NIVEL_ELEGIDO))
+                    {
+                        return BadRequest(new { resp = "El Descuento: " + NIVEL_ELEGIDO + "-" + datos_desc[1] + " no puede ser aplicado, la proforma no debe ser despues a la fecha final de la promocion!!!" });
+                    }
+                    if (fechaProf.Date < await ventas.Descuento_Linea_Fecha_Desde(_context,NIVEL_ELEGIDO))
+                    {
+                        return BadRequest(new { resp = "El Descuento: " + NIVEL_ELEGIDO + "-" + datos_desc[1] + " no puede ser aplicado, la fecha de la proforma no debe ser anterior a la fecha inicial de la promocion!!!" });
+                    }
+
+                    // Desde 11-03-2024 Controlar si el precio de la proforma es valido para el descuento de nivel
+                    if (! await ventas.TarifaValidaNivel(_context,codtarifa_main,NIVEL_ELEGIDO))
+                    {
+                        return BadRequest(new { resp = "El Descuent de Nivel: " + NIVEL_ELEGIDO + "-" + datos_desc[1] + " no puede ser aplicado, por el tipo de precio de la proforma!!!" });
+                    }
+
+                    if (codcliente.Trim().Length == 0)
+                    {
+                        return BadRequest(new { resp = "Debe ingresar el codigo de cliente!!!" });
+                    }
+                    if (await cliente.ExisteCliente(_context,codcliente) == false)
+                    {
+                        return BadRequest(new { resp = "El cliente no existe en la base de datos!!!" });
+                    }
+                    if (await cliente.EsClienteSinNombre(_context,codcliente))
+                    {
+                        return BadRequest(new { resp = "No se puede aplicar descuentos de nivel a clientes sin nombre!!!" });
+                    }
+
+                    // 1º quitar los desctos siempre
+                    bool resultado = true;
+                    if (resultado)
+                    {
+                        var desclienteElim = await _context.vedescliente.Where(i => i.cliente == codcliente && i.nivel == NIVEL_ELEGIDO).ToListAsync();
+                        if (desclienteElim.Count() != 0)
+                        {
+                            _context.vedescliente.RemoveRange(desclienteElim);
+                            await _context.SaveChangesAsync();
+                        }
+                        var desclienteRealElim = await _context.vedescliente.Where(i => i.cliente == codcliente_real && i.nivel == NIVEL_ELEGIDO).ToListAsync();
+                        if (desclienteRealElim.Count() != 0)
+                        {
+                            _context.vedescliente.RemoveRange(desclienteRealElim);
+                            await _context.SaveChangesAsync();
+                        }
+                    }
+
+                    /*
+                     
+                    ''//el descto solo se puede aplicar entre el 19 al 24 de sept 2022
+                    'If sia_DAL.Datos.Instancia.FechaDelServidor.Date < mifecha_desde Then
+                    '    If mostrar_mensajes = True Then
+                    '        MessageBox.Show("El descuento promocion primavera 2022, solo se puede aplicar desde al 19-09-2022 al 24-09-2022!!!", "Alerta!!!", MessageBoxButtons.OK, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button1)
+                    '    End If
+                    '    Exit Sub
+                    'End If
+
+
+                    ''//el descto solo se puede aplicar entre el 19 al 24 de sept 2022
+                    'If sia_DAL.Datos.Instancia.FechaDelServidor.Date > mifecha_hasta Then
+                    '    If mostrar_mensajes = True Then
+                    '        MessageBox.Show("El descuento promocion primavera 2022, solo se puede aplicar desde al 19-09-2022 al 24-09-2022!!!", "Alerta!!!", MessageBoxButtons.OK, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button1)
+                    '    End If
+                    '    Exit Sub
+                    'End If
+                     
+                     */
+
+                    //2ª asignar los descuentos a partir del cliente pivote
+                    try
+                    {
+                        var add_vedescliente = await _context.vedescliente.Where(i => i.cliente == "DESNIV" && i.nivel == NIVEL_ELEGIDO).Select(i => new vedescliente
+                        {
+                            cliente = codcliente,
+                            coditem = i.coditem,
+                            nivel = i.nivel,
+                            estado = i.estado,
+                            nivel_anterior = i.nivel_anterior,
+                            nivel_actual_copia = i.nivel_actual_copia
+
+                        }).OrderBy(i => i.coditem).ToListAsync();
+
+                        _context.vedescliente.AddRange(add_vedescliente);
+                        await _context.SaveChangesAsync();
+                        resultado = true;
+                    }
+                    catch (Exception)
+                    {
+                        resultado = false;
+                    }
+
+
+                    // si la proforma es con codcliente referencia distinto
+                    try
+                    {
+                        if (resultado)
+                        {
+                            if (codcliente_real != codcliente)
+                            {
+                                var add_vedesclienteReal = await _context.vedescliente.Where(i => i.cliente == "DESNIV" && i.nivel == NIVEL_ELEGIDO).Select(i => new vedescliente
+                                {
+                                    cliente = codcliente_real,
+                                    coditem = i.coditem,
+                                    nivel = i.nivel,
+                                    estado = i.estado,
+                                    nivel_anterior = i.nivel_anterior,
+                                    nivel_actual_copia = i.nivel_actual_copia
+
+                                }).OrderBy(i => i.coditem).ToListAsync();
+
+                                _context.vedescliente.AddRange(add_vedesclienteReal);
+                                await _context.SaveChangesAsync();
+                                resultado = true;
+                            }
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        resultado = false;
+                    }
+                    if (resultado)
+                    {
+                        return Ok(new { resp = "Los descuentos promocion se han asignado exitosamente al cliente: " + codcliente + " - " + codclientedescripcion + " !!!" });
+                    }
+                    return BadRequest(new { resp = "Ocurrio un error al asignar los descuentos promocion!!!" });
+                }
+            }
+            catch (Exception ex)
+            {
+                return Problem($"Error en el servidor: {ex.Message}");
+                throw;
+            }
+        }
+
         //[Authorize]
         [HttpPost]
         [QueueFilter(1)] // Limitar a 1 solicitud concurrente
@@ -1937,7 +2108,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
                         //Grabar Etiqueta
                         if (datosProforma.veetiqueta_proforma != null)
-                        {
+                        { 
                             veetiqueta_proforma dt_etiqueta = datosProforma.veetiqueta_proforma;
 
                             if (dt_etiqueta.celular == null)
@@ -2925,7 +3096,8 @@ namespace SIAW.Controllers.ventas.transaccion
                 empaque = i.empaque,
                 cantidad_pedida = i.cantidad_pedida ?? 0,
                 cantidad = i.cantidad,
-                codcliente = veproforma.codcliente,
+                // codcliente = veproforma.codcliente
+                codcliente = codcliente_real,
                 opcion_nivel = opcion_nivel,
                 codalmacen = veproforma.codalmacen,
                 desc_linea_seg_solicitud = desclinea_segun_solicitud ? "SI" : "NO",  //(SI o NO)
@@ -5707,10 +5879,16 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
 
-        [HttpGet]
-        [Route("getDataPDF/{userConn}/{codProforma}/{codcliente}/{codcliente_real}/{codempresa}/{cmbestado_contra_entrega}/{paraAprobar}")]
-        public async Task<IActionResult> getDataPDF(string userConn, int codProforma, string codcliente, string codcliente_real, string codempresa, string cmbestado_contra_entrega, bool paraAprobar)
+        [HttpPost]
+        [Route("getDataPDF/{userConn}")]
+        public async Task<IActionResult> getDataPDF(string userConn, RequestGetDataPDF RequestGetDataPDF)
         {
+            int codProforma = RequestGetDataPDF.codProforma;
+            string codcliente = RequestGetDataPDF.codcliente;
+            string codcliente_real = RequestGetDataPDF.codcliente_real;
+            string codempresa = RequestGetDataPDF.codempresa;
+            string cmbestado_contra_entrega = RequestGetDataPDF.cmbestado_contra_entrega;
+            bool paraAprobar = RequestGetDataPDF.paraAprobar;
             try
             {
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
@@ -6347,6 +6525,26 @@ namespace SIAW.Controllers.ventas.transaccion
             }
         }
 
+        [HttpGet]
+        [Route("getTipoDescNivel/{userConn}")]
+        public async Task<IActionResult> getTipoDescNivel(string userConn)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var lista = await ventas.Obtener_Tipos_Descuento_Nivel(_context);
+                    return Ok(lista);
+                }
+
+            }
+            catch (Exception ex)
+            {
+                return Problem("Error en el servidor : " + ex.Message);
+                throw;
+            }
+        }
 
         [HttpGet]
         [Route("validarNITenSIN/{userConn}/{codempresa}/{usuario}/{codalmacen}/{nit_a_verificar}/{tipo_doc}")]
@@ -6599,4 +6797,23 @@ namespace SIAW.Controllers.ventas.transaccion
         public int nroIdProforma { get; set; }
     }
 
+    public class RequestGetDataPDF
+    {
+        public int codProforma { get; set; }
+        public string codcliente { get; set; }
+        public string codcliente_real { get; set; }
+        public string codempresa { get; set; }
+        public string cmbestado_contra_entrega { get; set; }
+        public bool paraAprobar {  get; set; }
+    }
+
+    public class RequestAddDescNCliente
+    {
+        public string cmbtipo_desc_nivel {  get; set; }
+        public DateTime fechaProf { get; set; }
+        public int codtarifa_main {  get; set; }
+        public string codcliente { get; set; }
+        public string codcliente_real { get; set; }
+        public string codclientedescripcion { get; set; }
+    }
 }

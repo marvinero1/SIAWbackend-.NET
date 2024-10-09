@@ -961,6 +961,48 @@ namespace siaw_funciones
                 return "";
             }
         }
+
+        public async Task<string> usr_idfactura(DBContext _context, string usuario)
+        {
+            try
+            {
+                string resultado = "";
+                var result = await _context.adusparametros
+                    .Where(i => i.usuario == usuario)
+                    .Select(parametro => parametro.idfactura)
+                   .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = result;
+                }
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
+
+        public async Task<string> usr_codcliente(DBContext _context, string usuario)
+        {
+            try
+            {
+                string resultado = "";
+                var result = await _context.adusparametros
+                    .Where(i => i.usuario == usuario)
+                    .Select(parametro => parametro.codcliente)
+                   .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = result;
+                }
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
     }
 }
  

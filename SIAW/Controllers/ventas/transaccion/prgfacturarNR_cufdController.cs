@@ -11,8 +11,10 @@ using siaw_DBContext.Models;
 using siaw_DBContext.Models_Extra;
 using siaw_funciones;
 using siaw_ws_siat;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
+using System.Diagnostics;
 using System.Runtime.ConstrainedExecution;
 using System.Runtime.Intrinsics.Arm;
 
@@ -38,6 +40,8 @@ namespace SIAW.Controllers.ventas.transaccion
         private readonly Documento documento = new Documento();
         private readonly Log log = new Log();
         private readonly Nombres nombres = new Nombres();
+        private readonly Contabilidad contabilidad = new Contabilidad();
+        private readonly Almacen almacen = new Almacen();
 
         private readonly ServFacturas serv_Facturas = new ServFacturas();
         private readonly Funciones_SIAT funciones_SIAT = new Funciones_SIAT();
@@ -50,6 +54,49 @@ namespace SIAW.Controllers.ventas.transaccion
         public prgfacturarNR_cufdController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;
+        }
+
+        [HttpGet]
+        [Route("getInfoCertificadoDigital/{userConn}/{codalmacen}/{codempresa}")]
+        public async Task<ActionResult<IEnumerable<object>>> getInfoCertificadoDigital(string userConn, int codalmacen, string codempresa)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var datos_certificado_digital = await Definir_Certificado_A_Utilizar(_context, codalmacen, codempresa);
+                    if (datos_certificado_digital.result == false)
+                    {
+                        datos_certificado_digital.eventos.Add("No se pudo obtener la informacion del certificado digital.");
+                     
+                        return BadRequest(new
+                        {
+                            resp = "Ocurrio algun error al definir el certificado digital para la firma del XML!!!",
+                            habilitado = datos_certificado_digital.result,
+                            datos_certificado_digital.msgAlertas,
+                            datos_certificado_digital.eventos
+                        });
+                        
+                    }
+
+                    return Ok(new
+                    {
+                        resp = "Datos Obtenidos Correctamente",
+                        habilitado = datos_certificado_digital.result,
+                        datos_certificado_digital.msgAlertas,
+                        datos_certificado_digital.eventos
+                    });
+
+
+                }
+            }
+            catch (Exception ex)
+            {
+                return Problem($"Error en el servidor: {ex.Message}");
+                throw;
+            }
         }
 
 
@@ -1096,7 +1143,11 @@ namespace SIAW.Controllers.ventas.transaccion
                         }
                     }
                     // HASTA ACA EL COMMIT 
+
+                    // variables para devolver de XML
                     string nomArchivoXML = "";
+                    bool imprime = false;
+
 
                     if (se_creo_factura)
                     {
@@ -1107,6 +1158,8 @@ namespace SIAW.Controllers.ventas.transaccion
                             if (datos_certificado_digital.result == false)
                             {
                                 datos_certificado_digital.eventos.Add("No se pudo obtener la informacion del certificado digital.");
+                                // NO DEBE DE DEVOLVER, DEBE CONTINUAR CON LA LOGICA.
+                                /*
                                 return BadRequest(new
                                 {
                                     resp = "Ocurrio algun error al definir el certificado digital para la firma del XML!!!",
@@ -1114,6 +1167,12 @@ namespace SIAW.Controllers.ventas.transaccion
                                     datos_certificado_digital.msgAlertas,
                                     datos_certificado_digital.eventos
                                 });
+                                */
+                                msgAlertas.Add("Ocurrio algun error al definir el certificado digital para la firma del XML!!!");
+                                
+                                msgAlertas.AddRange(datos_certificado_digital.msgAlertas);
+                                eventosLog.AddRange(datos_certificado_digital.eventos);
+
                             }
                             else
                             {
@@ -1125,25 +1184,41 @@ namespace SIAW.Controllers.ventas.transaccion
                                 {
                                     xml_generado.eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - No se pudo generar el archivo XML de la factura, Firmar y enviar al SIN!!!");
                                     xml_generado.eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - El proceso de Firmado de la factura y Envio al SIN termino con errores, verifique esta situacion!!!");
+
+                                    // NO DEBE DE DEVOLVER, DEBE CONTINUAR CON LA LOGICA.
+                                    /*
                                     return BadRequest(new
                                     {
                                         resp = "Ocurrio algun error al Generar el XML de la factura verifique los resultados de la facturacion!!!",
-                                        xml_generado.resul,
+                                        imprime = xml_generado.resul,
                                         xml_generado.msgAlertas,
                                         xml_generado.eventos
                                     });
+                                    */
+                                    // unimos los logs y mensajes generados a las listas base para que se muestren en secuencia.
+                                    msgAlertas.Add("Ocurrio algun error al Generar el XML de la factura verifique los resultados de la facturacion!!!");
+
                                 }
+
+                                msgAlertas.AddRange(xml_generado.msgAlertas);
+                                eventosLog.AddRange(xml_generado.eventos);
                                 nomArchivoXML = xml_generado.nomArchivoXML;
+                                imprime = xml_generado.resul;
+
                             }
 
                         }
                         catch (Exception ex)
                         {
                             Console.WriteLine("Mesaje de error al intentar generar XML factura: " + ex.ToString());
+                            msgAlertas.Add("Mesaje de error al intentar generar XML factura: " + ex.ToString());
+                            eventosLog.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - Ocurrio algun error al generar el XML de la factura verifique los resultados de la facturacion!!!");
+                            /*
                             return BadRequest(new
                             {
                                 resp = "Ocurrio algun error al generar el XML de la factura verifique los resultados de la facturacion!!!"
                             });
+                            */
                         }
                     }
 
@@ -1165,7 +1240,13 @@ namespace SIAW.Controllers.ventas.transaccion
                     {
                         cadena.Add("* " + await ventas.Datos_Factura_CUF(_context, reg));
                     }
-                    cadena.Add("Se procedera a la impresion y envio de la factura al mail del cliente.");
+
+                    if (imprime)
+                    {
+                        cadena.Add("Se procedera a la impresion y envio de la factura al mail del cliente.");
+                    }
+
+
                     // devolver la cadena en la respuesta
 
                     bool todoOk = true;
@@ -1248,10 +1329,12 @@ namespace SIAW.Controllers.ventas.transaccion
                     return Ok(new
                     {
                         resp = "Facturas registras con Exito",
+                        imprime,
                         nomArchivoXML,   // se envia nombre del archivo xml para que nos lo devuelva
                         codFactura = codFacturas[0],  // De momento solo enviamnos el primer codigo de factura para que nos lo devuelva
+                        cadena,
                         msgAlertas,
-                        eventosLog
+                        eventosLog= eventosLog
                     });
                 }
             }
@@ -1284,28 +1367,7 @@ namespace SIAW.Controllers.ventas.transaccion
             return (true, "");
         }
 
-        private async Task<bool> GRABAR_IMPRIMIR(DBContext _context, int codremision, bool opcion_automatico)
-        {
-            // If ValidarCrearImprimir()
-            if (true)
-            {
-                // ####validar nombre a facturar y nit
-                /*
-                 
-                If Trim(factnomb.Text.Replace(" ", "")) = "SINNOMBRE" Then
-                    factnit.Text = "0"
-                Else
-                    If sia_funciones.Ventas.Instancia.Validar_NIT_Correcto(factnit.Text, sia_funciones.Ventas.Instancia.Tipo_Documento_Cliente_segun_Remision(id.Text, numeroid.Text)) Then
-                    Else
-                        MessageBox.Show("Debe indicar un N.I.T. o Nro de C.I. Valido.", "Validacion", MessageBoxButtons.OK, MessageBoxIcon.Exclamation)
-                        Exit Sub
-                    End If
-                End If
 
-                 */
-            }
-            return true;
-        }
 
         private async Task<(bool resul, List<string> msgAlertas, List<string> eventos, List<int> CodFacturas_Grabadas)> CREAR_GRABAR_FACTURAS(DBContext _context, string idfactura, int nrocaja, string factnit, string condicion, string nrolugar, string tipo, string codtipo_comprobante, string usuario, string codempresa, int codtipopago, string codbanco, string codcuentab, string nrocheque, string idcuenta, string cufd, string complemento_ci, veremision cabecera, List<veremision_detalle> detalle, List<tablaFacturas> dgvfacturas)
         {
@@ -2276,10 +2338,43 @@ namespace SIAW.Controllers.ventas.transaccion
                     // generar cadena para QR
                     string cadena_QR = await adsiat_Parametros_Facturacion.Generar_Cadena_QR_Link_Factura_SIN(_context, nitEmpresa, cabecera.cuf, cabecera.nrofactura.ToString(), "2", cabecera.codalmacen);
 
+                    string leyendaSIN = ventas.leyenda_para_factura_en_linea(cabecera.en_linea_SIN ?? false);
+
+
+                    // PARAMETROS DE CABECERA
+                    string rsucursal = await contabilidad.sucursalalm(_context, cabecera.codalmacen);
+                    string rdireccion_suc = await almacen.direccionalmacen(_context, cabecera.codalmacen);
+                    string rtelefono = await almacen.telefonoalmacen(_context, cabecera.codalmacen);
+                    string rlugar_emision = await almacen.lugaralmacen(_context, cabecera.codalmacen);
+                    string rptovta_ag = "Punto de Vta.: " + await adsiat_Parametros_Facturacion.PuntoDeVta(_context, cabecera.codalmacen);
+
+                    string rfax_ag = await almacen.faxalmacen(_context, cabecera.codalmacen);
+                    if (rfax_ag.Trim().Length == 0 || rfax_ag == "0")
+                    {
+                        rfax_ag = "";
+                    }
+                    else
+                    {
+                        rfax_ag = "Fax:" + rfax_ag;
+                    }
+
+                    string rlugarFechaHora = await empresa.municipio_empresa(_context, codigoempresa) + " " + cabecera.fecha.ToShortDateString() + "  Hrs." + cabecera.horareg;
+
                     return Ok(new
                     {
+                        paramEmp = new
+                        {
+                            sucursal = "Sucursal N° " + rsucursal,
+                            codptovta = rptovta_ag,
+                            direccion = rdireccion_suc,
+                            telefono = "Teléfono: " + rtelefono,
+                            fax = rfax_ag,
+                            lugarEmision = rlugar_emision,
+                            lugarFechaHora = rlugarFechaHora
+                        },
                         cadena_QR,
                         imp_totalliteral,
+                        leyendaSIN,
                         cabecera,
                         detalle
                     });
@@ -2292,6 +2387,8 @@ namespace SIAW.Controllers.ventas.transaccion
                 throw;
             }
         }
+
+        
 
         [HttpPost]
         [Route("enviarFacturaEmail/{userConn}/{codempresa}/{usuario}/{codFactura}/{nomArchXML}")]

@@ -3446,7 +3446,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
                         // Asignar el nombre de la impresora
                         string impresora = await _context.inalmacen.Where(i => i.codigo ==veremision.codalmacen).Select(i => i.impresora_nr).FirstOrDefaultAsync() ?? "";
-                        string pathFile = await mostrardocumento_directo(_context, codClienteReal, codEmpresa, codclientedescripcion, preparacion, veremision);
+                        // string pathFile = await mostrardocumento_directo(_context, codClienteReal, codEmpresa, codclientedescripcion, preparacion, veremision);
 
                         if (impresora == "")
                         {
@@ -3458,7 +3458,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         if (config.IsValid)
                         {
                             // generamos el archivo .txt y regresamos la ruta
-                            //string pathFile = await mostrardocumento_directo(_context, codClienteReal, codEmpresa, codclientedescripcion, preparacion, veremision);
+                            string pathFile = await mostrardocumento_directo(_context, codClienteReal, codEmpresa, codclientedescripcion, preparacion, veremision);
                             // Configurar e iniciar el trabajo de impresión
                             // Aquí iría el código para configurar el documento a imprimir y lanzar la impresión
                             bool impremiendo = await RawPrinterHelper.SendFileToPrinterAsync(config.PrinterName, pathFile);

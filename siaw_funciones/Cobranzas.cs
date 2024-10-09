@@ -274,7 +274,7 @@ namespace siaw_funciones
 
         public async Task<List<dtdepositos_pendientes>> Totalizar_Cobranzas_Depositos_Pendientes ( DBContext _context ,List<consultCocobranza> tblpendientes)
         {
-            DateTime ahora = DateTime.Now;
+            DateTime ahora = DateTime.Now.Date;
             List<dtdepositos_pendientes> DtDepositos_Pendientes = new List<dtdepositos_pendientes> ();
             foreach (var reg in tblpendientes)
             {
@@ -834,7 +834,7 @@ namespace siaw_funciones
             }
             else
             {
-                query1 = query1.Where(x => codcbzas.Contains((char)x.codigo)).ToList();
+                query1 = query1.Where(x => codcbzas.Contains(x.codigo.ToString())).ToList();
             }
 
             // lo mismo al anterior pero son de reveresiones (estos SI SON reversiones de anticipos)
@@ -916,7 +916,7 @@ namespace siaw_funciones
             }
             else
             {
-                query2 = query2.Where(x => codcbzas.Contains((char)x.codigo)).ToList();
+                query2 = query2.Where(x => codcbzas.Contains(x.codigo.ToString())).ToList();
             }
 
             //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -998,7 +998,7 @@ namespace siaw_funciones
             }
             else
             {
-                query3 = query3.Where(x => codcbzas.Contains((char)x.codigo)).ToList();
+                query3 = query3.Where(x => codcbzas.Contains(x.codigo.ToString())).ToList();
             }
             ////tipo=1 SON CBZAS CONTADO TABLA: COPAGOS.CODREMISION
             // Parte 4/6
@@ -1073,7 +1073,7 @@ namespace siaw_funciones
             }
             else
             {
-                query4 = query4.Where(x => codcbzas.Contains((char)x.codigo)).ToList();
+                query4 = query4.Where(x => codcbzas.Contains(x.codigo.ToString())).ToList();
             }
 
 
@@ -1164,7 +1164,7 @@ namespace siaw_funciones
             }
             else
             {
-                query5 = query5.Where(x => codcbzas.Contains((char)x.codigo)).ToList();
+                query5 = query5.Where(x => codcbzas.Contains(x.codigo.ToString())).ToList();
             }
 
             //return query5;
@@ -1256,7 +1256,7 @@ namespace siaw_funciones
             }
             else
             {
-                query6 = query6.Where(x => codcbzas.Contains((char)x.codigo)).ToList();
+                query6 = query6.Where(x => codcbzas.Contains(x.codigo.ToString())).ToList();
             }
             
             var resultadosUnion = query1

@@ -4492,7 +4492,7 @@ namespace siaw_funciones
             if (objres.resultado == false)
             {
                 regcontrol.Valido = "NO";
-                //regcontrol.DescServicio = "";
+                // regcontrol.DescServicio = "PERMITIR PROMOCION PARA PROFORMAS ANTERIORES";
                 regcontrol.Observacion = objres.observacion;
                 regcontrol.ObsDetalle = objres.obsdetalle;
                 regcontrol.DatoA = objres.datoA;
@@ -4929,7 +4929,7 @@ namespace siaw_funciones
             if (cadena.Trim().Length > 0)
             {
                 objres.resultado = false;
-                objres.observacion = "Los siguientes descuentos de nivel no estan habilitados y/o la fecha de la proforma invalida: ";
+                objres.observacion = "Los siguientes descuentos de promoción no estan habilitados y/o la fecha de la proforma invalida: ";
                 objres.obsdetalle = cadena;
                 if (DVTA.estado_doc_vta == "NUEVO")
                 {
@@ -8240,10 +8240,11 @@ namespace siaw_funciones
 
             if (cadena.Trim().Length > 0)
             {
+                string tipoCliente = cliente_nuevo ? "NUEVO" : "HABITUAL";
                 objres.resultado = false;
                 objres.datoA = "";
                 objres.datoB = "";
-                objres.observacion = "Los descuentos extras aplicados no corresponden con el tipo de venta: " + DVTA.tipo_vta;
+                objres.observacion = "El cliente " + DVTA.codcliente_real + " es: " + tipoCliente + " y el documento no cumple el Monto Minimo de venta: " + DVTA.tipo_vta + " requerido de la lista de precios: ";
                 objres.obsdetalle = cadena;
                 objres.accion = Acciones_Validar.Pedir_Servicio;
             }

@@ -69,5 +69,24 @@ namespace siaw_funciones
 
             return true;
         }
+
+
+
+        ///////////////////////////////////////////////////////////////////////////////
+        // Esta funcion devuelve la sucursal de un almacen
+        ///////////////////////////////////////////////////////////////////////////////
+        public async Task<string> sucursalalm(DBContext _context, int codalmacen)
+        {
+            try
+            {
+                string resultado = await _context.cnsucursal.Where(i=> i.codalmacen == codalmacen).Select(i => i.codigo).FirstOrDefaultAsync() ?? "";
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
+
     }
 }
