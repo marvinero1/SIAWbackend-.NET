@@ -53,9 +53,15 @@ namespace siaw_DBContext.Models
         public string codmoneda { get; set; }
         public int? codalmacen { get; set; }
         public int? codvendedor { get; set; }
-        public int? sobres { get; set; }
+        public decimal? sobres { get; set; }
         public string hdespacho_fin { get; set; }
         public decimal? kilometraje { get; set; }
         public bool? flete_por_pagar { get; set; }
+        public string razonsocial { get; set; }
+        public int? codproforma { get; set; }
+        public DateTime? frefacturacion { get; set; }
+        public string hrefacturacion { get; set; }
+        public DateTime? fanulado { get; set; }
+        public string hanulado { get; set; }
     }
 }

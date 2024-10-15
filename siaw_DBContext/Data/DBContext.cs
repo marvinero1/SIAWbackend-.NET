@@ -6435,6 +6435,8 @@ namespace siaw_DBContext.Data
                     .HasMaxLength(50)
                     .IsUnicode(false);
 
+                entity.Property(e => e.calculo_desc_deposito_contado).HasMaxLength(15);
+
                 entity.Property(e => e.carpeta_backup_facturas).HasMaxLength(200);
 
                 entity.Property(e => e.cincosabados).HasColumnType("decimal(18, 2)");
@@ -60629,6 +60631,8 @@ namespace siaw_DBContext.Data
 
                 entity.Property(e => e.fadespachar).HasColumnType("smalldatetime");
 
+                entity.Property(e => e.fanulado).HasColumnType("smalldatetime");
+
                 entity.Property(e => e.fdespachado).HasColumnType("smalldatetime");
 
                 entity.Property(e => e.fdespacho).HasColumnType("smalldatetime");
@@ -60641,11 +60645,18 @@ namespace siaw_DBContext.Data
 
                 entity.Property(e => e.frecibido).HasColumnType("smalldatetime");
 
+                entity.Property(e => e.frefacturacion).HasColumnType("smalldatetime");
+
                 entity.Property(e => e.fterminado).HasColumnType("smalldatetime");
 
                 entity.Property(e => e.guia).HasMaxLength(15);
 
                 entity.Property(e => e.hadespachar)
+                    .HasMaxLength(5)
+                    .IsUnicode(false)
+                    .IsFixedLength();
+
+                entity.Property(e => e.hanulado)
                     .HasMaxLength(5)
                     .IsUnicode(false)
                     .IsFixedLength();
@@ -60681,6 +60692,11 @@ namespace siaw_DBContext.Data
                     .IsUnicode(false)
                     .IsFixedLength();
 
+                entity.Property(e => e.hrefacturacion)
+                    .HasMaxLength(5)
+                    .IsUnicode(false)
+                    .IsFixedLength();
+
                 entity.Property(e => e.hterminado)
                     .HasMaxLength(5)
                     .IsUnicode(false)
@@ -60709,6 +60725,10 @@ namespace siaw_DBContext.Data
                 entity.Property(e => e.preparacion)
                     .HasMaxLength(30)
                     .IsUnicode(false);
+
+                entity.Property(e => e.razonsocial).HasMaxLength(200);
+
+                entity.Property(e => e.sobres).HasColumnType("decimal(18, 2)");
 
                 entity.Property(e => e.tarribo).HasMaxLength(20);
 

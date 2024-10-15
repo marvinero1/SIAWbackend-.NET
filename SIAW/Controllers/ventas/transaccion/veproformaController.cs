@@ -1973,6 +1973,95 @@ namespace SIAW.Controllers.ventas.transaccion
             bool check_desclinea_segun_solicitud = false;  // de momento no se utiliza, si se llegara a utilizar, se debe pedir por ruta
             veproforma veproforma = datosProforma.veproforma;
             List<veproforma1> veproforma1 = datosProforma.veproforma1;
+            bool bandVep1 = true;
+            foreach (var item in veproforma1)
+            {
+                if (item.coditem == null)
+                {
+                    bandVep1 = false;
+                    break;
+                }
+                if (item.cantidad == null)
+                {
+                    bandVep1 = false;
+                    break;
+                }
+                if (item.udm == null)
+                {
+                    bandVep1 = false;
+                    break;
+                }
+                if (item.precioneto == null)
+                {
+                    bandVep1 = false;
+                    break;
+                }
+                if (item.preciodesc == null)
+                {
+                    bandVep1 = false;
+                    break;
+                }
+                if (item.niveldesc == null)
+                {
+                    bandVep1 = false;
+                    break;
+                }
+                if (item.preciolista == null)
+                {
+                    bandVep1 = false;
+                    break;
+                }
+                if (item.codtarifa == null)
+                {
+                    bandVep1 = false;
+                    break;
+                }
+                if (item.coddescuento == null)
+                {
+                    bandVep1 = false;
+                    break;
+                }
+                if (item.total == null)
+                {
+                    bandVep1 = false;
+                    break;
+                }
+                if (item.cantaut == null)
+                {
+                    bandVep1 = false;
+                    break;
+                }
+                if (item.totalaut == null)
+                {
+                    bandVep1 = false;
+                    break;
+                }
+                if (item.obs == null)
+                {
+                    bandVep1 = false;
+                    break;
+                }
+                if (item.porceniva == null)
+                {
+                    bandVep1 = false;
+                    break;
+                }
+                if (item.cantidad_pedida == null)
+                {
+                    bandVep1 = false;
+                    break;
+                }
+                if (item.peso == null)
+                {
+                    bandVep1 = false;
+                    break;
+                }
+                if (item.nroitem == null)
+                {
+                    bandVep1 = false;
+                    break;
+                }
+            }
             /*
             List<veproforma_valida> veproforma_valida = datosProforma.veproforma_valida;
             List<veproforma_anticipo> veproforma_anticipo = datosProforma.veproforma_anticipo;
@@ -1981,7 +2070,6 @@ namespace SIAW.Controllers.ventas.transaccion
             List<veproforma_iva> veproforma_iva = datosProforma.veproforma_iva;
 
             */
-
             if (veproforma.tdc == null)
             {
                 return BadRequest(new { resp = "No se esta recibiendo el tipo de cambio verifique esta situación." });
@@ -3071,6 +3159,14 @@ namespace SIAW.Controllers.ventas.transaccion
             var vedesextraprof = datosProforma.vedesextraprof;
             var verecargoprof = datosProforma.verecargoprof;
             var veproforma_iva = datosProforma.veproforma_iva;
+            var tabla_anticipos_asignados = datosProforma.detalleAnticipos;
+            if (cmbtipo_complementopf == 1)
+            {
+                if (veproforma.idpf_complemento == null || veproforma.nroidpf_complemento == null)
+                {
+                    return BadRequest(new { resp = "Se tiene habilitada la opcion de proforma complemente, sin embargo no se esta recibiendo el id o nro id del complemento, verifique esta situación" });
+                }
+            }
 
             if (veproforma.tdc == null)
             {
@@ -3208,8 +3304,8 @@ namespace SIAW.Controllers.ventas.transaccion
                     return BadRequest(new { resp = "No se encontro informacion con los datos proporcionados." });
                 }
 
-                var totales = await RECALCULARPRECIOS(_context, false, codempresa, cmbtipo_complementopf, codcliente_real, resultado, verecargoprof, veproforma, vedesextraprof);
-
+                // var totales = await RECALCULARPRECIOS(_context, false, codempresa, cmbtipo_complementopf, codcliente_real, resultado, verecargoprof, veproforma, vedesextraprof);
+                var totales = await RECALCULARPRECIOS(_context, false, codempresa, cmbtipo_complementopf, codcliente_real, resultado, verecargoprof, veproforma, vedesextraprof, tabla_anticipos_asignados);
 
                 return Ok(new
                 {
@@ -3273,6 +3369,15 @@ namespace SIAW.Controllers.ventas.transaccion
                 List<itemDataMatriz> tabla_detalle = RequestDescuentos.detalleItemsProf;
                 veproforma veproforma = RequestDescuentos.veproforma;
                 List<tabladescuentos>? tabladescuentos = RequestDescuentos.tabladescuentos;
+                List<vedetalleanticipoProforma>? tablaanticiposProforma = RequestDescuentos.tablaanticiposProforma;
+
+                if (cmbtipo_complementopf == 1)
+                {
+                    if (veproforma.idpf_complemento == null || veproforma.nroidpf_complemento == null)
+                    {
+                        return BadRequest(new { resp = "Se tiene habilitada la opcion de proforma complemente, sin embargo no se esta recibiendo el id o nro id del complemento, verifique esta situación" });
+                    }
+                }
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
@@ -3281,7 +3386,8 @@ namespace SIAW.Controllers.ventas.transaccion
                         var result = await versubtotal(_context, tabla_detalle);
                         double subtotal = result.st;
                         double peso = result.peso;
-                        var respDescuento = await verdesextra(_context, codempresa, veproforma.nit, veproforma.codmoneda, cmbtipo_complementopf, veproforma.idpf_complemento, veproforma.nroidpf_complemento ?? 0, subtotal, veproforma.fecha, tabladescuentos, tabla_detalle);
+                        // var respDescuento = await verdesextra(_context, codempresa, veproforma.nit, veproforma.codmoneda, cmbtipo_complementopf, veproforma.idpf_complemento, veproforma.nroidpf_complemento ?? 0, subtotal, veproforma.fecha, tabladescuentos, tabla_detalle);
+                        var respDescuento = await verdesextra(_context, codempresa, veproforma.nit, veproforma.codmoneda, cmbtipo_complementopf, veproforma.idpf_complemento, veproforma.nroidpf_complemento ?? 0, subtotal, veproforma.fecha, tabladescuentos, tabla_detalle, veproforma.tipopago, (bool)veproforma.contra_entrega, codcliente_real, tablaanticiposProforma);
 
                         double descuento = respDescuento.respdescuentos;
                         tabladescuentos = respDescuento.tabladescuentos;
@@ -3342,7 +3448,7 @@ namespace SIAW.Controllers.ventas.transaccion
             }
         }
 
-        private async Task<object> RECALCULARPRECIOS(DBContext _context, bool reaplicar_desc_deposito, string codempresa, int cmbtipo_complementopf, string codcliente_real, List<itemDataMatriz> tabla_detalle, List<tablarecargos> tablarecargos, veproforma veproforma, List<tabladescuentos> vedesextraprof)
+        private async Task<object> RECALCULARPRECIOS(DBContext _context, bool reaplicar_desc_deposito, string codempresa, int cmbtipo_complementopf, string codcliente_real, List<itemDataMatriz> tabla_detalle, List<tablarecargos> tablarecargos, veproforma veproforma, List<tabladescuentos> vedesextraprof, List<vedetalleanticipoProforma> tabla_anticipos_asignados)
         {
             var tabladescuentos = vedesextraprof.Select(i => new tabladescuentos
             {
@@ -3368,7 +3474,8 @@ namespace SIAW.Controllers.ventas.transaccion
             var respRecargo = await verrecargos(_context, codempresa, veproforma.codmoneda, veproforma.fecha, subtotal, tablarecargos);
             double recargo = respRecargo.total;
 
-            var respDescuento = await verdesextra(_context, codempresa, veproforma.nit, veproforma.codmoneda, cmbtipo_complementopf, veproforma.idpf_complemento, veproforma.nroidpf_complemento ?? 0, subtotal, veproforma.fecha, tabladescuentos, tabla_detalle);
+            //var respDescuento = await verdesextra(_context, codempresa, veproforma.nit, veproforma.codmoneda, cmbtipo_complementopf, veproforma.idpf_complemento, veproforma.nroidpf_complemento ?? 0, subtotal, veproforma.fecha, tabladescuentos, tabla_detalle);
+            var respDescuento = await verdesextra(_context, codempresa, veproforma.nit, veproforma.codmoneda, cmbtipo_complementopf, veproforma.idpf_complemento, veproforma.nroidpf_complemento ?? 0, subtotal, veproforma.fecha, tabladescuentos, tabla_detalle, veproforma.tipopago, (bool)veproforma.contra_entrega, codcliente_real, tabla_anticipos_asignados);
             double descuento = respDescuento.respdescuentos;
 
             var resultados = await vertotal(_context, subtotal, recargo, descuento, codcliente_real, veproforma.codmoneda, codempresa, veproforma.fecha, tabla_detalle, tablarecargos);
@@ -3384,7 +3491,8 @@ namespace SIAW.Controllers.ventas.transaccion
                 tablaIva = resultados.tablaiva,
 
                 tablaRecargos = respRecargo.tablarecargos,
-                tablaDescuentos = respDescuento.tabladescuentos
+                tablaDescuentos = respDescuento.tabladescuentos,
+                mensaje = respDescuento.mensaje
             };
 
         }
@@ -3518,8 +3626,10 @@ namespace SIAW.Controllers.ventas.transaccion
             return (total, tablarecargos);
 
         }
-        private async Task<(double respdescuentos, List<tabladescuentos> tabladescuentos)> verdesextra(DBContext _context, string codempresa, string nit, string codmoneda, int cmbtipo_complementopf, string idpf_complemento, int nroidpf_complemento, double subtotal, DateTime fecha, List<tabladescuentos> tabladescuentos, List<itemDataMatriz> detalleProf)
+
+        private async Task<(double respdescuentos, string mensaje, List<tabladescuentos> tabladescuentos)> verdesextra(DBContext _context, string codempresa, string nit, string codmoneda, int cmbtipo_complementopf, string idpf_complemento, int nroidpf_complemento, double subtotal, DateTime fecha, List<tabladescuentos> tabladescuentos, List<itemDataMatriz> detalleProf, int tipopago, bool? contraEntrega, string codcliente_real, List<vedetalleanticipoProforma> dt_anticipo_pf)
         {
+            string mensaje = "";
             int coddesextra_depositos = await configuracion.emp_coddesextra_x_deposito(_context, codempresa);
             tabladescuentos = await ventas.Ordenar_Descuentos_Extra(_context, tabladescuentos);
             double monto_desc_pf_complementaria = 0;
@@ -3552,7 +3662,7 @@ namespace SIAW.Controllers.ventas.transaccion
                                 {
                                     coditem = i.coditem,
                                     //descripcion = i.descripcion,
-                                    
+
                                     //medida = i.medida,
                                     udm = i.udm,
                                     porceniva = (double)i.porceniva,
@@ -3578,7 +3688,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         {
                             monto_desc_pf_complementaria = 0;
                         }
-                        
+
                     }
                     //sumar el monto de la proforma complementaria
                     reg.montodoc = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (double)(monto_desc + monto_desc_pf_complementaria));
@@ -3631,8 +3741,89 @@ namespace SIAW.Controllers.ventas.transaccion
             ////////////////////////////////////////////////////////////////////////////////
             //los que se aplican en el TOTAL
             ////////////////////////////////////////////////////////////////////////////////
-
             double total_preliminar = subtotal - total_desctos1;
+            //'##########################################################
+            //'//Desde 24/09/2024 en el total_preliminar verificar si el cliente tiene anticipos anteriores con saldos pendientes y si estos no tienen enlace con un deposito,
+            //'sino lo tuvieran el enlace entonces el monto del anticipo debe restar al total_preliminar para que con ese nuevo subtotal se saque el 3 % del descuento por deposito que le corresponde
+            //'si los anticipos tienen un enlace con deposito entonces no deben restar al total_preliminar
+
+            if (await configuracion.Calculo_Desc_Deposito_Contado(_context, codempresa) == "SUBTOTAL2" && tipopago == 0 && contraEntrega == false)
+            {
+                var tablaAnticiposSinDeposito = await anticipos_vta_contado.Anticipos_MontoRestante_Sin_Deposito(_context, codcliente_real);
+                decimal totalAnticiposSinDeposito = 0;
+                decimal montoCambio = 0;
+                string cadenaAnticipos = string.Empty;
+
+                if (tablaAnticiposSinDeposito.Count > 0)
+                {
+                    foreach (var row in tablaAnticiposSinDeposito)
+                    {
+                        if (row.codmoneda == codmoneda)
+                        {
+                            totalAnticiposSinDeposito += await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, row.montorest);
+                        }
+                        else
+                        {
+                            montoCambio = await tipocambio._conversion(_context, codmoneda, row.codmoneda, row.fecha, (decimal)row.montorest);
+                            montoCambio = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (double)montoCambio);
+                            totalAnticiposSinDeposito += montoCambio;
+                        }
+
+                        if (string.IsNullOrEmpty(cadenaAnticipos))
+                        {
+                            cadenaAnticipos = row.id + "-" + row.numeroid;
+                        }
+                        else
+                        {
+                            cadenaAnticipos += ", " + row.id + "-" + row.numeroid;
+                        }
+                    }
+
+                    total_preliminar -= (double)totalAnticiposSinDeposito;
+
+                    if (!string.IsNullOrEmpty(cadenaAnticipos))
+                    {
+                        mensaje = "El cliente tiene anticipos que no tienen enlace con un deposito (" + cadenaAnticipos + "), con montos restantes mayores a 0 (cero); los cuales suman:  " + totalAnticiposSinDeposito + " " + codmoneda + ". Por lo tanto ese monto se reducira al monto del subtotal preliminar despues de los demas descuentos: (" + total_preliminar.ToString("#,0.00", new System.Globalization.CultureInfo("en-US")) + " " + codmoneda + ".), de este monto se realizara el calculo del descuento por deposito al contado.";
+                    }
+                }
+                else if (dt_anticipo_pf.Count > 0)
+                {
+                    foreach (var row in dt_anticipo_pf)
+                    {
+                        if (!await cobranzas.Anticipo_Esta_Enlazado_a_Deposito(_context, row.id_anticipo, row.nroid_anticipo))
+                        {
+                            if (row.codmoneda == codmoneda)
+                            {
+                                totalAnticiposSinDeposito += await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, row.monto);
+                            }
+                            else
+                            {
+                                montoCambio = await tipocambio._conversion(_context, codmoneda, row.codmoneda, row.fechareg, (decimal)row.monto);
+                                montoCambio = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (double)montoCambio);
+                                totalAnticiposSinDeposito += montoCambio;
+                            }
+
+                            if (string.IsNullOrEmpty(cadenaAnticipos))
+                            {
+                                cadenaAnticipos = row.id_anticipo + "-" + row.nroid_anticipo;
+                            }
+                            else
+                            {
+                                cadenaAnticipos += ", " + row.id_anticipo + "-" + row.nroid_anticipo;
+                            }
+                        }
+                    }
+
+                    total_preliminar -= (double)totalAnticiposSinDeposito;
+
+                    if (!string.IsNullOrEmpty(cadenaAnticipos))
+                    {
+                        mensaje = "El cliente tiene anticipos asignados que no tienen enlace con un deposito (" + cadenaAnticipos + "), con montos restantes mayores a 0 (cero); los cuales suman: " + totalAnticiposSinDeposito + " " + codmoneda + ". Por lo tanto ese monto se reducira al monto del subtotal preliminar despues de los demas descuentos: (" + total_preliminar + " " + codmoneda + "), de este monto se realizara el calculo del descuento por deposito al contado.";
+                    }
+                }
+            }
+
+            //'##########################################################
             foreach (var reg in tabladescuentos)
             {
                 if (!await ventas.DescuentoExtra_Diferenciado_x_item(_context, reg.coddesextra))
@@ -3665,9 +3856,11 @@ namespace SIAW.Controllers.ventas.transaccion
 
             double respdescuentos = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (double)(total_desctos1 + total_desctos2));
 
-            return (respdescuentos, tabladescuentos);
+            return (respdescuentos, mensaje, tabladescuentos);
 
         }
+
+
 
         private async Task<(double totalIva, double TotalGen, List<veproforma_iva> tablaiva)> vertotal(DBContext _context, double subtotal, double recargos, double descuentos, string codcliente_real, string codmoneda, string codempresa, DateTime fecha, List<itemDataMatriz> tabladetalle, List<tablarecargos> tablarecargos)
         {
@@ -4065,8 +4258,9 @@ namespace SIAW.Controllers.ventas.transaccion
 
                 if (await cliente.EsClienteSinNombre(_context, RequestDataEtiqueta.codcliente_real))
                 {
-                    return Ok(new
-                    {
+                    return Ok(new List<object>
+                    { 
+                        /*
                         codigo = 0,
                         id = RequestDataEtiqueta.id,
                         numeroid = RequestDataEtiqueta.numeroid,
@@ -4079,6 +4273,19 @@ namespace SIAW.Controllers.ventas.transaccion
                         ciudad = "ciudad",
                         latitud_entrega = "0",
                         longitud_entrega = "0"
+                        */
+                        new { key = "codigo", value = 0 },
+                        new { key = "id", value = RequestDataEtiqueta.id },
+                        new { key = "numeroid", value = RequestDataEtiqueta.numeroid },
+                        new { key = "codcliente", value = RequestDataEtiqueta.codcliente },
+                        new { key = "linea1", value = RequestDataEtiqueta.nomcliente },
+                        new { key = "linea2", value = "" },
+                        new { key = "representante", value = "direccion" },
+                        new { key = "telefono", value = "telefono" },
+                        new { key = "celular", value = "celular" },
+                        new { key = "ciudad", value = "ciudad" },
+                        new { key = "latitud_entrega", value = "0" },
+                        new { key = "longitud_entrega", value = "0" }
                     });
                 }
 
@@ -4122,20 +4329,45 @@ namespace SIAW.Controllers.ventas.transaccion
 
                 var dirCliente = await cliente.direccioncliente(_context, codcliente_ref);
                 var coordenadasCliente = await cliente.latitud_longitud_cliente(_context, codcliente_ref);
+
+                string razonSocial = await cliente.Razonsocial(_context, codcliente_ref);
+
+                var etiquetas = await _context.vetienda
+                    .Where(t => t.codcliente == codcliente_ref)
+                    .Join(_context.veptoventa,
+                          t => t.codptoventa,
+                          p => p.codigo,
+                          (t, p) => new { t, p })
+                    .Join(_context.adprovincia,
+                          tp => tp.p.codprovincia,
+                          v => v.codigo,
+                          (tp, v) => new { tp.t, tp.p, v })
+                    .Join(_context.addepto,
+                          tpv => tpv.v.coddepto,
+                          d => d.codigo,
+                          (tpv, d) => new
+                          {
+                              codigo = 0,
+                              id = RequestDataEtiqueta.id,
+                              numeroid = RequestDataEtiqueta.numeroid,
+                              codcliente = codcliente_ref,
+                              linea1 = razonSocial,
+                              linea2 = "",
+                              representante = tpv.t.direccion + " (" + tpv.p.descripcion + " - " +tpv.v.codigo + ")",
+                              telefono = tpv.t.telefono,
+                              celular = tpv.t.celular,
+                              // nombre = d.codigo + " " + tpv.v.codigo + " " + tpv.p.descripcion,
+                              latitud_entrega = tpv.t.latitud,
+                              longitud_entrega = tpv.t.longitud,
+                              ciudad = d.codigo + " " + tpv.v.codigo + " " + tpv.p.descripcion
+                          })
+                    .ToListAsync();
+
+
+
                 return Ok(new
                 {
-                    codigo = 0,
-                    id = RequestDataEtiqueta.id,
-                    numeroid = RequestDataEtiqueta.numeroid,
-                    codcliente = codcliente_ref,
-                    linea1 = await cliente.Razonsocial(_context, codcliente_ref),
-                    linea2 = "",
-                    representante = dirCliente + " (" + await cliente.PuntoDeVentaCliente_Segun_Direccion(_context, codcliente_ref, dirCliente) + ")",
-                    telefono = await cliente.TelefonoPrincipal(_context, codcliente_ref),
-                    celular = await cliente.CelularPrincipal(_context, codcliente_ref),
-                    ciudad = await cliente.UbicacionCliente(_context, codcliente_ref),
-                    latitud_entrega = coordenadasCliente.latitud,
-                    longitud_entrega = coordenadasCliente.longitud,
+                    etiquetas = etiquetas,
                     telefonos = clienteTelefonos
                 });
             }
@@ -6764,7 +6996,7 @@ namespace SIAW.Controllers.ventas.transaccion
         public List<itemDataMatriz> detalleItemsProf { get; set; }
         public List<tablarecargos> tablarecargos { get; set; }
         public List<tabladescuentos> ? tabladescuentos { get; set; }
-
+        public List<vedetalleanticipoProforma>? tablaanticiposProforma { get; set; }
     }
     public class RequestEntregaPedido
     {

@@ -261,5 +261,6 @@ namespace siaw_DBContext.Models
         public int? dias_revision_depositos_no_facturados { get; set; }
         public string mail_envia_facturas { get; set; }
         public string pwd_mail_envia_facturas { get; set; }
+        public string calculo_desc_deposito_contado { get; set; }
     }
 }

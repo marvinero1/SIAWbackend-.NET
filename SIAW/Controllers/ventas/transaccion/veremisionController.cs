@@ -345,6 +345,31 @@ namespace SIAW.Controllers.ventas.transaccion
                 .OrderBy(i => i.coditem)
                 .ToListAsync();
 
+            // Obtener anticipos si los hay
+            var anticiposProf = await _context.veproforma_anticipo
+                    .Where(va => va.codproforma == cabecera.codigo)
+                    .Join(
+                        _context.coanticipo,
+                        va => va.codanticipo,    // Llave foránea en veproforma_anticipo
+                        co => co.codigo,         // Llave primaria en coanticipo
+                        (va, co) => new vedetalleanticipoProforma
+                        {
+                            codproforma = cabecera.codigo,
+                            codanticipo = va.codigo,
+                            docanticipo = co.id + "-" + co.numeroid,
+                            id_anticipo = co.id,
+                            nroid_anticipo = co.numeroid,
+                            monto = (double)(va.monto ?? 0),
+                            tdc = (double)(va.tdc ?? 0),
+                            codmoneda = cabecera.codmoneda,
+                            fechareg = (DateTime)va.fechareg,
+                            usuarioreg = va.usuarioreg,
+                            horareg = va.horareg,
+                            codvendedor = cabecera.codvendedor.ToString()
+
+                        }
+                    )
+                    .ToListAsync();
 
             return (new
             {
@@ -358,6 +383,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 descuentos = descuentosExtra,
                 recargos = recargos,
                 iva = iva,
+                detalleAnticipos = anticiposProf
             });
         }
 

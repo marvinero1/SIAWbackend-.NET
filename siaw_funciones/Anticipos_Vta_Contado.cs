@@ -854,6 +854,26 @@ namespace siaw_funciones
             }
             return ttl_dist;
         }
-
+        public async Task<List<vedetalleanticipo>> Anticipos_MontoRestante_Sin_Deposito(DBContext _context, string codcliente)
+        {
+            var dt_anticipos = await _context.coanticipo
+                .Where(x => x.codcliente == codcliente && x.anulado == false && x.montorest > 0 && x.deposito_cliente == false)
+                .Select(x => new vedetalleanticipo
+                {
+                    codigo = x.codigo,
+                    id = x.id,
+                    numeroid = x.numeroid,
+                    codvendedor = x.codvendedor,
+                    fecha = x.fecha,
+                    codcliente = x.codcliente,
+                    monto = (double)(x.monto ?? 0),
+                    codmoneda = x.codmoneda,
+                    montorest = (double)(x.montorest ?? 0),
+                    deposito_cliente = (bool)x.deposito_cliente,
+                    iddeposito = x.iddeposito,
+                    numeroiddeposito = (int)x.numeroiddeposito
+                }).ToListAsync();
+            return dt_anticipos;
+        }
     }
 }

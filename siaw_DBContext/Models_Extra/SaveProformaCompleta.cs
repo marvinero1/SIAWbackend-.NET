@@ -28,6 +28,7 @@ namespace siaw_DBContext.Models_Extra
         public List<tabladescuentos>? vedesextraprof { get; set; }
         public List<tablarecargos>? verecargoprof { get; set; }
         public List<veproforma_iva>? veproforma_iva { get; set; }
+        public List<vedetalleanticipoProforma>? detalleAnticipos { get; set; }
     }
     public class tabla_veproformaAnticipo
     {

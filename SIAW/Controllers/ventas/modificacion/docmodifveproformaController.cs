@@ -256,6 +256,7 @@ namespace SIAW.Controllers.ventas.modificacion
                         })
                         .ToListAsync();
 
+                    
 
                     // obtener recargos
                     var recargos = await _context.verecargoprof.Where(i => i.codproforma == codProforma).ToListAsync();
@@ -287,8 +288,19 @@ namespace SIAW.Controllers.ventas.modificacion
                     var profEtiqueta = await _context.veproforma_etiqueta.Where(i => i.id_proforma == idProforma && i.nroid_proforma == nroidProforma).ToListAsync();
                     // veetiqueta proforma
                     var etiquetaProf = await _context.veetiqueta_proforma.Where(i => i.id == idProforma && i.numeroid == nroidProforma).ToListAsync();
+                    // etiqueta de proforma si es venta casual
+                    var veprofEtiqueta = await _context.veproforma_etiqueta.Where(i => i.id_proforma == idProforma && i.nroid_proforma == nroidProforma).FirstOrDefaultAsync();
 
-
+                    // calcular el porcendesc
+                    string codclienteReal = cabecera.codcliente;
+                    if (veprofEtiqueta != null)
+                    {
+                        codclienteReal = veprofEtiqueta.codcliente_real;
+                    }
+                    foreach (var reg in detalle)
+                    {
+                        reg.porcendesc = (double)await cliente.porcendesccliente(_context, codclienteReal, reg.coditem, reg.codtarifa, cabecera.niveles_descuento);
+                    }
 
                     // OBTENER ANTICIPOS
                     var dt_anticipo_pf = await anticipos_vta_contado.Anticipos_Aplicados_a_Proforma(_context, idProforma, nroidProforma);
@@ -317,6 +329,7 @@ namespace SIAW.Controllers.ventas.modificacion
                         recargos = recargos,
                         iva = iva,
                         profEtiqueta = profEtiqueta,
+                        veprofEtiqueta = veprofEtiqueta,
                         etiquetaProf = etiquetaProf,
                         anticipos = dt_anticipo_pf,
                         detalleValida = dtvalidar

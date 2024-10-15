@@ -1898,7 +1898,6 @@ namespace SIAW.Controllers.ventas.transaccion
                 msgAlertas.Add(ex.Message);
                 return (false, msgAlertas, eventos, CodFacturas_Grabadas);
             }
-            
         }
 
 

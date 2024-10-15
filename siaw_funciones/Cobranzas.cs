@@ -2619,6 +2619,34 @@ namespace siaw_funciones
             return resultado;
         }
 
+        public async Task<bool> Anticipo_Esta_Enlazado_a_Deposito(DBContext _context, string id, int numeroid)
+        {
+            bool resultado;
+            try
+            {
+                var deposito_cliente = await _context.coanticipo
+                    .Where(c => c.id == id && c.numeroid == numeroid)
+                    .OrderByDescending(c => c.fecha)
+                    .Select(c => c.deposito_cliente)
+                    .FirstOrDefaultAsync();
+
+                if (deposito_cliente != null)
+                {
+                    resultado = (bool)deposito_cliente;
+                }
+                else
+                {
+                    resultado = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                resultado = false;
+            }
+            return resultado;
+        }
+
     }
 
     public class dtcocobranza_deposito

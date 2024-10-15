@@ -1003,6 +1003,26 @@ namespace siaw_funciones
                 return "";
             }
         }
+        public async Task<string> Calculo_Desc_Deposito_Contado(DBContext _context, string codempresa)
+        {
+            try
+            {
+                string resultado = "SUBTOTAL";
+                var result = await _context.adparametros
+                    .Where(v => v.codempresa == codempresa)
+                    .Select(parametro => parametro.calculo_desc_deposito_contado)
+                   .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = (string)result;
+                }
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return "SUBTOTAL";
+            }
+        }
     }
 }
  
