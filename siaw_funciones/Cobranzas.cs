@@ -582,6 +582,15 @@ namespace siaw_funciones
                             }
                         }
                     }
+                    if (reg.tipo == 2)
+                    {
+                        string doc_anticipo_ya_aplicado = "";
+                        doc_anticipo_ya_aplicado = await depositos_cliente.Anticipo_Asignado_A_Deposito_a_Proforma(_context, reg.iddeposito, reg.numeroiddeposito.ToString(), false);
+                        if (doc_anticipo_ya_aplicado.Contains("->"))
+                        {
+                            reg.valido = "No";
+                        }
+                    }
                     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                     //3° Aqui se filtran las cbzas y se carga la tabla solo con las validas o usables
                     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

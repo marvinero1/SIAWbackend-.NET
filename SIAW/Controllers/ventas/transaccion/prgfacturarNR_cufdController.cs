@@ -2494,7 +2494,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     byte[] xmlFile = System.IO.File.ReadAllBytes(Path.Combine(pathDirectory, nomArchXML));
 
                     // solo por pruebas cambiaremos el email destino del cliente por uno de nosotros, comentar en produccion
-                    direcc_mail_cliente = "analista.nal.informatica2@pertec.com.bo";
+                    direcc_mail_cliente = "analista.nal.informatica1@pertec.com.bo";
 
                     var resultado = await funciones.EnviarEmailFacturas(direcc_mail_cliente, _email_origen_credencial, _pwd_email_credencial_origen, titulo, detalle, pdfBytes, pdfFile.FileName, xmlFile, nomArchXML);
                     if (resultado.result == false)

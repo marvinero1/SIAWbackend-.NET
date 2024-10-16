@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using siaw_DBContext.Data;
 using Humanizer;
 using System.Globalization;
+using System.Net.Http;
 
 namespace siaw_funciones
 {
@@ -653,17 +654,24 @@ namespace siaw_funciones
             string msg = "";
             try
             {
-                SmtpClient smtpServer = new SmtpClient();
+                SmtpClient smtpServer = new SmtpClient("smtp.gmail.com", 587);
+                smtpServer.Credentials = new NetworkCredential(emailOrigenCredencial, pwdEmailCredencialOrigen);
+                smtpServer.EnableSsl = true;
+                smtpServer.DeliveryMethod = SmtpDeliveryMethod.Network;
+                smtpServer.Timeout = 10000; // Tiempo de espera en milisegundos
+
                 MailMessage email = new MailMessage();
 
-                smtpServer.UseDefaultCredentials = false;
+                // smtpServer.UseDefaultCredentials = false;
                 // pwdEmailCredencialOrigen = EncryptionHelper.DecryptString(pwdEmailCredencialOrigen);
-                smtpServer.Credentials = new NetworkCredential(emailOrigenCredencial, pwdEmailCredencialOrigen);
+
 
                 // Configurar el servidor SMTP para dominio de Google
-                smtpServer.Host = "smtp.gmail.com";
-                smtpServer.Port = 465;
-                smtpServer.EnableSsl = true;
+                // smtpServer.Host = "smtp.gmail.com";
+                // smtpServer.Port = 465;
+                // smtpServer.Port = 587;  // Cambiado a 587 para TLS
+                // SmtpClient smtpServer = new SmtpClient("smtp.gmail.com", 587); // Usar puerto 587 para TLS
+
 
                 email.From = new MailAddress(emailOrigenCredencial);
                 email.To.Add(emailDestino);
@@ -675,32 +683,43 @@ namespace siaw_funciones
                 // Adjuntar archivo PDF
                 if (pdfBytes != null && pdfBytes.Length > 0)
                 {
-                    using (var pdfStream = new MemoryStream(pdfBytes, writable: false))
-                    {
-                        var attachment = new Attachment(pdfStream, nombreArchivo, "application/pdf");
-                        email.Attachments.Add(attachment);
-                    }
+                    var pdfStream = new MemoryStream(pdfBytes); // No usar 'using' para evitar que se cierre antes de enviar
+                    var attachment = new Attachment(pdfStream, nombreArchivo, "application/pdf");
+                    email.Attachments.Add(attachment);
                 }
                 // Adjuntar archivo XML
                 if (xmlBytes != null && xmlBytes.Length > 0)
                 {
-                    using (var xmlStream = new MemoryStream(xmlBytes, writable: false))
+                    var xmlStream = new MemoryStream(xmlBytes); // No usar 'using'
+                    var xmlAttachment = new Attachment(xmlStream, nombreArchivoXml, "application/xml");
+                    email.Attachments.Add(xmlAttachment);
+                }
+                try
+                {
+                    if (email.Attachments.Count == 2)
                     {
-                        var xmlAttachment = new Attachment(xmlStream, nombreArchivoXml, "application/xml");
-                        email.Attachments.Add(xmlAttachment);
+                        await smtpServer.SendMailAsync(email);
+                        resultado = true;
+                    }
+                    else
+                    {
+                        resultado = false;
+                        msg = "No se pudo adjuntar el PDF o XML consulte con el administrador.";
                     }
                 }
-
-                if (email.Attachments.Count == 2)
+                finally
                 {
-                    await smtpServer.SendMailAsync(email);
-                    resultado = true;
+                    // Cerrar manualmente los streams después del envío
+                    foreach (var attachment in email.Attachments)
+                    {
+                        if (attachment.ContentStream != null)
+                        {
+                            attachment.ContentStream.Close();
+                            attachment.ContentStream.Dispose();
+                        }
+                    }
                 }
-                else
-                {
-                    resultado = false;
-                    msg = "No se pudo adjuntar el PDF o XML consulte con el administrador.";
-                }
+                
             }
             catch (SmtpException smtpEx)
             {
