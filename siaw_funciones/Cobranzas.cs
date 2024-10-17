@@ -2603,7 +2603,7 @@ namespace siaw_funciones
             {
                 // Primera consulta: obtener los códigos de veremision
                 var codigosVeremision = await _context.veremision
-                    .Where(v => v.id == "id" && v.numeroid == numeroid)
+                    .Where(v => v.id == id && v.numeroid == numeroid)
                     .Select(v => v.codigo)
                     .ToListAsync();
 

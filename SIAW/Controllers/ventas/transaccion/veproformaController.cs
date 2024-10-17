@@ -4258,6 +4258,24 @@ namespace SIAW.Controllers.ventas.transaccion
 
                 if (await cliente.EsClienteSinNombre(_context, RequestDataEtiqueta.codcliente_real))
                 {
+                    var sinNombre = new
+                    {
+                        codigo = 0,
+                        id = RequestDataEtiqueta.id,
+                        numeroid = RequestDataEtiqueta.numeroid,
+                        codcliente = RequestDataEtiqueta.codcliente,
+                        linea1 = RequestDataEtiqueta.nomcliente,
+                        linea2 = "",
+                        representante = "direccion",
+                        telefono = "telefono",
+                        celular = "celular",
+                        ciudad = "ciudad",
+                        latitud_entrega = "0",
+                        longitud_entrega = "0"
+                    };
+                    var lista = new List<object>();
+                    lista.Add(sinNombre);
+                    /*
                     return Ok(new List<object>
                     { 
                         /*
@@ -4273,20 +4291,9 @@ namespace SIAW.Controllers.ventas.transaccion
                         ciudad = "ciudad",
                         latitud_entrega = "0",
                         longitud_entrega = "0"
-                        */
-                        new { key = "codigo", value = 0 },
-                        new { key = "id", value = RequestDataEtiqueta.id },
-                        new { key = "numeroid", value = RequestDataEtiqueta.numeroid },
-                        new { key = "codcliente", value = RequestDataEtiqueta.codcliente },
-                        new { key = "linea1", value = RequestDataEtiqueta.nomcliente },
-                        new { key = "linea2", value = "" },
-                        new { key = "representante", value = "direccion" },
-                        new { key = "telefono", value = "telefono" },
-                        new { key = "celular", value = "celular" },
-                        new { key = "ciudad", value = "ciudad" },
-                        new { key = "latitud_entrega", value = "0" },
-                        new { key = "longitud_entrega", value = "0" }
-                    });
+                        
+                    });*/
+                    return Ok(new { etiquetas = lista });
                 }
 
                 var telefonosTelf1 = await _context.vetienda

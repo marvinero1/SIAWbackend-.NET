@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("siaw_DBContext")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c1f9f40a1f2f7bfcf6233334ebd80c620fce4624")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e5d342d119393091860a9c193df98dedc9d5ff74")]
 [assembly: System.Reflection.AssemblyProductAttribute("siaw_DBContext")]
 [assembly: System.Reflection.AssemblyTitleAttribute("siaw_DBContext")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
