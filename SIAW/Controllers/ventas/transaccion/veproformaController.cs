@@ -1257,10 +1257,25 @@ namespace SIAW.Controllers.ventas.transaccion
                 resultado = resultado.Select(p => { p.CodServicio = p.CodServicio == "" ? "0" : p.CodServicio; return p; }).ToList();
                 if (resultado != null)
                 {
+                    var ctrlNegativos = resultado.Where(i => i.CodControl == "00060").FirstOrDefault();
+                    if (ctrlNegativos != null)
+                    {
+                        var negativos = ctrlNegativos.Dtnegativos.Where(i => i.obs == "Genera Negativo").Select(i => i.coditem_suelto).ToList();
+                        if (negativos != null)
+                        {
+                            itemDataMatriz.Where(i => negativos.Contains(i.coditem)).ToList()
+                                .ForEach(i => i.cumple = false);
+                        }
+                        // return Ok(itemDataMatriz);
+                    }
                     ///
                     string jsonResult = JsonConvert.SerializeObject(resultado);
-
                     return Ok(jsonResult);
+                    return Ok(new
+                    {
+                        jsonResult = resultado,
+                        itemDataMatriz = itemDataMatriz,
+                    });
                 }
                 else { return BadRequest(new { resp = "No se pudo validar el documento." }); }
             }
@@ -3383,6 +3398,9 @@ namespace SIAW.Controllers.ventas.transaccion
                 {
                     if (tabladescuentos != null)
                     {
+                        tabla_detalle = tabla_detalle.Select(p => { p.subtotal_descto_extra = 0; return p; }).ToList();
+                        tabla_detalle = tabla_detalle.Select(p => { p.monto_descto = 0; return p; }).ToList();
+
                         var result = await versubtotal(_context, tabla_detalle);
                         double subtotal = result.st;
                         double peso = result.peso;
@@ -4752,6 +4770,27 @@ namespace SIAW.Controllers.ventas.transaccion
         [Route("aplicar_descuento_por_deposito/{userConn}/{codcliente}/{codcliente_real}/{nit}/{codempresa}/{subtotal}/{codmoneda}/{codproforma}")]
         public async Task<ActionResult<object>> aplicar_descuento_por_deposito(string userConn, string codcliente, string codcliente_real, string nit, string codempresa, double subtotal, string codmoneda, int codproforma, objetoDescDepositos objetoDescDepositos)
         {
+            if (subtotal <= 0)
+            {
+                return BadRequest(new { resp = "No se está recibiendo un monto de subtotal válido, totalice e intentelo de nuevo" });
+            }
+            if (codmoneda.Trim().Length == 0)
+            {
+                return BadRequest(new { resp = "No se está recibiendo el código de moneda, verifique esta situación" });
+            }
+            if (codcliente.Trim().Length == 0)
+            {
+                return BadRequest(new { resp = "No se está recibiendo el código de cliente, verifique esta situación" });
+            }
+            if (nit.Trim().Length == 0)
+            {
+                return BadRequest(new { resp = "No se está recibiendo el NIT de cliente, verifique esta situación" });
+            }
+            if (codempresa.Trim().Length == 0)
+            {
+                return BadRequest(new { resp = "No se está recibiendo el código de empresa, verifique esta situación" });
+            }
+
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
             
             try

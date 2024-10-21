@@ -106,9 +106,24 @@ namespace SIAW.Controllers.ventas.transaccion
                     string codcliente = await configuracion.usr_codcliente(_context, usuario);
                     string codclientedescripcion = await nombres.nombrecliente(_context, codcliente);
 
+                    return Ok(new
+                    {
+                        id,
+                        numeroid,
+                        fecha,
+                        codmoneda,
+                        tdc,
+                        codalmacen,  
+                        codtarifadefect,
+                        coddescuentodefect,
+                        codtipopago,
+                        codtipopagodescripcion,
+                        idcuenta,
+                        idcuentadescripcion,
+                        codcliente,
+                        codclientedescripcion
+                    });
                 }
-                return Ok();
-
             }
             catch (Exception ex)
             {
@@ -494,8 +509,8 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
         [HttpPost]
-        [Route("recarcularRecargosFact/{userConn}/{codempresa}/{descuentos}/{codcliente}/{codmoneda}")]
-        public async Task<object> recarcularRecargosFact(string userConn, string codempresa, double descuentos, string codcliente, string codmoneda, RequestTotalizar RequestRecargos)
+        [Route("recarcularRecargosFact/{userConn}/{descuentos}/{codcliente}/{codmoneda}")]
+        public async Task<object> recarcularRecargosFact(string userConn, double descuentos, string codcliente, string codmoneda, RequestTotalizar RequestRecargos)
         {
             try
             {
@@ -534,8 +549,8 @@ namespace SIAW.Controllers.ventas.transaccion
 
         //[Authorize]
         [HttpPost]
-        [Route("recarcularDescuentosFact/{userConn}/{codempresa}/{recargos}/{cmbtipo_complementopf}/{codcliente_real}/{codmoneda}")]
-        public async Task<object> recarcularDescuentosFact(string userConn, string codempresa, double recargos, int cmbtipo_complementopf, string codcliente_real, string codmoneda, string codcliente, string nit, RequestTotalizar RequestDescuentos)
+        [Route("recarcularDescuentosFact/{userConn}/{codempresa}/{recargos}/{codmoneda}/{codcliente}/{nit}")]
+        public async Task<object> recarcularDescuentosFact(string userConn, string codempresa, double recargos, string codmoneda, string codcliente, string nit, RequestTotalizar RequestDescuentos)
         {
             try
             {
@@ -624,7 +639,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
         [HttpPost]
         [QueueFilter(1)] // Limitar a 1 solicitud concurrente
-        [Route("totabilizarFact/{userConn}/{codempresa}/{usuario}")]
+        [Route("totabilizarFact/{userConn}/{codempresa}/{usuario}/{codmoneda}/{codcliente}/{codalmacen}/{nit}")]
         public async Task<object> totabilizarFact(string userConn, string codempresa, string usuario, string codmoneda, string codcliente, int codalmacen, string nit, RequestTotalizar requestTotalizar)
         {
             List<dataDetalleFactura> tabla_detalle = requestTotalizar.detalleItems;
@@ -671,6 +686,8 @@ namespace SIAW.Controllers.ventas.transaccion
                         return BadRequest(new { resp = "El documento tiene items a precio(s): " + cadena_precios_no_autorizados_al_us + " los cuales no estan asignados al usuario " + usuario + ", verifique esta situacion!!!" });
                     }
                     ////////////////////////////////////////////////////////////
+                    ///
+                    /*
                     foreach (var reg in tabla_detalle)
                     {
                         reg.cantidad = Math.Round(reg.cantidad, 2, MidpointRounding.AwayFromZero);
@@ -703,7 +720,8 @@ namespace SIAW.Controllers.ventas.transaccion
                             reg.total = 0;
                         }
                     }
-
+                    */
+                    tabla_detalle = await calcularDetalle(_context, codcliente, codmoneda, fecha, codalmacen, tabla_detalle);
 
                     var resultSubTotal = await versubtotal(_context, tabla_detalle);
                     var resultDesc = await verdesextra(_context, codempresa, resultSubTotal.st, codmoneda, codcliente, nit, data, tabladescuentos);
@@ -711,14 +729,22 @@ namespace SIAW.Controllers.ventas.transaccion
                     var resultTotal = await vertotal(_context, resultSubTotal.st, resultRec.total, resultDesc.respdescuentos, codcliente, tabla_detalle);
                     return Ok(new
                     {
-                        tabla_detalle,
-                        resultSubTotal,
-                        resultDesc,
-                        resultRec,
-                        resultTotal,
+                        tabla_detalle = tabla_detalle,
+                        
+                        tabla_descuentos = resultDesc.tabladescuentos,
+                        tabla_recargos = resultRec.tablarecargos,
+                        tabla_iva = resultTotal.tablaiva,
+                        totales = new
+                        {
+                            peso = resultSubTotal.peso,
+                            subtotal = resultSubTotal.st,
+                            descuentos = resultDesc.respdescuentos,
+                            recargos = resultRec.total,
+                            total = resultTotal.TotalGen,
+                            iva = resultTotal.totalIva,
+                        }
                     });
                 }
-
             }
             catch (Exception ex)
             {
@@ -729,6 +755,42 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
         // FUNCIONES PRIVATE PARA LAS OPERACIONES
+        private async Task<List<dataDetalleFactura>> calcularDetalle (DBContext _context, string codcliente, string codmoneda, DateTime fecha, int codalmacen, List<dataDetalleFactura> tabla_detalle)
+        {
+            foreach (var reg in tabla_detalle)
+            {
+                reg.cantidad = Math.Round(reg.cantidad, 2, MidpointRounding.AwayFromZero);
+
+                // MODIFICADO EN FECHA:  09-01-2021
+                reg.niveldesc = await cliente.niveldesccliente(_context, codcliente, reg.coditem, reg.codtarifa, "ACTUAL");
+                if (reg.codtarifa > 0)
+                {
+                    string monBaseTarif = await ventas.monedabasetarifa(_context, reg.codtarifa);
+                    reg.preciolista = await tipocambio._conversion(_context, codmoneda, monBaseTarif, fecha, (decimal)(await ventas.preciodelistaitem(_context, reg.codtarifa, reg.coditem)));
+
+                    // si hay descuento
+                    reg.preciodesc = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, (await tipocambio._conversion(_context, codmoneda, monBaseTarif, fecha, (decimal)(await ventas.preciocliente(_context, codcliente, codalmacen, reg.codtarifa, reg.coditem, "NO", reg.niveldesc, "ACTUAL")))));
+                    reg.precioneto = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, (await tipocambio._conversion(_context, codmoneda, monBaseTarif, fecha, (decimal)(await ventas.preciocondescitem(_context, codcliente, codalmacen, reg.codtarifa, reg.coditem, reg.coddescuento, "NO", reg.niveldesc, "ACTUAL")))));
+
+                    if (reg.cantidad > 0)
+                    {
+                        reg.total = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, (reg.cantidad * reg.precioneto));
+                    }
+                    else
+                    {
+                        reg.total = 0;
+                    }
+                }
+                else
+                {
+                    reg.preciolista = 0;
+                    reg.preciodesc = 0;
+                    reg.precioneto = 0;
+                    reg.total = 0;
+                }
+            }
+            return tabla_detalle;
+        }
 
         private async Task<(double st, double peso)> versubtotal(DBContext _context, List<dataDetalleFactura> tabla_detalle)
         {

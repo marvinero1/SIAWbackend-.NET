@@ -194,10 +194,10 @@ namespace siaw_funciones
             List<string> noCumplen = new List<string>();
             DataTable dtsaldo_restringido = new DataTable();
             // Consulta utilizando LINQ en Entity Framework
-            var dtsaldo_restring = _context.initem_max_vta
+            var dtsaldo_restring = await _context.initem_max_vta
                 .Where(item => item.codalmacen == codalmacen && cadena_items.Contains(item.coditem))
                 .OrderBy(item => item.coditem)
-                .ToList();
+                .ToListAsync();
 
             // Convierte la lista resultante a un DataTable
             dtsaldo_restringido = funciones.ToDataTable(dtsaldo_restring);
