@@ -12,6 +12,10 @@ using Microsoft.EntityFrameworkCore;
 using System.Data;
 using Polly;
 using SIAW.Controllers.ventas.modificacion;
+using NuGet.Configuration;
+using MessagePack;
+using Polly.Caching;
+using static siaw_funciones.Validar_Vta;
 
 namespace SIAW.Controllers.z_pruebas
 {
@@ -58,15 +62,16 @@ namespace SIAW.Controllers.z_pruebas
         }
 
         [HttpPost]
-        [Route("generarProformas/{userConn}/{fechaInicio}/{fechaFin}")]
-        public async Task<ActionResult<List<sldosItemCompleto>>> generarProformas(string userConn, DateTime fechaInicio, DateTime fechaFin)
+        [Route("generarProformas/{userConn}/{usuario}/{codempresa}/{fechaInicio}/{fechaFin}")]
+        public async Task<ActionResult<List<sldosItemCompleto>>> generarProformas(string userConn, string usuario, string codempresa, DateTime fechaInicio, DateTime fechaFin)
         {
             try
             {
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
-                    var dtProformas = await _context.veproforma.Where(i => i.fecha >= fechaInicio && i.fecha <= fechaFin && i.anulada == false && i.codcliente.StartsWith("SN"))
+                    List<string> confirmaciones = new List<string>();
+                    var dtProformas = await _context.veproforma.Where(i => i.fecha >= fechaInicio && i.fecha <= fechaFin && i.anulada == false && !i.codcliente.StartsWith("SN") && (i.id.StartsWith("PF") || i.id.StartsWith("XF") || i.id.StartsWith("WF")))
                         .Select(i => new
                         {
                             i.codigo,
@@ -74,12 +79,249 @@ namespace SIAW.Controllers.z_pruebas
                             i.numeroid,
                             i.fecha,
                             i.codalmacen,
-                            i.nit
+                            i.nit,
+                            i.subtotal,
+                            i.descuentos,
+                            i.total
                         }).ToListAsync();
-                    foreach (var reg in dtProformas) {
+                    foreach (var reg in dtProformas)
+                    {
+                        dataProformas datosProf = await transferirdoc(_context, reg.id, reg.numeroid, usuario);
+
+                        veproforma cabecera = datosProf.cabecera;
+                        List<itemDataMatriz> detalle = datosProf.detalle;
+                        List<tabladescuentos> descuentos = datosProf.descuentos;
+                        List<verecargoprof> recargos = datosProf.recargos;
+                        List<veproforma_iva> iva = datosProf.iva;
+                        List<veproforma_etiqueta> profEtiqueta = datosProf.profEtiqueta;
+                        veproforma_etiqueta? veprofEtiqueta = datosProf.veprofEtiqueta;
+                        List<veetiqueta_proforma> etiquetaProf = datosProf.etiquetaProf;
+                        List<vedetalleanticipoProforma> anticipos = datosProf.anticipos;
+                        List<DataValidar> detalleValida = datosProf.detalleValida;
+
+                        cabecera.fecha = await funciones.FechaDelServidor(_context);
+                        cabecera.usuarioreg = usuario;
+                        cabecera.codigo = 0;
+                        // etiquetaProf[0].codigo = 0;
+
+                        // mapear para totalizar
+                        List<veproforma1_2> detalle_2 = detalle.Select(i => new veproforma1_2
+                        {
+                            codproforma = 0,
+                            coditem = i.coditem,
+                            empaque = 0,
+                            cantidad = (decimal)i.cantidad,
+                            udm = i.udm,
+                            precioneto = (decimal)i.precioneto,
+                            preciodesc = (decimal?)i.preciodesc,
+                            niveldesc = i.niveldesc,
+                            preciolista = (decimal)i.preciolista,
+                            codtarifa = i.codtarifa,
+                            coddescuento = (short)i.coddescuento,
+                            total = (decimal)i.total,
+                            cantaut = (decimal?)i.cantidad,
+                            totalaut = (decimal?)i.total,
+                            obs = "",
+                            porceniva = (decimal?)i.porceniva,
+                            cantidad_pedida = (decimal?)i.cantidad_pedida,
+                            peso = 0,
+                            nroitem = i.nroitem,
+                            id = 0,
+                            porcen_mercaderia = (decimal)i.porcen_mercaderia
+                        }).ToList();
+
+                        List<veproforma_valida> valida_2 = detalleValida.Select(i => new veproforma_valida
+                        {
+                            codproforma = 0,
+                            codcontrol = i.codcontrol,
+                            nroitems = i.nroitems,
+                            nit = i.nit,
+                            subtotal = i.subtotal,
+                            descuentos = i.descuentos,
+                            recargos = i.recargos,
+                            total = i.total,
+                            valido = i.valido,
+                            observacion = i.observacion,
+                            obsdetalle = i.obsdetalle,
+                            codservicio = i.codservicio,
+                            datoa = i.datoa,
+                            datob = i.datob,
+                            clave_servicio = i.clave_servicio
+                        }).ToList();
+
+                        List<veproforma_anticipo> anticipos_2 = anticipos.Select(i => new veproforma_anticipo
+                        {
+                            codigo = 0,
+                            codproforma = 0,
+                            codanticipo = i.codanticipo,
+                            monto = (decimal?)i.monto,
+                            tdc = (decimal?)i.tdc,
+                            fechareg = i.fechareg,
+                            usuarioreg = i.usuarioreg,
+                            horareg = i.horareg
+                        }).ToList();
+
+                        List<tablarecargos> recargos_2 = recargos.Select(i => new tablarecargos
+                        {
+                            codproforma = 0,
+                            codrecargo = i.codrecargo,
+                            porcen = i.porcen,
+                            monto = i.monto,
+                            moneda = i.moneda,
+                            montodoc = i.montodoc,
+                            codcobranza = i.codcobranza,
+                            descripcion = ""
+                        }).ToList();
+
+                        string codclienteReal = cabecera.codcliente;
+                        if (veprofEtiqueta != null)
+                        {
+                            codclienteReal = veprofEtiqueta.codcliente_real;
+                        }
+
+
+                        /*
+                         
+                        // datos a enviar
+
+                        public class TotabilizarProformaCompleta
+                        {
+                            public List<vedetalleanticipoProforma>? detalleAnticipos { get; set; }
+                        }
+                         
+                         */
+
+                        TotabilizarProformaCompleta objTotabiliza = new TotabilizarProformaCompleta
+                        {
+                            veproforma = cabecera,
+                            veproforma1_2 = detalle_2,
+                            veproforma_valida = valida_2,
+                            veproforma_anticipo = anticipos_2,
+                            vedesextraprof = descuentos,
+                            verecargoprof = recargos_2,
+                            veproforma_iva = iva,
+                            detalleAnticipos = anticipos
+                        };
+
+                        dataTotales totabilizado = await TotalizarProf(_context, codempresa, usuario, userConnectionString, false, cabecera.niveles_descuento, codclienteReal, cabecera.tipo_complementopf ?? 0, objTotabiliza);
+
+                        
+                        // dataTotales totales = totabilizado.totales;
+                        List<itemDataMatriz> detalleProf = totabilizado.tablaDetalle;
+                        
+
+                        cabecera.subtotal = totabilizado.subtotal;
+                        cabecera.peso = totabilizado.peso;
+                        cabecera.recargos = totabilizado.recargo;
+                        cabecera.descuentos = totabilizado.descuento;
+                        cabecera.iva = totabilizado.iva;
+                        cabecera.total = totabilizado.total;
+
+                        // una vez ya totalizado, mapear para guardar directamente D: (se debe ajustar lo recibido al totabilizar para que se guarde)
+
+                        List<veproforma1> veproforma1_2 = totabilizado.tablaDetalle.Select(i => new veproforma1
+                        {
+                            codproforma = 0,
+                            coditem = i.coditem,
+                            cantidad = (decimal)i.cantidad,
+                            udm = i.udm,
+                            precioneto = (decimal)i.precioneto,
+                            preciodesc = (decimal?)i.preciodesc,
+                            niveldesc = i.niveldesc,
+                            preciolista = (decimal)i.preciolista,
+                            codtarifa = i.codtarifa,
+                            coddescuento = (short)i.coddescuento,
+                            total = (decimal)i.total,
+                            cantaut = (decimal?)i.cantidad,
+                            totalaut = (decimal?)i.total,
+                            obs = "",
+                            porceniva = (decimal?)i.porceniva,
+                            cantidad_pedida = (decimal?)i.cantidad_pedida,
+                            peso = 0,
+                            nroitem = i.nroitem,
+                            id = 0
+                        }).ToList();
+
+                        List<tabla_veproformaAnticipo> anticipos_3 = anticipos.Select(i=> new tabla_veproformaAnticipo
+                        {
+                            codproforma = 0,
+                            codanticipo = i.codanticipo,
+                            docanticipo = i.docanticipo,
+                            id_anticipo = i.id_anticipo,
+                            nroid_anticipo = i.nroid_anticipo,
+                            monto = i.monto,
+                            tdc = i.tdc,
+                            codmoneda = i.codmoneda,
+                            fechareg = i.fechareg,
+                            usuarioreg = i.usuarioreg,
+                            horareg = i.horareg,
+                            codvendedor = i.codvendedor
+                        }).ToList();
+
+                        List<verecargoprof> recargos_3 = totabilizado.tablaRecargos.Select(i => new verecargoprof
+                        {
+                            codproforma = 0,
+                            codrecargo = i.codrecargo,
+                            porcen = i.porcen,
+                            monto = i.monto,
+                            moneda = i.moneda,
+                            montodoc = i.montodoc,
+                            codcobranza = i.codcobranza
+                        }).ToList();
+
+                        List<vedesextraprof>? descuentos_3 = totabilizado.tablaDescuentos.Select(i => new vedesextraprof
+                        {
+                            codproforma = 0,
+                            coddesextra = i.coddesextra,
+                            porcen = i.porcen,
+                            montodoc = i.montodoc,
+                            codcobranza = i.codcobranza,
+                            codcobranza_contado = i.codcobranza_contado,
+                            codanticipo = i.codanticipo,
+                            id = 0,
+                        }).ToList();
+
+                        SaveProformaCompleta objParaGuardar = new SaveProformaCompleta
+                        {
+                            veproforma = cabecera,
+                            veproforma1 = veproforma1_2,
+                            veproforma_valida = valida_2,
+                            dt_anticipo_pf = anticipos_3, 
+                            vedesextraprof = descuentos_3,
+                            verecargoprof = recargos_3,
+                            veproforma_iva = totabilizado.tablaIva,
+                            veetiqueta_proforma = etiquetaProf[0],
+
+                        };
+
+                        var resultadoGuardado = await guardarProforma(_context, cabecera.id, codempresa, false, codclienteReal, objParaGuardar);
+                        
+                        confirmaciones.Add(resultadoGuardado.mensaje);
+
+                        pruebas_Prof newReg = new pruebas_Prof
+                        {
+                            idpf_original = reg.id,
+                            nroidpd_original = reg.numeroid,
+                            subtotal_original = reg.subtotal,
+                            descuentos_original = reg.descuentos,
+                            total_original = reg.total,
+
+                            idpf_nueva = cabecera.id,
+                            nroidpf_nueva = resultadoGuardado.numeroID,
+                            subtotal_nueva = totabilizado.subtotal,
+                            descuentos_nueva = totabilizado.descuento,
+                            total_nueva = totabilizado.total,
+
+                            fechareg = cabecera.fecha,
+                        };
+                        _context.pruebas_Prof.Add(newReg);
+                        await _context.SaveChangesAsync();
 
                     }
-                    return Ok();
+                    return Ok(new
+                    {
+                        confirmaciones
+                    });
                 }
 
             }
@@ -92,13 +334,15 @@ namespace SIAW.Controllers.z_pruebas
 
 
 
-
-        private async Task<object> transferirdoc(DBContext _context, string idProforma, int nroidProforma, string usuario)
+        /// ///////////////////////////////////////////////////////////
+        // FUNCIONES PARA TRANSFERIR PROFORMAS
+        /// ///////////////////////////////////////////////////////////
+        private async Task<dataProformas> transferirdoc(DBContext _context, string idProforma, int nroidProforma, string usuario)
         {
             var cabecera = await _context.veproforma
                         .Where(i => i.id == idProforma && i.numeroid == nroidProforma)
                         .FirstOrDefaultAsync();
-
+            /*
             if (cabecera == null)
             {
                 return BadRequest(new { resp = "No se encontró una proforma con los datos proporcionados, revise los datos" });
@@ -119,7 +363,7 @@ namespace SIAW.Controllers.z_pruebas
             {
                 return BadRequest(new { resp = "No esta autorizado para ver esta información." });
             }
-
+            */
 
             // obtener razon social de cliente
             var codclientedescripcion = await cliente.Razonsocial(_context, cabecera.codcliente);
@@ -211,17 +455,17 @@ namespace SIAW.Controllers.z_pruebas
                 e => e.codigo,
                 (p, e) => new { p, e })
                 .Where(i => i.p.codproforma == codProforma)
-                .Select(i => new
+                .Select(i => new tabladescuentos
                 {
-                    i.p.codproforma,
-                    i.p.coddesextra,
-                    descripcion = i.e.descripcion,
-                    i.p.porcen,
-                    i.p.montodoc,
-                    i.p.codcobranza,
-                    i.p.codcobranza_contado,
-                    i.p.codanticipo,
-                    i.p.id
+                    codproforma = i.p.codproforma,
+                    coddesextra = i.p.coddesextra,
+                    // descripcion = i.e.descripcion,
+                    porcen = i.p.porcen,
+                    montodoc = i.p.montodoc,
+                    codcobranza = i.p.codcobranza,
+                    codcobranza_contado = i.p.codcobranza_contado,
+                    codanticipo = i.p.codanticipo,
+                    id = 0 //i.p.id
                 })
                 .ToListAsync();
 
@@ -257,15 +501,16 @@ namespace SIAW.Controllers.z_pruebas
             // obtener validaciones
             var dtvalidar = await Recuperar_Validacion(_context, codProforma);
 
-            return Ok(new
+            return (new dataProformas
             {
+                /*
                 codclientedescripcion,
                 tipo_cliente,
                 descConfirmada,
                 habilitado = cliHabilitado,
                 anticiposTot,
                 estadodoc,
-
+                */
                 cabecera = cabecera,
                 detalle = detalle,
                 descuentos = descuentosExtra,
@@ -349,7 +594,11 @@ namespace SIAW.Controllers.z_pruebas
             return dtvalidar;
         }
 
-        private async Task<object> TotalizarProf(DBContext _context, string codempresa, string usuario, string userConnectionString, bool desclinea_segun_solicitud, string opcion_nivel, string codcliente_real, int cmbtipo_complementopf, TotabilizarProformaCompleta datosProforma)
+        /// ///////////////////////////////////////////////////////////
+        // FUNCIONES PARA TOTABILIZAR LAS PROFORMAS CALCULOS
+        /// ///////////////////////////////////////////////////////////
+
+        private async Task<dataTotales> TotalizarProf(DBContext _context, string codempresa, string usuario, string userConnectionString, bool desclinea_segun_solicitud, string opcion_nivel, string codcliente_real, int cmbtipo_complementopf, TotabilizarProformaCompleta datosProforma)
         {
             veproforma veproforma = datosProforma.veproforma;
             List<veproforma1_2> veproforma1_2 = datosProforma.veproforma1_2;
@@ -402,61 +651,20 @@ namespace SIAW.Controllers.z_pruebas
             }).ToList();
 
 
-            //aplicar desctos primavera 2022
-            //Aplicar_Descto_Primavera2022(False)
-
-            ////////////////////////////////////////////////////////////
-            //verificar los precios permitidos al usuario
-            /*
-            string cadena_precios_no_autorizados_al_us = await validar_Vta.Validar_Precios_Permitidos_Usuario(_context, usuario, tabla_detalle);
-            if (cadena_precios_no_autorizados_al_us.Trim().Length > 0)
-            {
-                return BadRequest(new { resp = "El documento tiene items a precio(s): " + cadena_precios_no_autorizados_al_us + " los cuales no estan asignados al usuario " + veproforma.usuarioreg + " verifique esta situacion!!!" });
-            }
-            */
-            ////////////////////////////////////////////////////////////
-
-
-            //verificar si la solicitud de descuentos de linea existe
-            /*
-            if (desclinea_segun_solicitud)
-            {
-                if (!await ventas.Existe_Solicitud_Descuento_Nivel(_context, veproforma.idsoldesctos, veproforma.nroidsoldesctos ?? 0))
-                {
-                    return BadRequest(new { resp = "Ha elegido utilizar la solicitud de descuentos de nivel: " + veproforma.idsoldesctos + "-" + veproforma.nroidsoldesctos + " para aplicar descuentos de linea, pero la solicitud indicada no existe!!!" });
-                }
-                if (codcliente_real != await ventas.Cliente_Solicitud_Descuento_Nivel(_context, veproforma.idsoldesctos, veproforma.nroidsoldesctos ?? 0))
-                {
-                    return BadRequest(new { resp = "La solicitud de descuentos de nivel: " + veproforma.idsoldesctos + "-" + veproforma.nroidsoldesctos + " a la que hace referencia no pertenece al mismo cliente de esta proforma!!!" });
-                }
-            }
-            */
-            /*
-             codmoneda.Text = Trim(codmoneda.Text)
-
-            If Trim(codmoneda.Text) = "" Then
-                codmoneda.Text = sia_funciones.Empresa.Instancia.monedabase(sia_compartidos.temporales.Instancia.codempresa)
-                tdc.Text = "1"
-            Else
-                tdc.Text = sia_funciones.TipoCambio.Instancia.tipocambio(sia_funciones.Empresa.Instancia.monedabase(sia_compartidos.temporales.Instancia.codempresa), codmoneda.Text, fecha.Value.Date)
-            End If
-             */
-
-
-
 
             var resultado = await calculoPreciosMatriz(_context, codempresa, usuario, userConnectionString, data, false);
 
 
             // var totales = await RECALCULARPRECIOS(_context, false, codempresa, cmbtipo_complementopf, codcliente_real, resultado, verecargoprof, veproforma, vedesextraprof);
-            var totales = await RECALCULARPRECIOS(_context, false, codempresa, cmbtipo_complementopf, codcliente_real, resultado, verecargoprof, veproforma, vedesextraprof, tabla_anticipos_asignados);
-
-            return (new
+            dataTotales totales = await RECALCULARPRECIOS(_context, false, codempresa, cmbtipo_complementopf, codcliente_real, resultado, verecargoprof, veproforma, vedesextraprof, tabla_anticipos_asignados);
+            /*
+            return (new dataTotal_Tabla
             {
                 totales = totales,
                 detalleProf = resultado
             });
-
+            */
+            return totales;
         }
 
         private async Task<List<itemDataMatriz>> calculoPreciosMatriz(DBContext _context, string codEmpresa, string usuario, string userConnectionString, List<cargadofromMatriz> data, bool calcular_porcentaje)
@@ -573,7 +781,7 @@ namespace SIAW.Controllers.z_pruebas
             return resultado;
         }
 
-        private async Task<object> RECALCULARPRECIOS(DBContext _context, bool reaplicar_desc_deposito, string codempresa, int cmbtipo_complementopf, string codcliente_real, List<itemDataMatriz> tabla_detalle, List<tablarecargos> tablarecargos, veproforma veproforma, List<tabladescuentos> vedesextraprof, List<vedetalleanticipoProforma> tabla_anticipos_asignados)
+        private async Task<dataTotales> RECALCULARPRECIOS(DBContext _context, bool reaplicar_desc_deposito, string codempresa, int cmbtipo_complementopf, string codcliente_real, List<itemDataMatriz> tabla_detalle, List<tablarecargos> tablarecargos, veproforma veproforma, List<tabladescuentos> vedesextraprof, List<vedetalleanticipoProforma> tabla_anticipos_asignados)
         {
             var tabladescuentos = vedesextraprof.Select(i => new tabladescuentos
             {
@@ -591,6 +799,7 @@ namespace SIAW.Controllers.z_pruebas
             var result = await versubtotal(_context, tabla_detalle);
             double subtotal = result.st;
             double peso = result.peso;
+            tabla_detalle = result.tabla_detalle;
             if (reaplicar_desc_deposito)
             {
                 // Revisar_Aplicar_Descto_Deposito(preguntar_si_aplicare_desc_deposito);
@@ -602,10 +811,11 @@ namespace SIAW.Controllers.z_pruebas
             //var respDescuento = await verdesextra(_context, codempresa, veproforma.nit, veproforma.codmoneda, cmbtipo_complementopf, veproforma.idpf_complemento, veproforma.nroidpf_complemento ?? 0, subtotal, veproforma.fecha, tabladescuentos, tabla_detalle);
             var respDescuento = await verdesextra(_context, codempresa, veproforma.nit, veproforma.codmoneda, cmbtipo_complementopf, veproforma.idpf_complemento, veproforma.nroidpf_complemento ?? 0, subtotal, veproforma.fecha, tabladescuentos, tabla_detalle, veproforma.tipopago, (bool)veproforma.contra_entrega, codcliente_real, tabla_anticipos_asignados);
             double descuento = respDescuento.respdescuentos;
+            tabla_detalle = respDescuento.detalleProf;
 
             var resultados = await vertotal(_context, subtotal, recargo, descuento, codcliente_real, veproforma.codmoneda, codempresa, veproforma.fecha, tabla_detalle, tablarecargos);
             //QUITAR
-            return new
+            return new dataTotales
             {
                 subtotal = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, subtotal),
                 peso = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, peso),
@@ -617,13 +827,13 @@ namespace SIAW.Controllers.z_pruebas
 
                 tablaRecargos = respRecargo.tablarecargos,
                 tablaDescuentos = respDescuento.tabladescuentos,
-                mensaje = respDescuento.mensaje
+                tablaDetalle = tabla_detalle
+                //mensaje = respDescuento.mensaje
             };
 
         }
 
-
-        private async Task<(double st, double peso)> versubtotal(DBContext _context, List<itemDataMatriz> tabla_detalle)
+        private async Task<(double st, double peso, List<itemDataMatriz> tabla_detalle)> versubtotal(DBContext _context, List<itemDataMatriz> tabla_detalle)
         {
             // filtro de codigos de items
             tabla_detalle = tabla_detalle.Where(item => item.coditem != null && item.coditem.Length >= 8).ToList();
@@ -640,7 +850,7 @@ namespace SIAW.Controllers.z_pruebas
             // desde 08/01/2023 redondear el resultado a dos decimales con el SQLServer
             // REVISAR SI HAY OTRO MODO NO DA CON LINQ.
             st = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, st);
-            return (st, peso);
+            return (st, peso, tabla_detalle);
         }
 
         private async Task<(double total, List<tablarecargos> tablarecargos)> verrecargos(DBContext _context, string codempresa, string codmoneda, DateTime fecha, double subtotal, List<tablarecargos> tablarecargos)
@@ -671,7 +881,7 @@ namespace SIAW.Controllers.z_pruebas
 
         }
 
-        private async Task<(double respdescuentos, string mensaje, List<tabladescuentos> tabladescuentos)> verdesextra(DBContext _context, string codempresa, string nit, string codmoneda, int cmbtipo_complementopf, string idpf_complemento, int nroidpf_complemento, double subtotal, DateTime fecha, List<tabladescuentos> tabladescuentos, List<itemDataMatriz> detalleProf, int tipopago, bool? contraEntrega, string codcliente_real, List<vedetalleanticipoProforma> dt_anticipo_pf)
+        private async Task<(double respdescuentos, string mensaje, List<tabladescuentos> tabladescuentos, List<itemDataMatriz> detalleProf)> verdesextra(DBContext _context, string codempresa, string nit, string codmoneda, int cmbtipo_complementopf, string idpf_complemento, int nroidpf_complemento, double subtotal, DateTime fecha, List<tabladescuentos> tabladescuentos, List<itemDataMatriz> detalleProf, int tipopago, bool? contraEntrega, string codcliente_real, List<vedetalleanticipoProforma> dt_anticipo_pf)
         {
             string mensaje = "";
             int coddesextra_depositos = await configuracion.emp_coddesextra_x_deposito(_context, codempresa);
@@ -900,11 +1110,9 @@ namespace SIAW.Controllers.z_pruebas
 
             double respdescuentos = (double)await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (double)(total_desctos1 + total_desctos2));
 
-            return (respdescuentos, mensaje, tabladescuentos);
+            return (respdescuentos, mensaje, tabladescuentos, detalleProf);
 
         }
-
-
 
         private async Task<(double totalIva, double TotalGen, List<veproforma_iva> tablaiva)> vertotal(DBContext _context, double subtotal, double recargos, double descuentos, string codcliente_real, string codmoneda, string codempresa, DateTime fecha, List<itemDataMatriz> tabladetalle, List<tablarecargos> tablarecargos)
         {
@@ -995,9 +1203,809 @@ namespace SIAW.Controllers.z_pruebas
             return (double)total;
         }
 
+        /// ///////////////////////////////////////////////////////////
+        // FUNCIONES PARA GUARDAR LA PROFORMA (SOLO GUARDAR)
+        /// ///////////////////////////////////////////////////////////
+        private async Task<(string mensaje, bool guardado, int numeroID)> guardarProforma(DBContext _context, string idProf, string codempresa, bool paraAprobar, string codcliente_real, SaveProformaCompleta datosProforma)
+        {
+            veproforma veproforma = datosProforma.veproforma;
+            List<veproforma1> veproforma1 = datosProforma.veproforma1;
+            bool check_desclinea_segun_solicitud = false;  // de momento no se utiliza, si se llegara a utilizar, se debe pedir por ruta
+
+            // ###############################
+            // ACTUALIZAR DATOS DE CODIGO PRINCIPAL SI ES APLICABLE
+            await cliente.ActualizarParametrosDePrincipal(_context, veproforma.codcliente);
+            // ###############################
+            datosProforma.veproforma.paraaprobar = paraAprobar;
+
+            if (veproforma1.Count() <= 0)
+            {
+                return ("No hay ningun item en su documento!!! en la proforma anterior: " + veproforma.id + "-" + veproforma.numeroid,false,0);
+            }
 
 
+
+            // ###############################  SE PUEDE LLAMAR DESDE FRONT END PARA LUEGO IR DIRECTO AL GRABADO ???????
+
+            // RECALCULARPRECIOS(True, True);
+
+
+            using (var dbContexTransaction = _context.Database.BeginTransaction())
+            {
+                try
+                {
+                    if (datosProforma.veproforma.idsoldesctos == null)
+                    {
+                        datosProforma.veproforma.idsoldesctos = "";
+                    }
+                    if (datosProforma.veproforma.estado_contra_entrega == null)
+                    {
+                        datosProforma.veproforma.estado_contra_entrega = "";
+                    }
+                    if (datosProforma.veproforma.contra_entrega == null)
+                    {
+                        datosProforma.veproforma.contra_entrega = false;
+                    }
+                    /*
+                    if (datosProforma.veproforma.tipo_complementopf >= 0 && datosProforma.veproforma.tipo_complementopf <= 1)
+                    {
+                        datosProforma.veproforma.tipo_complementopf = datosProforma.veproforma.tipo_complementopf + 1;
+                    }
+                    */
+                    if (datosProforma.veproforma.tipo_complementopf == null)
+                    {
+                        datosProforma.veproforma.tipo_complementopf = 0;
+                    }
+                    if (datosProforma.veproforma.tipo_complementopf >= 3)
+                    {
+                        datosProforma.veproforma.tipo_complementopf = 0;
+                    }
+                    if (datosProforma.veproforma.pago_contado_anticipado == null)
+                    {
+                        datosProforma.veproforma.pago_contado_anticipado = false;
+                    }
+                    if (datosProforma.veproforma.obs == null)
+                    {
+                        datosProforma.veproforma.obs = "---";
+                    }
+                    if (datosProforma.veproforma.obs2 == null)
+                    {
+                        datosProforma.veproforma.obs2 = "";
+                    }
+                    if (datosProforma.veproforma.odc == null)
+                    {
+                        datosProforma.veproforma.odc = "";
+                    }
+                    if (datosProforma.veproforma.porceniva == null)
+                    {
+                        datosProforma.veproforma.porceniva = 0;
+                    }
+
+                    datosProforma.veproforma.fechareg = DateTime.Today.Date;
+                    datosProforma.veproforma.fechaaut = new DateTime(1900, 1, 1);     // PUEDE VARIAR SI ES PARA APROBAR
+
+                    datosProforma.veproforma.horareg = DateTime.Now.ToString("HH:mm");
+                    datosProforma.veproforma.horaaut = "00:00";                       // PUEDE VARIAR SI ES PARA APROBAR
+
+                    if (veproforma.confirmada == true)
+                    {
+                        datosProforma.veproforma.fecha_confirmada = DateTime.Today.Date;
+                        datosProforma.veproforma.hora_confirmada = DateTime.Now.ToString("HH:mm");
+                    }
+                    else
+                    {
+                        datosProforma.veproforma.fecha_confirmada = new DateTime(1900, 1, 1);
+                        datosProforma.veproforma.hora_confirmada = "00:00";
+                    }
+                    /*
+                    if (paraAprobar)
+                    {
+                        datosProforma.veproforma.fechaaut = DateTime.Today.Date;
+                        datosProforma.veproforma.horaaut = DateTime.Now.ToString("HH:mm");
+                    }*/
+
+                    // ESTA VALIDACION ES MOMENTANEA, DESPUES SE DEBE COLOCAR SU PROPIA RUTA PARA VALIDAR, YA QUE PEDIRA CLAVE.
+                    /*
+                    var validacion_inicial = await Validar_Datos_Cabecera(_context, codempresa, codcliente_real, veproforma);
+
+                    if (!validacion_inicial.bandera)
+                    {
+                        return BadRequest(new { resp = validacion_inicial.msg });
+                    }
+                    */
+
+                    var result = await Grabar_Documento(_context, idProf, codempresa, datosProforma);
+                    if (result.resp != "ok")
+                    {
+                        dbContexTransaction.Rollback();
+                        return (result.resp + " En la proforma anterior: "+ veproforma.id + "-" + veproforma.numeroid, false, 0);
+                    }
+                    await log.RegistrarEvento(_context, veproforma.usuarioreg, Log.Entidades.SW_Proforma, result.codprof.ToString(), idProf, result.numeroId.ToString(), this._controllerName, "Grabar", Log.TipoLog.Creacion);
+
+                    //Grabar Etiqueta
+                    if (datosProforma.veetiqueta_proforma != null)
+                    {
+                        veetiqueta_proforma dt_etiqueta = datosProforma.veetiqueta_proforma;
+
+                        if (dt_etiqueta.celular == null)
+                        {
+                            dt_etiqueta.celular = "---";
+                        }
+                        if (dt_etiqueta.codigo != 0)
+                        {
+                            dt_etiqueta.codigo = 0;
+                        }
+                        dt_etiqueta.numeroid = result.numeroId;
+                        var etiqueta = await _context.veetiqueta_proforma.Where(i => i.id == dt_etiqueta.id && i.numeroid == dt_etiqueta.numeroid).FirstOrDefaultAsync();
+                        if (etiqueta != null)
+                        {
+                            _context.veetiqueta_proforma.Remove(etiqueta);
+                            await _context.SaveChangesAsync();
+                        }
+                        _context.veetiqueta_proforma.Add(dt_etiqueta);
+                        await _context.SaveChangesAsync();
+                    }
+
+
+
+                    List<string> msgAlerts = new List<string>();
+                    // devolver mensajes pero como alerta Extra
+                    string msgAler1 = "";
+                    // enlazar sol desctos con proforma
+                    if (check_desclinea_segun_solicitud == true && veproforma.idsoldesctos.Trim().Length > 0 && veproforma.nroidsoldesctos > 0)
+                    {
+                        if (!await ventas.Enlazar_Proforma_Nueva_Con_SolDesctos_Nivel(_context, result.codprof, veproforma.idsoldesctos, veproforma.nroidsoldesctos ?? 0))
+                        {
+                            msgAler1 = "Se grabo la Proforma, pero No se pudo realizar el enlace de esta proforma con la solicitud de descuentos de nivel, verifique el enlace en la solicitu de descuentos!!!";
+                            msgAlerts.Add(msgAler1);
+                        }
+                    }
+
+                    // grabar la etiqueta dsd 16-05-2022        
+                    // solo si es cliente casual, y el cliente referencia o real es un no casual
+                    //If sia_funciones.Cliente.Instancia.Es_Cliente_Casual(codcliente.Text) = True And sia_funciones.Cliente.Instancia.Es_Cliente_Casual(codcliente_real) = False Then
+
+                    // Desde 10-10-2022 se definira si una venta es casual o no si el codigo de cliente y el codigo de cliente real son diferentes entonces es una venta casual
+                    string msgAlert2 = "";
+                    if (veproforma.codcliente != codcliente_real)
+                    {
+                        if (!await Grabar_Proforma_Etiqueta(_context, idProf, result.numeroId, check_desclinea_segun_solicitud, codcliente_real, veproforma))
+                        {
+                            msgAlert2 = "Se grabo la Proforma, pero No se pudo grabar la etiqueta Cliente Casual/Referencia de la proforma!!!";
+                            msgAlerts.Add(msgAlert2);
+                        }
+                    }
+
+                    if (paraAprobar)
+                    {
+
+
+                        // *****************O J O *************************************************************************************************************
+                        // IMPLEMENTADO EN FECHA 26-04-2018 LLAMA A LA FUNNCION QUE VALIDA LO QUE SE VALIDA DESDE LA VENTANA DE APROBACION DE PROFORMAS
+                        // *****************O J O *************************************************************************************************************
+                        /*
+
+                        string mensajeAprobacion = "";
+                        var resultValApro = await Validar_Aprobar_Proforma(_context, veproforma.id, result.numeroId, result.codprof, codempresa, datosProforma.tabladescuentos, datosProforma.DVTA, datosProforma.tablarecargos);
+
+                        msgAlerts.AddRange(resultValApro.msgsAlert);
+
+
+                        if (resultValApro.resp)
+                        {
+                            // verifica antes si la proforma esta grabar para aprobar
+                            if (await ventas.proforma_para_aprobar(_context, result.codprof))
+                            {
+                                // **aprobar la proforma
+                                var profforAprobar = await _context.veproforma.Where(i => i.codigo == result.codprof).FirstOrDefaultAsync();
+                                profforAprobar.aprobada = true;
+                                profforAprobar.fechaaut = DateTime.Today.Date;
+                                profforAprobar.horaaut = datos_proforma.getHoraActual();
+                                profforAprobar.usuarioaut = veproforma.usuarioreg;
+                                _context.Entry(profforAprobar).State = EntityState.Modified;
+                                await _context.SaveChangesAsync();
+
+                                // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                                // realizar la reserva de la mercaderia
+                                // Desde 15/11/2023 registrar en el log si por alguna razon no actualiza en instoactual correctamente al disminuir el saldo de cantidad y la reserva en proforma
+                                if (await ventas.aplicarstocksproforma(_context, result.codprof, codempresa) == false)
+                                {
+                                    await log.RegistrarEvento(_context, veproforma.usuarioreg, Log.Entidades.SW_Proforma, result.codprof.ToString(), veproforma.id, result.numeroId.ToString(), this._controllerName, "No actualizo stock al sumar cantidad de reserva en PF.", Log.TipoLog.Creacion);
+                                }
+                                // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+                                mensajeAprobacion = "La proforma fue grabada para aprobar y tambien aprobada.";
+                                // Desde 23/11/2023 guardar el log de grabado aqui
+                                await log.RegistrarEvento(_context, veproforma.usuarioreg, Log.Entidades.SW_Proforma, result.codprof.ToString(), veproforma.id, result.numeroId.ToString(), this._controllerName, "Grabar Para Aprobar", Log.TipoLog.Creacion);
+
+                            }
+                            else
+                            {
+                                mensajeAprobacion = "La proforma no se grabo para aprobar por lo cual no se puede aprobar.";
+                            }
+                        }
+                        else
+                        {
+                            mensajeAprobacion = "La proforma solo se grabo para aprobar, pero no se pudo aprobar porque no cumple con las condiciones de aprobacion!!! Revise la proforma en la ventana de modificacion de proformas.";
+                            var desaprobarProforma = await _context.veproforma.Where(i => i.codigo == result.codprof).FirstOrDefaultAsync();
+                            desaprobarProforma.aprobada = false;
+                            desaprobarProforma.fechaaut = new DateTime(1900, 1, 1);
+                            desaprobarProforma.horaaut = "00:00";
+                            desaprobarProforma.usuarioaut = "";
+                            _context.Entry(desaprobarProforma).State = EntityState.Modified;
+                            await _context.SaveChangesAsync();
+                        }
+                        msgAlerts.Add(mensajeAprobacion);
+                        */
+                    }
+
+
+                    dbContexTransaction.Commit();
+                    return ("Se Grabo la Proforma de manera Exitosa " + idProf + "-" + result.numeroId, true, result.numeroId);
+                }
+                catch (Exception ex)
+                {
+                    dbContexTransaction.Rollback();
+                    return ($"Error en el servidor al guardar Proforma: {ex.Message} " + veproforma.id + "-" + veproforma.numeroid, false, 0);
+                    throw;
+                }
+            }
+        }
+
+
+
+        private async Task<(bool resp, List<string> msgsAlert)> Validar_Aprobar_Proforma(DBContext _context, string id_pf, int nroid_pf, int cod_proforma, string codempresa, List<vedesextraDatos> tabladescuentos, DatosDocVta DVTA, List<verecargosDatos> tablarecargos)
+        {
+            bool resultado = true;
+            List<string> msgsAlert = new List<string>();
+            var dt_pf = await _context.veproforma.Where(i => i.codigo == cod_proforma).FirstOrDefaultAsync();
+
+            ////////////////////////////////////////////////////////////////////////////////
+            // validar el monto de desctos por deposito aplicado
+            var respdepCoCred = await depositos_cliente.Validar_Desctos_x_Deposito_Otorgados_De_Cobranzas_Credito(_context, id_pf, nroid_pf, codempresa);
+            if (!respdepCoCred.result)
+            {
+                resultado = false;
+                if (respdepCoCred.msgAlert != "")
+                {
+                    msgsAlert.Add(respdepCoCred.msgAlert);
+                }
+            }
+
+            var respdepCoCont = await depositos_cliente.Validar_Desctos_x_Deposito_Otorgados_De_Cbzas_Contado_CE(_context, id_pf, nroid_pf, codempresa);
+            if (!respdepCoCont.result)
+            {
+                resultado = false;
+                if (respdepCoCont.msgAlert != "")
+                {
+                    msgsAlert.Add(respdepCoCont.msgAlert);
+                }
+            }
+
+            var respdepAntProfCont = await depositos_cliente.Validar_Desctos_x_Deposito_Otorgados_De_Anticipos_Que_Pagaron_Proformas_Contado(_context, id_pf, nroid_pf, codempresa);
+            if (!respdepAntProfCont.result)
+            {
+                resultado = false;
+                if (respdepAntProfCont.msgAlert != "")
+                {
+                    msgsAlert.Add(respdepAntProfCont.msgAlert);
+                }
+            }
+
+            if (resultado == false)
+            {
+                msgsAlert.Add("No se puede aprobar la proforma, porque tiene descuentos por deposito en montos no validos!!!");
+                return (false, msgsAlert);
+            }
+            ////////////////////////////////////////////////////////////////////////////////
+
+
+            //======================================================================================
+            /////////////////VALIDAR DESCTOS POR DEPOSITO APLICADOS
+            //======================================================================================
+
+            var validDescDepApli = await Validar_Descuentos_Por_Deposito_Excedente(_context, codempresa, tabladescuentos, DVTA);
+            if (!validDescDepApli.result)
+            {
+                resultado = false;
+                msgsAlert.Add(validDescDepApli.msgAlert);
+                msgsAlert.Add("La proforma no puede ser aprobada, porque tiene descuentos por deposito en montos no validos!!!");
+                return (false, msgsAlert);
+            }
+            //======================================================================================
+            ///////////////VALIDAR RECARGOS POR DEPOSITO APLICADOS
+            //======================================================================================
+            var validRecargoDepExcedente = await Validar_Recargos_Por_Deposito_Excedente(_context, codempresa, tablarecargos, DVTA);
+            if (!validRecargoDepExcedente.result)
+            {
+                resultado = false;
+                msgsAlert.Add(validDescDepApli.msgAlert);
+                msgsAlert.Add("La proforma no puede ser aprobada, porque tiene recargos por descuentos por deposito excedentes en montos no validos!!!");
+                return (false, msgsAlert);
+            }
+
+            //////////////////////////////////////////////
+
+            // mostrar mensaje de credito disponible
+            /*
+            
+            If IsDBNull(reg("contra_entrega")) Then
+                qry = "update veproforma set contra_entrega=0 where id='" & id_pf & "' and numeroid='" & nroid_pf & "'"
+                sia_DAL.Datos.Instancia.EjecutarComando(qry)
+            End If
+
+             */
+
+            // tipo pago CONTADO
+            if (DVTA.tipo_vta == "CONTADO")
+            {
+                ////////////////////////////////////////////////////////////////////////////////////////////
+                // se añadio en fecha 15-3-2016
+                // es venta al contado y no necesita validar el credito
+                // TODA VENTA AL CONTADO DEBE TENER ASIGNADO ID-NROID DE ANTICIPO SI ES PAGO ANTICIPADO
+                // SI SE HABILITO LA OPCION DE PAGO ANTICIPADO
+                ////////////////////////////////////////////////////////////////////////////////////////////
+                var dt_anticipos = await anticipos_vta_contado.Anticipos_Aplicados_a_Proforma(_context, id_pf, nroid_pf);
+                if (dt_anticipos.Count > 0)
+                {
+                    ResultadoValidacion objres = new ResultadoValidacion();
+                    objres = await anticipos_vta_contado.Validar_Anticipo_Asignado_2(_context, true, DVTA, dt_anticipos, codempresa);
+                    if (objres.resultado)
+                    {
+                        // Desde 15/01/2024 se cambio esta funcion porque no estaba validando correctamente la transformacion de moneda de los anticipos a aplicarse ya se en $us o BS
+                        // If sia_funciones.Anticipos_Vta_Contado.Instancia.Validar_Anticipo_Asignado(True, dt_anticipos, reg("codcliente"), reg("nomcliente"), reg("total")) = True Then
+                        goto finalizar_ok;
+                    }
+                    else
+                    {
+                        if (dt_anticipos != null)
+                        {
+                            return (false, msgsAlert);
+                        }
+                    }
+                }
+                goto finalizar_ok;
+
+            }
+
+        finalizar_ok:
+            return (true, msgsAlert);
+
+        }
+
+
+        private async Task<(bool result, string msgAlert)> Validar_Descuentos_Por_Deposito_Excedente(DBContext _context, string codempresa, List<vedesextraDatos> tabladescuentos, DatosDocVta DVTA)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            bool resultado = true;
+            string msgAlert = "";
+
+            objres = await validar_Vta.Validar_Descuento_Por_Deposito(_context, DVTA, tabladescuentos, codempresa);
+
+            if (objres.resultado == false)
+            {
+                msgAlert = objres.observacion + " " + objres.obsdetalle + "Alerta Descuentos Por Deposito!!!";
+                resultado = false;
+            }
+            return (resultado, msgAlert);
+        }
+        private async Task<(bool result, string msgAlert)> Validar_Recargos_Por_Deposito_Excedente(DBContext _context, string codempresa, List<verecargosDatos> tablarecargos, DatosDocVta DVTA)
+        {
+            ResultadoValidacion objres = new ResultadoValidacion();
+            bool resultado = true;
+            string msgAlert = "";
+
+            objres = await validar_Vta.Validar_Recargo_Aplicado_Por_Desc_Deposito_Excedente(_context, DVTA, tablarecargos, codempresa);
+
+            if (objres.resultado == false)
+            {
+                msgAlert = objres.observacion + " " + objres.obsdetalle + "Alerta!!!";
+                resultado = false;
+            }
+
+            return (resultado, msgAlert);
+        }
+
+
+        private async Task<bool> Grabar_Proforma_Etiqueta(DBContext _context, string idProf, int nroidpf, bool desclinea_segun_solicitud, string codcliente_real, veproforma dtpf)
+        {
+            try
+            {
+                veproforma_etiqueta datospfe = new veproforma_etiqueta();
+                // obtener datos de la etiqueta
+                var dt_etiqueta = await _context.veetiqueta_proforma.Where(i => i.id == idProf && i.numeroid == nroidpf).FirstOrDefaultAsync();
+                // obtener datos de proforma
+                /*
+                var dtpf = await _context.veproforma.Where(i => i.id == idProf && i.numeroid == nroidpf)
+                    .Select(i => new
+                    {
+                        i.codigo,
+                        i.id,
+                        i.numeroid,
+                        i.fecha,
+                        i.codcliente,
+                        i.direccion,
+                        i.latitud_entrega,
+                        i.longitud_entrega,
+                        i.codalmacen
+                    })
+                    .FirstOrDefaultAsync();
+                */
+                datospfe.id_proforma = idProf;
+                datospfe.nroid_proforma = nroidpf;
+                datospfe.codalmacen = dtpf.codalmacen;
+                datospfe.codcliente_casual = dtpf.codcliente;
+                if (desclinea_segun_solicitud == true && dtpf.idsoldesctos.Trim().Length > 0 && (dtpf.nroidsoldesctos > 0 || dtpf.nroidsoldesctos != null))
+                {
+                    datospfe.codcliente_real = await ventas.Cliente_Referencia_Solicitud_Descuentos(_context, dtpf.idsoldesctos, dtpf.nroidsoldesctos ?? 0);
+                }
+                else
+                {
+                    datospfe.codcliente_real = codcliente_real;
+                }
+                datospfe.fecha = dtpf.fecha;
+                datospfe.direccion = dtpf.direccion;
+                if (dt_etiqueta != null)
+                {
+                    datospfe.ciudad = dt_etiqueta.ciudad;
+                }
+                else
+                {
+                    datospfe.ciudad = "";
+                }
+
+                datospfe.latitud_entrega = dtpf.latitud_entrega;
+                datospfe.longitud_entrega = dtpf.longitud_entrega;
+                datospfe.horareg = dtpf.horareg;
+                datospfe.fechareg = dtpf.fechareg;
+                datospfe.usuarioreg = dtpf.usuarioreg;
+
+                // insertar proforma_etiqueta (datospfe)
+                var profEtiqueta = await _context.veproforma_etiqueta.Where(i => i.id_proforma == datospfe.id_proforma && i.nroid_proforma == datospfe.nroid_proforma).FirstOrDefaultAsync();
+                if (profEtiqueta != null)
+                {
+                    _context.veproforma_etiqueta.Remove(profEtiqueta);
+                    await _context.SaveChangesAsync();
+                }
+                _context.veproforma_etiqueta.Add(datospfe);
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        private async Task<(string resp, int codprof, int numeroId)> Grabar_Documento(DBContext _context, string idProf, string codempresa, SaveProformaCompleta datosProforma)
+        {
+            veproforma veproforma = datosProforma.veproforma;
+            List<veproforma1> veproforma1 = datosProforma.veproforma1;
+            var veproforma_valida = datosProforma.veproforma_valida;
+            var dt_anticipo_pf = datosProforma.dt_anticipo_pf;
+            var vedesextraprof = datosProforma.vedesextraprof;
+            var verecargoprof = datosProforma.verecargoprof;
+            var veproforma_iva = datosProforma.veproforma_iva;
+
+            ////////////////////   GRABAR DOCUMENTO
+
+            int _ag = await empresa.AlmacenLocalEmpresa(_context, codempresa);
+            // verificar si valido el documento, si es tienda no es necesario que valide primero
+            if (!await almacen.Es_Tienda(_context, _ag))
+            {
+                if (veproforma_valida.Count() < 1 || veproforma_valida == null)
+                {
+                    return ("Antes de grabar el documento debe previamente validar el mismo!!!", 0, 0);
+                }
+            }
+
+
+            //************************************************
+
+            //obtenemos numero actual de proforma de nuevo
+            int idnroactual = await datos_proforma.getNumActProd(_context, idProf);
+
+            if (idnroactual == 0)
+            {
+                return ("Error al obtener los datos de numero de proforma", 0, 0);
+            }
+
+            // valida si existe ya la proforma
+            if (await datos_proforma.existeProforma(_context, idProf, idnroactual))
+            {
+                return ("Ese numero de documento, ya existe, por favor consulte con el administrador del sistema.", 0, 0);
+            }
+            veproforma.numeroid = idnroactual;
+
+            //fin de obtener id actual
+
+            // obtener hora y fecha actual si es que la proforma no se importo
+            if (veproforma.hora_inicial == "")
+            {
+                veproforma.fecha_inicial = DateTime.Parse(datos_proforma.getFechaActual());
+                veproforma.hora_inicial = datos_proforma.getHoraActual();
+            }
+
+
+            // accion de guardar
+
+            // guarda cabecera (veproforma)
+            _context.veproforma.Add(veproforma);
+            await _context.SaveChangesAsync();
+
+            var codProforma = veproforma.codigo;
+
+            // actualiza numero id
+            var numeracion = _context.venumeracion.FirstOrDefault(n => n.id == idProf);
+            numeracion.nroactual += 1;
+            await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
+
+
+            int validaCantProf = await _context.veproforma.Where(i => i.id == veproforma.id && i.numeroid == veproforma.numeroid).CountAsync();
+            if (validaCantProf > 1)
+            {
+                return ("Se detecto más de un número del mismo documento, por favor consulte con el administrador del sistema.", 0, 0);
+            }
+
+
+            // guarda detalle (veproforma1)
+            // actualizar codigoproforma para agregar
+            veproforma1 = veproforma1.Select(p => { p.codproforma = codProforma; return p; }).ToList();
+            // colocar obs como vacio no nulo
+            veproforma1 = veproforma1.Select(o => { o.obs = ""; return o; }).ToList();
+            // actualizar peso del detalle.
+            veproforma1 = await ventas.Actualizar_Peso_Detalle_Proforma(_context, veproforma1);
+
+            _context.veproforma1.AddRange(veproforma1);
+            await _context.SaveChangesAsync();
+
+
+
+
+
+            //======================================================================================
+            // grabar detalle de validacion
+            //======================================================================================
+
+            veproforma_valida = veproforma_valida.Select(p => { p.codproforma = codProforma; return p; }).ToList();
+            _context.veproforma_valida.AddRange(veproforma_valida);
+            await _context.SaveChangesAsync();
+
+            //======================================================================================
+            //grabar anticipos aplicados
+            //======================================================================================
+            try
+            {
+                var anticiposprevios = await _context.veproforma_anticipo.Where(i => i.codproforma == codProforma).ToListAsync();
+                if (anticiposprevios.Count() > 0)
+                {
+                    _context.veproforma_anticipo.RemoveRange(anticiposprevios);
+                    await _context.SaveChangesAsync();
+                }
+                if (dt_anticipo_pf != null)
+                {
+                    if (dt_anticipo_pf.Count() > 0)
+                    {
+
+                        var newData = dt_anticipo_pf
+                            .Select(i => new veproforma_anticipo
+                            {
+                                codproforma = codProforma,
+                                codanticipo = i.codanticipo,
+                                monto = (decimal?)i.monto,
+                                tdc = (decimal?)i.tdc,
+
+                                fechareg = DateTime.Parse(datos_proforma.getFechaActual()),
+                                usuarioreg = veproforma.usuarioreg,
+                                horareg = datos_proforma.getHoraActual()
+                            }).ToList();
+                        _context.veproforma_anticipo.AddRange(newData);
+                        await _context.SaveChangesAsync();
+
+                    }
+                }
+
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+
+            //======================================================================================
+            //grabar diferencias de anticipos aplicados
+            //======================================================================================
+            try
+            {
+                var diferencias_previos = await _context.veproforma_anticipo_diferencias.Where(i => i.codproforma == codProforma).ToListAsync();
+                if (diferencias_previos.Count() > 0)
+                {
+                    _context.veproforma_anticipo_diferencias.RemoveRange(diferencias_previos);
+                    await _context.SaveChangesAsync();
+                }
+                //obtener si hay diferencia enntre el total de aplicado de anticipo contra el total de la proforma
+                decimal ttl_anticipos_aplicados = 0;
+                decimal ttl_pf = 0;
+                decimal diferencia_ant_pf = 0;
+                bool anticipo_mayor = true;
+
+                if (dt_anticipo_pf != null)
+                {
+                    if (dt_anticipo_pf.Count() > 0)
+                    {
+                        foreach (var ant in dt_anticipo_pf)
+                        {
+                            ttl_anticipos_aplicados += Math.Round(Convert.ToDecimal(ant.monto), 2);
+                        }
+                        ttl_pf = Math.Round(veproforma.total, 2);
+                        diferencia_ant_pf = Math.Round(ttl_anticipos_aplicados - ttl_pf, 2);
+                        if (ttl_anticipos_aplicados != ttl_pf)
+                        {
+                            anticipo_mayor = ttl_anticipos_aplicados > ttl_pf;
+
+                            var newData = new veproforma_anticipo_diferencias
+                            {
+                                codproforma = codProforma,
+                                monto = diferencia_ant_pf,
+                                tdc = 1,
+                                fechareg = DateTime.Parse(datos_proforma.getFechaActual()),
+                                usuarioreg = veproforma.usuarioreg,
+                                horareg = datos_proforma.getHoraActual(),
+                                anticipo_aplicado_mayor = anticipo_mayor
+                            };
+                            await _context.veproforma_anticipo_diferencias.AddAsync(newData);
+                            await _context.SaveChangesAsync();
+                        }
+                    }
+                }
+
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+            // grabar descto por deposito si hay descuentos
+            if (vedesextraprof != null)
+            {
+                if (vedesextraprof.Count() > 0)
+                {
+                    await grabardesextra(_context, codProforma, vedesextraprof);
+                }
+            }
+
+            if (verecargoprof != null)
+            {
+                // grabar recargo si hay recargos
+                if (verecargoprof.Count > 0)
+                {
+                    await grabarrecargo(_context, codProforma, verecargoprof);
+                }
+            }
+
+            if (veproforma_iva != null)
+            {
+                // grabar iva
+                if (veproforma_iva.Count > 0)
+                {
+                    await grabariva(_context, codProforma, veproforma_iva);
+                }
+            }
+
+
+            bool resultado = new bool();
+            // grabar descto por deposito
+            if (await ventas.Grabar_Descuento_Por_deposito_Pendiente(_context, codProforma, codempresa, veproforma.usuarioreg, vedesextraprof))
+            {
+                resultado = true;
+            }
+            else
+            {
+                resultado = false;
+            }
+
+            // ======================================================================================
+            // actualizar saldo restante de anticipos aplicados
+            // ======================================================================================
+            if (resultado)
+            {
+                if (dt_anticipo_pf != null)
+                {
+                    foreach (var reg in dt_anticipo_pf)
+                    {
+                        if (!await anticipos_vta_contado.ActualizarMontoRestAnticipo(_context, reg.id_anticipo, reg.nroid_anticipo, reg.codproforma ?? 0, reg.codanticipo ?? 0, 0, codempresa))
+                        //    if (!await anticipos_vta_contado.ActualizarMontoRestAnticipo(_context, reg.id_anticipo, reg.nroid_anticipo, reg.codproforma ?? 0, reg.codanticipo ?? 0, reg.monto, codempresa))
+                        {
+                            resultado = false;
+                        }
+                    }
+                }
+            }
+
+            return ("ok", codProforma, veproforma.numeroid);
+
+
+        }
+
+
+        private async Task grabardesextra(DBContext _context, int codProf, List<vedesextraprof> vedesextraprof)
+        {
+            var descExtraAnt = await _context.vedesextraprof.Where(i => i.codproforma == codProf).ToListAsync();
+            if (descExtraAnt.Count() > 0)
+            {
+                _context.vedesextraprof.RemoveRange(descExtraAnt);
+                await _context.SaveChangesAsync();
+            }
+            vedesextraprof = vedesextraprof.Select(p => { p.codproforma = codProf; return p; }).ToList();
+            _context.vedesextraprof.AddRange(vedesextraprof);
+            await _context.SaveChangesAsync();
+        }
+
+
+        private async Task grabarrecargo(DBContext _context, int codProf, List<verecargoprof> verecargoprof)
+        {
+            var recargosAnt = await _context.verecargoprof.Where(i => i.codproforma == codProf).ToListAsync();
+            if (recargosAnt.Count() > 0)
+            {
+                _context.verecargoprof.RemoveRange(recargosAnt);
+                await _context.SaveChangesAsync();
+            }
+            verecargoprof = verecargoprof.Select(p => { p.codproforma = codProf; return p; }).ToList();
+            _context.verecargoprof.AddRange(verecargoprof);
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task grabariva(DBContext _context, int codProf, List<veproforma_iva> veproforma_iva)
+        {
+            var ivaAnt = await _context.veproforma_iva.Where(i => i.codproforma == codProf).ToListAsync();
+            if (ivaAnt.Count() > 0)
+            {
+                _context.veproforma_iva.RemoveRange(ivaAnt);
+                await _context.SaveChangesAsync();
+            }
+            veproforma_iva = veproforma_iva.Select(p => { p.codproforma = codProf; return p; }).ToList();
+            _context.veproforma_iva.AddRange(veproforma_iva);
+            await _context.SaveChangesAsync();
+        }
 
 
     }
+
+
+    public class dataProformas
+    {
+        public veproforma cabecera { get; set; }
+        public List<itemDataMatriz> detalle { get; set; }
+        public List<tabladescuentos> descuentos { get; set; }
+        public List<verecargoprof> recargos { get; set; }
+        public List<veproforma_iva> iva { get; set; }
+        public List<veproforma_etiqueta> profEtiqueta { get; set; }
+        public veproforma_etiqueta? veprofEtiqueta { get; set; }
+        public List<veetiqueta_proforma> etiquetaProf { get; set; }
+        public List<vedetalleanticipoProforma> anticipos { get; set; }
+        public List<DataValidar> detalleValida { get; set; }
+
+    }
+
+    public class dataTotales
+    {
+        public decimal subtotal { get; set; }
+        public decimal peso { get; set; }
+        public decimal recargo { get; set; }
+        public decimal descuento { get; set; }
+        public decimal iva { get; set; }
+        public decimal total { get; set; }
+
+        public List<veproforma_iva> tablaIva { get; set; }
+        public List<tablarecargos> tablaRecargos { get; set; }
+        public List<tabladescuentos> tablaDescuentos { get; set; }
+        public List<itemDataMatriz> tablaDetalle { get; set; }
+
+    }
+    public class dataTotal_Tabla
+    {
+        public dataTotales totales { get; set; }
+        public List<itemDataMatriz> detalleProf { get; set; }
+    }
+
 }

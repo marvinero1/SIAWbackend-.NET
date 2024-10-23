@@ -473,6 +473,54 @@ namespace SIAW.Controllers.ventas.modificacion
             bool check_desclinea_segun_solicitud = false;  // de momento no se utiliza, si se llegara a utilizar, se debe pedir por ruta
             veproforma veproforma = datosProforma.veproforma;
             List<veproforma1> veproforma1 = datosProforma.veproforma1;
+            if (datosProforma.veetiqueta_proforma == null)
+            {
+                return BadRequest(new { resp = "Hay un problema con la etiqueta, intente grabarla de nuevo." });
+            }
+            if (datosProforma.veetiqueta_proforma.id == null || datosProforma.veetiqueta_proforma.id == "")
+            {
+                return BadRequest(new { resp = "Hay un problema con la etiqueta, no se proporciono el ID." });
+            }
+            if (datosProforma.veetiqueta_proforma.numeroid == null || datosProforma.veetiqueta_proforma.numeroid <= 0)
+            {
+                return BadRequest(new { resp = "Hay un problema con la etiqueta, no se proporciono el numero ID." });
+            }
+            if (datosProforma.veetiqueta_proforma.codcliente == null || datosProforma.veetiqueta_proforma.codcliente == "")
+            {
+                return BadRequest(new { resp = "Hay un problema con la etiqueta, no se proporciono el código de cliente." });
+            }
+            if (datosProforma.veetiqueta_proforma.linea1 == null || datosProforma.veetiqueta_proforma.linea1 == "")
+            {
+                return BadRequest(new { resp = "Hay un problema con la etiqueta, no se proporciono la línea 1." });
+            }
+            if (datosProforma.veetiqueta_proforma.linea2 == null)
+            {
+                return BadRequest(new { resp = "Hay un problema con la etiqueta, no se proporciono la línea 2." });
+            }
+            if (datosProforma.veetiqueta_proforma.representante == null || datosProforma.veetiqueta_proforma.representante == "")
+            {
+                return BadRequest(new { resp = "Hay un problema con la etiqueta, no se proporciono el representante." });
+            }
+            if (datosProforma.veetiqueta_proforma.ciudad == null || datosProforma.veetiqueta_proforma.ciudad == "")
+            {
+                return BadRequest(new { resp = "Hay un problema con la etiqueta, no se proporciono la ciudad." });
+            }
+            if (datosProforma.veetiqueta_proforma.celular == null || datosProforma.veetiqueta_proforma.celular == "")
+            {
+                return BadRequest(new { resp = "Hay un problema con la etiqueta, no se proporciono el celular." });
+            }
+            if (datosProforma.veetiqueta_proforma.latitud_entrega == null || datosProforma.veetiqueta_proforma.latitud_entrega == "")
+            {
+                return BadRequest(new { resp = "Hay un problema con la etiqueta, no se proporciono la latitud de entrega." });
+            }
+            if (datosProforma.veetiqueta_proforma.longitud_entrega == null || datosProforma.veetiqueta_proforma.longitud_entrega == "")
+            {
+                return BadRequest(new { resp = "Hay un problema con la etiqueta, no se proporciono la longitud de entrega." });
+            }
+            if (datosProforma.veetiqueta_proforma.longitud_entrega == datosProforma.veetiqueta_proforma.latitud_entrega)
+            {
+                return BadRequest(new { resp = "Hay un problema con la etiqueta, se esta intentando guardar el mismo dato en la longitud y latitud de entrega." });
+            }
             /*
             List<veproforma_valida> veproforma_valida = datosProforma.veproforma_valida;
             List<veproforma_anticipo> veproforma_anticipo = datosProforma.veproforma_anticipo;
