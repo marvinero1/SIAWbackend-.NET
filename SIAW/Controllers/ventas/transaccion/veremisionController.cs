@@ -479,6 +479,57 @@ namespace SIAW.Controllers.ventas.transaccion
                         throw;
                     }
                 }
+
+
+                try
+                {
+                    // verificacion para ver si el documento descarga mercaderia
+                    bool descarga = await ventas.iddescarga(_context, id);
+                    // actualizar stock actual si es que descarga mercaderia
+                    if (descarga)
+                    {
+                        bool actualizaNR = new bool();
+                        // Desde 15/11/2023 registrar en el log si por alguna razon no actualiza en instoactual correctamente al disminuir el saldo de cantidad y la reserva en proforma
+                        try
+                        {
+                            actualizaNR = await saldos.Veremision_ActualizarSaldo(_context, usuario, codNRemision, Saldos.ModoActualizacion.Crear);
+                        }
+                        catch (Exception ex)
+                        {
+                            // return ("Error al Actualizar stock de NR desde Nota de Remision, por favor consulte con el administrador del sistema: " + ex.Message, 0, 0, false, null);
+                            Console.WriteLine(ex.ToString() );
+                        }
+                        if (actualizaNR == false)
+                        {
+                            await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, codNRemision.ToString(), veremision.id, numeroId.ToString(), this._controllerName, "No actualizo stock al restar cantidad en NR.", Log.TipoLog.Creacion);
+                        }
+                        else
+                        {
+                            bool resultActPF = new bool();
+                            string msgActPF = "";
+                            try
+                            {
+                                var actualizaProfSaldo = await ventas.revertirstocksproforma(_context, codProforma, codempresa);
+                                resultActPF = actualizaProfSaldo.resultado;
+                                msgActPF = actualizaProfSaldo.msg;
+                            }
+                            catch (Exception ex)
+                            {
+                                // return ("Error al Actualizar stock de PF desde Nota de Remision, por favor consulte con el administrador del sistema: " + ex.Message, 0, 0, false, null);
+                                Console.WriteLine(ex.ToString());
+                            }
+                            if (resultActPF == false)
+                            {
+                                await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, codNRemision.ToString(), veremision.id, numeroId.ToString(), this._controllerName, msgActPF, Log.TipoLog.Creacion);
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // return ("Error al Actualizar stock de NR desde Nota de Remision, por favor consulte con el administrador del sistema: " + ex.Message, 0, 0, false, null);
+                    Console.WriteLine(ex.ToString());
+                }
                 try
                 {
                     await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, codNRemision.ToString(), datosRemision.veremision.id, numeroId.ToString(), this._controllerName, "Grabar", Log.TipoLog.Creacion);
@@ -3087,7 +3138,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
             // verificacion para ver si el documento descarga mercaderia
-            bool descarga = await ventas.iddescarga(_context, id);
+            // bool descarga = await ventas.iddescarga(_context, id);
 
 
             if (desclinea_segun_solicitud == false)
@@ -3195,43 +3246,7 @@ namespace SIAW.Controllers.ventas.transaccion
             }
 
 
-            // actualizar stock actual si es que descarga mercaderia
-            if (descarga)
-            {
-                bool actualizaNR = new bool();
-                // Desde 15/11/2023 registrar en el log si por alguna razon no actualiza en instoactual correctamente al disminuir el saldo de cantidad y la reserva en proforma
-                try
-                {
-                    actualizaNR = await saldos.Veremision_ActualizarSaldo(_context, usuario, codNRemision, Saldos.ModoActualizacion.Crear);
-                }
-                catch (Exception ex)
-                {
-                    return ("Error al Actualizar stock de NR desde Nota de Remision, por favor consulte con el administrador del sistema: " + ex.Message, 0, 0, false, null);
-                }
-                if (actualizaNR == false)
-                {
-                    await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, codNRemision.ToString(), veremision.id, veremision.numeroid.ToString(), this._controllerName, "No actualizo stock al restar cantidad en NR.", Log.TipoLog.Creacion);
-                }
-                else
-                {
-                    bool resultActPF = new bool();
-                    string msgActPF = "";
-                    try
-                    {
-                        var actualizaProfSaldo = await ventas.revertirstocksproforma(_context, codProforma, codempresa);
-                        resultActPF = actualizaProfSaldo.resultado;
-                        msgActPF = actualizaProfSaldo.msg;
-                    }
-                    catch (Exception ex)
-                    {
-                        return ("Error al Actualizar stock de PF desde Nota de Remision, por favor consulte con el administrador del sistema: " + ex.Message, 0, 0, false, null);
-                    }
-                    if (resultActPF == false)
-                    {
-                        await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, codNRemision.ToString(), veremision.id, veremision.numeroid.ToString(), this._controllerName, msgActPF, Log.TipoLog.Creacion);
-                    }
-                }
-            }
+            
 
 
             // ####################################

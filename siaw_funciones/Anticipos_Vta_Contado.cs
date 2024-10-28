@@ -875,5 +875,64 @@ namespace siaw_funciones
                 }).ToListAsync();
             return dt_anticipos;
         }
+        public async Task<string> Proformas_Aplicadas_cadena(DBContext _context, string idanticipo, int nroidanticipo)
+        {
+            var proformas = await _context.veproforma
+                .Join(_context.veproforma_anticipo,
+                      p1 => p1.codigo,
+                      p2 => p2.codproforma,
+                      (p1, p2) => new { p1, p2 })
+                .Join(_context.coanticipo,
+                      combined => combined.p2.codanticipo,
+                      p3 => p3.codigo,
+                      (combined, p3) => new { combined.p1, combined.p2, p3 })
+                .Where(result => result.p3.id == idanticipo
+                              && result.p3.numeroid == nroidanticipo
+                              && result.p1.anulada == false)
+                .OrderBy(result => result.p1.id)
+                .ThenBy(result => result.p1.numeroid)
+                .Select(result => new
+                {
+                    result.p1.id,
+                    result.p1.numeroid
+                })
+                .ToListAsync();
+            string resultado = "";
+            foreach (var reg in proformas)
+            {
+                resultado = reg.id + "-" + reg.numeroid + ", ";
+            }
+            return resultado;
+        }
+        public async Task<string> Cobranzas_Aplicadas_cadena(DBContext _context, string idanticipo, int nroidanticipo)
+        {
+            var cobranzas = await _context.cocobranza
+                .Join(_context.cocobranza_anticipo,
+                      p1 => p1.codigo,
+                      p2 => p2.codcobranza,
+                      (p1, p2) => new { p1, p2 })
+                .Join(_context.coanticipo,
+                      combined => combined.p2.codanticipo,
+                      p3 => p3.codigo,
+                      (combined, p3) => new { combined.p1, combined.p2, p3 })
+                .Where(result => result.p3.id == idanticipo
+                              && result.p3.numeroid == nroidanticipo
+                              && result.p1.reciboanulado == false)
+                .OrderBy(result => result.p1.id)
+                .ThenBy(result => result.p1.numeroid)
+                .Select(result => new
+                {
+                    result.p1.id,
+                    result.p1.numeroid
+                })
+                .ToListAsync();
+            string resultado = "";
+            foreach (var reg in cobranzas)
+            {
+                resultado = reg.id + "-" + reg.numeroid + ", ";
+            }
+            return resultado;
+        }
+
     }
 }

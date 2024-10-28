@@ -339,7 +339,8 @@ namespace SIAW.Controllers.ventas.transaccion
             await Actualizar_Restantes(_context, codigoempresa, tabla_veproformaAnticipo);
 
             //esta segunda vez se obtiene para mostrar los anticipos pendientes con sus saldos restantes correctos
-            tabla_veproformaAnticipo = await buscar_anticipos_pendientes(_context, fdesde, fhasta, nit, codcliente);
+            // tabla_veproformaAnticipo = await buscar_anticipos_pendientes(_context, fdesde, fhasta, nit, codcliente);
+            tabla_veproformaAnticipo = await buscar_anticipos_pendientes_y_aplicaciones(_context, fdesde, fhasta, nit, codcliente);
 
             return (tabla_veproformaAnticipo, "");
         }
@@ -402,6 +403,51 @@ namespace SIAW.Controllers.ventas.transaccion
             return resultado;
         }
 
+        private async Task<List<tabla_anticipos_pendientes>> buscar_anticipos_pendientes_y_aplicaciones(DBContext _context, DateTime fdesde, DateTime fhasta, string nit, string codcliente)
+        {
+            var resultado = await _context.coanticipo
+                .Where(p1 => p1.anulado == false &&
+                              p1.fecha >= fdesde &&
+                              p1.fecha <= fhasta &&
+                              p1.codcliente == codcliente)
+                .OrderByDescending(p => p.fecha)
+                .Select(p1 => new tabla_anticipos_pendientes
+                {
+                    codanticipo = p1.codigo,
+                    id = p1.id,
+                    numeroid = p1.numeroid,
+                    docanticipo = p1.id + "-" + p1.numeroid,
+                    codcliente = p1.codcliente,
+                    codvendedor = p1.codvendedor,
+                    codcliente_real = p1.codcliente_real,
+                    nit = p1.nit,
+                    nomcliente_nit = p1.nomcliente_nit,
+                    fecha = p1.fecha,
+                    monto = p1.monto,
+                    montorest = p1.montorest,
+                    codmoneda = p1.codmoneda,
+                    anulado = p1.anulado,
+                    desc_anulado = p1.anulado ? "Si" : "No",
+                    para_venta_contado = p1.para_venta_contado,
+                    pvc = (p1.para_venta_contado ?? false) ? "Si" : "No",
+                    fechareg = p1.fechareg,
+                    horareg = p1.horareg,
+                    usuarioreg = p1.usuarioreg,
+                    doc_aplicados = ""
+                }).ToListAsync();
+
+            // Desde 05/12/2023 no validar que el cliente sea sin nombre sino que valide que si los codigos son diferentes entonces que busque ademas por NIT
+            if (await cliente.EsClienteSinNombre(_context, codcliente))
+            {
+                resultado = resultado.Where(i => i.nit == nit).ToList();
+            }
+            foreach (var reg in resultado)
+            {
+                reg.doc_aplicados = " Proformas: " + await anticipos_vta_contado.Proformas_Aplicadas_cadena(_context, reg.id, reg.numeroid);
+                reg.doc_aplicados = reg.doc_aplicados + "|| Cobranzas: " + await anticipos_vta_contado.Cobranzas_Aplicadas_cadena(_context, reg.id, reg.numeroid);
+            }
+            return resultado;
+        }
 
         private async Task Actualizar_Restantes(DBContext _context, string codigoempresa, List<tabla_anticipos_pendientes> tabla_anticipos_pendientes)
         {
@@ -443,6 +489,8 @@ namespace SIAW.Controllers.ventas.transaccion
         public DateTime fechareg { get; set; }
         public string horareg { get; set; }
         public string usuarioreg { get; set; }
+
+        public string? doc_aplicados { get; set; } = "";
     }
 
 }

@@ -45,6 +45,8 @@ namespace siaw_funciones
         private readonly Empresa empresa = new Empresa();
         private readonly SIAT siat = new SIAT();
         private readonly Items items = new Items();
+        private readonly Log log = new Log();
+
         //private readonly Anticipos_Vta_Contado anticipos_vta_contado = new Anticipos_Vta_Contado();
 
         //private readonly IDepositosCliente depositos_cliente;
@@ -3143,38 +3145,102 @@ namespace siaw_funciones
                 if (await configuracion.emp_proforma_reserva(_context, codempresa))
                 {
                     int codalmacen = 0;
-                    var codAlmProf = await _context.veproforma.Where(i => i.codigo == codigo).FirstOrDefaultAsync();
+                    var codAlmProf = await _context.veproforma.Where(i => i.codigo == codigo).Select(i => new {i.codalmacen}).FirstOrDefaultAsync();
                     if (codAlmProf != null)
                     {
                         codalmacen = codAlmProf.codalmacen;
                     }
                     else
                     {
-                        resultado = false;
+                        return false;
                     }
-                    List<veproforma1> tabla = new List<veproforma1>();
-                    if (resultado)
+                    var tabla = await _context.veproforma1.Where(i => i.codproforma == codigo).ToListAsync();
+                    if (tabla.Count() == 0)
                     {
-                        tabla = await _context.veproforma1.Where(i => i.codproforma == codigo).ToListAsync();
-                        if (tabla.Count() == 0)
+                        return false;
+                    }
+
+                    //////////////
+                    var proNull = await _context.instoactual.Where(i => i.proformas == null).ToListAsync();
+                    if (proNull.Count > 0)
+                    {
+                        foreach (var reg in proNull)
                         {
+                            reg.proformas = 0;
+                            // _context.Entry(reg).State = EntityState.Modified;
+                            // await _context.SaveChangesAsync();
+                        }
+                        await _context.SaveChangesAsync();
+                    }
+
+
+
+                    foreach (var reg in tabla)
+                    {
+                        try
+                        {
+                            if (await items.itemesconjunto(_context, reg.coditem))
+                            {
+                                var tablakit = await _context.inkit
+                                    .Where(i => i.codigo == reg.coditem)
+                                    .Select(i => new { item = i.item, cantidad = i.cantidad })
+                                    .ToListAsync();
+
+                                var coditems = tablakit.Select(j => j.item).ToList();
+
+                                // Obtener todos los items de instoactual relacionados
+                                var instoactualUpdates = await _context.instoactual
+                                    .Where(i => i.codalmacen == codalmacen && coditems.Contains(i.coditem))
+                                    .ToListAsync();
+
+                                // Actualizar en memoria las cantidades
+                                foreach (var j in tablakit)
+                                {
+                                    try
+                                    {
+                                        var insto = instoactualUpdates.FirstOrDefault(i => i.coditem == j.item);
+                                        if (insto != null)
+                                        {
+                                            insto.proformas += (reg.cantaut * j.cantidad);
+                                        }
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        string mensajeError = ex.Message.Length > 500 ? ex.Message.Substring(0, 500) : ex.Message;
+                                        await log.RegistrarEvento(_context, "dpd3", Log.Entidades.SW_Proforma, codigo.ToString(), "0", "0", "SaldosVerif", mensajeError, Log.TipoLog.Creacion);
+                                        resultado = false;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                var instoactualUpdate = await _context.instoactual
+                                    .Where(i => i.codalmacen == codalmacen && i.coditem == reg.coditem)
+                                    .FirstOrDefaultAsync();
+
+                                if (instoactualUpdate != null)
+                                {
+                                    instoactualUpdate.proformas += reg.cantaut;
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            string mensajeError = ex.Message.Length > 500 ? ex.Message.Substring(0, 500) : ex.Message;
+                            await log.RegistrarEvento(_context, "dpd3", Log.Entidades.SW_Proforma, codigo.ToString(), "0", "0", "SaldosVerif", mensajeError, Log.TipoLog.Creacion);
                             resultado = false;
                         }
                     }
-                    if (resultado)
+
+                    // Guardar todos los cambios en una sola transacción
+                    await _context.SaveChangesAsync();
+
+
+                    // VERSION ANTIGUAAAAAAAAAAAAAAAAAAAAAAA
+                    /*
+                    foreach (var reg in tabla)
                     {
-                        //////////////
-                        var proNull = await _context.instoactual.Where(i => i.proformas == null).ToListAsync();
-                        if (proNull.Count > 0)
-                        {
-                            foreach (var reg in proNull)
-                            {
-                                reg.proformas = 0;
-                                _context.Entry(reg).State = EntityState.Modified;
-                                await _context.SaveChangesAsync();
-                            }
-                        }
-                        foreach (var reg in tabla)
+                        try
                         {
                             if (await items.itemesconjunto(_context, reg.coditem))
                             {
@@ -3185,13 +3251,23 @@ namespace siaw_funciones
                                         cantidad = i.cantidad
                                     })
                                     .ToListAsync();
-                                foreach (var j in tablakit)
+                                try
                                 {
-                                    var instoactualUpdate = await _context.instoactual.Where(i => i.codalmacen == codalmacen && i.coditem == j.item).FirstOrDefaultAsync();
-                                    instoactualUpdate.proformas = instoactualUpdate.proformas + (reg.cantaut * j.cantidad);
-                                    _context.Entry(instoactualUpdate).State = EntityState.Modified;
-                                    await _context.SaveChangesAsync();
+                                    foreach (var j in tablakit)
+                                    {
+                                        var instoactualUpdate = await _context.instoactual.Where(i => i.codalmacen == codalmacen && i.coditem == j.item).FirstOrDefaultAsync();
+                                        instoactualUpdate.proformas = instoactualUpdate.proformas + (reg.cantaut * j.cantidad);
+                                        _context.Entry(instoactualUpdate).State = EntityState.Modified;
+                                        await _context.SaveChangesAsync();
+                                    }
                                 }
+                                catch (Exception ex)
+                                {
+                                    string mensajeError = ex.Message.Length > 500 ? ex.Message.Substring(0, 500) : ex.Message;
+                                    await log.RegistrarEvento(_context, "dpd3", Log.Entidades.SW_Proforma, codigo.ToString(), "0", "0", "SaldosVerif", mensajeError, Log.TipoLog.Creacion);
+                                    resultado = false;
+                                }
+                                
                             }
                             else
                             {
@@ -3201,7 +3277,21 @@ namespace siaw_funciones
                                 await _context.SaveChangesAsync();
                             }
                         }
+                        catch (Exception ex)
+                        {
+                            string mensajeError = ex.Message.Length > 500 ? ex.Message.Substring(0, 500) : ex.Message;
+                            await log.RegistrarEvento(_context, "dpd3", Log.Entidades.SW_Proforma, codigo.ToString(), "0", "0", "SaldosVerif", mensajeError, Log.TipoLog.Creacion);
+                            resultado = false;
+                        }
+                        
                     }
+                    */
+
+
+
+
+
+
                 }
 
                 return resultado;
@@ -4139,6 +4229,111 @@ namespace siaw_funciones
 
 
 
+
+        public async Task<(bool resultado, string msg)> revertirstocksproforma_new(DBContext _context, int codigo, string codempresa)
+        {
+            bool resultado = true;
+            string msg = "";
+            int codalmacen = 0;
+            try
+            {
+                if (!await configuracion.emp_proforma_reserva(_context, codempresa)) return (false, msg);
+                var tabla_aux = await _context.veproforma.Where(i => i.codigo == codigo).Select(i => new
+                {
+                    i.codalmacen
+                }).FirstOrDefaultAsync();
+                if (tabla_aux != null)
+                {
+                    codalmacen = tabla_aux.codalmacen;
+                }
+                else
+                {
+                    resultado = false;
+                }
+                var tabla = await _context.veproforma1.Where(i => i.codproforma == codigo).CountAsync();
+                if (resultado)
+                {
+                    if (tabla == 0)
+                    {
+                        resultado = false;
+                    }
+                }
+                /*
+                var codalmacen = (await _context.veproforma
+                    .Where(i => i.codigo == codigo)
+                    .Select(i => i.codalmacen)
+                    .FirstOrDefaultAsync()) ?? 0;
+                
+                if (codalmacen == 0) return (false, "Código de almacén no encontrado.");
+                */
+                var itemsProforma = await _context.veproforma1
+                    .Where(i => i.codproforma == codigo)
+                    .ToListAsync();
+
+                if (!itemsProforma.Any()) return (false, "Sin registros de proforma.");
+
+                var instoActualItems = await _context.instoactual
+                    .Where(i => i.codalmacen == codalmacen)
+                    .ToListAsync();
+
+                foreach (var reg in itemsProforma)
+                {
+                    var itemsKit = await _context.inkit
+                        .Where(i => i.codigo == reg.coditem)
+                        .Select(i => new { i.item, i.cantidad })
+                        .ToListAsync();
+
+                    if (itemsKit.Any())
+                    {
+                        foreach (var item in itemsKit)
+                        {
+                            var itemInstoActual = instoActualItems.FirstOrDefault(i => i.coditem == item.item);
+                            if (itemInstoActual == null)
+                            {
+                                resultado = false;
+                                msg = $"Item {item.item} no encontrado.";
+                                break;
+                            }
+                            itemInstoActual.proformas -= reg.cantaut * item.cantidad;
+                        }
+                    }
+                    else
+                    {
+                        var itemInstoActual = instoActualItems.FirstOrDefault(i => i.coditem == reg.coditem);
+                        if (itemInstoActual == null)
+                        {
+                            resultado = false;
+                            msg = $"Item {reg.coditem} no encontrado.";
+                            break;
+                        }
+                        itemInstoActual.proformas -= reg.cantaut;
+                    }
+
+                    if (!resultado) break;
+                }
+
+                if (resultado)
+                {
+                    _context.instoactual.UpdateRange(instoActualItems);
+                    await _context.SaveChangesAsync();
+
+                    // Actualizar valores negativos a 0
+                    var negativos = instoActualItems.Where(i => i.proformas < 0).ToList();
+                    if (negativos.Any())
+                    {
+                        negativos.ForEach(i => i.proformas = 0);
+                        await _context.SaveChangesAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                resultado = false;
+                msg = ex.Message.Length > 500 ? ex.Message.Substring(0, 500) : ex.Message;
+            }
+
+            return (resultado, msg);
+        }
 
         public async Task<(bool resultado, string msg)> revertirstocksproforma(DBContext _context, int codigo, string codempresa)
         {

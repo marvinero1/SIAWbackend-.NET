@@ -1840,12 +1840,77 @@ namespace siaw_funciones
 
 
 
+        public async Task<(bool resultado, string msg)> SaldoActual_Disminuir_new(DBContext _context, int codalmacen, string coditem, double cantidad)
+        {
+            try
+            {
+                bool resultado = true;
+                var itemsActualizados = new List<instoactual>();
+                if (await items.itemesconjunto(_context, coditem))
+                {
+                    var tabla_kit = await _context.inkit.Where(i => i.codigo == coditem)
+                        .Select(i => new
+                        {
+                            i.item,
+                            i.cantidad
+                        }).ToListAsync();
+                    var itemsInsto = await _context.instoactual
+                        .Where(i => i.codalmacen == codalmacen && tabla_kit.Select(k => k.item).Contains(i.coditem))
+                        .ToListAsync();
+
+                    foreach (var reg in tabla_kit)
+                    {
+                        var instoActualItem = itemsInsto.FirstOrDefault(i => i.coditem == reg.item);
+                        if (instoActualItem != null)
+                        {
+                            instoActualItem.cantidad -= (decimal?)(cantidad * (double)(reg.cantidad ?? 0));
+                            itemsActualizados.Add(instoActualItem);
+                        }
+                        else
+                        {
+                            throw new Exception($"Item {reg.item} no encontrado en almacen {codalmacen}");
+                        }
+                    }
+                }
+                else
+                {
+                    var instoActualItem = await _context.instoactual
+                        .Where(i => i.codalmacen == codalmacen && i.coditem == coditem)
+                        .FirstOrDefaultAsync();
+
+                    // Verificar si el item existe antes de modificarlo
+                    if (instoActualItem != null)
+                    {
+                        instoActualItem.cantidad -= (decimal?)cantidad;
+                        itemsActualizados.Add(instoActualItem);
+                    }
+                    else
+                    {
+                        resultado = false;
+                    }
+                }
+                // Guardar todos los cambios de una vez al final
+                if (resultado)
+                {
+                    _context.instoactual.UpdateRange(itemsActualizados);
+                    await _context.SaveChangesAsync();
+                }
+                return (resultado, "");
+            }
+            catch (Exception ex)
+            {
+                string mensajeError = ex.Message.Length > 500 ? ex.Message.Substring(0, 500) : ex.Message;
+                return (false, mensajeError);
+            }
+        }
+
 
         public async Task<(bool resultado,string msg)> SaldoActual_Disminuir(DBContext _context, int codalmacen, string coditem, double cantidad)
         {
             try
             {
                 bool resultado = true;
+                var itemsActualizados = new List<instoactual>();
                 if (await items.itemesconjunto(_context, coditem))
                 {
                     var tabla_kit = await _context.inkit.Where(i => i.codigo == coditem)
@@ -1856,23 +1921,6 @@ namespace siaw_funciones
                         }).ToListAsync();
                     foreach (var reg in tabla_kit)
                     {
-                        /*
-                        try
-                        {
-                            var instoActualItem = await _context.instoactual
-                                .Where(i => i.codalmacen == codalmacen && i.coditem == reg.item)
-                                .FirstOrDefaultAsync();
-                            instoActualItem.cantidad = instoActualItem.cantidad - (decimal?)(cantidad * (double)(reg.cantidad ?? 0));
-
-                            _context.Entry(instoActualItem).State = EntityState.Modified;
-                            await _context.SaveChangesAsync();
-                        }
-                        catch (Exception)
-                        {
-                            resultado = false;
-                        }
-
-                        */
                         var instoActualItem = await _context.instoactual
                             .Where(i => i.codalmacen == codalmacen && i.coditem == reg.item)
                             .FirstOrDefaultAsync();
@@ -1892,23 +1940,6 @@ namespace siaw_funciones
                 }
                 else
                 {
-                    /*
-                    try
-                    {
-                        var instoActualItem = await _context.instoactual
-                                .Where(i => i.codalmacen == codalmacen && i.coditem == coditem)
-                                .FirstOrDefaultAsync();
-
-                        instoActualItem.cantidad = instoActualItem.cantidad - (decimal?)(cantidad);
-
-                        _context.Entry(instoActualItem).State = EntityState.Modified;
-                        await _context.SaveChangesAsync();
-                    }
-                    catch (Exception)
-                    {
-                        resultado = false;
-                    }
-                    */
                     var instoActualItem = await _context.instoactual
                         .Where(i => i.codalmacen == codalmacen && i.coditem == coditem)
                         .FirstOrDefaultAsync();
@@ -1935,9 +1966,73 @@ namespace siaw_funciones
             }
             catch (Exception ex)
             {
-                return (false, ex.Message);
+                string mensajeError = ex.Message.Length > 500 ? ex.Message.Substring(0, 500) : ex.Message;
+                return (false, mensajeError);
             }
         }
+
+        public async Task<(bool resultado, string msg)> SaldoActual_Aumentar_new(DBContext _context, int codalmacen, string coditem, double cantidad)
+        {
+            try
+            {
+                bool resultado = true;
+                var itemsActualizados = new List<instoactual>();
+                if (await items.itemesconjunto(_context, coditem))
+                {
+                    var tabla_kit = await _context.inkit.Where(i => i.codigo == coditem)
+                        .Select(i => new
+                        {
+                            i.item,
+                            i.cantidad
+                        }).ToListAsync();
+                    var itemsInsto = await _context.instoactual
+                        .Where(i => i.codalmacen == codalmacen && tabla_kit.Select(k => k.item).Contains(i.coditem))
+                        .ToListAsync();
+                    foreach (var reg in tabla_kit)
+                    {
+                        var instoActualItem = itemsInsto.FirstOrDefault(i => i.coditem == reg.item);
+                        if (instoActualItem != null)
+                        {
+                            instoActualItem.cantidad += (decimal?)(cantidad * (double)(reg.cantidad ?? 0));
+                            itemsActualizados.Add(instoActualItem);
+                        }
+                        else
+                        {
+                            throw new Exception($"Item {reg.item} no encontrado en almacen {codalmacen}");
+                        }
+                    }
+                }
+                else
+                {
+                    var instoActualItem = await _context.instoactual
+                                .Where(i => i.codalmacen == codalmacen && i.coditem == coditem)
+                                .FirstOrDefaultAsync();
+                    if (instoActualItem != null)
+                    {
+                        instoActualItem.cantidad += (decimal?)cantidad;
+                        itemsActualizados.Add(instoActualItem);
+                    }
+                    else
+                    {
+                        // Manejar el caso de item no encontrado
+                        resultado = false;
+                        // throw new Exception($"Item {coditem} no encontrado en almacen {codalmacen}");
+                    }
+                }
+                if (resultado)
+                {
+                    _context.instoactual.UpdateRange(itemsActualizados);
+                    await _context.SaveChangesAsync();
+                }
+                return (resultado, "");
+            }
+            catch (Exception ex)
+            {
+                string mensajeError = ex.Message.Length > 500 ? ex.Message.Substring(0, 500) : ex.Message;
+                return (false, mensajeError);
+            }
+        }
+
 
         public async Task<(bool resultado, string msg)> SaldoActual_Aumentar(DBContext _context, int codalmacen, string coditem, double cantidad)
         {

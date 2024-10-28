@@ -505,9 +505,13 @@ namespace SIAW.Controllers.ventas.modificacion
             {
                 return BadRequest(new { resp = "Hay un problema con la etiqueta, no se proporciono la ciudad." });
             }
-            if (datosProforma.veetiqueta_proforma.celular == null || datosProforma.veetiqueta_proforma.celular == "")
+            if (datosProforma.veetiqueta_proforma.celular == null)
             {
                 return BadRequest(new { resp = "Hay un problema con la etiqueta, no se proporciono el celular." });
+            }
+            if (datosProforma.veetiqueta_proforma.telefono == null)
+            {
+                return BadRequest(new { resp = "Hay un problema con la etiqueta, no se proporciono el telefono." });
             }
             if (datosProforma.veetiqueta_proforma.latitud_entrega == null || datosProforma.veetiqueta_proforma.latitud_entrega == "")
             {
@@ -601,105 +605,110 @@ namespace SIAW.Controllers.ventas.modificacion
 
                 // RECALCULARPRECIOS(True, True);
 
+                if (datosProforma.veproforma.idsoldesctos == null)
+                {
+                    datosProforma.veproforma.idsoldesctos = "";
+                }
+                if (datosProforma.veproforma.estado_contra_entrega == null)
+                {
+                    datosProforma.veproforma.estado_contra_entrega = "";
+                }
+                if (datosProforma.veproforma.contra_entrega == null)
+                {
+                    datosProforma.veproforma.contra_entrega = false;
+                }
 
+                if (datosProforma.veproforma.tipo_complementopf >= 0 && datosProforma.veproforma.tipo_complementopf <= 1)
+                {
+                    datosProforma.veproforma.tipo_complementopf = datosProforma.veproforma.tipo_complementopf + 1;
+                }
+                if (datosProforma.veproforma.tipo_complementopf == null)
+                {
+                    datosProforma.veproforma.tipo_complementopf = 0;
+                }
+                if (datosProforma.veproforma.tipo_complementopf >= 3)
+                {
+                    datosProforma.veproforma.tipo_complementopf = 0;
+                }
+                if (datosProforma.veproforma.pago_contado_anticipado == null)
+                {
+                    datosProforma.veproforma.pago_contado_anticipado = false;
+                }
+                if (datosProforma.veproforma.obs == null)
+                {
+                    datosProforma.veproforma.obs = "---";
+                }
+                if (datosProforma.veproforma.obs2 == null)
+                {
+                    datosProforma.veproforma.obs2 = "";
+                }
+                if (datosProforma.veproforma.odc == null)
+                {
+                    datosProforma.veproforma.odc = "";
+                }
+                if (datosProforma.veproforma.porceniva == null)
+                {
+                    datosProforma.veproforma.porceniva = 0;
+                }
+
+                datosProforma.veproforma.fechareg = DateTime.Today.Date;
+                // datosProforma.veproforma.fechaaut = new DateTime(1900, 1, 1);     // PUEDE VARIAR SI ES PARA APROBAR
+
+
+                datosProforma.veproforma.horareg = DateTime.Now.ToString("HH:mm");
+                //datosProforma.veproforma.horaaut = "00:00";                       // PUEDE VARIAR SI ES PARA APROBAR
+
+                if (veproforma.confirmada == true)
+                {
+                    datosProforma.veproforma.fecha_confirmada = DateTime.Today.Date;
+                    datosProforma.veproforma.hora_confirmada = DateTime.Now.ToString("HH:mm");
+                }
+                else
+                {
+                    datosProforma.veproforma.fecha_confirmada = new DateTime(1900, 1, 1);
+                    datosProforma.veproforma.hora_confirmada = "00:00";
+                }
+                /*
+                if (paraAprobar)
+                {
+                    datosProforma.veproforma.fechaaut = DateTime.Today.Date;
+                    datosProforma.veproforma.horaaut = DateTime.Now.ToString("HH:mm");
+                }*/
+
+
+                string msgCondClienteAlert = "";
+                string lbltipo_cliente = await cliente.Tipo_Cliente(_context, veproforma.codcliente);
+                if (lbltipo_cliente == "COMPETENCIA" || lbltipo_cliente == "V°B° PRESIDENCIA")
+                {
+                    msgCondClienteAlert = "Verifique las condiciones de venta ya que se trata de un cliente de tipo: " + lbltipo_cliente;
+                }
+
+
+
+
+                // ESTA VALIDACION ES MOMENTANEA, DESPUES SE DEBE COLOCAR SU PROPIA RUTA PARA VALIDAR, YA QUE PEDIRA CLAVE.
+                var validacion_inicial = await Validar_Datos_Cabecera(_context, codempresa, codcliente_real, veproforma);
+                if (!validacion_inicial.bandera)
+                {
+                    return BadRequest(new { resp = validacion_inicial.msg });
+                }
+
+                int codprofGrbd = 0;
+                int numeroIdGrbd = 0;
+                bool actualizaSaldos = false;
                 using (var dbContexTransaction = _context.Database.BeginTransaction())
                 {
                     try
                     {
-                        if (datosProforma.veproforma.idsoldesctos == null)
-                        {
-                            datosProforma.veproforma.idsoldesctos = "";
-                        }
-                        if (datosProforma.veproforma.estado_contra_entrega == null)
-                        {
-                            datosProforma.veproforma.estado_contra_entrega = "";
-                        }
-                        if (datosProforma.veproforma.contra_entrega == null)
-                        {
-                            datosProforma.veproforma.contra_entrega = false;
-                        }
-
-                        if (datosProforma.veproforma.tipo_complementopf >= 0 && datosProforma.veproforma.tipo_complementopf <= 1)
-                        {
-                            datosProforma.veproforma.tipo_complementopf = datosProforma.veproforma.tipo_complementopf + 1;
-                        }
-                        if (datosProforma.veproforma.tipo_complementopf == null)
-                        {
-                            datosProforma.veproforma.tipo_complementopf = 0;
-                        }
-                        if (datosProforma.veproforma.tipo_complementopf >= 3)
-                        {
-                            datosProforma.veproforma.tipo_complementopf = 0;
-                        }
-                        if (datosProforma.veproforma.pago_contado_anticipado == null)
-                        {
-                            datosProforma.veproforma.pago_contado_anticipado = false;
-                        }
-                        if (datosProforma.veproforma.obs == null)
-                        {
-                            datosProforma.veproforma.obs = "---";
-                        }
-                        if (datosProforma.veproforma.obs2 == null)
-                        {
-                            datosProforma.veproforma.obs2 = "";
-                        }
-                        if (datosProforma.veproforma.odc == null)
-                        {
-                            datosProforma.veproforma.odc = "";
-                        }
-                        if (datosProforma.veproforma.porceniva == null)
-                        {
-                            datosProforma.veproforma.porceniva = 0;
-                        }
-
-                        datosProforma.veproforma.fechareg = DateTime.Today.Date;
-                        // datosProforma.veproforma.fechaaut = new DateTime(1900, 1, 1);     // PUEDE VARIAR SI ES PARA APROBAR
-                        
-
-                        datosProforma.veproforma.horareg = DateTime.Now.ToString("HH:mm");
-                        //datosProforma.veproforma.horaaut = "00:00";                       // PUEDE VARIAR SI ES PARA APROBAR
-                        
-                        if (veproforma.confirmada == true)
-                        {
-                            datosProforma.veproforma.fecha_confirmada = DateTime.Today.Date;
-                            datosProforma.veproforma.hora_confirmada = DateTime.Now.ToString("HH:mm");
-                        }
-                        else
-                        {
-                            datosProforma.veproforma.fecha_confirmada = new DateTime(1900, 1, 1);
-                            datosProforma.veproforma.hora_confirmada = "00:00";
-                        }
-                        /*
-                        if (paraAprobar)
-                        {
-                            datosProforma.veproforma.fechaaut = DateTime.Today.Date;
-                            datosProforma.veproforma.horaaut = DateTime.Now.ToString("HH:mm");
-                        }*/
-
-
-                        string msgCondClienteAlert = "";
-                        string lbltipo_cliente = await cliente.Tipo_Cliente(_context, veproforma.codcliente);
-                        if (lbltipo_cliente == "COMPETENCIA" || lbltipo_cliente == "V°B° PRESIDENCIA")
-                        {
-                            msgCondClienteAlert = "Verifique las condiciones de venta ya que se trata de un cliente de tipo: " + lbltipo_cliente;
-                        }
-
-
-
-
-                        // ESTA VALIDACION ES MOMENTANEA, DESPUES SE DEBE COLOCAR SU PROPIA RUTA PARA VALIDAR, YA QUE PEDIRA CLAVE.
-                        var validacion_inicial = await Validar_Datos_Cabecera(_context, codempresa, codcliente_real, veproforma);
-                        if (!validacion_inicial.bandera)
-                        {
-                            return BadRequest(new { resp = validacion_inicial.msg });
-                        }
-
                         var result = await Grabar_Documento(_context, codProforma, codempresa, datosProforma);
                         if (result.resp != "ok")
                         {
                             dbContexTransaction.Rollback();
                             return BadRequest(new { resp = result.resp });
                         }
+                        codprofGrbd = result.codprof;
+                        numeroIdGrbd = result.numeroId;
+
                         await log.RegistrarEvento(_context, veproforma.usuarioreg, Log.Entidades.SW_Proforma, result.codprof.ToString(), veproforma.id, result.numeroId.ToString(), this._controllerName, "Grabar", Log.TipoLog.Modificacion);
 
                         //Grabar Etiqueta
@@ -805,10 +814,8 @@ namespace SIAW.Controllers.ventas.modificacion
                                     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
                                     // realizar la reserva de la mercaderia
                                     // Desde 15/11/2023 registrar en el log si por alguna razon no actualiza en instoactual correctamente al disminuir el saldo de cantidad y la reserva en proforma
-                                    if (await ventas.aplicarstocksproforma(_context, result.codprof, codempresa) == false)
-                                    {
-                                        await log.RegistrarEvento(_context, veproforma.usuarioreg, Log.Entidades.SW_Proforma, result.codprof.ToString(), veproforma.id, result.numeroId.ToString(), this._controllerName, "No actualizo stock al sumar cantidad de reserva en PF.", Log.TipoLog.Creacion);
-                                    }
+                                    
+                                    actualizaSaldos = true;
                                     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
                                     // Desde 30/07/2024 validar si la proforma en cuestion a esta en despachos y si lo fuera actualizar los datos del despacho como ser:
@@ -907,7 +914,6 @@ namespace SIAW.Controllers.ventas.modificacion
 
 
                         dbContexTransaction.Commit();
-                        return Ok(new { resp = "Se Grabo la Proforma de manera Exitosa", codProf = result.codprof, alerts = msgAlerts });
                     }
                     catch (Exception ex)
                     {
@@ -915,7 +921,26 @@ namespace SIAW.Controllers.ventas.modificacion
                         return Problem($"Error en el servidor: {ex.Message}");
                         throw;
                     }
+
+                    
                 }
+                try
+                {
+                    if (actualizaSaldos)
+                    {
+                        if (await ventas.aplicarstocksproforma(_context, codprofGrbd, codempresa) == false)
+                        {
+                            await log.RegistrarEvento(_context, veproforma.usuarioreg, Log.Entidades.SW_Proforma, codprofGrbd.ToString(), veproforma.id, numeroIdGrbd.ToString(), this._controllerName, "No actualizo stock al sumar cantidad de reserva en PF.", Log.TipoLog.Creacion);
+                        }
+                    }
+
+                }
+                catch (Exception ex)
+                {
+                    return Problem($"Se grabo la proforma, Error en el servidor al actualizar Saldos: {ex.Message}");
+                    throw;
+                }
+                return Ok(new { resp = "Se Grabo la Proforma de manera Exitosa", codProf = codprofGrbd, alerts = msgAlerts });
             }
         }
 
