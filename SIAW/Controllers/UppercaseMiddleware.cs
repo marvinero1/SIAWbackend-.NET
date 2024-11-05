@@ -28,7 +28,8 @@
                     bool BANDERA3 = context.Request.Path.Value.Contains("/envioCorreoProforma");
                     bool BANDERA4 = context.Request.Path.Value.Contains("/grabarFacturasNR");
                     bool BANDERA5 = context.Request.Path.Value.Contains("/enviarFacturaEmail");
-                    if (!context.Request.Path.Value.Contains("/refreshToken") && !BANDERA && !BANDERA2 && !BANDERA3 && !BANDERA4 && !BANDERA5)
+                    bool BANDERA6 = context.Request.Path.Value.Contains("/grabarFacturaTienda");
+                    if (!context.Request.Path.Value.Contains("/refreshToken") && !BANDERA && !BANDERA2 && !BANDERA3 && !BANDERA4 && !BANDERA5 && !BANDERA6)
                     {
                         using (var reader = new StreamReader(context.Request.Body))
                         {

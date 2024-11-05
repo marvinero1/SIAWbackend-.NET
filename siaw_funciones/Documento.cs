@@ -41,5 +41,23 @@ namespace siaw_funciones
                 return false;
             }
         }
+
+        public async Task<bool> existe_factura(DBContext _context, string id, int numeroid)
+        {
+            try
+            {
+                int result = await _context.vefactura.Where(i => i.id == id && i.numeroid == numeroid).CountAsync();
+                if (result > 0)
+                {
+                    return true;
+                }
+                return false;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
     }
 }

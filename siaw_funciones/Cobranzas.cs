@@ -2655,6 +2655,20 @@ namespace siaw_funciones
             }
             return resultado;
         }
+        public async Task<double> Recibo_De_Anticipo(DBContext _context, string id, int numeroid)
+        {
+            double resultado = 0;
+            try
+            {
+                resultado = await _context.coanticipo.Where(i => i.id == id && i.numeroid == numeroid).Select(i => i.nrorecibo).FirstOrDefaultAsync();
+            }
+            catch (Exception)
+            {
+                resultado = 0;
+            }
+            return resultado;
+        }
+
 
     }
 

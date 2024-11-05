@@ -783,5 +783,90 @@ namespace siaw_funciones
 
             return resultado;
         }
+
+        public string[] CortarCadena_CUF(string cadena, int ancho)
+        {
+            string resultado = "";
+            string resultado2 = "";
+            string[] resultadoMatriz = new string[2];
+
+            if (cadena.Length > ancho)
+            {
+                resultado = cadena.Substring(0, ancho);
+            }
+            else
+            {
+                resultado = cadena.Trim();
+            }
+            resultadoMatriz[0] = resultado;
+
+            if (cadena.Length > ancho)
+            {
+                resultado2 = cadena.Substring(ancho, cadena.Length - ancho);
+            }
+            else
+            {
+                resultado2 = cadena.Trim();
+            }
+            resultadoMatriz[1] = resultado2;
+
+            return resultadoMatriz;
+        }
+
+
+        public string[] Dividir_cadena_en_filas(string micadena, int ancho)
+        {
+            string[] cadena;
+            string[] resultado = new string[30];
+            int i;
+            string aux = "";
+            int j = 0;
+
+            // Si la cadena es menor o igual al ancho, devolverla directamente en el primer elemento de resultado
+            if (micadena.Length <= ancho)
+            {
+                resultado[j] = micadena;
+                return resultado;
+            }
+            else
+            {
+                // Dividir la cadena por espacios
+                cadena = micadena.Trim().Split(' ');
+
+                for (i = 0; i < cadena.Length; i++)
+                {
+                    if (i == 0)
+                    {
+                        resultado[j] = cadena[i];
+                    }
+                    else
+                    {
+                        aux = resultado[j] + " " + cadena[i];
+                        if (aux.Length <= ancho)
+                        {
+                            resultado[j] += " " + cadena[i];
+                        }
+                        else
+                        {
+                            j++;
+
+                            if (resultado[j] == null)
+                            {
+                                resultado[j] = cadena[i];
+                            }
+                            else
+                            {
+                                resultado[j] += " " + cadena[i];
+                            }
+                        }
+                    }
+                }
+            }
+
+            return resultado;
+        }
+
+
+
     }
 }

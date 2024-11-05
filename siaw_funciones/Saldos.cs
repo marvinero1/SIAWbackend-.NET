@@ -2172,6 +2172,84 @@ namespace siaw_funciones
         }
 
 
+        public async Task<bool> Vefactura_ActualizarSaldo(DBContext _context, string usuario, int codigo, ModoActualizacion modo)
+        {
+            try
+            {
+                bool resultado = true;
+                int codalmacen = new int();
+                bool descarga = new bool();
+
+                var tabla = await _context.vefactura
+                    .Where(v => v.codigo == codigo)
+                    .Select(i => new
+                    {
+                        codalmacen = i.codalmacen,
+                        i.descarga
+                    })
+                   .FirstOrDefaultAsync();
+                if (tabla != null)
+                {
+                    codalmacen = tabla.codalmacen;
+                    descarga = tabla.descarga;
+                }
+                else
+                {
+                    resultado = false;
+                }
+
+                if (resultado)
+                {
+                    if (descarga)
+                    {
+                        var tabla2 = await _context.vefactura1.Where(i => i.codfactura == codigo)
+                            .Select(i => new
+                            {
+                                i.coditem,
+                                i.cantidad
+                            }).ToListAsync();
+                        if (tabla2.Count() > 0)
+                        {
+                            // anadirdetalle
+                            foreach (var reg in tabla2)
+                            {
+                                ////segun condiciones
+                                if (modo == ModoActualizacion.Crear)
+                                {
+                                    var actualiza = await SaldoActual_Disminuir(_context, codalmacen, reg.coditem, (double)reg.cantidad);
+                                    if (actualiza.resultado == false)
+                                    {
+                                        // await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, codigo.ToString(), reg.coditem, codigo.ToString(), "SaldoActual_Disminuir", "No disminuyo stock en cantidad en NR.", Log.TipoLog.Modificacion);
+                                        await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codigo.ToString(), reg.coditem, codigo.ToString(), "SaldoActual_Disminuir", actualiza.msg, Log.TipoLog.Modificacion);
+                                        resultado = false;
+                                    }
+                                }
+                                else // de modo="eliminar" 
+                                {
+                                    var actualiza = await SaldoActual_Aumentar(_context, codalmacen, reg.coditem, (double)reg.cantidad);
+                                    if (actualiza.resultado == false)
+                                    {
+                                        await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codigo.ToString(), reg.coditem, codigo.ToString(), "SaldoActual_Aumentar", actualiza.msg, Log.TipoLog.Modificacion);
+                                        resultado = false;
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            resultado = false;
+                        }
+                    }
+                }
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+
 
         public enum ModoActualizacion
         {
@@ -2181,6 +2259,10 @@ namespace siaw_funciones
             EliminarSoloModificados
         }
     }
+
+
+
+
 }
 public class saldoItem
 {

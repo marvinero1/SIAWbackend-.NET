@@ -755,6 +755,61 @@ namespace siaw_ws_siat
             }
             return resultado;
         }
+
+        public async Task<(bool resp, string mensaje)> Validar_NIT_En_El_SIN_Crear_Cliente(DBContext _context, string codempresa, int tipo_doc, int codalmacen, long NIT, string usuario)
+        {
+            bool resultado = true;
+            bool nit_valido = false;
+            string respuesta_SIN = "";
+            bool en_linea = false;
+            bool en_linea_SIN = false;
+            string mensaje = "";
+
+            respuesta_SIN = await Verificar_NIT_SIN_2024(_context, codalmacen, long.Parse(await empresa.NITempresa(_context, codempresa)), NIT, usuario);
+            if (respuesta_SIN == "VALIDO")
+            {//si es true es NIT activo
+                nit_valido = true;
+            }
+            else if (respuesta_SIN == "ERROR" || respuesta_SIN == "OTRO")
+            {
+                mensaje = "El Numero de documento ingresado no se puede validar con el servicio de impuestos si es un NIT VALIDO o NO (Respuesta: " + respuesta_SIN + " ), se continuara con las demas validaciones.";
+                resultado = true;
+                return (resultado, mensaje);
+                nit_valido = true;
+            }
+            else if (respuesta_SIN == "INVALIDO")
+            {
+                nit_valido = false;
+            }
+
+            if (tipo_doc != 5)
+            {//Si para el SIN el numero es un NIT valido pero el tipo doc es 1 - CI entonces obligar a que cambie a NIT
+                if (nit_valido == true)
+                {
+                    mensaje = "El numero de documento es un NIT VALIDO para el servicio de Impuestos Nacionales, cambie el tipo de documento de 5 - NIT!!!";
+                    resultado = false;
+                }
+                else
+                {
+                    resultado = true;
+                }
+            }
+            if (tipo_doc == 5)
+            {//Si para el SIN el numero es un NIT valido pero el tipo doc es 1 - CI entonces obligar a que cambie a NIT
+                if (nit_valido == false)
+                {
+                    mensaje = "El numero de documento NO es un NIT VALIDO para el servicio de Impuestos Nacionales, cambie el tipo de documento de 5-NIT a 1- CI u otro tipo de documento valido!!!";
+                    resultado = false;
+                }
+                else
+                {
+                    resultado = true;
+                }
+            }
+            return (resultado, mensaje);
+        }
+
+
         //public async Task<Datos_Pametros_Facturacion_Ag> Obtener_Parametros_Facturacion(DBContext _context, int codalmacen)
         //{
         //    var resultado = new DatosParametrosFacturacionAg();

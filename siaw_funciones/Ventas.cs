@@ -7280,6 +7280,274 @@ namespace siaw_funciones
             return result;
         }
 
+        public async Task<string> caja_numeroLugar(DBContext _context, int nrocaja)
+        {
+            string resultado = "0000";
+            try
+            {
+                resultado = await _context.vedosificacion.Where(i => i.activa == true && i.nrocaja == nrocaja).Select(i => i.nrolugar).FirstOrDefaultAsync();
+            }
+            catch (Exception)
+            {
+                resultado = "0000";
+            }
+            return (resultado);
+        }
+        public async Task<string> LimpiarNit(string nit)
+        {
+            string resultado = string.Empty;
+            // Eliminar espacios en blanco al inicio y al final, y reemplazar espacios dentro de la cadena
+            nit = nit.Trim().Replace(" ", "");
+            // Verificar si la longitud es mayor a 1 y aplicar las condiciones
+            if (nit.Length > 1)
+            {
+                if (nit.StartsWith("0") && nit.EndsWith("0"))
+                {
+                    nit = "0";
+                }
+            }
+            resultado = nit;
+            return await Task.FromResult(resultado);
+        }
+        public async Task<bool> Existe_ID_Factura(DBContext _context, string id)
+        {
+            var resultado = await _context.venumeracion.Where(i => i.id == id).CountAsync();
+            if (resultado > 0)
+            {
+                return true;
+            }
+            return false;
+        }
+        public async Task<bool> Validar_NIT_Correcto_Factura(DBContext _context, string nit, string tipo_doc_id)
+        {
+            try
+            {
+                int max_largo = await Longitud_Max_NIT_Facturacion(_context);
+                int min_largo = await Longitud_Min_NIT_Facturacion(_context);
+                int largo = nit.Trim().Length;
+                bool esValido = true;
+                string cadena = "";
+
+                // 1 CI - CEDULA DE IDENTIDAD
+                // 2 CEX - CEDULA DE IDENTIDAD DE EXTRANJERO
+                // 3 PAS - PASAPORTE
+                // 4 OD - OTRO DOCUMENTO DE IDENTIDAD
+                // 5 NIT - NUMERO DE IDENTIFICACION TRIBUTARIA
+
+                if (largo <= 0)
+                {
+                    cadena = "Debe ingresar un NIT/CI u otro documento de identidad válido.";
+                    esValido = false;
+                    return esValido;
+                }
+
+                if (largo == 1 && nit != "0")
+                {
+                    cadena = "Si el NIT/CI u otro documento de identidad es de un solo dígito, debe ser: 0.";
+                    esValido = false;
+                    return esValido;
+                }
+
+                if (largo > 1)
+                {
+                    // Si es CI o NIT, validar así
+                    if (tipo_doc_id == "1" || tipo_doc_id == "5")
+                    {
+                        if (!IsNumeric(nit))
+                        {
+                            cadena = "Debe ingresar un NIT/CI numérico.";
+                            esValido = false;
+                            return esValido;
+                        }
+
+                        if (largo > max_largo)
+                        {
+                            cadena = "El NIT/CI debe ser un valor numérico de " + max_largo + " dígitos como máximo, verifique por favor.";
+                            esValido = false;
+                            return esValido;
+                        }
+
+                        if (largo < max_largo && largo < min_largo)
+                        {
+                            cadena = "El NIT/CI debe ser un valor numérico de " + min_largo + " dígitos como mínimo y {max_largo} dígitos como máximo, verifique el NIT.";
+                            esValido = false;
+                            return esValido;
+                        }
+                    }
+                    else
+                    {
+                        // Aquí sería para pasaporte, carnet extranjero y otros
+                        // 2 CEX - CEDULA DE IDENTIDAD DE EXTRANJERO
+                        // 3 PAS - PASAPORTE
+                        // 4 OD - OTRO DOCUMENTO DE IDENTIDAD
+                        cadena = "";
+                        esValido = true;
+                        return esValido;
+                    }
+                }
+
+                // Todo está correcto
+                return esValido;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<bool> asignar_nro_factura(DBContext _context, int codfactura, int codalmacen, int nrocaja, string id)
+        {
+
+            var codfacturaParam = new SqlParameter("@codfactura", SqlDbType.Int) { Value = codfactura };
+            var codalmacenParam = new SqlParameter("@codalmacen", SqlDbType.Int) { Value = codalmacen };
+            var nrocajaParam = new SqlParameter("@nrocaja", SqlDbType.Int) { Value = nrocaja };
+            var idParam = new SqlParameter("@id", SqlDbType.NVarChar, 5) { Value = id };
+            await _context.Database.ExecuteSqlRawAsync(
+                 "EXECUTE asignar_nro_factura @codfactura, @codalmacen, @nrocaja, @id ",
+                 codfacturaParam, codalmacenParam, nrocajaParam, idParam);
+
+            return true;
+        }
+
+        public async Task<int> factura_nrofactura(DBContext _context, int codigo)
+        {
+            int resultado = 0;
+            try
+            {
+                resultado = await _context.vefactura.Where(i => i.codigo == codigo).Select(i => i.nrofactura).FirstOrDefaultAsync();
+            }
+            catch (Exception)
+            {
+                resultado = 0;
+            }
+            return (resultado);
+        }
+
+        public async Task<int> factura_nroid(DBContext _context, int codigo)
+        {
+            int resultado = 0;
+            try
+            {
+                resultado = await _context.vefactura.Where(i => i.codigo == codigo).Select(i => i.numeroid).FirstOrDefaultAsync();
+            }
+            catch (Exception)
+            {
+                resultado = 0;
+            }
+            return (resultado);
+        }
+
+        public async Task<List<vefactura1>> Factura_Cargar_Grupomer(DBContext _context, List<vefactura1> vefactura1)
+        {
+            foreach (var reg in vefactura1)
+            {
+                reg.codgrupomer = await _context.inlinea
+                    .Join(
+                        _context.initem,
+                        l => l.codigo,
+                        i => i.codlinea,
+                        (l, i) => new { l, i }
+                    )
+                    .Where(li => li.i.codigo == reg.coditem)
+                    .Select(li => li.l.codgrupomer)
+                    .FirstOrDefaultAsync();
+            }
+            return vefactura1;
+        }
+
+        public async Task<string> caja_CUFD(DBContext _context, int nrocaja)
+        {
+            try
+            {
+                var resultado = await _context.vedosificacion
+                    .Where(i => i.activa == true && i.nrocaja == nrocaja)
+                    .Select(i => i.cufd ?? "")
+                    .FirstOrDefaultAsync();
+
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
+
+        public async Task<string> caja_tipo(DBContext _context, int nrocaja)
+        {
+            try
+            {
+                var resultado = await _context.vedosificacion
+                    .Where(i => i.activa == true && i.nrocaja == nrocaja)
+                    .Select(i => i.tipo ?? "")
+                    .FirstOrDefaultAsync();
+
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
+
+        public async Task<string> caja_tipocomprobante(DBContext _context, int nrocaja)
+        {
+            try
+            {
+                var resultado = await _context.vedosificacion
+                    .Where(i => i.activa == true && i.nrocaja == nrocaja)
+                    .Select(i => i.codtipo_comprobante ?? "01")
+                    .FirstOrDefaultAsync();
+
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return "01";
+            }
+        }
+
+        public string Impresora_CUFD(string nro_autorizacion, string startuppath, string codempresa)
+        {
+            string linea;
+            string impresora = "";
+            string mi_nro_autorizacion;
+
+            // Verificar si el archivo existe
+            if (System.IO.File.Exists($"{startuppath}\\{codempresa}impresoras_nsf.txt"))
+            {
+                // Leer el archivo
+                using (var oRead = new System.IO.StreamReader($"{startuppath}\\{codempresa}impresoras_nsf.txt"))
+                {
+                    while (oRead.Peek() > -1)
+                    {
+                        linea = oRead.ReadLine();
+                        mi_nro_autorizacion = linea.Substring(0, linea.IndexOf("-")).Trim();
+                        nro_autorizacion = nro_autorizacion.Trim();
+
+                        impresora = linea.Substring(linea.IndexOf("-") + 1).Trim();
+                        break;
+
+                        // Ya no validará para el SIAT que la impresora esté ligada al nro de autorización
+                        // Modificado en fecha: 25-03-2022
+                        // if (nro_autorizacion == mi_nro_autorizacion)
+                        // {
+                        //     impresora = linea.Substring(linea.IndexOf("-") + 1).Trim();
+                        //     break;
+                        // }
+                    }
+                }
+            }
+
+            return impresora;
+        }
+
+
+
+
+
+
+
 
         public async Task<List<ProformasWF>> Detalle_Proformas_Aprobadas_WF(string userConnectionString, string codempresa, string usuario)
         {

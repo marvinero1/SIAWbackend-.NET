@@ -366,5 +366,30 @@ namespace siaw_funciones
             resultado = descripcion.Trim();
             return resultado;
         }
+        public async Task<string> nombrevendedor(DBContext _context, int codigo)
+        {
+            string resultado = "";
+            var result = await _context.pepersona
+                .Join(_context.vevendedor,
+                p => p.codigo,
+                v => v.codpersona,
+                (p,v) => new { p,v})
+                .Where(join => join.v.codigo == codigo)
+                .Select(join => new
+                {
+                    join.p.apellido1,
+                    join.p.nombre1,
+                }).FirstOrDefaultAsync();
+
+            if (result != null)
+            {
+                resultado = result.apellido1 + " " + result.nombre1;
+            }
+            else
+            {
+                resultado = " ";
+            }
+            return resultado;
+        }
     }
 }

@@ -82,6 +82,7 @@ namespace SIAW.Controllers.z_pruebas
                             i.total,
                             i.codproforma,
                         }).ToListAsync();
+
                     foreach (var reg in drNRemisiones)
                     {
                         SaveNRemisionCompleta transferencia = await transferirdoc(_context, reg.id, reg.numeroid);
@@ -97,6 +98,7 @@ namespace SIAW.Controllers.z_pruebas
                             coditem = i.coditem,
                             empaque = 0,
                             cantidad = i.cantidad,
+                            cantidad_pedida = i.cantidad,
                             udm = i.udm,
                             precioneto = i.precioneto,
                             preciodesc = i.preciodesc,
@@ -199,19 +201,111 @@ namespace SIAW.Controllers.z_pruebas
                         dataTotales resultadosTotabilizar = await TotalizarNR(_context, codempresa, usuario, userConnectionString, false, datosPtot.veproforma.niveles_descuento,_codcliente_real, datosPtot.veproforma.tipo_complementopf ?? 0, datosPtot);
 
 
+                        // objetos para el grabado
+                        transferencia.veremision.subtotal = resultadosTotabilizar.subtotal;
+                        transferencia.veremision.peso = resultadosTotabilizar.peso;
+                        transferencia.veremision.recargos = resultadosTotabilizar.recargo;
+                        transferencia.veremision.descuentos = resultadosTotabilizar.descuento;
+                        transferencia.veremision.iva = resultadosTotabilizar.iva;
+                        transferencia.veremision.total = resultadosTotabilizar.total;
+
+                        List<veremision1> detalle_3 = new List<veremision1>();
+                        detalle_3 = resultadosTotabilizar.tablaDetalle.Select(i => new veremision1
+                        {
+                            codremision = 0,
+                            coditem = i.coditem,
+                            cantidad = (decimal)i.cantidad,
+                            udm = i.udm,
+                            precioneto = (decimal)i.precioneto,
+                            preciolista = (decimal)i.preciolista,
+                            niveldesc = i.niveldesc,
+                            preciodesc = (decimal?)i.preciodesc,
+                            codtarifa = i.codtarifa,
+                            coddescuento = (short)i.coddescuento,
+                            total = (decimal)i.total,
+                            porceniva = (decimal?)i.porceniva,
+                            codgrupomer = 0,
+                            peso = 0,
+                            codigo = 0
+                        }).ToList();
 
 
+                        List<vedesextraremi> descuentos_3 = new List<vedesextraremi>();
+                        descuentos_3 = resultadosTotabilizar.tablaDescuentos.Select(i => new vedesextraremi
+                        {
+                            codremision = 0,
+                            coddesextra = i.coddesextra,
+                            porcen = i.porcen,
+                            montodoc = i.montodoc,
+                            codcobranza = i.codcobranza,
+                            codcobranza_contado = i.codcobranza_contado,
+                            codanticipo = i.codanticipo,
+                            codigo = 0,
+                        }).ToList();
 
+                        List<verecargoremi> recargos_3 = new List<verecargoremi>();
+                        recargos_3 = resultadosTotabilizar.tablaRecargos.Select(i => new verecargoremi
+                        {
+                            codremision = 0,
+                            codrecargo = i.codrecargo,
+                            porcen = i.porcen,
+                            monto = i.monto,
+                            moneda = i.moneda,
+                            montodoc = i.montodoc,
+                            codcobranza = i.codcobranza,
+                            codigo = 0,
+                        }).ToList();
+
+                        List<veremision_iva> iva_3 = new List<veremision_iva>();
+                        iva_3 = resultadosTotabilizar.tablaIva.Select(i => new veremision_iva
+                        {
+                            codremision = 0,
+                            porceniva = i.porceniva,
+                            total = i.total,
+                            porcenbr = i.porcenbr,
+                            br = i.br,
+                            iva = i.iva,
+                            codigo = 0,
+                        }).ToList();
+
+
+                        // objeto para guardar notas de remision
                         SaveNRemisionCompleta nrSave = new SaveNRemisionCompleta();
-                        nrSave.veremision = null;
-                        nrSave.veremision1 = null;
-                        nrSave.vedesextraremi = null;
-                        nrSave.verecargoremi = null;
-                        nrSave.veremision_iva = null;
+                        nrSave.veremision = transferencia.veremision;
+                        nrSave.veremision1 = detalle_3;
+                        nrSave.vedesextraremi = descuentos_3;
+                        nrSave.verecargoremi = recargos_3;
+                        nrSave.veremision_iva = iva_3;
                         nrSave.veremision_chequerechazado = null;
 
+
+                        var resultadoGuardado = await grabarNotaRemision(_context, reg.id, usuario, false, codempresa, nrSave);
+                        confirmaciones.Add(resultadoGuardado.mensaje);
+
+                        pruebas_NRemi newReg = new pruebas_NRemi
+                        {
+                            idnr_original = reg.id,
+                            nroidnr_original = reg.numeroid,
+                            subtotal_original = reg.subtotal,
+                            descuentos_original = reg.descuentos,
+                            total_original = reg.total,
+
+                            idnr_nueva = reg.id,
+                            nroidnr_nueva = resultadoGuardado.nroid,
+                            subtotal_nueva = resultadosTotabilizar.subtotal,
+                            descuentos_nueva = resultadosTotabilizar.descuento,
+                            total_nueva = resultadosTotabilizar.total,
+
+                            fechareg = DateTime.Now,
+                        };
+                        _context.pruebas_NRemi.Add(newReg);
+                        await _context.SaveChangesAsync();
+
                     }
-                    return Ok();
+                    return Ok(new
+                    {
+                        confirmaciones
+                    });
                 }
             }
             catch (Exception ex)
@@ -869,188 +963,57 @@ namespace SIAW.Controllers.z_pruebas
 
 
 
-        private async Task<object> grabarNotaRemision(string userConn, string id, string usuario, bool desclinea_segun_solicitud, int codProforma, string id_pf, int nroid_pf, string codempresa, string id_solurg, int nroid_solurg, bool sin_validar, bool sin_validar_empaques, bool sin_validar_negativos, bool sin_validar_monto_min_desc, bool sin_validar_monto_total, bool sin_validar_doc_ant_inv, SaveNRemisionCompleta datosRemision)
+        private async Task<(string mensaje,int nroid)> grabarNotaRemision(DBContext _context, string id, string usuario, bool desclinea_segun_solicitud, string codempresa, SaveNRemisionCompleta datosRemision)
         {
-            bool resultado = false;
+           
             // borrar los items con cantidad cero
             datosRemision.veremision1.RemoveAll(i => i.cantidad <= 0);
             if (datosRemision.veremision1.Count() <= 0)
             {
-                return BadRequest(new { resp = "No hay ningun item en su documento." });
+                return ("No hay ningun item en su documento." + id + "-" + datosRemision.veremision.numeroid,0);
             }
             veremision veremision = datosRemision.veremision;
-            // 
-            // VALIDACIONES PARA EVITAR NULOS
-            if (veremision.id == null) { return BadRequest(new { resp = "No se esta recibiendo el ID del documento, Consulte con el Administrador del sistema." }); }
-            if (veremision.numeroid == null) { return BadRequest(new { resp = "No se esta recibiendo el número de ID del documento, Consulte con el Administrador del sistema." }); }
-            if (veremision.codalmacen == null) { return BadRequest(new { resp = "No se esta recibiendo el codigo de Almacen, Consulte con el Administrador del sistema." }); }
-            if (veremision.codvendedor == null) { return BadRequest(new { resp = "No se esta recibiendo el código de vendedor, Consulte con el Administrador del sistema." }); }
-            if (veremision.preparacion == null) { return BadRequest(new { resp = "No se esta recibiendo el tipo de preparación, Consulte con el Administrador del sistema." }); }
-            if (veremision.tipopago == null) { return BadRequest(new { resp = "No se esta recibiendo el tipo de pago, Consulte con el Administrador del sistema." }); }
-            if (veremision.contra_entrega == null) { return BadRequest(new { resp = "No se esta recibiendo si la venta es contra entrega o no, Consulte con el Administrador del sistema." }); }
-            if (veremision.estado_contra_entrega == null) { return BadRequest(new { resp = "No se esta recibiendo el estado contra entrega, Consulte con el Administrador del sistema." }); }
-            if (veremision.codcliente == null) { return BadRequest(new { resp = "No se esta recibiendo el codigo de cliente, Consulte con el Administrador del sistema." }); }
-            if (veremision.nomcliente == null) { return BadRequest(new { resp = "No se esta recibiendo el nombre del cliente, Consulte con el Administrador del sistema." }); }
-            if (veremision.tipo_docid == null) { return BadRequest(new { resp = "No se esta recibiendo el tipo de documento, Consulte con el Administrador del sistema." }); }
-            if (veremision.nit == null) { return BadRequest(new { resp = "No se esta recibiendo el NIT/CI del cliente, Consulte con el Administrador del sistema." }); }
-            if (veremision.email == null) { return BadRequest(new { resp = "No se esta recibiendo el Email del cliente, Consulte con el Administrador del sistema." }); }
-            if (veremision.codmoneda == null) { return BadRequest(new { resp = "No se esta recibiendo el codigo de moneda, Consulte con el Administrador del sistema." }); }
-
-            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
-            using (var _context = DbContextFactory.Create(userConnectionString))
+            
+            int codNRemision = 0;
+            int numeroId = 0;
+            bool mostrarModificarPlanCuotas = false;
+            List<planPago_object>? plandeCuotas = new List<planPago_object>();
+            try
             {
-
-                int codNRemision = 0;
-                int numeroId = 0;
-                bool mostrarModificarPlanCuotas = false;
-                List<planPago_object>? plandeCuotas = new List<planPago_object>();
-                using (var dbContexTransaction = _context.Database.BeginTransaction())
+                // El front debe llamar a las funciones de totalizar antes de mandar a grabar
+                var doc_grabado = await Grabar_Documento(_context, id, usuario, desclinea_segun_solicitud, codempresa, datosRemision);
+                // si doc_grabado.mostrarModificarPlanCuotas  == true    Marvin debe desplegar ventana para modificar plan de cuotas, es ventana nueva aparte
+                if (doc_grabado.resp != "ok")
                 {
-                    try
-                    {
-                        // El front debe llamar a las funciones de totalizar antes de mandar a grabar
-                        var doc_grabado = await Grabar_Documento(_context, id, usuario, desclinea_segun_solicitud, codProforma, codempresa, datosRemision);
-                        // si doc_grabado.mostrarModificarPlanCuotas  == true    Marvin debe desplegar ventana para modificar plan de cuotas, es ventana nueva aparte
-                        if (doc_grabado.resp != "ok")
-                        {
-                            await dbContexTransaction.RollbackAsync();
-                            return BadRequest(new { resp = doc_grabado.resp, msgAlert = "No se pudo Grabar la Nota de Remision con Exito." });
-                        }
-                        // SI ESTA TODO OK QUE LO GUARDE EN VARIABLES LO QUE RECIBE PARA USAR MAS ADELANTE
-                        codNRemision = doc_grabado.codNRemision;
-                        numeroId = doc_grabado.numeroId;
-                        await dbContexTransaction.CommitAsync();
-                    }
-                    catch (Exception ex)
-                    {
-                        await dbContexTransaction.RollbackAsync();
-                        return Problem($"Error en el servidor al grabar NR: {ex.Message}");
-                        throw;
-                    }
+                    return ("No se pudo Grabar la Nota de Remision " + id + "-" + datosRemision.veremision.numeroid + " con Exito.", 0);
                 }
-
-                /*
-
-                try
-                {
-                    // verificacion para ver si el documento descarga mercaderia
-                    bool descarga = await ventas.iddescarga(_context, id);
-                    // actualizar stock actual si es que descarga mercaderia
-                    if (descarga)
-                    {
-                        bool actualizaNR = new bool();
-                        // Desde 15/11/2023 registrar en el log si por alguna razon no actualiza en instoactual correctamente al disminuir el saldo de cantidad y la reserva en proforma
-                        try
-                        {
-                            actualizaNR = await saldos.Veremision_ActualizarSaldo(_context, usuario, codNRemision, Saldos.ModoActualizacion.Crear);
-                        }
-                        catch (Exception ex)
-                        {
-                            // return ("Error al Actualizar stock de NR desde Nota de Remision, por favor consulte con el administrador del sistema: " + ex.Message, 0, 0, false, null);
-                            Console.WriteLine(ex.ToString());
-                        }
-                        if (actualizaNR == false)
-                        {
-                            await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, codNRemision.ToString(), veremision.id, numeroId.ToString(), this._controllerName, "No actualizo stock al restar cantidad en NR.", Log.TipoLog.Creacion);
-                        }
-                        else
-                        {
-                            bool resultActPF = new bool();
-                            string msgActPF = "";
-                            try
-                            {
-                                var actualizaProfSaldo = await ventas.revertirstocksproforma(_context, codProforma, codempresa);
-                                resultActPF = actualizaProfSaldo.resultado;
-                                msgActPF = actualizaProfSaldo.msg;
-                            }
-                            catch (Exception ex)
-                            {
-                                // return ("Error al Actualizar stock de PF desde Nota de Remision, por favor consulte con el administrador del sistema: " + ex.Message, 0, 0, false, null);
-                                Console.WriteLine(ex.ToString());
-                            }
-                            if (resultActPF == false)
-                            {
-                                await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, codNRemision.ToString(), veremision.id, numeroId.ToString(), this._controllerName, msgActPF, Log.TipoLog.Creacion);
-                            }
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    // return ("Error al Actualizar stock de NR desde Nota de Remision, por favor consulte con el administrador del sistema: " + ex.Message, 0, 0, false, null);
-                    Console.WriteLine(ex.ToString());
-                }
-                */
-                try
-                {
-                    await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, codNRemision.ToString(), datosRemision.veremision.id, numeroId.ToString(), this._controllerName, "Grabar", Log.TipoLog.Creacion);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine("Error al guardar Log de veremision" + ex.Message);
-                }
-                try
-                {
-                    /*
-                    resultado = true;
-                    // devolver
-                    string msgAlertGrabado = "Se grabo la Nota de Remision " + datosRemision.veremision.id + "-" + numeroId + " con Exito.";
-
-                    //Actualizar Credito
-                    //sia_funciones.Creditos.Instancia.Actualizar_Credito_2020(codcliente.Text, sia_compartidos.temporales.Instancia.usuario, sia_compartidos.temporales.Instancia.codempresa, True, Me.Usar_Bd_Opcional)
-
-                    // Actualizar Credito
-                    await creditos.Actualizar_Credito_2023(_context, datosRemision.veremision.codcliente, usuario, codempresa, true);
-
-                    // enlazar a la solicitud urgente
-                    string msgSolUrg = "";
-                    if (id_solurg.Trim() != "" && nroid_solurg > 0)  // si no es sol urgente, Marvin debe mandar id en vacio "" y nroid en 0
-                    {
-                        try
-                        {
-                            var insolUrg = await _context.insolurgente.Where(i => i.id == id_solurg && i.numeroid == nroid_solurg).FirstOrDefaultAsync();
-                            insolUrg.fid = datosRemision.veremision.id;
-                            insolUrg.fnumeroid = numeroId;
-                            await _context.SaveChangesAsync();
-                            msgSolUrg = "La nota de remision fue enlazada con la solicitud urgente: " + id_solurg + "-" + nroid_solurg;
-                        }
-                        catch (Exception)
-                        {
-                            msgSolUrg = "La nota de remision no pudo ser enlazada a la solicitud Urgente, contacte con el administrador de sistemas.";
-                            //throw;
-                        }
-                    }
-                    */
-
-                    return Ok(new
-                    {
-                        codNotRemision = codNRemision,
-                        nroIdRemision = numeroId,
-                        mostrarVentanaModifPlanCuotas = mostrarModificarPlanCuotas,
-                        planCuotas = plandeCuotas,
-                    });
-                }
-                catch (Exception)
-                {
-                    return Ok(new
-                    {
-                        resp = "Se grabo la Nota de Remision pero hay un problema en la actualizacion de creditos o enlace con solicitud urgente, consulte con el Administrador del sistema.",
-                        codNotRemision = codNRemision,
-                        nroIdRemision = numeroId,
-                        mostrarVentanaModifPlanCuotas = mostrarModificarPlanCuotas,
-                        planCuotas = plandeCuotas,
-                        msgSolUrg = ""
-                    });
-                }
+                // SI ESTA TODO OK QUE LO GUARDE EN VARIABLES LO QUE RECIBE PARA USAR MAS ADELANTE
+                codNRemision = doc_grabado.codNRemision;
+                numeroId = doc_grabado.numeroId;
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error al guardar nota de veremision" + ex.Message);
+            }
+
+            try
+            {
+                await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, codNRemision.ToString(), datosRemision.veremision.id, numeroId.ToString(), this._controllerName, "Grabar", Log.TipoLog.Creacion);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error al guardar Log de veremision" + ex.Message);
+            }
+            return ("Se grabo con exito la nota de remision: " + id + "-" + numeroId, numeroId);
 
         }
 
 
 
-        private async Task<(string resp, int codNRemision, int numeroId)> Grabar_Documento(DBContext _context, string id, string usuario, bool desclinea_segun_solicitud, int codProforma, string codempresa, SaveNRemisionCompleta datosRemision)
+        private async Task<(string resp, int codNRemision, int numeroId)> Grabar_Documento(DBContext _context, string id, string usuario, bool desclinea_segun_solicitud,  string codempresa, SaveNRemisionCompleta datosRemision)
         {
             veremision veremision = datosRemision.veremision;
+            veremision.codigo = 0;
             List<veremision1> veremision1 = datosRemision.veremision1;
             var vedesextraremi = datosRemision.vedesextraremi;
             var verecargoremi = datosRemision.verecargoremi;
@@ -1108,30 +1071,6 @@ namespace SIAW.Controllers.z_pruebas
             _context.veremision1.AddRange(veremision1);
             await _context.SaveChangesAsync();
 
-
-
-            // actualizar proforma a transferida
-            if (codProforma != 0)
-            {
-                try
-                {
-                    var proforma = await _context.veproforma.Where(i => i.codigo == codProforma).FirstOrDefaultAsync();
-
-                    if (proforma != null)
-                    {
-                        proforma.transferida = true;
-                        await _context.SaveChangesAsync();
-                    }
-                    else
-                    {
-                        return ("No se pudo encontrar la proforma para transferirla, por favor consulte con el administrador del sistema.", 0, 0);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    return ("Error al transferir la proforma, por favor consulte con el administrador del sistema: " + ex.Message, 0, 0);
-                }
-            }
 
             try
             {
