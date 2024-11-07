@@ -200,6 +200,7 @@ namespace siaw_funciones
             var decuentoxDeplIST = vedesextraprof.Where(i => i.coddesextra == coddesextra_depositos).ToList();
             foreach (var reg in decuentoxDeplIST)
             {
+                ya_aplico = false;
                 if (reg.codcobranza != 0)
                 {
                     // verificar si la la cbza de credito alguna vez ya otorgo descto por deposito y esta registrado en cocobranza_deposito

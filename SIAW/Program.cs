@@ -139,6 +139,36 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+
+
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 07/11/2024 SE DETECTO UN ERROR GRACIAS A LOS LOGS DE NOTAS DE REMISION, ES EL SIGUIENTE:
+// An exception has been raised that is likely due to a transient failure. Consider enabling transient error resiliency by adding 'EnableRetryOnFailure' to the 'UseSqlServer' call.
+// EXISTE PROBLEMAS TRANSITORIOS CON EL SQL, PARA REINTENTAR SE AJUSTARA LA FABRICA DE CONTEXTOS CON EL SIGUIENTE METODO:
+// ESTO A FIN DE QUE SE REINTENTE AUTOMATICAMENTE LOS REGISTROS.
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+ 
+public static class DbContextFactory
+{
+    public static DBContext Create(string connectionString)
+    {
+        var optionsBuilder = new DbContextOptionsBuilder<DBContext>();
+        optionsBuilder.UseSqlServer(connectionString, sqlServerOptions =>
+        {
+            sqlServerOptions.EnableRetryOnFailure(
+                maxRetryCount: 3,                  // Número máximo de reintentos
+                maxRetryDelay: TimeSpan.FromSeconds(5),  // Tiempo entre reintentos
+                errorNumbersToAdd: null            // Códigos de error opcionales
+            );
+        });
+
+        return new DBContext(optionsBuilder.Options);
+    }
+}
+/*
+ 
 public static class DbContextFactory
 {
     public static DBContext Create(string connectionString)
@@ -149,6 +179,11 @@ public static class DbContextFactory
         return new DBContext(optionsBuilder.Options);
     }
 }
+
+ */
+
+
+
 
 
 

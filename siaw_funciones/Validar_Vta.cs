@@ -2282,7 +2282,7 @@ namespace siaw_funciones
             InicializarResultado(objres);
 
             string cadena = "";
-            if (DVTA.preparacion == "URGENTE")
+            if (DVTA.preparacion == "URGENTE PROVINCIAS")
             {//validar monto minimo 
                 double monto_min = await configuracion.monto_minimo_venta_urgente_provincia(_context, codempresa);
                 double monto_min_aux = await configuracion.monto_minimo_venta_urgente_provincia(_context, codempresa);

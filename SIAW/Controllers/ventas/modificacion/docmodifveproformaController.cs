@@ -521,9 +521,12 @@ namespace SIAW.Controllers.ventas.modificacion
             {
                 return BadRequest(new { resp = "Hay un problema con la etiqueta, no se proporciono la longitud de entrega." });
             }
-            if (datosProforma.veetiqueta_proforma.longitud_entrega == datosProforma.veetiqueta_proforma.latitud_entrega)
+            if (datosProforma.veetiqueta_proforma.longitud_entrega != "0" && datosProforma.veetiqueta_proforma.latitud_entrega != "0")
             {
-                return BadRequest(new { resp = "Hay un problema con la etiqueta, se esta intentando guardar el mismo dato en la longitud y latitud de entrega." });
+                if (datosProforma.veetiqueta_proforma.longitud_entrega == datosProforma.veetiqueta_proforma.latitud_entrega)
+                {
+                    return BadRequest(new { resp = "Hay un problema con la etiqueta, se esta intentando guardar el mismo dato en la longitud y latitud de entrega." });
+                }
             }
             /*
             List<veproforma_valida> veproforma_valida = datosProforma.veproforma_valida;
@@ -604,6 +607,7 @@ namespace SIAW.Controllers.ventas.modificacion
                 // ###############################  SE PUEDE LLAMAR DESDE FRONT END PARA LUEGO IR DIRECTO AL GRABADO ???????
 
                 // RECALCULARPRECIOS(True, True);
+                datosProforma.veproforma.nomcliente = datosProforma.veproforma.nomcliente.Trim();
 
                 if (datosProforma.veproforma.idsoldesctos == null)
                 {

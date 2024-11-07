@@ -13,6 +13,7 @@ namespace siaw_funciones
     public class ClienteCasual
     {
         Cliente cliente = new Cliente();
+        Almacen almacen = new Almacen();
         //Clase necesaria para el uso del DBContext del proyecto siaw_Context
         public static class DbContextFactory
         {
@@ -214,7 +215,7 @@ namespace siaw_funciones
 
 
         /// ///////////////////////////////////////////////////////////////////////////////////////////////////////////        // crear cliente casual
-        public async Task<bool> Crear_Cliente_Casual(DBContext _context, clienteCasual cliCasual)
+        public async Task<(bool confirmacion, string codclienteNew)> Crear_Cliente_Casual(DBContext _context, clienteCasual cliCasual, int codalmacen)
         {
             //string codpto_vta = await getCodArea(userConnectionString, codalmacen);
 
@@ -232,7 +233,7 @@ namespace siaw_funciones
             //valida que datos no esten vacios
             if (vecliente == null)
             {
-                return false;
+                return (false, "");
             }
 
             _context.vecliente.Add(vecliente);
@@ -260,25 +261,28 @@ namespace siaw_funciones
                 return false;
             }*/
 
-            if (!await AsignarCuentasCliente(_context, cod_cliente))
+            var esTienda = await almacen.Es_Tienda(_context, codalmacen);
+            if (!esTienda)
             {
-                return false;
+                if (!await AsignarCuentasCliente(_context, cod_cliente))
+                {
+                    return (false, "");
+                }
             }
-
             if (!await AsignarGrupoComercial_Cliente_Nuevo(_context, cod_cliente, cod_cliente, cliCasual.codvendedor))
             {
-                return false;
+                return (false, "");
             }
             if (!await Asignar_Precios_Defecto_Cliente_Nuevo(_context, cod_cliente))
             {
-                return false;
+                return (false, "");
             }
             if (!await Asignar_Descuentos_Extra_Defecto_Cliente_Nuevo(_context, cod_cliente))
             {
-                return false;
+                return (false,"");
             }
 
-            return true;
+            return (true, cod_cliente);
         }
 
 
