@@ -3376,6 +3376,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[pruebas_Fact]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[pruebas_NRemi]",
          "ObjectType": 0
       },
@@ -6797,6 +6801,10 @@
       },
       {
          "Name": "[dbo].[vedesextra]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[vedesextra_condiciones]",
          "ObjectType": 0
       },
       {

@@ -150,6 +150,7 @@ using (var scope = app.Services.CreateScope())
 // ESTO A FIN DE QUE SE REINTENTE AUTOMATICAMENTE LOS REGISTROS.
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
  
+/*
 public static class DbContextFactory
 {
     public static DBContext Create(string connectionString)
@@ -167,7 +168,8 @@ public static class DbContextFactory
         return new DBContext(optionsBuilder.Options);
     }
 }
-/*
+*/
+
  
 public static class DbContextFactory
 {
@@ -180,7 +182,7 @@ public static class DbContextFactory
     }
 }
 
- */
+ 
 
 
 

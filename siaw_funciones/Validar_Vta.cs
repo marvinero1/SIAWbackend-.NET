@@ -2757,7 +2757,47 @@ namespace siaw_funciones
             if (DVTA.preparacion == "URGENTE" || DVTA.preparacion == "URGENTE PROVINCIAS")
             {
                 nro_items = tabladetalle.Count;
-                nro_items_max =await empresa.maxitemurgentes(_context, codempresa);
+                nro_items_max = await empresa.maxitemurgentes(_context, codempresa);
+
+                // Crear un diccionario para contar las ocurrencias de cada coditem
+                Dictionary<string, int> codItemCount = new Dictionary<string, int>();
+
+                // Desde 04/11/2024 validar que si hay items repetidos verificar si alguno de ellos cumple con empaque caja cerrado
+                // si es así, restar ese item al total nroitem del detalle para esta validación
+                // Primero, recorremos la lista para contar las ocurrencias de cada coditem
+                foreach (var item in tabladetalle)
+                {
+                    string codItem = item.coditem;
+
+                    if (codItemCount.ContainsKey(codItem))
+                    {
+                        codItemCount[codItem] += 1;
+                    }
+                    else
+                    {
+                        codItemCount[codItem] = 1;
+                    }
+                }
+
+                // Luego, identificamos los duplicados y validamos las condiciones
+                foreach (var codItemDuplicado in codItemCount)
+                {
+                    if (codItemDuplicado.Value > 1) // Si el coditem está duplicado
+                    {
+                        // Obtenemos los items de la lista que tienen el mismo coditem
+                        var itemsDuplicados = tabladetalle.Where(x => x.coditem == codItemDuplicado.Key).ToList();
+
+                        foreach (var item in itemsDuplicados)
+                        {
+                            // Condición adicional
+                            if (item.coddescuento > 0)
+                            {
+                                nro_items = nro_items - 1;
+                            }
+                        }
+                    }
+                }
+
                 //verificar el nro de items del pedido
                 if (nro_items > nro_items_max)
                 {
@@ -2768,7 +2808,7 @@ namespace siaw_funciones
 
             if (DVTA.preparacion == "URGENTE PROVINCIAS")
             {//validar el recargo para pedidos urgentes provincias
-                int codrecargo_pedido_urg_provincia = await configuracion.emp_codrecargo_pedido_urgente_provincia(_context,codempresa);
+                int codrecargo_pedido_urg_provincia = await configuracion.emp_codrecargo_pedido_urgente_provincia(_context, codempresa);
                 List<int> lst_rec_prov = tablarecargos.AsEnumerable().Where(r => r.codrecargo == codrecargo_pedido_urg_provincia).Select(r => r.codrecargo).ToList();
 
                 if (lst_rec_prov.Count == 0)
@@ -6798,11 +6838,16 @@ namespace siaw_funciones
             }
             return objres;
         }
+
+
         public async Task<ResultadoValidacion> Verificar_Descuentos_Extras_Aplicados_Validos(DBContext _context, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             bool resultado = true;
             bool _contra_entrega = DVTA.contra_entrega == "SI" ? true : false;
+            string _tipo_vta = DVTA.tipo_vta;
+            string _tipo_precio = await ventas.Tarifa_tipo(_context, DVTA.codtarifadefecto);
+            string es_venta_casual = DVTA.codcliente == DVTA.codcliente_real ? "NO" : "SI";
             int i, j = 0;
             string cadena = "";
             string cadena0 = "";
@@ -6810,6 +6855,11 @@ namespace siaw_funciones
             string cadena2 = "";
             string cadena3 = "";
             string cadena4 = "";
+            string cadena5 = "";// para validar si no tiene descuentos asignados
+            string cadena6 = "";//para validar si no tiene descuentos especiales o de linea asignados
+            string cadena7 = "";//para validar si hay descuentos deshabilitados
+            string cadena8 = "";//para validar si hay descuentos excluentes
+            string cadena9 = "";//para validar si la proforma segun el tipo de venta le corresponde un descuento que no le asignaron
 
             InicializarResultado(objres);
 
@@ -6977,6 +7027,137 @@ namespace siaw_funciones
             {
                 cadena4 += "\n----------------------------------------------";
             }
+            //Desde 04/11/2024 se añadio todos estos nuevos controles al realizar esta validacion a solicitud de servicio al clieente
+            //*******************************************************************************************************************
+            //para validar si no tiene descuentos especiales o de linea asignados
+            //*******************************************************************************************************************
+            foreach (var item in lista_descesp)
+            {
+                // Verificar si el DESCTO ESPECIAL es cero y alertar
+                if (Convert.ToInt32(item) == 0)
+                {
+                    if (cadena6.Trim().Length == 0)
+                    {
+                        cadena6 = "DescEspecial(igual a cero):";
+                    }
+                    cadena6 += Environment.NewLine + "Hay items con DescEspecial --> " + item + ", ¿Desea continuar?";
+                    resultado = false;
+                }
+            }
+
+            if (cadena6.Trim().Length > 0)
+            {
+                cadena6 += Environment.NewLine + "----------------------------------------------";
+            }
+            //Desde 04/11/2024 se añadio todos estos nuevos controles al realizar esta validacion a solicitud de servicio al clieente
+            //*******************************************************************************************************************
+            //para validar si hay descuentos deshabilitados
+            //*******************************************************************************************************************
+            foreach (var descuentos in tabladescuentos)
+            {
+                if (!await ventas.Descuento_Extra_Habilitado(_context, descuentos.coddesextra))
+                {
+                    if (cadena7.Trim().Length == 0)
+                    {
+                        cadena7 = "El descuento está deshabilitado: ";
+                    }
+                    cadena7 += Environment.NewLine + Convert.ToString(descuentos.coddesextra) + " - " + descuentos.descripcion;
+                    resultado = false;
+                }
+            }
+
+            if (cadena7.Trim().Length > 0)
+            {
+                cadena7 += Environment.NewLine + "----------------------------------------------";
+            }
+            //Desde 04/11/2024 se añadio todos estos nuevos controles al realizar esta validacion a solicitud de servicio al clieente
+            //*******************************************************************************************************************
+            //para validar si hay descuentos excluentes
+            //*******************************************************************************************************************
+            string Sql;
+            int nro_excluyentes = 0;
+
+            foreach (var reg in tabladescuentos)
+            {
+                foreach (var reg1 in tabladescuentos)
+                {
+                    var excluyentes = await _context.vedesextra_excluyentes
+                        .Where(ex =>
+                            (ex.coddesextra1 == reg.coddesextra && ex.coddesextra2 == reg1.coddesextra) ||
+                            (ex.coddesextra1 == reg1.coddesextra && ex.coddesextra2 == reg.coddesextra)
+                        )
+                        .ToListAsync();
+
+                    if (excluyentes.Any())
+                    {
+                        nro_excluyentes++;
+                        if (cadena8.Trim().Length == 0)
+                        {
+                            cadena8 = "Descuentos Excluyentes: ";
+                        }
+                        cadena8 += Environment.NewLine + "El descuento: " + reg.coddesextra + " y el descuento: " + reg1.coddesextra + " no pueden ser aplicados de manera simultánea en una misma proforma.";
+                        resultado = false;
+                    }
+                }
+            }
+
+            if (cadena8.Trim().Length > 0)
+            {
+                cadena8 += Environment.NewLine + "----------------------------------------------";
+            }
+            //Desde 04/11/2024 se añadio todos estos nuevos controles al realizar esta validacion a solicitud de servicio al clieente
+            //*******************************************************************************************************************
+            //para validar segun el tipo de venta de la proforma si no le asignaron un descuento que le corresponde
+            //*******************************************************************************************************************
+            bool existe_descuento = false;
+
+            var dt_condiciones = await _context.vedesextra_condiciones
+                .Where(cond => cond.tipo_vta == _tipo_vta)
+                .OrderBy(cond => cond.coddesextra)
+                .ToListAsync();
+
+            if (dt_condiciones.Any())
+            {
+                foreach (var reg0 in dt_condiciones)
+                {
+                    string tipoPrecio = reg0.tipo_precio;
+                    string aplicaParaCasual = reg0.aplica_para_casual;
+                    int codDescuento = reg0.coddesextra ?? 0;
+
+                    // Validación de condiciones
+                    bool condicionesCumplidas = false;
+                    if ((_tipo_vta == "CREDITO" && tipoPrecio == _tipo_precio && es_venta_casual == aplicaParaCasual) ||
+                        (_tipo_vta == "CONTADO" && _contra_entrega && tipoPrecio == _tipo_precio && es_venta_casual == aplicaParaCasual) ||
+                        (_tipo_vta == "CONTADO" && !_contra_entrega && tipoPrecio == _tipo_precio && es_venta_casual != aplicaParaCasual))
+                    {
+                        condicionesCumplidas = true;
+                    }
+
+                    // Buscar el descuento en tabladescuentos si las condiciones se cumplen
+                    if (condicionesCumplidas)
+                    {
+                        existe_descuento = tabladescuentos.AsEnumerable().Any(reg2 => Convert.ToInt32(reg2.coddesextra) == codDescuento);
+
+                        // Si el descuento no existe, agregar mensaje de advertencia
+                        if (!existe_descuento)
+                        {
+                            if (string.IsNullOrEmpty(cadena9))
+                            {
+                                cadena9 = "Descuentos Sin Asignar por Tipo de Venta - Precio: ";
+                            }
+                            cadena9 += Environment.NewLine + $"El descuento: {codDescuento} no está agregado en el detalle de descuentos de la proforma. ¿Desea continuar?";
+                            resultado = false;
+                        }
+                    }
+                }
+            }
+
+            if (!string.IsNullOrEmpty(cadena9))
+            {
+                cadena9 += Environment.NewLine + "----------------------------------------------";
+            }
+
+
 
             if (resultado == false)
             {
@@ -6985,15 +7166,33 @@ namespace siaw_funciones
                 cadena += "\n\n" + cadena2;
                 cadena += "\n\n" + cadena3;
                 cadena += "\n\n" + cadena4;
+                cadena += "\n\n" + cadena5;
+                cadena += "\n\n" + cadena6;
+                cadena += "\n\n" + cadena7;
+                cadena += "\n\n" + cadena8;
+                cadena += "\n\n" + cadena9;
                 objres.resultado = false;
                 objres.observacion = "Se encontraron las siguientes observaciones en la aplicacion de los descuentos extras:";
                 objres.obsdetalle = cadena;
                 objres.datoA = "";
                 objres.datoB = "";
-                objres.accion = Acciones_Validar.Ninguna;
+                if ((cadena5.Trim().Length > 0 || cadena6.Trim().Length > 0 || cadena9.Trim().Length > 0) &&
+                     (cadena0.Trim().Length == 0 && cadena1.Trim().Length == 0 && cadena2.Trim().Length == 0 &&
+                      cadena3.Trim().Length == 0 && cadena4.Trim().Length == 0 && cadena7.Trim().Length == 0 &&
+                      cadena8.Trim().Length == 0))
+                {
+                    objres.accion = Acciones_Validar.Confirmar_SiNo;
+                }
+                else
+                {
+                    objres.accion = Acciones_Validar.Ninguna;
+                }
             }
             return objres;
         }
+
+
+
         public async Task<ResultadoValidacion> Validar_NIT_Valido(DBContext _context, DatosDocVta DVTA, string codempresa, string usuario)
         {
             ResultadoValidacion objres = new ResultadoValidacion();

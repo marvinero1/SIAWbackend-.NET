@@ -1273,8 +1273,8 @@ namespace SIAW.Controllers.ventas.transaccion
                         // return Ok(itemDataMatriz);
                     }
                     ///
-                    string jsonResult = JsonConvert.SerializeObject(resultado);
-                    return Ok(jsonResult);
+                    // string jsonResult = JsonConvert.SerializeObject(resultado);
+                    // return Ok(jsonResult);
                     return Ok(new
                     {
                         jsonResult = resultado,

@@ -860,6 +860,7 @@ namespace siaw_DBContext.Data
         public virtual DbSet<prom_esp> prom_esp { get; set; }
         public virtual DbSet<promocion_esp> promocion_esp { get; set; }
         public virtual DbSet<promvtasclie> promvtasclie { get; set; }
+        public virtual DbSet<pruebas_Fact> pruebas_Fact { get; set; }
         public virtual DbSet<pruebas_NRemi> pruebas_NRemi { get; set; }
         public virtual DbSet<pruebas_Prof> pruebas_Prof { get; set; }
         public virtual DbSet<puntosjeannie> puntosjeannie { get; set; }
@@ -1715,6 +1716,7 @@ namespace siaw_DBContext.Data
         public virtual DbSet<vedescuento3> vedescuento3 { get; set; }
         public virtual DbSet<vedescuento_tarifa> vedescuento_tarifa { get; set; }
         public virtual DbSet<vedesextra> vedesextra { get; set; }
+        public virtual DbSet<vedesextra_condiciones> vedesextra_condiciones { get; set; }
         public virtual DbSet<vedesextra_descuento> vedesextra_descuento { get; set; }
         public virtual DbSet<vedesextra_excluyentes> vedesextra_excluyentes { get; set; }
         public virtual DbSet<vedesextra_item> vedesextra_item { get; set; }
@@ -28236,6 +28238,30 @@ namespace siaw_DBContext.Data
                 entity.Property(e => e.total_kg).HasColumnType("decimal(18, 2)");
 
                 entity.Property(e => e.total_us).HasColumnType("decimal(18, 2)");
+            });
+
+            modelBuilder.Entity<pruebas_Fact>(entity =>
+            {
+                entity.HasKey(e => e.codigo)
+                    .HasName("PK__pruebas___40F9A207E9A923E4");
+
+                entity.Property(e => e.descuentos_nueva).HasColumnType("decimal(20, 2)");
+
+                entity.Property(e => e.descuentos_original).HasColumnType("decimal(20, 2)");
+
+                entity.Property(e => e.fechareg).HasColumnType("smalldatetime");
+
+                entity.Property(e => e.idfc_nueva).HasMaxLength(5);
+
+                entity.Property(e => e.idfc_original).HasMaxLength(5);
+
+                entity.Property(e => e.subtotal_nueva).HasColumnType("decimal(20, 2)");
+
+                entity.Property(e => e.subtotal_original).HasColumnType("decimal(20, 2)");
+
+                entity.Property(e => e.total_nueva).HasColumnType("decimal(20, 2)");
+
+                entity.Property(e => e.total_original).HasColumnType("decimal(20, 2)");
             });
 
             modelBuilder.Entity<pruebas_NRemi>(entity =>
@@ -60410,6 +60436,17 @@ namespace siaw_DBContext.Data
                 entity.Property(e => e.valido_desde).HasColumnType("smalldatetime");
 
                 entity.Property(e => e.valido_hasta).HasColumnType("smalldatetime");
+            });
+
+            modelBuilder.Entity<vedesextra_condiciones>(entity =>
+            {
+                entity.HasKey(e => e.codigo);
+
+                entity.Property(e => e.aplica_para_casual).HasMaxLength(20);
+
+                entity.Property(e => e.tipo_precio).HasMaxLength(20);
+
+                entity.Property(e => e.tipo_vta).HasMaxLength(20);
             });
 
             modelBuilder.Entity<vedesextra_descuento>(entity =>
