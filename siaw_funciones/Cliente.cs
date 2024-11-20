@@ -2598,6 +2598,45 @@ namespace siaw_funciones
             }
             return false;
         }
+        public async Task<bool> Cliente_Competencia_Permite_Descto_Caja_Cerrada(DBContext _context, string nit_cliente)
+        {
+            bool resultado = false;
+            var consulta = await _context.cpcompetencia
+                .Join(_context.vecompetencia_control,
+                p1 => p1.codgrupo_control,
+                p2 => p2.codigo,
+                (p1, p2) => new
+                {
+                    p1.Codigo,
+                    p1.nit,
+                    p2.permite_descto_caja_cerrada,
+                }
+                )
+                .Where(i => i.nit == nit_cliente).FirstOrDefaultAsync();
+            if (consulta != null)
+            {
+                if (consulta.permite_descto_caja_cerrada == null)
+                {
+                    resultado = true;
+                }
+                else
+                {
+                    if (consulta.permite_descto_caja_cerrada == true)
+                    {
+                        resultado = true;
+                    }
+                    else
+                    {
+                        resultado = false;
+                    }
+                }
+            }
+            else
+            {
+                resultado = true;
+            }
+            return resultado;
+        }
 
 
         public async Task MarcarClienteHabitual(DBContext _context, string codcliente)

@@ -616,7 +616,7 @@ namespace SIAW.Controllers.z_pruebas
                 descuento = i.coddescuento,
                 empaque = i.empaque,
                 cantidad_pedida = i.cantidad_pedida ?? 0,
-                cantidad = i.cantidad,
+                cantidad = i.cantidad ?? 0,
                 // codcliente = veproforma.codcliente
                 codcliente = codcliente_real,
                 opcion_nivel = opcion_nivel,

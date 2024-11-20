@@ -1028,7 +1028,7 @@ namespace SIAW.Controllers.z_pruebas
                     {
                         if (descarga == true)  // si la nota de remision no descarga entonces aqui descargarla
                         {
-                            if (await saldos.Veremision_ActualizarSaldo(_context, usuario, cabecera.codigo, Saldos.ModoActualizacion.Crear) == false)
+                            if (await saldos.Veremision_ActualizarSaldo(_context, cabecera.codigo, Saldos.ModoActualizacion.Crear) == false)
                             {
                                 // Desde 23/11/2023 registrar en el log si por alguna razon no actualiza en instoactual correctamente al disminuir el saldo de cantidad y la reserva en proforma
                                 await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, cabecera.codigo.ToString(), cabecera.id, cabecera.numeroid.ToString(), _controllerName, "No actualizo stock al restar cantidad en Facturar NR.", Log.TipoLog.Creacion);

@@ -608,6 +608,7 @@ namespace SIAW.Controllers.ventas.modificacion
 
                 // RECALCULARPRECIOS(True, True);
                 datosProforma.veproforma.nomcliente = datosProforma.veproforma.nomcliente.Trim();
+                datosProforma.veproforma.nit = datosProforma.veproforma.nit.Trim();
 
                 if (datosProforma.veproforma.idsoldesctos == null)
                 {

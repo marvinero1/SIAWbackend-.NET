@@ -1023,6 +1023,43 @@ namespace siaw_funciones
                 return "SUBTOTAL";
             }
         }
+        public async Task<bool> Usuario_Ver_Boton_Anular_SIN(DBContext _context, string usr)
+        {
+            try
+            {
+                bool resultado = await _context.adusparametros.Where(i => i.usuario == usr).Select(i => i.ver_boton_anular_sin).FirstOrDefaultAsync() ?? false;
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+        public async Task<bool> Usuario_Ver_Boton_Generar_XML(DBContext _context, string usr)
+        {
+            try
+            {
+                bool resultado = await _context.adusparametros.Where(i => i.usuario == usr).Select(i => i.ver_boton_generar_xml).FirstOrDefaultAsync() ?? false;
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+        public async Task<int> coddescuento_caja_cerrada(DBContext _context, string codempresa)
+        {
+            try
+            {
+                int resultado = await _context.adparametros.Where(i => i.codempresa == codempresa).Select(i => i.coddescuento_caja_cerrada).FirstOrDefaultAsync() ?? 0;
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
+
     }
 }
  

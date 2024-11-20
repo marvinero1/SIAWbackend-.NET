@@ -1740,6 +1740,12 @@ namespace SIAW.Controllers.ventas.transaccion
                     }
                 }
 
+                // VALIDACIONES PARA ASIGNAR SI NO ES CLIENTE COMPETENCIA
+                string nitCliente = await cliente.NIT(_context, reg.codcliente);
+                bool _es_cliente_competencia = await cliente.EsClienteCompetencia(_context, nitCliente);
+                int _coddescuento_caja_cerrada = await configuracion.coddescuento_caja_cerrada(_context, codEmpresa);
+                bool _permite_descto_caja_cerrada = await cliente.Cliente_Competencia_Permite_Descto_Caja_Cerrada(_context,nitCliente);
+                bool _permite_descto_proveedor = await cliente.ClienteCompetenciaPermiteDesctoProveedor(_context, nitCliente);
 
                 // descuento asignar asutomaticamente dependiendo de cantidad
                 _descuento_precio = await ventas.Codigo_Descuento_Especial_Precio(_context, reg.tarifa);
@@ -1747,12 +1753,42 @@ namespace SIAW.Controllers.ventas.transaccion
                 if (await ventas.Cumple_Empaque_De_DesctoEspecial(_context, reg.coditem, reg.tarifa, _descuento_precio, reg.cantidad, reg.codcliente))
                 {
                     // si cumple
-                    reg.descuento = _descuento_precio;
+                    // Desde 19/11/2024 Valida que si es cliente competencia validar en la configuracion de su grupo si debe acceder a permite_descto_linea (301), permite_descto_volumen (302), permite_descto_proveedor(303)
+                    if (_es_cliente_competencia)
+                    {
+                        if (_coddescuento_caja_cerrada == _descuento_precio)
+                        {
+                            if (_permite_descto_caja_cerrada == false)
+                            {
+                                reg.descuento = 0;
+                            }
+                            else
+                            {
+                                reg.descuento = _descuento_precio;
+                            }
+                        }
+                        else
+                        {
+                            if (_permite_descto_proveedor == false)
+                            {
+                                reg.descuento = 0;
+                            }
+                            else
+                            {
+                                reg.descuento = _descuento_precio;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        reg.descuento = _descuento_precio;
+                    }
                 }
                 else
                 {
                     reg.descuento = 0;
                 }
+                //  FIN VALIDACIONES PARA ASIGNAR SI NO ES CLIENTE COMPETENCIA Y ASIGNACION AUTOMATICA DE DESCUENTOS
 
                 //descuento de nivel del cliente
                 var niveldesc = await cliente.niveldesccliente(_context, reg.codcliente, reg.coditem, reg.tarifa, reg.opcion_nivel, false);
@@ -2183,6 +2219,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
                 // RECALCULARPRECIOS(True, True);
                 datosProforma.veproforma.nomcliente = datosProforma.veproforma.nomcliente.Trim();
+                datosProforma.veproforma.nit = datosProforma.veproforma.nit.Trim();
 
                 if (datosProforma.veproforma.idsoldesctos == null)
                 {
@@ -3268,6 +3305,17 @@ namespace SIAW.Controllers.ventas.transaccion
                 return BadRequest(new { resp = "No se esta recibiendo ningun dato, verifique esta situación." });
             }
 
+            var itemsSinCant = veproforma1_2.Where(i => i.cantidad == null).Select(i=> i.coditem).ToList();
+            if (itemsSinCant.Count() > 0)
+            {
+                string items = "";
+                foreach (var reg in itemsSinCant)
+                {
+                    items += reg + ", ";
+                }
+                return BadRequest(new { resp = "Los siguientes items no tienen cantidad en el detalle: " + items });
+            }
+
             var data = veproforma1_2.Select(i => new cargadofromMatriz
             {
                 coditem = i.coditem,
@@ -3275,7 +3323,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 descuento = i.coddescuento,
                 empaque = i.empaque,
                 cantidad_pedida = i.cantidad_pedida ?? 0,
-                cantidad = i.cantidad,
+                cantidad = i.cantidad ?? 0,
                 // codcliente = veproforma.codcliente
                 codcliente = codcliente_real,
                 opcion_nivel = opcion_nivel,

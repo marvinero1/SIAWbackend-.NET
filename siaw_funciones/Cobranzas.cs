@@ -2023,7 +2023,7 @@ namespace siaw_funciones
                 {
                     foreach (var cuota in cuotas)
                     {
-                        resultado += Convert.ToDecimal(tipocambio._conversion(_context, codmoneda, cuota.codmoneda, cuota.fecha.Date, (decimal)cuota.monto));
+                        resultado += Convert.ToDecimal(await tipocambio._conversion(_context, codmoneda, cuota.codmoneda, cuota.fecha.Date, (decimal)cuota.monto));
                     }
                 }
                 else
@@ -2665,6 +2665,19 @@ namespace siaw_funciones
             catch (Exception)
             {
                 resultado = 0;
+            }
+            return resultado;
+        }
+        public async Task<DateTime> Fecha_De_Anticipo(DBContext _context, string id, int numeroid)
+        {
+            DateTime resultado = new DateTime();
+            try
+            {
+                resultado = await _context.coanticipo.Where(i => i.id == id && i.numeroid == numeroid).Select(i => i.fecha).FirstOrDefaultAsync();
+            }
+            catch (Exception)
+            {
+                resultado = DateTime.Now.Date;
             }
             return resultado;
         }

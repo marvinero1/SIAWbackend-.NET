@@ -1632,7 +1632,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     {
                         if (descarga == true)  // si la nota de remision no descarga entonces aqui descargarla
                         {
-                            if (await saldos.Veremision_ActualizarSaldo(_context, usuario, cabecera.codigo, Saldos.ModoActualizacion.Crear) == false)
+                            if (await saldos.Veremision_ActualizarSaldo(_context, cabecera.codigo, Saldos.ModoActualizacion.Crear) == false)
                             {
                                 // Desde 23/11/2023 registrar en el log si por alguna razon no actualiza en instoactual correctamente al disminuir el saldo de cantidad y la reserva en proforma
                                 await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, cabecera.codigo.ToString(), cabecera.id, cabecera.numeroid.ToString(), _controllerName, "No actualizo stock al restar cantidad en Facturar NR.", Log.TipoLog.Creacion);
@@ -2408,7 +2408,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     if (await configuracion.emp_enviar_factura_por_email(_context, codempresa) == false)
                     {
                         string mi_msg = " Envio de facturas en PDF mas archivo XML por email esta deshabilitado!!!";
-                        eventos.Add(mi_msg);
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mi_msg);
                         await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), pdfFile.FileName, pdfFile.FileName, _controllerName, mi_msg, Log.TipoLog_Siat.Creacion);
                         return StatusCode(203, new { eventos = mi_msg, resp = "" });
                     }
@@ -2420,7 +2420,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     if (email_enviador.Trim().Length == 0)
                     {
                         string mi_msg = "No se encontro en la configuracion el email que envia las facturas, consulte con el administrador del sistema.";
-                        eventos.Add(mi_msg);
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mi_msg);
                         await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), "", "", _controllerName, mi_msg, Log.TipoLog_Siat.Creacion);
                         return StatusCode(203, new { eventos = mi_msg, resp = "" });
                     }
@@ -2435,7 +2435,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     if (_pwd_email_credencial_origen.Trim().Length == 0)
                     {
                         string mi_msg = "No se encontro la credencial del email que envia las facturas, consulte con el administrador del sistema.";
-                        eventos.Add(mi_msg);
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mi_msg);
                         await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), "", "", _controllerName, mi_msg, Log.TipoLog_Siat.Creacion);
                         return StatusCode(203, new { eventos = mi_msg, resp = "" });
                     }
@@ -2496,18 +2496,18 @@ namespace SIAW.Controllers.ventas.transaccion
                     // solo por pruebas cambiaremos el email destino del cliente por uno de nosotros, comentar en produccion
                     direcc_mail_cliente = "analista.nal.informatica1@pertec.com.bo";
 
-                    var resultado = await funciones.EnviarEmailFacturas(direcc_mail_cliente, _email_origen_credencial, _pwd_email_credencial_origen, titulo, detalle, pdfBytes, pdfFile.FileName, xmlFile, nomArchXML);
+                    var resultado = await funciones.EnviarEmailFacturas(direcc_mail_cliente, _email_origen_credencial, _pwd_email_credencial_origen, titulo, detalle, pdfBytes, pdfFile.FileName, xmlFile, nomArchXML,true);
                     if (resultado.result == false)
                     {
                         // envio fallido
                         string mi_msg = "No se pudo enviar la factura y el archivo XML al email del cliente!!!";
-                        eventos.Add(mi_msg);
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mi_msg);
                         await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), "", "", _controllerName, mi_msg, Log.TipoLog_Siat.Creacion);
                         return BadRequest(new { eventos = mi_msg, resp = resultado.msg });
 
                     }
                     string mi_msg1 = "La factura y el archivo XML fueron enviados exitosamente al email del cliente!!!";
-                    eventos.Add(mi_msg1);
+                    eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mi_msg1);
                     await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), "", "", _controllerName, mi_msg1, Log.TipoLog_Siat.Creacion);
 
                     return Ok(new { eventos = mi_msg1, resp = "" });

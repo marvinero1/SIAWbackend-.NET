@@ -87,5 +87,7 @@ namespace siaw_DBContext.Models
         public bool? habilitar_boton_grabar_aprobar { get; set; }
         public bool? ver_detalle_saldo_variable { get; set; }
         public bool? ver_columna_empaques { get; set; }
+        public bool? ver_boton_anular_sin { get; set; }
+        public bool? ver_boton_generar_xml { get; set; }
     }
 }

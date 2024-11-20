@@ -3142,168 +3142,26 @@ namespace siaw_funciones
         {
             try
             {
-                bool resultado = true;
-                if (await configuracion.emp_proforma_reserva(_context, codempresa))
-                {
-                    int codalmacen = 0;
-                    var codAlmProf = await _context.veproforma.Where(i => i.codigo == codigo).Select(i => new {i.codalmacen}).FirstOrDefaultAsync();
-                    if (codAlmProf != null)
-                    {
-                        codalmacen = codAlmProf.codalmacen;
-                    }
-                    else
-                    {
-                        return false;
-                    }
-                    var tabla = await _context.veproforma1.Where(i => i.codproforma == codigo).ToListAsync();
-                    if (tabla.Count() == 0)
-                    {
-                        return false;
-                    }
+                bool resultado = false;
 
-                    //////////////
-                    var proNull = await _context.instoactual.Where(i => i.proformas == null).ToListAsync();
-                    if (proNull.Count > 0)
-                    {
-                        foreach (var reg in proNull)
-                        {
-                            reg.proformas = 0;
-                            // _context.Entry(reg).State = EntityState.Modified;
-                            // await _context.SaveChangesAsync();
-                        }
-                        await _context.SaveChangesAsync();
-                    }
+                var prm_codigo = new SqlParameter("@codigo", SqlDbType.Int) { Value = codigo };
+                var prm_almacen = new SqlParameter("@codempresa", SqlDbType.NVarChar, 10) { Value = codempresa };
+                var result_sp = new SqlParameter("@Resultado", SqlDbType.Bit) { Direction = ParameterDirection.Output };
 
+                await _context.Database.ExecuteSqlRawAsync(
+                    "EXECUTE aplicarstocksproforma @codigo, @codempresa, @Resultado OUTPUT",
+                    prm_codigo, prm_almacen, result_sp);
 
-
-                    foreach (var reg in tabla)
-                    {
-                        try
-                        {
-                            if (await items.itemesconjunto(_context, reg.coditem))
-                            {
-                                var tablakit = await _context.inkit
-                                    .Where(i => i.codigo == reg.coditem)
-                                    .Select(i => new { item = i.item, cantidad = i.cantidad })
-                                    .ToListAsync();
-
-                                var coditems = tablakit.Select(j => j.item).ToList();
-
-                                // Obtener todos los items de instoactual relacionados
-                                var instoactualUpdates = await _context.instoactual
-                                    .Where(i => i.codalmacen == codalmacen && coditems.Contains(i.coditem))
-                                    .ToListAsync();
-
-                                // Actualizar en memoria las cantidades
-                                foreach (var j in tablakit)
-                                {
-                                    try
-                                    {
-                                        var insto = instoactualUpdates.FirstOrDefault(i => i.coditem == j.item);
-                                        if (insto != null)
-                                        {
-                                            insto.proformas += (reg.cantaut * j.cantidad);
-                                        }
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        string mensajeError = ex.Message.Length > 500 ? ex.Message.Substring(0, 500) : ex.Message;
-                                        await log.RegistrarEvento(_context, "dpd3", Log.Entidades.SW_Proforma, codigo.ToString(), "0", "0", "SaldosVerif", mensajeError, Log.TipoLog.Creacion);
-                                        resultado = false;
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                var instoactualUpdate = await _context.instoactual
-                                    .Where(i => i.codalmacen == codalmacen && i.coditem == reg.coditem)
-                                    .FirstOrDefaultAsync();
-
-                                if (instoactualUpdate != null)
-                                {
-                                    instoactualUpdate.proformas += reg.cantaut;
-                                }
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            string mensajeError = ex.Message.Length > 500 ? ex.Message.Substring(0, 500) : ex.Message;
-                            await log.RegistrarEvento(_context, "dpd3", Log.Entidades.SW_Proforma, codigo.ToString(), "0", "0", "SaldosVerif", mensajeError, Log.TipoLog.Creacion);
-                            resultado = false;
-                        }
-                    }
-
-                    // Guardar todos los cambios en una sola transacción
-                    await _context.SaveChangesAsync();
-
-
-                    // VERSION ANTIGUAAAAAAAAAAAAAAAAAAAAAAA
-                    /*
-                    foreach (var reg in tabla)
-                    {
-                        try
-                        {
-                            if (await items.itemesconjunto(_context, reg.coditem))
-                            {
-                                var tablakit = await _context.inkit.Where(i => i.codigo == reg.coditem)
-                                    .Select(i => new
-                                    {
-                                        item = i.item,
-                                        cantidad = i.cantidad
-                                    })
-                                    .ToListAsync();
-                                try
-                                {
-                                    foreach (var j in tablakit)
-                                    {
-                                        var instoactualUpdate = await _context.instoactual.Where(i => i.codalmacen == codalmacen && i.coditem == j.item).FirstOrDefaultAsync();
-                                        instoactualUpdate.proformas = instoactualUpdate.proformas + (reg.cantaut * j.cantidad);
-                                        _context.Entry(instoactualUpdate).State = EntityState.Modified;
-                                        await _context.SaveChangesAsync();
-                                    }
-                                }
-                                catch (Exception ex)
-                                {
-                                    string mensajeError = ex.Message.Length > 500 ? ex.Message.Substring(0, 500) : ex.Message;
-                                    await log.RegistrarEvento(_context, "dpd3", Log.Entidades.SW_Proforma, codigo.ToString(), "0", "0", "SaldosVerif", mensajeError, Log.TipoLog.Creacion);
-                                    resultado = false;
-                                }
-                                
-                            }
-                            else
-                            {
-                                var instoactualUpdate = await _context.instoactual.Where(i => i.codalmacen == codalmacen && i.coditem == reg.coditem).FirstOrDefaultAsync();
-                                instoactualUpdate.proformas = instoactualUpdate.proformas + reg.cantaut;
-                                _context.Entry(instoactualUpdate).State = EntityState.Modified;
-                                await _context.SaveChangesAsync();
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            string mensajeError = ex.Message.Length > 500 ? ex.Message.Substring(0, 500) : ex.Message;
-                            await log.RegistrarEvento(_context, "dpd3", Log.Entidades.SW_Proforma, codigo.ToString(), "0", "0", "SaldosVerif", mensajeError, Log.TipoLog.Creacion);
-                            resultado = false;
-                        }
-                        
-                    }
-                    */
-
-
-
-
-
-
-                }
+                resultado = (bool)result_sp.Value;
 
                 return resultado;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Console.WriteLine($"Error: {ex.Message}");
                 return false;
             }
-            
         }
-
 
         public async Task<bool> Existe_Proforma(DBContext _context, string id, int numeroid)
         {
@@ -4231,248 +4089,29 @@ namespace siaw_funciones
 
 
 
-        public async Task<(bool resultado, string msg)> revertirstocksproforma_new(DBContext _context, int codigo, string codempresa)
+        public async Task<(bool resultado, string msg)> revertirstocksproforma(DBContext _context, int codigo, string codempresa)
         {
-            bool resultado = true;
+            bool resultado = false;
             string msg = "";
-            int codalmacen = 0;
             try
             {
-                if (!await configuracion.emp_proforma_reserva(_context, codempresa)) return (false, msg);
-                var tabla_aux = await _context.veproforma.Where(i => i.codigo == codigo).Select(i => new
-                {
-                    i.codalmacen
-                }).FirstOrDefaultAsync();
-                if (tabla_aux != null)
-                {
-                    codalmacen = tabla_aux.codalmacen;
-                }
-                else
-                {
-                    resultado = false;
-                }
-                var tabla = await _context.veproforma1.Where(i => i.codproforma == codigo).CountAsync();
-                if (resultado)
-                {
-                    if (tabla == 0)
-                    {
-                        resultado = false;
-                    }
-                }
-                /*
-                var codalmacen = (await _context.veproforma
-                    .Where(i => i.codigo == codigo)
-                    .Select(i => i.codalmacen)
-                    .FirstOrDefaultAsync()) ?? 0;
-                
-                if (codalmacen == 0) return (false, "Código de almacén no encontrado.");
-                */
-                var itemsProforma = await _context.veproforma1
-                    .Where(i => i.codproforma == codigo)
-                    .ToListAsync();
+                var prm_codigo = new SqlParameter("@codigo", SqlDbType.Int) { Value = codigo };
+                var prm_almacenParam = new SqlParameter("@codempresa", SqlDbType.NVarChar, 10) { Value = codempresa };
+                var result_sp = new SqlParameter("@Resultado", SqlDbType.Bit) { Direction = ParameterDirection.Output };
 
-                if (!itemsProforma.Any()) return (false, "Sin registros de proforma.");
+                await _context.Database.ExecuteSqlRawAsync(
+                    "EXECUTE revertirstocksproforma @codigo, @codempresa, @Resultado OUTPUT",
+                    prm_codigo, prm_almacenParam, result_sp);
 
-                var instoActualItems = await _context.instoactual
-                    .Where(i => i.codalmacen == codalmacen)
-                    .ToListAsync();
-
-                foreach (var reg in itemsProforma)
-                {
-                    var itemsKit = await _context.inkit
-                        .Where(i => i.codigo == reg.coditem)
-                        .Select(i => new { i.item, i.cantidad })
-                        .ToListAsync();
-
-                    if (itemsKit.Any())
-                    {
-                        foreach (var item in itemsKit)
-                        {
-                            var itemInstoActual = instoActualItems.FirstOrDefault(i => i.coditem == item.item);
-                            if (itemInstoActual == null)
-                            {
-                                resultado = false;
-                                msg = $"Item {item.item} no encontrado.";
-                                break;
-                            }
-                            itemInstoActual.proformas -= reg.cantaut * item.cantidad;
-                        }
-                    }
-                    else
-                    {
-                        var itemInstoActual = instoActualItems.FirstOrDefault(i => i.coditem == reg.coditem);
-                        if (itemInstoActual == null)
-                        {
-                            resultado = false;
-                            msg = $"Item {reg.coditem} no encontrado.";
-                            break;
-                        }
-                        itemInstoActual.proformas -= reg.cantaut;
-                    }
-
-                    if (!resultado) break;
-                }
-
-                if (resultado)
-                {
-                    _context.instoactual.UpdateRange(instoActualItems);
-                    await _context.SaveChangesAsync();
-
-                    // Actualizar valores negativos a 0
-                    var negativos = instoActualItems.Where(i => i.proformas < 0).ToList();
-                    if (negativos.Any())
-                    {
-                        negativos.ForEach(i => i.proformas = 0);
-                        await _context.SaveChangesAsync();
-                    }
-                }
+                resultado = (bool)result_sp.Value;
             }
             catch (Exception ex)
             {
-                resultado = false;
-                msg = ex.Message.Length > 500 ? ex.Message.Substring(0, 500) : ex.Message;
-            }
-
-            return (resultado, msg);
-        }
-
-        public async Task<(bool resultado, string msg)> revertirstocksproforma(DBContext _context, int codigo, string codempresa)
-        {
-            bool resultado = true;
-            int codalmacen = new int();
-            string msg = "";
-            if (await configuracion.emp_proforma_reserva(_context,codempresa))
-            {
-                var tabla_aux = await _context.veproforma.Where(i => i.codigo == codigo).Select(i => new
-                {
-                    i.codalmacen
-                }).FirstOrDefaultAsync();
-                if (tabla_aux != null)
-                {
-                    codalmacen = tabla_aux.codalmacen;
-                }
-                else
-                {
-                    resultado = false;
-                }
-                var tabla = await _context.veproforma1.Where(i => i.codproforma == codigo).Select(i => new
-                {
-                    i.coditem,
-                    i.cantaut
-                }).ToListAsync();
-                if (resultado)
-                {
-                    if (tabla.Count() == 0)
-                    {
-                        resultado = false; 
-                    }
-                }
-
-                if (resultado)
-                {
-                    try
-                    {
-                        var nulos = await _context.instoactual.Where(i => i.proformas == null).ToListAsync();
-                        if (nulos.Count() > 0)
-                        {
-                            foreach (var reg in nulos)
-                            {
-                                reg.proformas = 0;
-                            }
-                            await _context.SaveChangesAsync();
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        resultado = false;
-                        msg = "Error en revertirstocksproforma1:" + ex.Message;
-                    }
-
-                    foreach (var reg  in tabla)
-                    {
-                        if (await items.itemesconjunto(_context,reg.coditem))
-                        {
-                            var tablakit = await _context.inkit.Where(i => i.codigo == reg.coditem).Select(i => new
-                            {
-                                i.item,
-                                i.cantidad
-                            }).ToListAsync();
-                            foreach (var item in tablakit)
-                            {
-                                try
-                                {
-                                    var itemInstroactual = await _context.instoactual.Where(i => i.codalmacen == codalmacen && i.coditem == item.item).FirstOrDefaultAsync();
-                                    if (itemInstroactual == null)
-                                    {
-                                        resultado = false;
-                                        break; 
-                                    }
-                                    itemInstroactual.proformas = itemInstroactual.proformas - (reg.cantaut * item.cantidad);
-                                    _context.Entry(itemInstroactual).State = EntityState.Modified;
-                                    
-                                }
-                                catch (Exception ex)
-                                {
-                                    resultado = false;
-                                    msg = "Error en revertirstocksproforma2:" + ex.Message;
-                                    break;
-                                }
-                            }
-                            // await _context.SaveChangesAsync();
-                            if (!resultado)
-                            {
-                                break;
-                            }
-                        }
-                        else
-                        {
-                            try
-                            {
-                                var itemInstroactual = await _context.instoactual.Where(i => i.codalmacen == codalmacen && i.coditem == reg.coditem).FirstOrDefaultAsync();
-                                if (itemInstroactual == null)
-                                {
-                                    resultado = false;
-                                    break; 
-                                }
-                                itemInstroactual.proformas = itemInstroactual.proformas - (reg.cantaut);
-                                _context.Entry(itemInstroactual).State = EntityState.Modified;
-                                // await _context.SaveChangesAsync();
-                            }
-                            catch (Exception ex)
-                            {
-                                resultado = false;
-                                msg = "Error en revertirstocksproforma3:" + ex.Message;
-                                break;
-                            }
-                        }
-                    }
-                    // Guardamos todos los cambios al final si es que no hay errores
-                    if (resultado)
-                    {
-                        await _context.SaveChangesAsync();
-                    }
-                }
-                // actualizar a 0 si hay negativos
-                try
-                {
-                    var negativos = await _context.instoactual.Where(i => i.proformas < 0).ToListAsync();
-                    if (negativos.Count() > 0)
-                    {
-                        foreach (var reg in negativos)
-                        {
-                            reg.proformas = 0;
-                        }
-                        await _context.SaveChangesAsync();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    msg = "Error en revertirstocksproforma4:" + ex.Message;
-                }
+                Console.WriteLine($"Error: {ex.Message}");
+                msg = "Error en revertirstocksproformaSP:" + ex.Message;
             }
             return (resultado, msg);
         }
-
 
         public async Task<bool> ProformaTieneNRAnulada(DBContext _context, int codproforma)
         {
@@ -7544,9 +7183,56 @@ namespace siaw_funciones
         }
 
 
+        public async Task<bool> DosificacionGeneraCodigo(DBContext _context, int nrocaja, int almacen)
+        {
+            try
+            {
+                bool resultado = await _context.vedosificacion.Where(i => i.activa == true && i.nrocaja == nrocaja && i.almacen == almacen).Select(i => i.generarcodigo).FirstOrDefaultAsync() ?? true;
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return true;
+            }
+        }
 
+        ///////////////////////////////////////////////////////////////////////////////
+        // devuelve la version del codigo de control
+        ///////////////////////////////////////////////////////////////////////////////
+        public async Task<int> version_codcontrol_de_nroautorizacion(DBContext _context, int nrocaja, string nroautorizacion)
+        {
+            try
+            {
+                int resultado = await _context.vedosificacion.Where(i => i.nrocaja == nrocaja && i.nroautorizacion == nroautorizacion).Select(i => i.version_codigo_control).FirstOrDefaultAsync() ?? 6;
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return 6;
+            }
+        }
+        ///////////////////////////////////////////////////////////
+        // esta funcion devuelve el tipo de factura de una dsificacion
+        //////////////////////////////////////////////////////////
+        public async Task<int> nroautorizacion_tipofactura(DBContext _context, string nroautorizacion)
+        {
+            /*
+             
+            1: manual
+            2: registradora
+            3: computarizada
 
-
+             */
+            try
+            {
+                int resultado = await _context.vedosificacion.Where(i => i.nroautorizacion == nroautorizacion).Select(i => i.tipofac).FirstOrDefaultAsync();
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
 
 
 

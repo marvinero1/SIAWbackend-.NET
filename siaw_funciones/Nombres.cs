@@ -391,5 +391,64 @@ namespace siaw_funciones
             }
             return resultado;
         }
+
+        public async Task<string> nombretipo_comprobante(DBContext _context, string codtipo_comprobante)
+        {
+            string resultado;
+            string descripcion = "";
+            var result = await _context.vetipo_comprobante
+                .Where(v => v.codigo == codtipo_comprobante)
+                .Select(parametro => new
+                {
+                    parametro.descripcion
+                })
+                .FirstOrDefaultAsync();
+            if (result != null)
+            {
+                descripcion = result.descripcion;
+            }
+            resultado = descripcion.Trim();
+            return resultado;
+        }
+
+        public async Task<string> nombrebanco(DBContext _context, string codbanco)
+        {
+            string resultado;
+            string descripcion = "";
+            var result = await _context.cobanco
+                .Where(v => v.codigo == codbanco)
+                .Select(parametro => new
+                {
+                    parametro.nombre
+                })
+                .FirstOrDefaultAsync();
+            if (result != null)
+            {
+                descripcion = result.nombre;
+            }
+            resultado = descripcion.Trim();
+            return resultado;
+        }
+
+        public async Task<string> nombrecuentabancaria(DBContext _context, string codcuenta)
+        {
+            string resultado;
+            string descripcion = "";
+            var result = await _context.cocuentab
+                .Where(v => v.codigo == codcuenta)
+                .Select(parametro => new
+                {
+                    parametro.descripcion
+                })
+                .FirstOrDefaultAsync();
+            if (result != null)
+            {
+                descripcion = result.descripcion;
+            }
+            resultado = descripcion.Trim();
+            return resultado;
+        }
+
+
     }
 }

@@ -492,7 +492,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         // Desde 15/11/2023 registrar en el log si por alguna razon no actualiza en instoactual correctamente al disminuir el saldo de cantidad y la reserva en proforma
                         try
                         {
-                            actualizaNR = await saldos.Veremision_ActualizarSaldo(_context, usuario, codNRemision, Saldos.ModoActualizacion.Crear);
+                            actualizaNR = await saldos.Veremision_ActualizarSaldo(_context, codNRemision, Saldos.ModoActualizacion.Crear);
                         }
                         catch (Exception ex)
                         {

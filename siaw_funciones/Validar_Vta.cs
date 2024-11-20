@@ -7112,9 +7112,29 @@ namespace siaw_funciones
             bool existe_descuento = false;
 
             var dt_condiciones = await _context.vedesextra_condiciones
-                .Where(cond => cond.tipo_vta == _tipo_vta)
+                .Where(cond => cond.tipo_vta == _tipo_vta && (cond.tipo_precio == _tipo_precio || cond.tipo_precio == "SIN RESTRICCION")
+                    && (cond.aplica_para_casual == es_venta_casual || cond.aplica_para_casual == "SIN RESTRICCION"))
                 .OrderBy(cond => cond.coddesextra)
                 .ToListAsync();
+            if (_contra_entrega)
+            {
+                dt_condiciones = await _context.vedesextra_condiciones
+                    .Where(cond => cond.tipo_vta == _tipo_vta &&
+                                  (cond.tipo_precio == _tipo_precio || cond.tipo_precio == "SIN RESTRICCION") &&
+                                  (cond.aplica_para_casual == es_venta_casual || cond.aplica_para_casual == "SIN RESTRICCION") &&
+                                  cond.aplica_para_solo_contado == false)
+                    .OrderBy(cond => cond.coddesextra)
+                    .ToListAsync();
+            }
+            else
+            {
+                dt_condiciones = await _context.vedesextra_condiciones
+                    .Where(cond => cond.tipo_vta == _tipo_vta &&
+                                  (cond.tipo_precio == _tipo_precio || cond.tipo_precio == "SIN RESTRICCION") &&
+                                  (cond.aplica_para_casual == es_venta_casual || cond.aplica_para_casual == "SIN RESTRICCION"))
+                    .OrderBy(cond => cond.coddesextra)
+                    .ToListAsync();
+            }
 
             if (dt_condiciones.Any())
             {
@@ -7125,14 +7145,7 @@ namespace siaw_funciones
                     int codDescuento = reg0.coddesextra ?? 0;
 
                     // Validación de condiciones
-                    bool condicionesCumplidas = false;
-                    if ((_tipo_vta == "CREDITO" && tipoPrecio == _tipo_precio && es_venta_casual == aplicaParaCasual) ||
-                        (_tipo_vta == "CONTADO" && _contra_entrega && tipoPrecio == _tipo_precio && es_venta_casual == aplicaParaCasual) ||
-                        (_tipo_vta == "CONTADO" && !_contra_entrega && tipoPrecio == _tipo_precio && es_venta_casual != aplicaParaCasual))
-                    {
-                        condicionesCumplidas = true;
-                    }
-
+                    bool condicionesCumplidas = true;
                     // Buscar el descuento en tabladescuentos si las condiciones se cumplen
                     if (condicionesCumplidas)
                     {
@@ -7156,8 +7169,6 @@ namespace siaw_funciones
             {
                 cadena9 += Environment.NewLine + "----------------------------------------------";
             }
-
-
 
             if (resultado == false)
             {
@@ -7190,8 +7201,6 @@ namespace siaw_funciones
             }
             return objres;
         }
-
-
 
         public async Task<ResultadoValidacion> Validar_NIT_Valido(DBContext _context, DatosDocVta DVTA, string codempresa, string usuario)
         {

@@ -648,7 +648,7 @@ namespace siaw_funciones
         }
 
 
-        public async Task<(bool result, string msg)> EnviarEmailFacturas(string emailDestino, string emailOrigenCredencial, string pwdEmailCredencialOrigen, string tituloMail, string cuerpoMail, byte[] pdfBytes, string nombreArchivo, byte[] xmlBytes, string nombreArchivoXml)
+        public async Task<(bool result, string msg)> EnviarEmailFacturas(string emailDestino, string emailOrigenCredencial, string pwdEmailCredencialOrigen, string tituloMail, string cuerpoMail, byte[]? pdfBytes, string nombreArchivo, byte[]? xmlBytes, string nombreArchivoXml, bool adjuntaArchivos)
         {
             bool resultado = true;
             string msg = "";
@@ -679,46 +679,55 @@ namespace siaw_funciones
                 email.IsBodyHtml = false;  // No permitir HTML en el cuerpo del correo
                 email.Body = cuerpoMail;
 
+                if (adjuntaArchivos)
+                {
+                    // Adjuntar archivo PDF
+                    if (pdfBytes != null && pdfBytes.Length > 0)
+                    {
+                        var pdfStream = new MemoryStream(pdfBytes); // No usar 'using' para evitar que se cierre antes de enviar
+                        var attachment = new Attachment(pdfStream, nombreArchivo, "application/pdf");
+                        email.Attachments.Add(attachment);
+                    }
+                    // Adjuntar archivo XML
+                    if (xmlBytes != null && xmlBytes.Length > 0)
+                    {
+                        var xmlStream = new MemoryStream(xmlBytes); // No usar 'using'
+                        var xmlAttachment = new Attachment(xmlStream, nombreArchivoXml, "application/xml");
+                        email.Attachments.Add(xmlAttachment);
+                    }
 
-                // Adjuntar archivo PDF
-                if (pdfBytes != null && pdfBytes.Length > 0)
-                {
-                    var pdfStream = new MemoryStream(pdfBytes); // No usar 'using' para evitar que se cierre antes de enviar
-                    var attachment = new Attachment(pdfStream, nombreArchivo, "application/pdf");
-                    email.Attachments.Add(attachment);
-                }
-                // Adjuntar archivo XML
-                if (xmlBytes != null && xmlBytes.Length > 0)
-                {
-                    var xmlStream = new MemoryStream(xmlBytes); // No usar 'using'
-                    var xmlAttachment = new Attachment(xmlStream, nombreArchivoXml, "application/xml");
-                    email.Attachments.Add(xmlAttachment);
-                }
-                try
-                {
-                    if (email.Attachments.Count == 2)
+                    try
                     {
-                        await smtpServer.SendMailAsync(email);
-                        resultado = true;
-                    }
-                    else
-                    {
-                        resultado = false;
-                        msg = "No se pudo adjuntar el PDF o XML consulte con el administrador.";
-                    }
-                }
-                finally
-                {
-                    // Cerrar manualmente los streams después del envío
-                    foreach (var attachment in email.Attachments)
-                    {
-                        if (attachment.ContentStream != null)
+                        if (email.Attachments.Count == 2)
                         {
-                            attachment.ContentStream.Close();
-                            attachment.ContentStream.Dispose();
+                            await smtpServer.SendMailAsync(email);
+                            resultado = true;
+                        }
+                        else
+                        {
+                            resultado = false;
+                            msg = "No se pudo adjuntar el PDF o XML consulte con el administrador.";
+                        }
+                    }
+                    finally
+                    {
+                        // Cerrar manualmente los streams después del envío
+                        foreach (var attachment in email.Attachments)
+                        {
+                            if (attachment.ContentStream != null)
+                            {
+                                attachment.ContentStream.Close();
+                                attachment.ContentStream.Dispose();
+                            }
                         }
                     }
                 }
+                else
+                {
+                    await smtpServer.SendMailAsync(email);
+                    resultado = true;
+                }
+                
                 
             }
             catch (SmtpException smtpEx)

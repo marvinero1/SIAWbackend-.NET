@@ -533,7 +533,7 @@ namespace SIAW.Controllers.ventas.modificacion
                                     {
                                         //sia_funciones.Saldos.Instancia.Veremision_ActualizarSaldo(CInt(codigo.Text), sia_funciones.Saldos.modo_actualizacion.eliminar)
                                         //dsd 26-01-2022 debe de actualizar la reserva de cantidades de la proforma de la remision anulada en instoactual
-                                        if (await saldos.Veremision_ActualizarSaldo(_context,usuario,codigoNR,Saldos.ModoActualizacion.Eliminar) == false)
+                                        if (await saldos.Veremision_ActualizarSaldo(_context,codigoNR,Saldos.ModoActualizacion.Eliminar) == false)
                                         {
                                             return "No se pudo actualizar todos los stocks actuales de esta nota, Por favor haga correr una actualizacion de stocks cuando vea conveniente.";
                                         }
@@ -579,7 +579,7 @@ namespace SIAW.Controllers.ventas.modificacion
                         {
                             if (descarga)
                             {
-                                await saldos.Veremision_ActualizarSaldo(_context, usuario, codigoNR, Saldos.ModoActualizacion.Eliminar);
+                                await saldos.Veremision_ActualizarSaldo(_context,  codigoNR, Saldos.ModoActualizacion.Eliminar);
                             }
                             return "ok"; // Se Anulo la Nota de Remision con exito.
                         }

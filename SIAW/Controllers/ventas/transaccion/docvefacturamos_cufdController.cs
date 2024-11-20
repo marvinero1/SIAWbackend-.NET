@@ -1627,7 +1627,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     // solo por pruebas cambiaremos el email destino del cliente por uno de nosotros, comentar en produccion
                     direcc_mail_cliente = "analista.nal.informatica2@pertec.com.bo";
 
-                    var resultado = await funciones.EnviarEmailFacturas(direcc_mail_cliente, _email_origen_credencial, _pwd_email_credencial_origen, titulo, detalle, pdfBytes, pdfFile.FileName, xmlFile, nomArchXML);
+                    var resultado = await funciones.EnviarEmailFacturas(direcc_mail_cliente, _email_origen_credencial, _pwd_email_credencial_origen, titulo, detalle, pdfBytes, pdfFile.FileName, xmlFile, nomArchXML, true);
                     if (resultado.result == false)
                     {
                         // envio fallido
@@ -2927,7 +2927,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 {
                     if (descarga == true)  // si la nota de remision no descarga entonces aqui descargarla
                     {
-                        if (await saldos.Vefactura_ActualizarSaldo(_context, usuario, codFactura, Saldos.ModoActualizacion.Crear) == false)
+                        if (await saldos.Vefactura_ActualizarSaldo(_context, codFactura, Saldos.ModoActualizacion.Crear) == false)
                         {
                             // Desde 23/11/2023 registrar en el log si por alguna razon no actualiza en instoactual correctamente al disminuir el saldo de cantidad y la reserva en proforma
                             await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), dataFactura.id, dataFactura.numeroid.ToString(), _controllerName, "No actualizo stock al restar cantidad en Facturar Tienda.", Log.TipoLog.Creacion);
@@ -3970,7 +3970,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
         [HttpGet]
         [Route("imprimirFactura/{userConn}/{codFactura}/{codempresa}")]
-        public async Task<object> ImprimirPrueba(string userConn, int codFactura, string codempresa)
+        public async Task<object> imprimirFactura(string userConn, int codFactura, string codempresa)
         {
             try
             {
@@ -3979,9 +3979,17 @@ namespace SIAW.Controllers.ventas.transaccion
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     var cabecera = await _context.vefactura.Where(i => i.codigo == codFactura).FirstOrDefaultAsync();
+                    if (cabecera == null)
+                    {
+                        return BadRequest(new { resp = "No se encontraron datos con el codigo de facturo proporcionado." });
+                    }
+                    // string nombreImpresora = "EPSON TM-T88V Receipt5";
 
-                    string nombreImpresora = "EPSON TM-T88V Receipt5";
-                    string texto = "prueba 2";
+                    var nombreImpresora = await _context.inalmacen.Where(i => i.codigo == cabecera.codalmacen).Select(i => i.impresora_nr).FirstOrDefaultAsync();
+                    if (nombreImpresora == null)
+                    {
+                        return BadRequest(new { resp = "No se encontró una impresora registrada en la base de datos." });
+                    }
                     Font fuente = new Font("Consolas", 10);
                     await impresoraTermica.ImprimirTexto(_context, codempresa, nombreImpresora, fuente, cabecera);
                     return Ok("Imprimiendo Factura.");
@@ -3997,8 +4005,39 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
+        [HttpGet]
+        [Route("imprimirReciboAnticipo/{userConn}/{codFactura}/{codempresa}")]
+        public async Task<object> imprimirReciboAnticipo(string userConn, int codFactura, string codempresa)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var codAlmacen = await _context.vefactura.Where(i => i.codigo == codFactura).Select(i => i.codalmacen).FirstOrDefaultAsync();
+                    var idAnticipo = await _context.vefactura.Where(i => i.codigo == codFactura).Select(i => i.idanticipo).FirstOrDefaultAsync();
+                    if (idAnticipo.Trim().Length > 0)
+                    {
+                        // string nombreImpresora = "EPSON TM-T88V Receipt5";
 
-        
+                        var nombreImpresora = await _context.inalmacen.Where(i => i.codigo == codAlmacen).Select(i => i.impresora_nr).FirstOrDefaultAsync();
+                        if (nombreImpresora == null)
+                        {
+                            return BadRequest(new { resp = "No se encontró una impresora registrada en la base de datos." });
+                        }
+                        string tipo_impresion_anticipo = "(Original)";
+                        Font fuente = new Font("Consolas", 10);
+                        await impresoraTermica.ImprimirAnticipo(_context, codempresa, nombreImpresora, fuente, tipo_impresion_anticipo, codFactura);
+                        return Ok("Imprimiendo Recibo.");
+                    }
+                    return StatusCode(203, new { msg = "Esta factura no tiene anticipo" });
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Error al imprimir: {ex.Message}");
+            }
+        }
     }
 
 
@@ -4673,6 +4712,162 @@ namespace SIAW.Controllers.ventas.transaccion
                 }
             };
 
+            pd.Print();
+        }
+
+
+        public async Task ImprimirAnticipo(DBContext _context, string codempresa, string nombreImpresora, Font fuente, string tipo_impresion_anticipo, int codFactura)
+        {
+            string nomEmpresa = await nombres.nombreempresa(_context, codempresa);
+            string nitEmpresa = await empresa.NITempresa(_context, codempresa);
+
+            var datosFact = await _context.vefactura.Where(i => i.codigo == codFactura).Select(i => new
+            {
+                i.id,
+                i.numeroid,
+                i.nrofactura,
+                i.idanticipo,
+                i.numeroidanticipo,
+                i.monto_anticipo,
+                i.codmoneda,
+                i.fecha,
+                i.nomcliente,
+                i.nit,
+
+
+            }).FirstOrDefaultAsync();
+
+            double nroRecibo = await cobranzas.Recibo_De_Anticipo(_context, datosFact.idanticipo, datosFact.numeroidanticipo ?? 0);
+            DateTime fechaAnti = await cobranzas.Fecha_De_Anticipo(_context, datosFact.idanticipo, datosFact.numeroidanticipo ?? 0);
+
+            PrintDocument pd = new PrintDocument
+            {
+                PrinterSettings = { PrinterName = nombreImpresora }
+            };
+
+            if (!pd.PrinterSettings.IsValid)
+            {
+                throw new Exception("La impresora no está disponible o no es válida.");
+            }
+
+            pd.PrintPage += async (sender, e) =>
+            {
+                try
+                {
+                    // Definir las coordenadas para imprimir
+                    float x = 10;
+                    float y = 4;
+                    int NC = 47;  // Ancho del área de impresión
+                    float lineOffset;
+                    string cadena = "";
+                    // Imprimir el texto pasado como parámetro
+                    // Configuración de fuentes
+                    Font printFont = new Font("Consolas", 7, FontStyle.Regular, GraphicsUnit.Point);
+                    Font barcodeFont = new Font("Courier New", 16);   // Substituted to Barcode1 Font
+
+                    e.Graphics.PageUnit = GraphicsUnit.Point;
+                    printFont = new Font("Arial", 10, FontStyle.Bold, GraphicsUnit.Point);
+                    lineOffset = printFont.GetHeight(e.Graphics);
+
+                    // --------------------------------------------------------------------------------
+
+                    // imprimir el ancticipo si tiene
+
+                    if (datosFact.idanticipo.Trim() != "")
+                    {
+                        //nombre empresa
+                        cadena = nomEmpresa;
+                        e.Graphics.DrawString(cadena, printFont, Brushes.Black, x, y);
+
+                        // nit
+                        y += lineOffset + 2; // Espacio adicional después del subtítulo
+                        printFont = new Font("Consolas", 7, FontStyle.Regular, GraphicsUnit.Point);
+                        lineOffset = printFont.GetHeight(e.Graphics);
+                        cadena = "NIT:" + nitEmpresa;
+                        e.Graphics.DrawString(cadena, printFont, Brushes.Black, x, y);
+
+
+                        // titulo
+                        y += lineOffset;
+                        printFont = new Font("Consolas", 7, FontStyle.Bold, GraphicsUnit.Point);
+                        lineOffset = printFont.GetHeight(e.Graphics);
+                        cadena = funciones.CentrarCadena("REVERSION DE ANTICIPO", NC, " ");
+                        e.Graphics.DrawString(cadena, printFont, Brushes.Black, x, y);
+
+                        // imprime la etiqueta si es ORIGINAL o COPIA
+                        y += lineOffset;
+                        printFont = new Font("Consolas", 7, FontStyle.Regular, GraphicsUnit.Point);
+                        lineOffset = printFont.GetHeight(e.Graphics);
+                        cadena = funciones.CentrarCadena(tipo_impresion_anticipo, NC, " ");
+                        e.Graphics.DrawString(cadena, printFont, Brushes.Black, x, y);
+
+                        // fecha
+                        y += lineOffset;
+                        printFont = new Font("Consolas", 7, FontStyle.Regular, GraphicsUnit.Point);
+                        lineOffset = printFont.GetHeight(e.Graphics);
+                        cadena = funciones.CentrarCadena("Fecha: " + datosFact.fecha.Date.ToShortDateString() , NC, " ");
+                        e.Graphics.DrawString(cadena, printFont, Brushes.Black, x, y);
+
+                        // reversion del anticipo
+                        y += lineOffset;
+                        y += lineOffset;
+                        NC = 46;
+                        cadena = "Reversión del anticipo " + datosFact.idanticipo + "-" + datosFact.numeroidanticipo + " con Nro de Recibo " + nroRecibo.ToString();
+
+                        cadena += " De fecha " + fechaAnti.ToShortDateString();
+
+                        cadena += " A la factura " + datosFact.id + "-" + datosFact.numeroid +
+                                  " Nro." + datosFact.nrofactura +
+                                  " Por un monto de: " + datosFact.monto_anticipo +
+                                  " " + datosFact.codmoneda;
+                        var resultado_filas = funciones.Dividir_cadena_en_filas(cadena, NC);
+
+                        for (int i = 0; i < resultado_filas.Length; i++)
+                        {
+                            if (resultado_filas[i] != null)
+                            {
+                                e.Graphics.DrawString(funciones.CentrarCadena(resultado_filas[i], NC, " "), printFont, Brushes.Black, x, y);
+                                y += lineOffset;
+                            }
+                        }
+
+                        // lineas para la firma
+                        y += lineOffset;
+                        y += lineOffset;
+                        y += lineOffset;
+                        y += lineOffset;
+                        cadena = "-------------------------------------";
+                        e.Graphics.DrawString(cadena, printFont, Brushes.Black, x, y);
+
+                        // nombre del cliente
+                        NC = 41;
+                        printFont = new Font("Arial Narrow", 9, FontStyle.Regular, GraphicsUnit.Point);
+                        lineOffset = printFont.GetHeight(e.Graphics);
+                        y += lineOffset;
+                        cadena = datosFact.nomcliente;
+                        e.Graphics.DrawString(cadena, printFont, Brushes.Black, x, y);
+
+                        // nit del cliente
+                        printFont = new Font("Consolas", 7, FontStyle.Regular, GraphicsUnit.Point);
+                        lineOffset = printFont.GetHeight(e.Graphics);
+                        y += lineOffset + 5;
+                        cadena = datosFact.nit;
+                        e.Graphics.DrawString(cadena, printFont, Brushes.Black, x, y);
+
+                        // adverencia
+                        y += lineOffset;
+                        y += lineOffset;
+                        cadena = funciones.CentrarCadena("***NO VALIDO PARA CREDITO FISCAL***", NC, " ");
+                        e.Graphics.DrawString(cadena, printFont, Brushes.Black, x, y);
+                        y += lineOffset;
+                    }
+
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+            };
             pd.Print();
         }
 

@@ -19,5 +19,6 @@ namespace siaw_DBContext.Models
         public string horareg { get; set; }
         public DateTime? fechareg { get; set; }
         public string usuarioreg { get; set; }
+        public bool? permite_descto_caja_cerrada { get; set; }
     }
 }

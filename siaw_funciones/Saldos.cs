@@ -2094,161 +2094,55 @@ namespace siaw_funciones
         }
 
 
-        public async Task<bool> Veremision_ActualizarSaldo(DBContext _context, string usuario, int codigo, ModoActualizacion modo)
+        public async Task<bool> Veremision_ActualizarSaldo(DBContext _context, int codigo, ModoActualizacion modo)
         {
             try
             {
-                bool resultado = true;
-                int codalmacen = new int();
-                bool descarga = new bool();
+                bool resultado = false;
 
-                var tabla = await _context.veremision
-                    .Where(v => v.codigo == codigo)
-                    .Select(i => new
-                    {
-                        codalmacen = i.codalmacen_saldo,
-                        i.descarga
-                    })
-                   .FirstOrDefaultAsync();
-                if (tabla != null)
-                {
-                    codalmacen = tabla.codalmacen??0;
-                    descarga = tabla.descarga;
-                }
-                else
-                {
-                    resultado = false;
-                }
+                var prm_codigo = new SqlParameter("@codigo", SqlDbType.Int) { Value = codigo };
+                var prm_modo = new SqlParameter("@modo_actualizacion", SqlDbType.NVarChar, 10) { Value = modo };
+                var result_sp = new SqlParameter("@Resultado", SqlDbType.Bit) { Direction = ParameterDirection.Output };
 
-                if (resultado)
-                {
-                    if (descarga)
-                    {
-                        var tabla2 = await _context.veremision1.Where(i => i.codremision == codigo)
-                            .Select(i => new
-                            {
-                                i.coditem,
-                                i.cantidad
-                            }).ToListAsync();
-                        if (tabla2.Count() > 0)
-                        {
-                            // anadirdetalle
-                            foreach (var reg in tabla2)
-                            {
-                                ////segun condiciones
-                                if (modo == ModoActualizacion.Crear)
-                                {
-                                    var actualiza = await SaldoActual_Disminuir(_context, codalmacen, reg.coditem, (double)reg.cantidad);
-                                    if (actualiza.resultado == false)
-                                    {
-                                        // await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, codigo.ToString(), reg.coditem, codigo.ToString(), "SaldoActual_Disminuir", "No disminuyo stock en cantidad en NR.", Log.TipoLog.Modificacion);
-                                        await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, codigo.ToString(), reg.coditem, codigo.ToString(), "SaldoActual_Disminuir", actualiza.msg, Log.TipoLog.Modificacion);
-                                        resultado = false;
-                                    }
-                                }
-                                else // de modo="eliminar" 
-                                {
-                                    var actualiza = await SaldoActual_Aumentar(_context, codalmacen, reg.coditem, (double)reg.cantidad);
-                                    if (actualiza.resultado == false)
-                                    {
-                                        await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, codigo.ToString(), reg.coditem, codigo.ToString(), "SaldoActual_Aumentar", actualiza.msg, Log.TipoLog.Modificacion);
-                                        resultado = false;
-                                    }
-                                }
-                            }
-                        }
-                        else
-                        {
-                            resultado = false;
-                        }
-                    }
-                }
+                await _context.Database.ExecuteSqlRawAsync(
+                    "EXECUTE Veremision_ActualizarSaldo @codigo, @modo_actualizacion, @Resultado OUTPUT",
+                    prm_codigo, prm_modo, result_sp);
+
+                resultado = (bool)result_sp.Value;
+
                 return resultado;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Console.WriteLine($"Error: {ex.Message}");
                 return false;
             }
         }
 
-
-        public async Task<bool> Vefactura_ActualizarSaldo(DBContext _context, string usuario, int codigo, ModoActualizacion modo)
+        public async Task<bool> Vefactura_ActualizarSaldo(DBContext _context, int codigo, ModoActualizacion modo)
         {
             try
             {
-                bool resultado = true;
-                int codalmacen = new int();
-                bool descarga = new bool();
+                bool resultado = false;
 
-                var tabla = await _context.vefactura
-                    .Where(v => v.codigo == codigo)
-                    .Select(i => new
-                    {
-                        codalmacen = i.codalmacen,
-                        i.descarga
-                    })
-                   .FirstOrDefaultAsync();
-                if (tabla != null)
-                {
-                    codalmacen = tabla.codalmacen;
-                    descarga = tabla.descarga;
-                }
-                else
-                {
-                    resultado = false;
-                }
+                var prm_codigo = new SqlParameter("@codigo", SqlDbType.Int) { Value = codigo };
+                var prm_modo = new SqlParameter("@modo_actualizacion", SqlDbType.NVarChar, 10) { Value = modo };
+                var result_sp = new SqlParameter("@Resultado", SqlDbType.Bit) { Direction = ParameterDirection.Output };
 
-                if (resultado)
-                {
-                    if (descarga)
-                    {
-                        var tabla2 = await _context.vefactura1.Where(i => i.codfactura == codigo)
-                            .Select(i => new
-                            {
-                                i.coditem,
-                                i.cantidad
-                            }).ToListAsync();
-                        if (tabla2.Count() > 0)
-                        {
-                            // anadirdetalle
-                            foreach (var reg in tabla2)
-                            {
-                                ////segun condiciones
-                                if (modo == ModoActualizacion.Crear)
-                                {
-                                    var actualiza = await SaldoActual_Disminuir(_context, codalmacen, reg.coditem, (double)reg.cantidad);
-                                    if (actualiza.resultado == false)
-                                    {
-                                        // await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, codigo.ToString(), reg.coditem, codigo.ToString(), "SaldoActual_Disminuir", "No disminuyo stock en cantidad en NR.", Log.TipoLog.Modificacion);
-                                        await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codigo.ToString(), reg.coditem, codigo.ToString(), "SaldoActual_Disminuir", actualiza.msg, Log.TipoLog.Modificacion);
-                                        resultado = false;
-                                    }
-                                }
-                                else // de modo="eliminar" 
-                                {
-                                    var actualiza = await SaldoActual_Aumentar(_context, codalmacen, reg.coditem, (double)reg.cantidad);
-                                    if (actualiza.resultado == false)
-                                    {
-                                        await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codigo.ToString(), reg.coditem, codigo.ToString(), "SaldoActual_Aumentar", actualiza.msg, Log.TipoLog.Modificacion);
-                                        resultado = false;
-                                    }
-                                }
-                            }
-                        }
-                        else
-                        {
-                            resultado = false;
-                        }
-                    }
-                }
+                await _context.Database.ExecuteSqlRawAsync(
+                    "EXECUTE Vefactura_ActualizarSaldo @codigo, @modo_actualizacion, @Resultado OUTPUT",
+                    prm_codigo, prm_modo, result_sp);
+
+                resultado = (bool)result_sp.Value;
+
                 return resultado;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Console.WriteLine($"Error: {ex.Message}");
                 return false;
             }
         }
-
 
 
         public enum ModoActualizacion

@@ -126,7 +126,7 @@
         public int codproforma { get; set; }
         public string coditem { get; set; }
         public int ? empaque { get; set; }
-        public decimal cantidad { get; set; }
+        public decimal ? cantidad { get; set; }
         public string udm { get; set; }
         public decimal precioneto { get; set; }
         public decimal? preciodesc { get; set; }
