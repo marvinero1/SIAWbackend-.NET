@@ -90,6 +90,23 @@ namespace siaw_funciones
 
             return resultado.Date;
         }
+        public async Task<string> hora_del_servidor_cadena(DBContext _context)
+        {
+            string resultado = "";
+            try
+            {
+                var h = await _context.Database.ExecuteSqlRawAsync("select datepart(hh,getdate())");
+                var m = await _context.Database.ExecuteSqlRawAsync("select datepart(mi,getdate())");
+                resultado = h.ToString("00") + ":" + m.ToString("00");
+            }
+            catch (Exception ex)
+            {
+                // Manejar la excepción según tus necesidades
+                resultado = "00:00";
+            }
+
+            return resultado;
+        }
         public string Rellenar(string cadena, int ancho, string relleno, bool ElRellenoALaIzquierda = true)
         {
             string cadena2 = "";

@@ -11,6 +11,8 @@ using siaw_funciones;
 using siaw_ws_siat;
 using System.Collections.Generic;
 using System.Data;
+using System.Drawing.Printing;
+using System.Drawing;
 using System.Linq;
 
 namespace SIAW.Controllers.ventas.modificacion
@@ -39,6 +41,7 @@ namespace SIAW.Controllers.ventas.modificacion
         private readonly Nombres nombres = new Nombres();
         private readonly Contabilidad contabilidad = new Contabilidad();
         private readonly Almacen almacen = new Almacen();
+        private readonly Restricciones restricciones = new Restricciones();
 
         private readonly ServFacturas serv_Facturas = new ServFacturas();
         private readonly Funciones_SIAT funciones_SIAT = new Funciones_SIAT();
@@ -46,7 +49,7 @@ namespace SIAW.Controllers.ventas.modificacion
         private readonly Adsiat_Mensaje_Servicio adsiat_Mensaje_Servicio = new Adsiat_Mensaje_Servicio();
         private readonly GZip gzip = new GZip();
 
-        private readonly impresoraTermica_2 impresoraTermica = new impresoraTermica_2();
+        private readonly impresoraTermica_3 impresoraTermica = new impresoraTermica_3();
 
         private readonly string _controllerName = "docmodifvefactura_nsfController";
 
@@ -994,6 +997,816 @@ namespace SIAW.Controllers.ventas.modificacion
         }
 
 
+
+
+
+
+        [HttpPost]
+        [Route("HabilitarFactura/{userConn}/{usuario}/{codFactura}/{codempresa}/{sin_validar_doc_ant_inv}")]
+        public async Task<object> HabilitarFactura(string userConn, string usuario, int codFactura, string codempresa, bool sin_validar_modif_inventario)
+        {
+            List<string> eventos = new List<string>();
+            string mi_msg = "";
+            bool resultado = true;
+            string mensaje = "";
+            int codigo_control = 0;
+            // VALIDACIONES 
+            if (string.IsNullOrWhiteSpace(userConn)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'UserConn'. Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(usuario)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Usuario'. Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(codempresa)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Empresa'. Consulte con el Administrador del sistema." }); }
+            if (codFactura <= 0) { return BadRequest(new { resp = "El valor de 'Codigo de Factura' no puede ser cero o menor a cero. Consulte con el Administrador del sistema." }); }
+            if (sin_validar_modif_inventario == null) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Sin Validar Inventario'. Consulte con el Administrador del sistema." }); }
+
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                try
+                {
+                    var dataFact = await _context.vefactura.Where(i => i.codigo == codFactura).Select(i => new
+                    {
+                        i.id,
+                        i.numeroid,
+                        i.codremision,
+                        i.codalmacen,
+                        i.codcliente,
+                        i.nrofactura,
+                        i.nomcliente,
+                        i.cuf,
+                        i.fecha,
+                        i.anulada,
+                        i.descarga,
+                    }).FirstOrDefaultAsync();
+                    if (dataFact == null)
+                    {
+                        mensaje = "No se encontró informacion con el codigo de factura proporcionado, consulte con el administrador";
+                        resultado = false;
+                        codigo_control = 0;
+                        return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                    }
+                    string idFactura = "";
+                    if (dataFact.id == null)
+                    {
+                        idFactura = "";
+                    }
+                    else
+                    {
+                        idFactura = dataFact.id;
+                    }
+
+                    int nroIdFact = dataFact.numeroid;
+                    int codremision = (int)dataFact.codremision;
+                    int codalmacen = dataFact.codalmacen;
+                    string codCliente = dataFact.codcliente;
+                    DateTime fecha = dataFact.fecha;
+                    bool anulada = dataFact.anulada;
+                    bool descarga = dataFact.descarga;
+
+                    if (await seguridad.periodo_fechaabierta_context(_context, fecha, 3))
+                    { }
+                    else
+                    {
+                        resultado = false;
+                        mensaje = "No puede modificar documentos para ese periodo de fechas.";
+                        codigo_control = 0;
+                        //return BadRequest(new { resp = false, msgAlert = "No puede modificar documentos para ese periodo de fechas." });
+                        return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                    }
+
+                    if (sin_validar_modif_inventario == false)
+                    {
+                        bool validar_modif_inventario = await restricciones.ValidarModifDocAntesInventario(_context, codalmacen, fecha);
+                        if (validar_modif_inventario)
+                        {
+                        }
+                        else
+                        {
+                            mensaje = "No puede modificar datos anteriores al ultimo inventario, Para eso necesita una autorizacion especial.";
+                            codigo_control = 48;
+                            resultado = false;
+                            return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                        }
+                    }
+
+                    if (!anulada)
+                    {
+                        //return BadRequest(new { resp = false, msgAlert = "Esta Factura esta Habilitada." }); 
+                        mensaje = "Esta Factura esta Habilitada.";
+                        codigo_control = 0;
+                        resultado = false;
+                        return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+
+                    }
+                    else
+                    {
+                        if (codremision > 0)
+                        {
+                            // Cambiar el dato  de trasnferida a la nota de remision
+                            // 'Desde 01-12-2022 cuando se habilita una factura ya no se cambiara el datos de fechareg ni horareg, debido a que esto causa en ocasion que al anular una factura que aun no a sido VALIDADA EN EL SIN
+                            try
+                            {
+                                var remision = await _context.veremision.Where(i => i.codigo == codremision).FirstOrDefaultAsync();
+                                remision.transferida = true;
+                                await _context.SaveChangesAsync();
+                            }
+                            catch (Exception ex)
+                            {
+                                //return BadRequest(new { resp = false, msgAlert = "No se pudo cambiar a transferida la nota de remision de la factura." });
+                                mensaje = "No se pudo cambiar a transferida la nota de remision de la factura.";
+                                codigo_control = 0;
+                                resultado = false;
+                                return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                                // throw;
+                            }
+
+                            try
+                            {
+                                var factura = await _context.vefactura.Where(i => i.codigo == codFactura).FirstOrDefaultAsync();
+                                factura.anulada = false;
+                                await _context.SaveChangesAsync();
+                                mi_msg = idFactura + "-" + nroIdFact.ToString() + " Habiliacion local Exitosa de Factura";
+                                eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mi_msg);
+                            }
+                            catch (Exception ex)
+                            {
+                                // return BadRequest(new { resp = false, msgAlert = "No se pudo Habilitar la factura." });
+                                mensaje = "No se pudo Habilitar la factura.";
+                                codigo_control = 0;
+                                resultado = false;
+                                return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                                //throw;
+                            }
+                            try
+                            {
+                                var remito = await _context.veremito.Where(i => i.idfactura == idFactura && i.numeroidfactura == nroIdFact).FirstOrDefaultAsync();
+                                remito.anulado = false;
+                                remito.horareg = await funciones.hora_del_servidor_cadena(_context);
+                                remito.fechareg = await funciones.FechaDelServidor(_context);
+                                remito.usuarioreg = usuario;
+                                await _context.SaveChangesAsync();
+
+                                if (descarga)
+                                {
+                                    var actualiza_saldo = await saldos.Vefactura_ActualizarSaldo(_context, codFactura, Saldos.ModoActualizacion.Crear);
+                                    if (!actualiza_saldo)
+                                    {
+                                        mi_msg = idFactura + "-" + nroIdFact.ToString() + " No se pudo actualizar el saldo de la factura.";
+                                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mi_msg);
+                                        await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mi_msg, Log.TipoLog.Modificacion);
+                                    }
+
+                                }
+                                //No se hizo esta funcion porque es para uso de argentina
+                                //sia_funciones.Inventario.Instancia.actaduanafactura(codigo.Text, "crear", fecha.Value.Date)
+                                mi_msg = "Habilitar";
+                                await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mi_msg, Log.TipoLog.Modificacion);
+                            }
+                            catch (Exception ex)
+                            {
+                                // return BadRequest(new { resp = false, msgAlert = "No se pudo Habilitar la factura." });
+                                mensaje = "No se pudo Habilitar la factura.";
+                                codigo_control = 0;
+                                resultado = false;
+                                return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                                throw;
+                            }
+
+                            return Ok(new
+                            {
+                                resp = resultado,
+                                msgAlert = "Se Habilito la Factura en el SIAW con exito."
+                            });
+                        }
+                        else
+                        {
+                            try
+                            {
+                                var factura = await _context.vefactura.Where(i => i.codigo == codFactura).FirstOrDefaultAsync();
+                                factura.anulada = false;
+                                await _context.SaveChangesAsync();
+                                mi_msg = idFactura + "-" + nroIdFact.ToString() + " Habiliacion local Exitosa de Factura";
+                                eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mi_msg);
+                            }
+                            catch (Exception ex)
+                            {
+                                //return BadRequest(new { resp = false, msgAlert = "No se pudo Habilitar la factura." });
+                                mensaje = "No se pudo Habilitar la factura.";
+                                codigo_control = 0;
+                                resultado = false;
+                                return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                                //throw;
+                            }
+                            try
+                            {
+                                var remito = await _context.veremito.Where(i => i.idfactura == idFactura && i.numeroidfactura == nroIdFact).FirstOrDefaultAsync();
+                                remito.anulado = false;
+                                remito.horareg = await funciones.hora_del_servidor_cadena(_context);
+                                remito.fechareg = await funciones.FechaDelServidor(_context);
+                                remito.usuarioreg = usuario;
+                                await _context.SaveChangesAsync();
+
+                                if (descarga)
+                                {
+                                    var actualiza_saldo = await saldos.Vefactura_ActualizarSaldo(_context, codFactura, Saldos.ModoActualizacion.Crear);
+                                    if (!actualiza_saldo)
+                                    {
+                                        mi_msg = idFactura + "-" + nroIdFact.ToString() + " No se pudo actualizar el saldo de la factura.";
+                                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mi_msg);
+                                        await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mi_msg, Log.TipoLog.Modificacion);
+                                    }
+
+                                }
+                                //No se hizo esta funcion porque es para uso de argentina
+                                //sia_funciones.Inventario.Instancia.actaduanafactura(codigo.Text, "crear", fecha.Value.Date)
+                                mi_msg = "Habilitar";
+                                await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mi_msg, Log.TipoLog.Modificacion);
+                            }
+                            catch (Exception ex)
+                            {
+                                // return BadRequest(new { resp = false, msgAlert = "No se pudo Habilitar la factura." });
+                                mensaje = "No se pudo Habilitar la factura.";
+                                codigo_control = 0;
+                                resultado = false;
+                                return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                                throw;
+                            }
+
+                            return Ok(new
+                            {
+                                resp = resultado,
+                                eventos = eventos,
+                                msgAlert = "Se Habilito la Factura en el SIAW con exito."
+                            });
+                        }
+                    }
+
+                    /////**************************
+                }
+                catch (Exception ex)
+                {
+                    return Problem($"Error en el servidor al Habilitar FC: {ex.Message}");
+                }
+            }
+
+        }
+
+        [HttpPost]
+        [Route("Cambiar_en_Linea_SIN/{userConn}/{usuario}/{codFactura}/{codempresa}/{en_linea}/{sin_validar_pedir_clave}")]
+        public async Task<object> Cambiar_en_Linea_SIN(string userConn, string usuario, int codFactura, string codempresa, bool en_linea_SIN, bool sin_validar_pedir_clave)
+        {
+            List<string> eventos = new List<string>();
+            bool resultado = true;
+            string mensaje = "";
+            int codigo_control = 0;
+            // VALIDACIONES 
+            if (string.IsNullOrWhiteSpace(userConn)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'UserConn'. Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(usuario)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Usuario'. Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(codempresa)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Empresa'. Consulte con el Administrador del sistema." }); }
+            if (codFactura <= 0) { return BadRequest(new { resp = "El valor de 'Codigo de Factura' no puede ser cero o menor a cero. Consulte con el Administrador del sistema." }); }
+            if (en_linea_SIN == null) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'En linea SIN'. Consulte con el Administrador del sistema." }); }
+            if (sin_validar_pedir_clave == null) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Sin Validar Clave'. Consulte con el Administrador del sistema." }); }
+
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                try
+                {
+                    var dataFact = await _context.vefactura.Where(i => i.codigo == codFactura).FirstOrDefaultAsync();
+
+                    if (dataFact == null)
+                    {
+                        //return BadRequest(new { resp = mi_msg, eventos });
+                        mensaje = "No se encontró informacion con el codigo de factura proporcionado, consulte con el administrador";
+                        resultado = false;
+                        codigo_control = 0;
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                    }
+
+                    if (sin_validar_pedir_clave == false)
+                    {
+                        mensaje = "Para esto necesita una autorizacion especial.";
+                        resultado = false;
+                        codigo_control = 142;
+                        //eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                    }
+                    string idFactura = dataFact.id;
+                    int nroIdFact = dataFact.numeroid;
+                    if (en_linea_SIN)
+                    {
+                        try
+                        {
+                            dataFact.en_linea_SIN = false;
+                            await _context.SaveChangesAsync();
+                            mensaje = "La factura fue cambiada a: Fuera de Linea en el SIN";
+                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                            await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion_Estado_En_Linea);
+                        }
+                        catch (Exception ex)
+                        {
+                            mensaje = "Ocurrio un Error y no se pudo cambiar el estado de la factura!!!";
+                            resultado = false;
+                            codigo_control = 0;
+                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                            await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion_Estado_En_Linea);
+                            return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                        }
+                    }
+                    else
+                    {
+                        try
+                        {
+                            dataFact.en_linea_SIN = true;
+                            await _context.SaveChangesAsync();
+                            mensaje = "La factura fue cambiada a: En Linea en el SIN";
+                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                            await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion_Estado_En_Linea);
+                        }
+                        catch (Exception ex)
+                        {
+                            mensaje = "Ocurrio un Error y no se pudo cambiar el estado de la factura!!!";
+                            resultado = false;
+                            codigo_control = 0;
+                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                            await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion_Estado_En_Linea);
+                            return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                        }
+                    }
+                    return Ok(new
+                    {
+                        resp = resultado,
+                        eventos = eventos,
+                        msgAlert = mensaje
+                    });
+                    /////**************************
+                }
+                catch (Exception ex)
+                {
+                    return Problem($"Error en el servidor al Habilitar FC: {ex.Message}");
+                }
+            }
+
+        }
+
+
+        [HttpPost]
+        [Route("Cambiar_en_Linea/{userConn}/{usuario}/{codFactura}/{codempresa}/{en_linea}/{sin_validar_pedir_clave}")]
+        public async Task<object> Cambiar_en_Linea(string userConn, string usuario, int codFactura, string codempresa, bool en_linea, bool sin_validar_pedir_clave)
+        {
+            List<string> eventos = new List<string>();
+            bool resultado = true;
+            string mensaje = "";
+            int codigo_control = 0;
+            // VALIDACIONES 
+            if (string.IsNullOrWhiteSpace(userConn)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'UserConn'. Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(usuario)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Usuario'. Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(codempresa)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Empresa'. Consulte con el Administrador del sistema." }); }
+            if (codFactura <= 0) { return BadRequest(new { resp = "El valor de 'Codigo de Factura' no puede ser cero o menor a cero. Consulte con el Administrador del sistema." }); }
+            if (en_linea == null) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'En linea'. Consulte con el Administrador del sistema." }); }
+            if (sin_validar_pedir_clave == null) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Sin Validar Clave'. Consulte con el Administrador del sistema." }); }
+
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                try
+                {
+                    var dataFact = await _context.vefactura.Where(i => i.codigo == codFactura).FirstOrDefaultAsync();
+
+                    if (dataFact == null)
+                    {
+                        //return BadRequest(new { resp = mi_msg, eventos });
+                        mensaje = "No se encontró informacion con el codigo de factura proporcionado, consulte con el administrador";
+                        resultado = false;
+                        codigo_control = 0;
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                    }
+
+                    if (sin_validar_pedir_clave == false)
+                    {
+                        mensaje = "Para esto necesita una autorizacion especial.";
+                        resultado = false;
+                        codigo_control = 142;
+                        //eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                    }
+                    string idFactura = dataFact.id;
+                    int nroIdFact = dataFact.numeroid;
+                    if (en_linea)
+                    {
+                        try
+                        {
+                            dataFact.en_linea = false;
+                            await _context.SaveChangesAsync();
+                            mensaje = "La factura fue cambiada a: Fuera de Linea";
+                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                            await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion_Estado_En_Linea);
+                        }
+                        catch (Exception ex)
+                        {
+                            mensaje = "Ocurrio un Error y no se pudo cambiar el estado de la factura!!!";
+                            resultado = false;
+                            codigo_control = 0;
+                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                            await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion_Estado_En_Linea);
+                            return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                        }
+                    }
+                    else
+                    {
+                        try
+                        {
+                            dataFact.en_linea = true;
+                            await _context.SaveChangesAsync();
+                            mensaje = "La factura fue cambiada a: En Linea";
+                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                            await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion_Estado_En_Linea);
+                        }
+                        catch (Exception ex)
+                        {
+                            mensaje = "Ocurrio un Error y no se pudo cambiar el estado de la factura!!!";
+                            resultado = false;
+                            codigo_control = 0;
+                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                            await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion_Estado_En_Linea);
+                            return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                        }
+                    }
+                    return Ok(new
+                    {
+                        resp = resultado,
+                        eventos = eventos,
+                        msgAlert = mensaje
+                    });
+                    /////**************************
+                }
+                catch (Exception ex)
+                {
+                    return Problem($"Error en el servidor al Habilitar FC: {ex.Message}");
+                }
+            }
+
+        }
+
+
+
+        [HttpPost]
+        [Route("Cambiar_Fecha_Anulacion/{userConn}/{usuario}/{codFactura}/{codempresa}/{fecha}/{sin_validar_pedir_clave}")]
+        public async Task<object> Cambiar_Fecha_Anulacion(string userConn, string usuario, int codFactura, string codempresa, string fecha, bool sin_validar_pedir_clave)
+        {
+            List<string> eventos = new List<string>();
+            bool resultado = true;
+            string mensaje = "";
+            int codigo_control = 0;
+            DateTime fecha_anulacion;
+            // VALIDACIONES 
+            if (string.IsNullOrWhiteSpace(userConn)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'UserConn'. Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(usuario)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Usuario'. Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(codempresa)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Empresa'. Consulte con el Administrador del sistema." }); }
+            if (codFactura <= 0) { return BadRequest(new { resp = "El valor de 'Codigo de Factura' no puede ser cero o menor a cero. Consulte con el Administrador del sistema." }); }
+            if (fecha == null) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Fecha Anulacion'. Consulte con el Administrador del sistema." }); }
+            if (!DateTime.TryParse(fecha, out fecha_anulacion)) { return BadRequest(new { resp = "La fecha de anulacion es invalida. Consulte con el Administrador del sistema." }); }
+            if (sin_validar_pedir_clave == null) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Sin Validar Clave'. Consulte con el Administrador del sistema." }); }
+
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                try
+                {
+                    var dataFact = await _context.vefactura.Where(i => i.codigo == codFactura).FirstOrDefaultAsync();
+
+                    if (dataFact == null)
+                    {
+                        //return BadRequest(new { resp = mi_msg, eventos });
+                        mensaje = "No se encontró informacion con el codigo de factura proporcionado, consulte con el administrador";
+                        resultado = false;
+                        codigo_control = 0;
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                    }
+
+                    if (sin_validar_pedir_clave == false)
+                    {
+                        mensaje = "Para esto necesita una autorizacion especial.";
+                        resultado = false;
+                        codigo_control = 75;
+                        //eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                    }
+                    string idFactura = dataFact.id;
+                    int nroIdFact = dataFact.numeroid;
+
+                    try
+                    {
+                        dataFact.fecha_anulacion = fecha_anulacion;
+                        dataFact.fechareg = await funciones.FechaDelServidor(_context);
+                        await _context.SaveChangesAsync();
+                        mensaje = "Cambio fecha anulacion a: " + fecha_anulacion.ToShortDateString();
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog.Modificacion);
+                    }
+                    catch (Exception ex)
+                    {
+                        mensaje = "Ocurrio un Error y no se pudo cambiar la fecha de anulacion de la factura!!!";
+                        resultado = false;
+                        codigo_control = 0;
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog.Modificacion);
+                        return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                    }
+
+                    return Ok(new
+                    {
+                        resp = resultado,
+                        eventos = eventos,
+                        msgAlert = mensaje
+                    });
+                    /////**************************
+                }
+                catch (Exception ex)
+                {
+                    return Problem($"Error en el servidor al cambiar fecha anulacion FC: {ex.Message}");
+                }
+            }
+
+        }
+
+
+
+
+
+
+
+
+
+        [HttpPost]
+        [Route("imprimirSolAnulacion/{userConn}/{codFactura}/{codempresa}")]
+        public async Task<object> imprimirSolAnulacion(string userConn, int codFactura, string codempresa, dataSolAnulacion dataSolAnulacion)
+        {
+            if (dataSolAnulacion.nom_solicita_anulacion.Trim().Length == 0)
+            {
+                return BadRequest(new { resp = "Debe ingresar el nombre de la persona que solicita la anulacion!!!" });
+            }
+            if (dataSolAnulacion.ci_solicita_anulacion.Trim().Length == 0)
+            {
+                return BadRequest(new { resp = "Debe ingresar el Nro. documento de identidad de la persona que solicita la anulacion!!!" });
+            }
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var codAlmacen = await _context.vefactura.Where(i => i.codigo == codFactura).Select(i => i.codalmacen).FirstOrDefaultAsync();
+                    // string nombreImpresora = "EPSON TM-T88V Receipt5";
+
+                    var nombreImpresora = await _context.inalmacen.Where(i => i.codigo == codAlmacen).Select(i => i.impresora_nr).FirstOrDefaultAsync();
+                    if (nombreImpresora == null)
+                    {
+                        return BadRequest(new { resp = "No se encontró una impresora registrada en la base de datos." });
+                    }
+                    Font fuente = new Font("Consolas", 10);
+                    await impresoraTermica.ImprimirSolicitudAnulacion(_context, codempresa, nombreImpresora, fuente, codFactura, dataSolAnulacion.nom_solicita_anulacion, dataSolAnulacion.ci_solicita_anulacion);
+                    return Ok("Imprimiendo Recibo.");
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Error al imprimir: {ex.Message}");
+            }
+        }
+
+
+    }
+    public class dataSolAnulacion
+    {
+        public string nom_solicita_anulacion { get; set; } = "";
+        public string ci_solicita_anulacion { get; set; } = "";
+    }
+
+    public class impresoraTermica_3
+    {
+        private readonly Empresa empresa = new Empresa();
+        private readonly Funciones funciones = new Funciones();
+        private readonly Nombres nombres = new Nombres();
+        private readonly Almacen almacen = new Almacen();
+
+        public async Task ImprimirSolicitudAnulacion(DBContext _context, string codempresa, string nombreImpresora, Font fuente, int codFactura, string nom_solicita_anulacion, string ci_solicita_anulacion)
+        {
+            string nomEmpresa = await nombres.nombreempresa(_context, codempresa);
+            string nitEmpresa = await empresa.NITempresa(_context, codempresa);
+
+            var datosFact = await _context.vefactura.Where(i => i.codigo == codFactura).Select(i => new
+            {
+                i.id,
+                i.numeroid,
+                i.nrofactura,
+                i.fecha,
+                i.nomcliente,
+                i.nit,
+                i.codalmacen,
+                i.cuf,
+
+            }).FirstOrDefaultAsync();
+
+            string lugarAlmacen = await almacen.lugaralmacen(_context, datosFact.codalmacen);
+            DateTime fechaHoy = await funciones.FechaDelServidor(_context);
+
+            PrintDocument pd = new PrintDocument
+            {
+                PrinterSettings = { PrinterName = nombreImpresora },
+                DocumentName = "SolicitudAnulacion"
+            };
+
+            if (!pd.PrinterSettings.IsValid)
+            {
+                throw new Exception("La impresora no está disponible o no es válida.");
+            }
+
+            pd.PrintPage += async (sender, e) =>
+            {
+                try
+                {
+                    // Definir las coordenadas para imprimir
+                    float x = 10;
+                    float y = 4;
+                    int NC = 47;  // Ancho del área de impresión
+                    float lineOffset;
+                    string cadena = "";
+                    // Imprimir el texto pasado como parámetro
+                    // Configuración de fuentes
+                    Font printFont = new Font("Consolas", 7, FontStyle.Regular, GraphicsUnit.Point);
+                    Font barcodeFont = new Font("Courier New", 16);   // Substituted to Barcode1 Font
+
+                    e.Graphics.PageUnit = GraphicsUnit.Point;
+                    printFont = new Font("Arial", 10, FontStyle.Bold, GraphicsUnit.Point);
+                    lineOffset = printFont.GetHeight(e.Graphics);
+
+                    // --------------------------------------------------------------------------------
+
+                    // imprimir el ancticipo si tiene
+
+                    //nombre empresa
+                    cadena = nomEmpresa;
+                    e.Graphics.DrawString(cadena, printFont, Brushes.Black, x, y);
+
+                    // nit
+                    y += lineOffset + 2; // Espacio adicional después del subtítulo
+                    printFont = new Font("Consolas", 7, FontStyle.Regular, GraphicsUnit.Point);
+                    lineOffset = printFont.GetHeight(e.Graphics);
+                    cadena = "NIT:" + nitEmpresa;
+                    e.Graphics.DrawString(cadena, printFont, Brushes.Black, x, y);
+
+                    //
+                    NC = 37;
+                    /*
+                    
+                    'y += lineOffset
+                    'printFont = New System.Drawing.Font("Consolas", 9, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point)
+                    'lineOffset = printFont.GetHeight(e.Graphics)
+                    'cadena = sia_funciones.Funciones.Instancia.centrarcadena("01234567890123456789012345678901234567890123456789", NC, " ")
+                    'e.Graphics.DrawString(cadena, printFont, System.Drawing.Brushes.Black, x, y)
+                     
+                    */
+
+                    // titulo
+                    y += lineOffset;
+                    printFont = new Font("Consolas", 9, FontStyle.Bold, GraphicsUnit.Point);
+                    lineOffset = printFont.GetHeight(e.Graphics);
+                    cadena = funciones.CentrarCadena("SOLICITUD DE ANULACION", NC, " ");
+                    e.Graphics.DrawString(cadena, printFont, Brushes.Black, x, y);
+
+                    // 
+                    y += lineOffset;
+                    printFont = new Font("Consolas", 9, FontStyle.Bold, GraphicsUnit.Point);
+                    lineOffset = printFont.GetHeight(e.Graphics);
+                    cadena = funciones.CentrarCadena("DE FACTURA", NC, " ");
+                    e.Graphics.DrawString(cadena, printFont, Brushes.Black, x, y);
+
+                    // lugar de emision
+                    y += lineOffset;
+                    printFont = new Font("Consolas", 9, FontStyle.Regular, GraphicsUnit.Point);
+                    lineOffset = printFont.GetHeight(e.Graphics);
+                    cadena = funciones.CentrarCadena(lugarAlmacen, NC, " ");
+                    e.Graphics.DrawString(cadena, printFont, Brushes.Black, x, y);
+
+                    // fecha
+                    y += lineOffset;
+                    printFont = new Font("Consolas", 9, FontStyle.Regular, GraphicsUnit.Point);
+                    lineOffset = printFont.GetHeight(e.Graphics);
+                    cadena = funciones.CentrarCadena("Fecha Hoy: " + fechaHoy.Date.ToShortDateString(), NC, " ");
+                    e.Graphics.DrawString(cadena, printFont, Brushes.Black, x, y);
+
+
+                    // datos de la solicitud de anulacion
+                    NC = 43;
+                    /*
+                     
+                    'y += lineOffset
+                    'printFont = New System.Drawing.Font("Consolas", 7.5, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point)
+                    'lineOffset = printFont.GetHeight(e.Graphics)
+                    'cadena = sia_funciones.Funciones.Instancia.centrarcadena("01234567890123456789012345678901234567890123456789", NC, " ")
+                    'e.Graphics.DrawString(cadena, printFont, System.Drawing.Brushes.Black, x, y)
+                     
+                    */
+
+                    y += lineOffset;
+                    y += lineOffset;
+
+                    cadena = "Yo: " + nom_solicita_anulacion;
+                    printFont = new Font("Consolas", (float)7.5, FontStyle.Regular, GraphicsUnit.Point);
+                    lineOffset = printFont.GetHeight(e.Graphics);
+                    e.Graphics.DrawString(cadena, printFont, Brushes.Black, x, y);
+
+                    y += lineOffset;
+                    cadena = "con C.I.: " + ci_solicita_anulacion;
+                    printFont = new Font("Consolas", (float)7.5, FontStyle.Regular, GraphicsUnit.Point);
+                    lineOffset = printFont.GetHeight(e.Graphics);
+                    e.Graphics.DrawString(cadena, printFont, Brushes.Black, x, y);
+
+                    y += lineOffset;
+                    cadena = "Solicito y/o autorizo la anulacion de";
+                    printFont = new Font("Consolas", (float)7.5, FontStyle.Regular, GraphicsUnit.Point);
+                    lineOffset = printFont.GetHeight(e.Graphics);
+                    e.Graphics.DrawString(cadena, printFont, Brushes.Black, x, y);
+
+                    y += lineOffset;
+                    cadena = "La Factura Nro.: " + datosFact.nrofactura;
+                    printFont = new Font("Consolas", (float)7.5, FontStyle.Regular, GraphicsUnit.Point);
+                    lineOffset = printFont.GetHeight(e.Graphics);
+                    e.Graphics.DrawString(cadena, printFont, Brushes.Black, x, y);
+
+                    y += lineOffset;
+                    cadena = "A Nombre de: " + datosFact.nomcliente;
+                    printFont = new Font("Consolas", (float)7.5, FontStyle.Regular, GraphicsUnit.Point);
+                    var resultado_filas = funciones.Dividir_cadena_en_filas(cadena, NC);
+                    for (int i = 0; i < resultado_filas.Length; i++)
+                    {
+                        if (resultado_filas[i] != null)
+                        {
+                            e.Graphics.DrawString(resultado_filas[i], printFont, Brushes.Black, x, y);
+                            y += lineOffset;
+                        }
+                    }
+
+                    cadena = "NIT/CI: " + datosFact.nit;
+                    printFont = new Font("Consolas", (float)7.5, FontStyle.Regular, GraphicsUnit.Point);
+                    lineOffset = printFont.GetHeight(e.Graphics);
+                    e.Graphics.DrawString(cadena, printFont, Brushes.Black, x, y);
+
+
+                    y += lineOffset;
+                    cadena = "CUF: " + datosFact.cuf;
+                    printFont = new Font("Consolas", (float)7.5, FontStyle.Regular, GraphicsUnit.Point);
+                    var resultado_filas2 = funciones.Dividir_cadena_en_filas(cadena, NC);
+                    for (int i = 0; i < resultado_filas2.Length; i++)
+                    {
+                        if (resultado_filas2[i] != null)
+                        {
+                            e.Graphics.DrawString(resultado_filas2[i], printFont, Brushes.Black, x, y);
+                            y += lineOffset;
+                        }
+                    }
+
+                    cadena = "De fecha: " + datosFact.fecha.Date.ToShortDateString();
+                    printFont = new Font("Consolas", (float)7.5, FontStyle.Regular, GraphicsUnit.Point);
+                    lineOffset = printFont.GetHeight(e.Graphics);
+                    e.Graphics.DrawString(cadena, printFont, Brushes.Black, x, y);
+
+                    // id-numeroiddoc
+                    y += lineOffset;
+                    cadena = datosFact.id + "-" + datosFact.numeroid;
+                    printFont = new Font("Consolas", (float)7.5, FontStyle.Regular, GraphicsUnit.Point);
+                    lineOffset = printFont.GetHeight(e.Graphics);
+                    e.Graphics.DrawString(cadena, printFont, Brushes.Black, x, y);
+
+
+                    // punteado para la firma
+                    y += lineOffset;
+                    y += lineOffset;
+                    y += lineOffset;
+                    cadena = funciones.CentrarCadena( "................................", NC, " ");
+                    printFont = new Font("Consolas", (float)7.5, FontStyle.Regular, GraphicsUnit.Point);
+                    lineOffset = printFont.GetHeight(e.Graphics);
+                    e.Graphics.DrawString(cadena, printFont, Brushes.Black, x, y);
+
+                    // firma
+                    y += lineOffset;
+                    cadena = funciones.CentrarCadena("Firma", NC, " ");
+                    printFont = new Font("Consolas", (float)7.5, FontStyle.Regular, GraphicsUnit.Point);
+                    lineOffset = printFont.GetHeight(e.Graphics);
+                    e.Graphics.DrawString(cadena, printFont, Brushes.Black, x, y);
+
+
+                    y += lineOffset;
+
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+            };
+            pd.Print();
+        }
     }
 
 

@@ -4099,7 +4099,8 @@ namespace SIAW.Controllers.ventas.transaccion
 
             PrintDocument pd = new PrintDocument
             {
-                PrinterSettings = { PrinterName = nombreImpresora }
+                PrinterSettings = { PrinterName = nombreImpresora },
+                DocumentName = "Facturacion" + cabecera.id + "-" + cabecera.numeroid
             };
 
             if (!pd.PrinterSettings.IsValid)
@@ -4742,7 +4743,8 @@ namespace SIAW.Controllers.ventas.transaccion
 
             PrintDocument pd = new PrintDocument
             {
-                PrinterSettings = { PrinterName = nombreImpresora }
+                PrinterSettings = { PrinterName = nombreImpresora },
+                DocumentName = "Anticipo"
             };
 
             if (!pd.PrinterSettings.IsValid)

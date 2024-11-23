@@ -82,9 +82,9 @@ namespace SIAW.Controllers.seg_adm.mantenimiento
                 }
                 
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Problem("Error en el servidor");
+                return Problem("Error en el servidor " + ex.Message);
             }
         }
 
