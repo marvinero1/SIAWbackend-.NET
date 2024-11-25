@@ -2540,7 +2540,7 @@ namespace siaw_funciones
                     objres.observacion = "No puede hacer una venta a credito a un cliente Sin Nombre y/o Casual.";
                     objres.obsdetalle = "";
                     objres.datoA = DVTA.codcliente + "-" + DVTA.nitfactura;
-                    objres.datoB = "Total: " + DVTA.totaldoc.ToString() + " (" + DVTA.codmoneda + ")";
+                    objres.datoB = "Total: " + DVTA.totaldoc.ToString("####,##0.00") + " (" + DVTA.codmoneda + ")";
                     objres.accion = Acciones_Validar.Pedir_Servicio;
                 }
             }
@@ -2561,7 +2561,7 @@ namespace siaw_funciones
                 objres.observacion = "El cliente: " + DVTA.codcliente_real + " esta Registrado como 'Solo Venta Contra Entrega'. Por favor marque este documento como una venta contra-entrega antes de proseguir.";
                 objres.obsdetalle = "";
                 objres.datoA = DVTA.nitfactura;
-                objres.datoB = "Total: " + DVTA.totaldoc.ToString() + " (" + DVTA.codmoneda + ")";
+                objres.datoB = "Total: " + DVTA.totaldoc.ToString("####,##0.00") + " (" + DVTA.codmoneda + ")";
                 objres.accion = Acciones_Validar.Pedir_Servicio;
             }
             return objres;
@@ -2579,10 +2579,10 @@ namespace siaw_funciones
             if (monto_convertido >= MAX_RND)
             {
                 objres.resultado = false;
-                objres.observacion = "Como esta venta es mayor a " + MAX_RND + " (MN) tendra que ser pagada por medio de una entidad bancaria obligatoriamente, Necesita autorizacion especial.";
+                objres.observacion = "Como esta venta es mayor a " + MAX_RND.ToString("####,##0.00") + " (MN) tendra que ser pagada por medio de una entidad bancaria obligatoriamente, Necesita autorizacion especial.";
                 objres.obsdetalle = "";
                 objres.datoA = DVTA.nitfactura;
-                objres.datoB = "Total: " + DVTA.totaldoc.ToString() + " (" + DVTA.codmoneda + ")";
+                objres.datoB = "Total: " + DVTA.totaldoc.ToString("####,##0.00") + " (" + DVTA.codmoneda + ")";
                 objres.accion = Acciones_Validar.Pedir_Servicio;
             }
             return objres;
@@ -2621,7 +2621,7 @@ namespace siaw_funciones
                 objres.observacion = "Los descuentos extras aplicados no cumplen la cantidad minima en KG para su aplicacion!!!";
                 objres.obsdetalle = cadena;
                 objres.datoA = DVTA.nitfactura;
-                objres.datoB = "Total: " + DVTA.totaldoc.ToString() + " (" + DVTA.codmoneda + ")";
+                objres.datoB = "Total: " + DVTA.totaldoc.ToString("####,##0.00") + " (" + DVTA.codmoneda + ")";
                 objres.accion = Acciones_Validar.Pedir_Servicio;
             }
             return objres;
@@ -2687,7 +2687,7 @@ namespace siaw_funciones
                                 {
                                     cadena +=  "\n Esta proforma tiene complemento";
                                 }
-                                cadena +=  "\n El descuento: " + descuentos.coddesextra + "-" + descuentos.descripcion + " no cumple el monto minimo para su aplicacion, el monto mínimo es: " + _montoMIN.ToString() + "(" + DVTA.codmoneda + ") y el subtotal de esta proforma: " + DVTA.subtotaldoc.ToString() + " mas su complemento de: " + _subtotal_pfcomplemento.ToString() + " es de:" + _total + "(" + DVTA.codmoneda + ")";
+                                cadena +=  "\n El descuento: " + descuentos.coddesextra + "-" + descuentos.descripcion + " no cumple el monto minimo para su aplicacion, el monto mínimo es: " + _montoMIN.ToString("####,##0.00") + "(" + DVTA.codmoneda + ") y el subtotal de esta proforma: " + DVTA.subtotaldoc.ToString("####,##0.00") + " mas su complemento de: " + _subtotal_pfcomplemento.ToString("####,##0.00") + " es de:" + _total.ToString("####,##0.00") + "(" + DVTA.codmoneda + ")";
                             }
                         }
                     }
@@ -2717,7 +2717,7 @@ namespace siaw_funciones
                                 {
                                     cadena += "\n Esta proforma tiene complemento para cumplir monto minimo de descto extra";
                                 }
-                                cadena += "\n El descuento: " + descuentos.coddesextra + "-" + descuentos.descripcion + " no cumple el monto minimo para su aplicacion, el monto mínimo es: " + _montoMIN.ToString() + "(" + DVTA.codmoneda + ") y el subtotal de esta proforma: " + DVTA.subtotaldoc.ToString() + " mas su complemento de: " + _subtotal_pfcomplemento.ToString() + " es de:" + _total + "(" + DVTA.codmoneda + ")";
+                                cadena += "\n El descuento: " + descuentos.coddesextra + "-" + descuentos.descripcion + " no cumple el monto minimo para su aplicacion, el monto mínimo es: " + _montoMIN.ToString("####,##0.00") + "(" + DVTA.codmoneda + ") y el subtotal de esta proforma: " + DVTA.subtotaldoc.ToString("####,##0.00") + " mas su complemento de: " + _subtotal_pfcomplemento.ToString("####,##0.00") + " es de:" + _total.ToString("####,##0.00") + "(" + DVTA.codmoneda + ")";
                             }
                         }
                     }
@@ -2736,7 +2736,7 @@ namespace siaw_funciones
                 {
                     objres.datoA = DVTA.id + "-" + DVTA.numeroid;
                 }
-                objres.datoB = "Subtotal: " + DVTA.subtotaldoc + " (" + DVTA.codmoneda + ")";
+                objres.datoB = "Subtotal: " + DVTA.subtotaldoc.ToString("####,##0.00") + " (" + DVTA.codmoneda + ")";
                 objres.accion = Acciones_Validar.Pedir_Servicio;
             }
             return objres;
@@ -2829,7 +2829,7 @@ namespace siaw_funciones
                     {
                         if (!await ventas.CumpleEmpaqueCerrado(_context, row.coditem, row.codtarifa, row.coddescuento, (decimal)row.cantidad, DVTA.codcliente_real))
                         {
-                            cadena_no_cumple_empaque += $"\n{row.coditem} {funciones.Rellenar(row.descripcion, 20, " ", false)} {funciones.Rellenar(row.medida, 14, " ", false)}  {funciones.Rellenar(row.cantidad.ToString(), 12, " ")}";
+                            cadena_no_cumple_empaque += $"\n{row.coditem} {funciones.Rellenar(row.descripcion, 20, " ", false)} {funciones.Rellenar(row.medida, 14, " ", false)}  {funciones.Rellenar(row.cantidad.ToString("####,##0.00"), 12, " ")}";
                             nro_items_no_cumple_empaque++;
                         }
                     }
@@ -2951,10 +2951,10 @@ namespace siaw_funciones
                 if (monto_min_requerido > DVTA.subtotaldoc)
                 {
                     objres.resultado = false;
-                    objres.observacion = "El monto minimo para venta a cliente(Sin Nombre o Casual) en oficina es de: " + monto_min_requerido.ToString() + " (" + DVTA.codmoneda + ") y el subtotal de la proforma actual es: " + DVTA.subtotaldoc + " (" + DVTA.codmoneda + ") y es menor a este minimo, verifique esta situacion!!!";
+                    objres.observacion = "El monto minimo para venta a cliente(Sin Nombre o Casual) en oficina es de: " + monto_min_requerido.ToString("####,##0.00") + " (" + DVTA.codmoneda + ") y el subtotal de la proforma actual es: " + DVTA.subtotaldoc.ToString("####,##0.00") + " (" + DVTA.codmoneda + ") y es menor a este minimo, verifique esta situacion!!!";
                     objres.obsdetalle = "";
                     objres.datoA = DVTA.nitfactura;                    
-                    objres.datoB = "SubTotal: " + DVTA.subtotaldoc + " (" + DVTA.codmoneda + ")";
+                    objres.datoB = "SubTotal: " + DVTA.subtotaldoc.ToString("####,##0.00") + " (" + DVTA.codmoneda + ")";
                     objres.accion = Acciones_Validar.Pedir_Servicio;
                 }
                 else
@@ -3004,11 +3004,11 @@ namespace siaw_funciones
                                 if(cadena_items.Trim().Length > 0)
                                 {
                                     cadena_solo_items = detalle.coditem;
-                                    cadena_items = "Item:" + detalle.coditem + "cantidad Vendida: " + cantidad_ttl_vedida.ToString() + " MaxVta Permitida: " + max.ToString();
+                                    cadena_items = "Item:" + detalle.coditem + "cantidad Vendida: " + cantidad_ttl_vedida.ToString("####,##0.00") + " MaxVta Permitida: " + max.ToString("####,##0.00");
                                 }
                                 else
                                 {
-                                    cadena_items += "\nItem:" + detalle.coditem + " cantidad Vendida: " + cantidad_ttl_vedida.ToString() + " MaxVta Permitida: " + max.ToString();
+                                    cadena_items += "\nItem:" + detalle.coditem + " cantidad Vendida: " + cantidad_ttl_vedida.ToString("####,##0.00") + " MaxVta Permitida: " + max.ToString("####,##0.00");
                                     cadena_solo_items += ", " + detalle.coditem;
                                 }
                             }
@@ -3123,7 +3123,7 @@ namespace siaw_funciones
                 {
                     objres.datoA = DVTA.id + "-" + DVTA.numeroid + "-" + DVTA.codcliente;
                 }
-                objres.datoB = "Total: " + DVTA.totaldoc + " (" + DVTA.codmoneda + ")";
+                objres.datoB = "Total: " + DVTA.totaldoc.ToString("####,##0.00") + " (" + DVTA.codmoneda + ")";
                 objres.accion = Acciones_Validar.Pedir_Servicio;
             }
             return objres;
@@ -3647,7 +3647,7 @@ namespace siaw_funciones
                 objres.observacion = "Se encontraron Items Repetidos en el documento lo cual no esta permitido: ";
                 objres.obsdetalle = cadena_repeditos;
                 objres.datoA = DVTA.nitfactura;
-                objres.datoB = "Total: " + DVTA.totaldoc + " (" + DVTA.codmoneda + ")";
+                objres.datoB = "Total: " + DVTA.totaldoc.ToString("####,##0.00") + " (" + DVTA.codmoneda + ")";
                 objres.accion = Acciones_Validar.Pedir_Servicio;
             }
             return objres;
@@ -4776,7 +4776,7 @@ namespace siaw_funciones
                 objres.observacion = "Se encontraron Items Repetidos en el documento sin que alguno de ellos cumpla con el empaque para descuento de CAJA CERRADA y/o son mas de 2 items repetidos, lo cual no esta permitido: ";
                 objres.obsdetalle = cadena_repeditos;
                 objres.datoA = DVTA.nitfactura;
-                objres.datoB = "Total: " + DVTA.totaldoc + " (" + DVTA.codmoneda + ")";
+                objres.datoB = "Total: " + DVTA.totaldoc.ToString("####,##0.00") + " (" + DVTA.codmoneda + ")";
                 objres.accion = Acciones_Validar.Pedir_Servicio;
             }
             return objres;
@@ -5272,11 +5272,11 @@ namespace siaw_funciones
                                 if (cadena_items.Length > 0)
                                 {
                                     cadena_solo_items += ", "+ detalle.coditem;
-                                    cadena_items +=Environment.NewLine + "Item: "+ detalle.coditem +" cantidad Vendida en PF(s) anterior(es) grabada(s) del mismo cliente es de: "+ cantidad_ttl_vendida_pf +"hace: "+ diascontrol +" días atrás, más la cantidad de PF actual de: "+ cantidad_ttl_vendida_pf_actual +", suman: " + cantidad_ttl_vendida_pf_total + ", que sobrepasan el máximo porcentaje de venta permitido.";
+                                    cadena_items +=Environment.NewLine + "Item: "+ detalle.coditem +" cantidad Vendida en PF(s) anterior(es) grabada(s) del mismo cliente es de: "+ cantidad_ttl_vendida_pf.ToString("####,##0.00") +"hace: "+ diascontrol +" días atrás, más la cantidad de PF actual de: "+ cantidad_ttl_vendida_pf_actual.ToString("####,##0.00") +", suman: " + cantidad_ttl_vendida_pf_total.ToString("####,##0.00") + ", que sobrepasan el máximo porcentaje de venta permitido.";
                                 }
                                 else
                                 {
-                                    cadena_items = Environment.NewLine +"Item: "+ detalle.coditem +" cantidad Vendida en PF(s) anterior(es) grabada(s) del mismo cliente es de: "+ cantidad_ttl_vendida_pf + " hace: "+ diascontrol + " días atrás, más la cantidad de PF actual de: "+ cantidad_ttl_vendida_pf_actual + ", suman: "+ cantidad_ttl_vendida_pf_total +", que sobrepasan el máximo porcentaje de venta permitido.";
+                                    cadena_items = Environment.NewLine +"Item: "+ detalle.coditem +" cantidad Vendida en PF(s) anterior(es) grabada(s) del mismo cliente es de: "+ cantidad_ttl_vendida_pf.ToString("####,##0.00") + " hace: "+ diascontrol + " días atrás, más la cantidad de PF actual de: "+ cantidad_ttl_vendida_pf_actual.ToString("####,##0.00") + ", suman: "+ cantidad_ttl_vendida_pf_total.ToString("####,##0.00") +", que sobrepasan el máximo porcentaje de venta permitido.";
                                     cadena_solo_items += detalle.coditem;
                                 }
                             }
@@ -5369,7 +5369,7 @@ namespace siaw_funciones
                         if (difX >= 0.1)
                         {
                             resultado = false;
-                            cadena_obs = "El monto asignado de anticipo: "+ DVTA.monto_anticipo +" es mayor a monto total de la factura:"+ DVTA.totaldoc +" ("+ DVTA.codmoneda +")";
+                            cadena_obs = "El monto asignado de anticipo: "+ DVTA.monto_anticipo.ToString("####,##0.00") +" es mayor a monto total de la factura:"+ DVTA.totaldoc.ToString("####,##0.00") +" ("+ DVTA.codmoneda +")";
                         }
                     }
                     //VERIFICAR QUE EL MONTO DEL ANTICIPO MAS ESTE NO PASE EL TOTAL DEL ANTICIPO
@@ -5388,7 +5388,7 @@ namespace siaw_funciones
 
                         if (totalAsignado > totalAnticipo)
                         {
-                            cadena_obs = "El anticipo: " + DVTA.idanticipo + "-" + DVTA.noridanticipo + " tiene asignados: " + totalAsignado + " (" + DVTA.codmoneda + ") en total (incluye esta asignacion), con lo que sobrepasa el monto total del anticipo, el monto total del anticipo es de: " + totalAnticipo;
+                            cadena_obs = "El anticipo: " + DVTA.idanticipo + "-" + DVTA.noridanticipo + " tiene asignados: " + totalAsignado.ToString("####,##0.00") + " (" + DVTA.codmoneda + ") en total (incluye esta asignacion), con lo que sobrepasa el monto total del anticipo, el monto total del anticipo es de: " + totalAnticipo.ToString("####,##0.00");
                             objres.resultado = false;
                             objres.observacion = "Se tiene observaciones en la aplicacion del anticipo!!!";
                             objres.obsdetalle = cadena_obs;
@@ -5483,7 +5483,7 @@ namespace siaw_funciones
                             {
                                 detalle.cumpleMin = false;
                                 resultado = false;
-                                cadena_obs += Environment.NewLine + detalle.coditem + " Maximo vta: " + max + " Vta Actual+Anteriores: " + ttl_cantidad_vendida;
+                                cadena_obs += Environment.NewLine + detalle.coditem + " Maximo vta: " + max.ToString("####,##0.00") + " Vta Actual+Anteriores: " + ttl_cantidad_vendida.ToString("####,##0.00");
                             }
                         }
                         else
@@ -5825,7 +5825,7 @@ namespace siaw_funciones
                 }
                 if (Convert.ToDecimal(DVTA.totaldoc) > monto_max_vta_snomb)
                 {
-                    cadena_obs = "No Se puede vender este monto a este Cliente, ya que sobrepasa el monto maximo de venta. El maximo de venta es: " + monto_max_vta_snomb + "(" + codmoneda_monto_max_vta_snomb + ")";
+                    cadena_obs = "No Se puede vender este monto a este Cliente, ya que sobrepasa el monto maximo de venta. El maximo de venta es: " + monto_max_vta_snomb.ToString("####,##0.00") + "(" + codmoneda_monto_max_vta_snomb + ")";
                     resultado = false;
                 }
             }
@@ -5839,7 +5839,7 @@ namespace siaw_funciones
                 objres.observacion = cadena_obs;
                 objres.obsdetalle = "";
                 objres.datoA = DVTA.codcliente + "-" + DVTA.nombcliente + "-" + DVTA.nitfactura;
-                objres.datoB = "Total: " + DVTA.totaldoc + " (" + DVTA.codmoneda + ")";
+                objres.datoB = "Total: " + DVTA.totaldoc.ToString("####,##0.00") + " (" + DVTA.codmoneda + ")";
                 objres.accion = Acciones_Validar.Pedir_Servicio;
             }
             return objres;
@@ -6519,7 +6519,7 @@ namespace siaw_funciones
                                 if (!await ventas.CumpleEmpaqueCerrado(_context, detalle.coditem, detalle.codtarifa, detalle.coddescuento, cantidad_total, DVTA.codcliente_real))
                                 {
                                     resultado = false;
-                                    cadena += "\r\n" + detalle.coditem + " " + funciones.Rellenar(detalle.descripcion, 20, " ", false) + " " + funciones.Rellenar(detalle.medida, 14, " ", false) + "  " + funciones.Rellenar(detalle.cantidad.ToString(), 12, " ");
+                                    cadena += "\r\n" + detalle.coditem + " " + funciones.Rellenar(detalle.descripcion, 20, " ", false) + " " + funciones.Rellenar(detalle.medida, 14, " ", false) + "  " + funciones.Rellenar(detalle.cantidad.ToString("####,##0.00"), 12, " ");
                                 }
                             }
                         }
@@ -6528,7 +6528,7 @@ namespace siaw_funciones
                             if (!await ventas.CumpleEmpaqueCerrado(_context, detalle.coditem, detalle.codtarifa, detalle.coddescuento, (decimal)detalle.cantidad, DVTA.codcliente_real))
                             {
                                 resultado = false;
-                                cadena += "\r\n" + detalle.coditem + " " + funciones.Rellenar(detalle.descripcion, 20, " ", false) + " " + funciones.Rellenar(detalle.medida, 14, " ", false) + "  " + funciones.Rellenar(detalle.cantidad.ToString(), 12, " ");
+                                cadena += "\r\n" + detalle.coditem + " " + funciones.Rellenar(detalle.descripcion, 20, " ", false) + " " + funciones.Rellenar(detalle.medida, 14, " ", false) + "  " + funciones.Rellenar(detalle.cantidad.ToString("####,##0.00"), 12, " ");
                             }
                         }
                     }
@@ -6543,7 +6543,7 @@ namespace siaw_funciones
                 objres.obsdetalle = cadena_titulos;
                 objres.obsdetalle += "\r\n" + cadena;
                 objres.datoA = DVTA.nitfactura;
-                objres.datoB = "Total: " + DVTA.totaldoc + " (" + DVTA.codmoneda + ")";
+                objres.datoB = "Total: " + DVTA.totaldoc.ToString("####,##0.00") + " (" + DVTA.codmoneda + ")";
                 objres.accion = Acciones_Validar.Pedir_Servicio;
             }
             return objres;
@@ -6573,7 +6573,7 @@ namespace siaw_funciones
                 objres.observacion = cadena;
                 objres.obsdetalle = cadena_mora;
                 objres.datoA = DVTA.estado_doc_vta == "NUEVO" ? DVTA.nitfactura : DVTA.id + "-" + DVTA.numeroid + " " + DVTA.codcliente_real;
-                objres.datoB = "Total: " + DVTA.totaldoc + " (" + DVTA.codmoneda + ")";
+                objres.datoB = "Total: " + DVTA.totaldoc.ToString("####,##0.00") + " (" + DVTA.codmoneda + ")";
                 objres.accion = Acciones_Validar.Pedir_Servicio;
             }
             return objres;
@@ -7296,7 +7296,7 @@ namespace siaw_funciones
 
             if (monto_conversion >= montomax_facturas_sinnombre && DVTA.nitfactura == "0" && DVTA.nombcliente == "SIN NOMBRE")
             {
-                cadena_msg = "Como esta venta es mayor o igual a: " + montomax_facturas_sinnombre + " (" + codmoneda_monto_max_vta_snomb + ") " + Environment.NewLine;
+                cadena_msg = "Como esta venta es mayor o igual a: " + montomax_facturas_sinnombre.ToString("####,##0.00") + " (" + codmoneda_monto_max_vta_snomb + ") " + Environment.NewLine;
                 cadena_msg += " deben llenarse obligatoriamente los datos del comprador: " + Environment.NewLine;
                 cadena_msg += " -Para sociedades o entidades, colocar el nombre comercial " + Environment.NewLine;
                 cadena_msg += "  registrado en Fundempresa y luego el NIT." + Environment.NewLine;
@@ -7314,29 +7314,29 @@ namespace siaw_funciones
                 {
                     if (!funciones.EsNumero(DVTA.nitfactura))
                     {
-                        cadena += Environment.NewLine + " Como esta venta es mayor a " + montomax_facturas_sinnombre + " (MN) debe ser facturada a un NIT válido.";
+                        cadena += Environment.NewLine + " Como esta venta es mayor a " + montomax_facturas_sinnombre.ToString("####,##0.00") + " (MN) debe ser facturada a un NIT válido.";
                     }
 
                     if (DVTA.nombcliente.Replace(" ", "") == "SINNOMBRE")
                     {
-                        cadena += Environment.NewLine + " Como esta venta es mayor a " + montomax_facturas_sinnombre + " (MN) debe ser facturada a un nombre válido.";
+                        cadena += Environment.NewLine + " Como esta venta es mayor a " + montomax_facturas_sinnombre.ToString("####,##0.00") + " (MN) debe ser facturada a un nombre válido.";
                     }
 
                     if (DVTA.nitfactura == "0")
                     {
-                        cadena += Environment.NewLine + " Como esta venta es mayor a " + montomax_facturas_sinnombre + " (MN) debe ser facturada a un NIT válido.";
+                        cadena += Environment.NewLine + " Como esta venta es mayor a " + montomax_facturas_sinnombre.ToString("####,##0.00") + " (MN) debe ser facturada a un NIT válido.";
                     }
                 }
                 else
                 {
                     if (DVTA.nombcliente.Replace(" ", "") == "SINNOMBRE")
                     {
-                        cadena += Environment.NewLine + " Como esta venta es mayor a " + montomax_facturas_sinnombre + " (MN) debe ser facturada a un nombre válido.";
+                        cadena += Environment.NewLine + " Como esta venta es mayor a " + montomax_facturas_sinnombre.ToString("####,##0.00") + " (MN) debe ser facturada a un nombre válido.";
                     }
 
                     if (DVTA.nitfactura.Trim() == "0")
                     {
-                        cadena += Environment.NewLine + " Como esta venta es mayor a " + montomax_facturas_sinnombre + " (MN) debe ser facturada a un NIT válido.";
+                        cadena += Environment.NewLine + " Como esta venta es mayor a " + montomax_facturas_sinnombre.ToString("####,##0.00") + " (MN) debe ser facturada a un NIT válido.";
                     }
                 }
             }
@@ -7673,7 +7673,7 @@ namespace siaw_funciones
                         objres.datoA = DVTA.id + "-" + DVTA.numeroid + " " + DVTA.idsol_nivel + "-" + DVTA.nroidsol_nivel;
                     }
 
-                    objres.datoB = "Total: " + DVTA.totaldoc + " (" + DVTA.codmoneda + ")";
+                    objres.datoB = "Total: " + DVTA.totaldoc.ToString("####,##0.00") + " (" + DVTA.codmoneda + ")";
                     objres.accion = Acciones_Validar.Pedir_Servicio;
                 }
 
@@ -7967,7 +7967,7 @@ namespace siaw_funciones
                             if (ttl_saldo_recargo < recargos.montodoc)
                             {
                                 objres.resultado = false;
-                                cadena = Environment.NewLine + "- Limite de recargo de la Cbza: " + dt.idcbza.ToString() + "-" + dt.nroidcbza.ToString() + " es:" + ttl_limite_recargo.ToString() + " Aplicado: " + ttl_recargo_aplicado + " Por Aplicar: " + ttl_saldo_recargo + " Aplicando Ahora: " + recargos.montodoc;
+                                cadena = Environment.NewLine + "- Limite de recargo de la Cbza: " + dt.idcbza.ToString() + "-" + dt.nroidcbza.ToString() + " es:" + ttl_limite_recargo.ToString("####,##0.00") + " Aplicado: " + ttl_recargo_aplicado.ToString("####,##0.00") + " Por Aplicar: " + ttl_saldo_recargo.ToString("####,##0.00") + " Aplicando Ahora: " + recargos.montodoc.ToString("####,##0.00");
                             }
                         }
 
@@ -8431,7 +8431,7 @@ namespace siaw_funciones
                         dif -= montomin;
                         if (dif < 0)
                         {
-                            cadena += "\nMonto mínimo de venta a precio: " + precio.ToString() + " es de: " + montomin.ToString() + "(" + DVTA.codmoneda + ") el monto actual es de: " + Math.Round(SUBTTL_GRAL_PEDIDO, 2).ToString();
+                            cadena += "\nMonto mínimo de venta a precio: " + precio.ToString() + " es de: " + montomin.ToString("####,##0.00") + "(" + DVTA.codmoneda + ") el monto actual es de: " + Math.Round(SUBTTL_GRAL_PEDIDO, 2).ToString("####,##0.00");
                             cadena += "\nSi el pedido tiene diferentes precios, se valida con el monto minimo mayor de listas de precios.";
                         }
                     }
@@ -8591,7 +8591,7 @@ namespace siaw_funciones
                         if (dif < 0)
                         {
                             resultado = false;
-                            cadena += "\nMonto Min a precio: " + precio.ToString() + " Para Entrega es: " + montomin.ToString() + "(" + DVTA.codmoneda + ") el monto actual es de: " + Math.Round(SUBTTL_GRAL_PEDIDO, 2).ToString() + "(" + DVTA.codmoneda + ")";
+                            cadena += "\nMonto Min a precio: " + precio.ToString() + " Para Entrega es: " + montomin.ToString("####,##0.00") + "(" + DVTA.codmoneda + ") el monto actual es de: " + Math.Round(SUBTTL_GRAL_PEDIDO, 2).ToString("####,##0.00") + "(" + DVTA.codmoneda + ")";
                             cadena += "\nSi el pedido tiene diferentes precios, se valida con el monto minimo mayor de listas de precios.";
                         }
                     }
@@ -8697,7 +8697,7 @@ namespace siaw_funciones
                         dif = Convert.ToDecimal(totales[i]) - montomin;
                         if (dif < 0)
                         {
-                            cadena += "\nEl monto minimo para aplicar el descuento especial: " + desc.ToString() + " es de: " + montomin.ToString() + "(" + codmoneda + ") el monto actual es de: " + Math.Round(Convert.ToDecimal(totales[i]), 2).ToString();
+                            cadena += "\nEl monto minimo para aplicar el descuento especial: " + desc.ToString() + " es de: " + montomin.ToString("####,##0.00") + "(" + codmoneda + ") el monto actual es de: " + Math.Round(Convert.ToDecimal(totales[i]), 2).ToString("####,##0.00");
                         }
                     }
                     i = i + 1;
@@ -8790,7 +8790,7 @@ namespace siaw_funciones
                 {
                     objres.datoA = DVTA.id + "-" + DVTA.numeroid + "-" + DVTA.nitfactura;
                 }
-                objres.datoB = "Total: " + DVTA.totaldoc + " (" + DVTA.codmoneda + ")";
+                objres.datoB = "Total: " + DVTA.totaldoc.ToString("####,##0.00") + " (" + DVTA.codmoneda + ")";
                 objres.observacion = "Los siguientes items no cumplen el empaque minimo de la lista de precios: ";
                 objres.obsdetalle = cadena;
                 objres.accion = Acciones_Validar.Pedir_Servicio;
@@ -8846,7 +8846,7 @@ namespace siaw_funciones
                     objres.datoA = (DVTA.id + ("-" + DVTA.numeroid));
                 }
 
-                objres.datoB = "Total: " + DVTA.totaldoc + " (" + DVTA.codmoneda + ")";
+                objres.datoB = "Total: " + DVTA.totaldoc.ToString("####,##0.00") + " (" + DVTA.codmoneda + ")";
                 objres.accion = Acciones_Validar.Pedir_Servicio;
             }
             return objres;
@@ -8914,7 +8914,7 @@ namespace siaw_funciones
                     {
                         objres.datoA = DVTA.id + "-" + DVTA.numeroid + "-" + DVTA.codcliente;
                     }
-                    objres.datoB = "Total: " + DVTA.totaldoc + " (" + DVTA.codmoneda + ")";
+                    objres.datoB = "Total: " + DVTA.totaldoc.ToString("####,##0.00") + " (" + DVTA.codmoneda + ")";
                     objres.accion = Acciones_Validar.Pedir_Servicio;
                 }
             }
@@ -9203,11 +9203,11 @@ namespace siaw_funciones
                         cadena = "";
                         cadena = " ITEM     DESCRIPCION          MEDIDA      CANTIDAD" + "\r\n";
                         cadena += "------------------------------------------------" + "\r\n";
-                        cadena += " " + detalle.coditem + " " + funciones.Rellenar(detalle.descripcion, 20, " ", false) + " " + funciones.Rellenar(detalle.medida, 11, " ", false) + "  " + funciones.Rellenar(detalle.cantidad.ToString(), 3, " ") + "\r\n";
+                        cadena += " " + detalle.coditem + " " + funciones.Rellenar(detalle.descripcion, 20, " ", false) + " " + funciones.Rellenar(detalle.medida, 11, " ", false) + "  " + funciones.Rellenar(detalle.cantidad.ToString("####,##0.00"), 3, " ") + "\r\n";
                     }
                     else
                     {
-                        cadena += " " + detalle.coditem + " " + funciones.Rellenar(detalle.descripcion, 20, " ", false) + " " + funciones.Rellenar(detalle.medida, 11, " ", false) + "  " + funciones.Rellenar(detalle.cantidad.ToString(), 3, " ") + "\r\n";
+                        cadena += " " + detalle.coditem + " " + funciones.Rellenar(detalle.descripcion, 20, " ", false) + " " + funciones.Rellenar(detalle.medida, 11, " ", false) + "  " + funciones.Rellenar(detalle.cantidad.ToString("####,##0.00"), 3, " ") + "\r\n";
                     }
 
                 }
