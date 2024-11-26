@@ -261,7 +261,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         titulo,
                         detalleSaldo = resultados.detalleSaldos,
                         saldoVariable = resultados.detalleSaldosVariables,
-                        totalSaldo = cantidad_ag_local_incluye_cubrir
+                        totalSaldo = cantidad_ag_local_incluye_cubrir.ToString("####,##0.00", new CultureInfo("en-US"))
                     });
                 }
 
@@ -949,7 +949,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         {
                             Codigo = cd.C.codigo,
                             Descripcion = cd.C.corta,
-                            Cantidad = cd.D.cantidad
+                            Cantidad = (cd.D.cantidad ?? 0).ToString("####,##0.00", new CultureInfo("en-US"))
                         })
                         .ToListAsync();
 
@@ -1024,7 +1024,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     {
                         double precio_lista = (double)await tipocambio._conversion(_context, codmoneda, await ventas.monedabasetarifa(_context, reg.codigo), DateTime.Today.Date, reg.precio ?? 0);
                         precio_lista = (double)await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, (decimal)precio_lista);
-                        cadena = cadena + "(" + reg.codigo + ")" + reg.descripcion + "-" + precio_lista + " , ";
+                        cadena = cadena + "(" + reg.codigo + ")" + reg.descripcion + "-" + precio_lista.ToString("####,##0.00000", new CultureInfo("en-US")) + " | ";
                     }
 
                     return Ok(new

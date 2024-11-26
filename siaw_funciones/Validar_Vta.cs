@@ -1611,7 +1611,7 @@ namespace siaw_funciones
                 {
                     regcontrol.DatoA = DVTA.id + "-" + DVTA.numeroid;
                 }
-                regcontrol.DatoB = "Total: " + DVTA.totaldoc + "(" + DVTA.codmoneda + ")";
+                regcontrol.DatoB = "Total: " + DVTA.totaldoc.ToString("####,##0.00") + "(" + DVTA.codmoneda + ")";
                 regcontrol.ClaveServicio = "";
                 regcontrol.Accion = objres.accion.ToString();
             }
@@ -2117,7 +2117,7 @@ namespace siaw_funciones
                 {
                     regcontrol.DatoA = DVTA.id + "-" + DVTA.numeroid + "-" + DVTA.codcliente_real;
                 }
-                regcontrol.DatoB = "SubTotal: " + DVTA.subtotaldoc + " (" + DVTA.codmoneda + ")";
+                regcontrol.DatoB = "SubTotal: " + DVTA.subtotaldoc.ToString("####,##0.00") + " (" + DVTA.codmoneda + ")";
                 regcontrol.Accion = objres.accion.ToString();
                 regcontrol.ClaveServicio = "";
             }
@@ -2292,7 +2292,7 @@ namespace siaw_funciones
                 {
                     if (monto_min > DVTA.subtotaldoc)
                     {
-                        cadena += "\n El monto minimo para pedidos urgentes a provincia es de: " + monto_min + "(" + DVTA.codmoneda + ")" + " y la proforma actual no cumple con este requisito.";
+                        cadena += "\n El monto minimo para pedidos urgentes a provincia es de: " + monto_min.ToString("####,##0.00") + "(" + DVTA.codmoneda + ")" + " y la proforma actual no cumple con este requisito.";
                     }
                 }
                 else
@@ -2300,7 +2300,7 @@ namespace siaw_funciones
                     monto_min_aux = (double)await tipocambio._conversion(_context, DVTA.codmoneda, moneda_monto_min, await funciones.FechaDelServidor(_context), (decimal)monto_min);
                     if (monto_min_aux > DVTA.subtotaldoc)
                     {
-                        cadena += "\n El monto minimo de pedidos urgentes a provincia es de: " + monto_min_aux + "(" + DVTA.codmoneda + ")" + " y la proforma actual no cumple con este requisito.";
+                        cadena += "\n El monto minimo de pedidos urgentes a provincia es de: " + monto_min_aux.ToString("####,##0.00") + "(" + DVTA.codmoneda + ")" + " y la proforma actual no cumple con este requisito.";
                         objres.resultado = false;
                     }
                 }
@@ -2312,7 +2312,7 @@ namespace siaw_funciones
                 objres.observacion = "Se encontraron observaciones del pedido urgente: ";
                 objres.obsdetalle = cadena;
                 objres.datoA = DVTA.nitfactura;
-                objres.datoB = "Subtotal: " + DVTA.subtotaldoc.ToString() + " (" + DVTA.codmoneda + ")";
+                objres.datoB = "Subtotal: " + DVTA.subtotaldoc.ToString("####,##0.00") + " (" + DVTA.codmoneda + ")";
                 objres.accion = Acciones_Validar.Pedir_Servicio;
             }
             return objres;
@@ -2354,7 +2354,7 @@ namespace siaw_funciones
                 objres.observacion = "Se encontraron observaciones del pedido urgente: ";
                 objres.obsdetalle = cadena;
                 objres.datoA = DVTA.nitfactura;
-                objres.datoB = "Subtotal: " + DVTA.subtotaldoc.ToString() + " (" + DVTA.codmoneda + ")";
+                objres.datoB = "Subtotal: " + DVTA.subtotaldoc.ToString("####,##0.00") + " (" + DVTA.codmoneda + ")";
                 objres.accion = Acciones_Validar.Pedir_Servicio;
             }
             return objres;
@@ -2373,7 +2373,7 @@ namespace siaw_funciones
                 if(DVTA.estado_doc_vta == "NUEVO")
                 {
                     objres.datoA = DVTA.nitfactura;
-                    objres.datoB = "Total: " + DVTA.totaldoc + " (" + DVTA.codmoneda + ")";
+                    objres.datoB = "Total: " + DVTA.totaldoc.ToString("####,##0.00") + " (" + DVTA.codmoneda + ")";
                 }
                 else
                 {

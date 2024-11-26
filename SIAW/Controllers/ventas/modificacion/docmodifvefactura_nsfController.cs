@@ -406,6 +406,198 @@ namespace SIAW.Controllers.ventas.modificacion
 
 
 
+        [HttpGet]
+        [Route("getGenerarCuf/{userConn}/{codempresa}/{codalmacen}/{en_linea}/{en_linea_sin}/{nrofactura}/{codigocontrol}/{id}/{numeroid}")]
+        public async Task<object> getGenerarCuf(string userConn, string codempresa, int codalmacen, bool? en_linea, bool? en_linea_sin, string nrofactura, string codigocontrol, string id, int numeroid)
+        {
+            List<string> eventos = new List<string>();
+            bool resultado = true;
+            string mensaje = "";
+            int codigo_control = 0;
+            try
+            {
+                // VALIDACIONES 
+                if (string.IsNullOrWhiteSpace(userConn)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'UserConn'. Consulte con el Administrador del sistema." }); }
+                if (string.IsNullOrWhiteSpace(id)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'ID'. Consulte con el Administrador del sistema." }); }
+                if (string.IsNullOrWhiteSpace(codempresa)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Empresa'. Consulte con el Administrador del sistema." }); }
+                if (codalmacen <= 0) { return BadRequest(new { resp = "El valor de 'Almacen' no puede ser cero o menor a cero. Consulte con el Administrador del sistema." }); }
+                if (numeroid <= 0) { return BadRequest(new { resp = "El valor de 'Numero ID' no puede ser cero o menor a cero. Consulte con el Administrador del sistema." }); }
+                if (string.IsNullOrWhiteSpace(nrofactura)) { return BadRequest(new { resp = "El valor de 'Numero de Factura' no puede ser cero o menor a cero. Consulte con el Administrador del sistema." }); }
+                if (en_linea == null) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'En linea'. Consulte con el Administrador del sistema." }); }
+                if (en_linea_sin == null) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'En linea SIN'. Consulte con el Administrador del sistema." }); }
+                if (string.IsNullOrWhiteSpace(codigocontrol)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Codigo Control'. Consulte con el Administrador del sistema." }); }
+
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                string TIPO_EMISION = "";
+                string val_NIT = "";
+                string valor_CUF = "";
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    val_NIT = await empresa.NITempresa(_context, codempresa);
+                    Datos_Pametros_Facturacion_Ag mispar = new Datos_Pametros_Facturacion_Ag();
+                    mispar = await siat.Obtener_Parametros_Facturacion(_context, codalmacen);
+
+                    if (mispar.resultado == true)
+                    {
+                        if (en_linea == true && en_linea_sin == true)
+                        {
+                            TIPO_EMISION = "1";
+                        }
+                        else if (en_linea == false && en_linea_sin == true)
+                        {//emision como fuera de linea
+                            TIPO_EMISION = "2";
+                        }
+                        else if (en_linea == true && en_linea_sin == false)
+                        {//emision como fuera de linea
+                            TIPO_EMISION = "2";
+                        }
+                        else
+                        {//emision como fuera de linea
+                            TIPO_EMISION = "2";
+                        }
+
+                        valor_CUF = await siat.Generar_CUF(_context, id, numeroid, codalmacen, val_NIT, mispar.codsucursal, mispar.modalidad, TIPO_EMISION, mispar.tipofactura, mispar.tiposector, nrofactura, mispar.ptovta, codigocontrol);
+
+                        if (string.IsNullOrWhiteSpace(valor_CUF))
+                        {
+                            mensaje = "CUF erroneo: " + valor_CUF + " , consulte con el administrador del sistema!!!";
+                            resultado = false;
+                            codigo_control = 0;
+                            //eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                            //await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog.Modificacion);
+                            return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                        }
+                        else
+                        {
+                            return Ok(new
+                            {
+                                resp = resultado,
+                                CUF = valor_CUF
+                            });
+                        }
+
+                    }
+                    else
+                    {
+                        mensaje = "No se encontro los parametros de facturacion!!!";
+                        resultado = false;
+                        codigo_control = 0;
+                        //eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        //await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog.Modificacion);
+                        return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                    }
+
+                }
+            }
+            catch (Exception ex)
+            {
+                mensaje = "Ocurrio un Error y no se pudo generar el CUF de la factura!!!";
+                resultado = false;
+                codigo_control = 0;
+                //eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                //await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog.Modificacion);
+                return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+            }
+        }
+
+        [HttpPost]
+        [Route("Cambiar_CUF/{userConn}/{usuario}/{codFactura}/{codempresa}/{nuevo_cuf}/{sin_validar_pedir_clave}")]
+        public async Task<object> Cambiar_CUF(string userConn, string usuario, int codFactura, string codempresa, string nuevo_cuf, bool? sin_validar_pedir_clave)
+        {
+            List<string> eventos = new List<string>();
+            bool resultado = true;
+            string mensaje = "";
+            int codigo_control = 0;
+            DateTime fecha_anulacion;
+            // VALIDACIONES 
+            if (string.IsNullOrWhiteSpace(userConn)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'UserConn'. Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(usuario)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Usuario'. Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(codempresa)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Empresa'. Consulte con el Administrador del sistema." }); }
+            if (codFactura <= 0) { return BadRequest(new { resp = "El valor de 'Codigo de Factura' no puede ser cero o menor a cero. Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(nuevo_cuf)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'CUF'. Consulte con el Administrador del sistema." }); }
+            if (sin_validar_pedir_clave == null) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Sin Validar Clave'. Consulte con el Administrador del sistema." }); }
+
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                try
+                {
+                    var dataFact = await _context.vefactura.Where(i => i.codigo == codFactura).FirstOrDefaultAsync();
+
+                    if (dataFact == null)
+                    {
+                        //return BadRequest(new { resp = mi_msg, eventos });
+                        mensaje = "No se encontró informacion con el codigo de factura proporcionado, consulte con el administrador";
+                        resultado = false;
+                        codigo_control = 0;
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                    }
+
+                    if (sin_validar_pedir_clave == false)
+                    {
+                        mensaje = "Para esto necesita una autorizacion especial.";
+                        resultado = false;
+                        codigo_control = 144;
+                        //eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                    }
+                    string idFactura = dataFact.id;
+                    int nroIdFact = dataFact.numeroid;
+
+                    try
+                    {
+                        dataFact.cuf = nuevo_cuf;
+                        await _context.SaveChangesAsync();
+                        mensaje = "El CUF de la factura fue cambiado exitosamente por: " + nuevo_cuf;
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion);
+                    }
+                    catch (Exception ex)
+                    {
+                        mensaje = "Ocurrio un Error y no se pudo cambiar el CUF de la factura!!!";
+                        resultado = false;
+                        codigo_control = 0;
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion);
+                        return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                    }
+
+                    return Ok(new
+                    {
+                        resp = resultado,
+                        eventos = eventos,
+                        msgAlert = mensaje
+                    });
+                    /////**************************
+                }
+                catch (Exception ex)
+                {
+                    return Problem($"Error en el servidor al cambiar fecha anulacion FC: {ex.Message}");
+                }
+            }
+
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -939,7 +1131,6 @@ namespace SIAW.Controllers.ventas.modificacion
                         return BadRequest(new { eventos = eventos, resp = "Ocurrio un error al enviar el email, consulte con el administrador del sistema!!!" });
                     }
                     return Ok(new { eventos = eventos, resp = "El envio del email ha sido exitoso!!!" });
-
                 }
 
             }

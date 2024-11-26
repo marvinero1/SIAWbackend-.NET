@@ -7,6 +7,7 @@ using System.Net;
 using Microsoft.AspNetCore.Authorization;
 using siaw_funciones;
 using siaw_DBContext.Models_Extra;
+using System.Globalization;
 
 namespace SIAW.Controllers.inventarios.mantenimiento
 {
@@ -119,8 +120,8 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                             descripcion = i.descripcion,
                             medida = i.medida,
                             porcen_maximo = porcen_maximo_text,
-                            empaqueminimo = empaqueminimo,
-                            pesominimo = pesominimo,
+                            empaqueminimo = empaqueminimo.ToString("####,##0.000", new CultureInfo("en-US")),
+                            pesominimo = pesominimo.ToString("####,##0.000", new CultureInfo("en-US")),
                             penalizadoText = penalizadoText
                         })
                         .FirstOrDefaultAsync();
@@ -163,7 +164,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                 {
                     return BadRequest(new { resp = "Debe seleccionar una tarifa o descuento." });
                 }
-                double saldo = (double)await saldos.SaldosCompletoResult(userConnectionString, codalmacen, coditem, codempresa, "");
+                // double saldo = (double)await saldos.SaldosCompletoResult(userConnectionString, codalmacen, coditem, codempresa, "");
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     double empaque = await restricciones.empaqueminimo(_context, coditem, codtarifa, coddescuento);
@@ -174,9 +175,9 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                     return Ok(new
                     {
-                        empaque = empaque,
-                        pesomin = pesominimo,
-                        saldo = saldo
+                        empaque = empaque.ToString("####,##0.000", new CultureInfo("en-US")),
+                        pesomin = pesominimo.ToString("####,##0.000", new CultureInfo("en-US")),
+                        // saldo = saldo.ToString("####,##0.00", new CultureInfo("en-US"))
                     });
                 }
             }

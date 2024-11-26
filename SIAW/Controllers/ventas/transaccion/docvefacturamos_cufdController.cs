@@ -90,9 +90,7 @@ namespace SIAW.Controllers.ventas.transaccion
                             datos_certificado_digital.msgAlertas,
                             datos_certificado_digital.eventos
                         });
-
                     }
-
                     return Ok(new
                     {
                         resp = "Datos Obtenidos Correctamente",
@@ -100,8 +98,6 @@ namespace SIAW.Controllers.ventas.transaccion
                         datos_certificado_digital.msgAlertas,
                         datos_certificado_digital.eventos
                     });
-
-
                 }
             }
             catch (Exception ex)

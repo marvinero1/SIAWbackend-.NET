@@ -94,6 +94,7 @@ namespace siaw_funciones
             Envio_Factura,
             Envio_Paquete_Facturas,
             Anulacion_Facturas,
+            Modificacion,
             Modificacion_Estado_En_Linea,
             Estado_Facturas,
             Validar_Nit
