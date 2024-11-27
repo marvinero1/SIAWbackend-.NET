@@ -578,10 +578,10 @@ namespace SIAW.Controllers.ventas.transaccion
                 // la nota se emite en una sola HOJA
                 /*
 
-                subtotalNR.Text = CDbl(cabecera.Rows(0)("subtotal")).ToString("####,##0.00")
-                totdesctosNR.Text = CDbl(cabecera.Rows(0)("descuentos")).ToString("####,##0.00")
-                totrecargosNR.Text = CDbl(cabecera.Rows(0)("recargos")).ToString("####,##0.00")
-                totremision.Text = CDbl(cabecera.Rows(0)("total")).ToString("####,##0.00")
+                subtotalNR.Text = CDbl(cabecera.Rows(0)("subtotal")).ToString("####,##0.000", new CultureInfo("en-US"))
+                totdesctosNR.Text = CDbl(cabecera.Rows(0)("descuentos")).ToString("####,##0.000", new CultureInfo("en-US"))
+                totrecargosNR.Text = CDbl(cabecera.Rows(0)("recargos")).ToString("####,##0.000", new CultureInfo("en-US"))
+                totremision.Text = CDbl(cabecera.Rows(0)("total")).ToString("####,##0.000", new CultureInfo("en-US"))
 
                  */
 
@@ -877,7 +877,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 reg.totaldist = (double)await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, (decimal)reg.totaldist);
 
             }
-            // descuentos.Text = (total_desctos1 + total_desctos2).ToString("####,##0.00")
+            // descuentos.Text = (total_desctos1 + total_desctos2).ToString("####,##0.000", new CultureInfo("en-US"))
             return (detalle,tabladescuentos,ttl_descuento_aplicados);
 
         }

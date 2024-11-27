@@ -584,7 +584,7 @@ namespace SIAW.Controllers.z_pruebas
                 reg.totaldist = (double)await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, (decimal)reg.totaldist);
 
             }
-            // descuentos.Text = (total_desctos1 + total_desctos2).ToString("####,##0.00")
+            // descuentos.Text = (total_desctos1 + total_desctos2).ToString("####,##0.000", new CultureInfo("en-US"))
             return (detalle, tabladescuentos, ttl_descuento_aplicados);
 
         }

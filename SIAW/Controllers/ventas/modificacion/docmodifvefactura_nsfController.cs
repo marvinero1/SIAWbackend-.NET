@@ -1441,7 +1441,7 @@ namespace SIAW.Controllers.ventas.modificacion
         }
 
         [HttpPost]
-        [Route("Cambiar_en_Linea_SIN/{userConn}/{usuario}/{codFactura}/{codempresa}/{en_linea}/{sin_validar_pedir_clave}")]
+        [Route("Cambiar_en_Linea_SIN/{userConn}/{usuario}/{codFactura}/{codempresa}/{en_linea_SIN}/{sin_validar_pedir_clave}")]
         public async Task<object> Cambiar_en_Linea_SIN(string userConn, string usuario, int codFactura, string codempresa, bool en_linea_SIN, bool sin_validar_pedir_clave)
         {
             List<string> eventos = new List<string>();

@@ -24,6 +24,7 @@ using static System.Net.Mime.MediaTypeNames;
 using System.Xml.Linq;
 using Polly.Caching;
 using System.Linq;
+using System.Globalization;
 
 namespace SIAW.Controllers.ventas.transaccion
 {
@@ -1844,7 +1845,8 @@ namespace SIAW.Controllers.ventas.transaccion
                                 {
                                     xml_generado.eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - No se pudo generar el archivo XML de la factura, Firmar y enviar al SIN!!!");
                                     xml_generado.eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - El proceso de Firmado de la factura y Envio al SIN termino con errores, verifique esta situacion!!!");
-
+                                    // unimos los logs y mensajes generados a las listas base para que se muestren en secuencia.
+                                    msgAlertas.Add("Ocurrio algun error al Generar el XML de la factura verifique los resultados de la facturacion!!!");
                                     // NO DEBE DE DEVOLVER, DEBE CONTINUAR CON LA LOGICA.
                                     /*
                                     return BadRequest(new
@@ -1856,8 +1858,7 @@ namespace SIAW.Controllers.ventas.transaccion
                                     });
                                     */
                                 }
-                                // unimos los logs y mensajes generados a las listas base para que se muestren en secuencia.
-                                msgAlertas.Add("Ocurrio algun error al Generar el XML de la factura verifique los resultados de la facturacion!!!");
+                               
 
                                 msgAlertas.AddRange(xml_generado.msgAlertas);
                                 eventosLog.AddRange(xml_generado.eventos);
@@ -2415,10 +2416,10 @@ namespace SIAW.Controllers.ventas.transaccion
                     //*******************CALCULAR TOTALES Y SUBTOTALES SIN 24-03-2022
                     // la nota se emite en una sola HOJA
                     /*
-                    subtotalNR.Text = CDbl(cabecera.Rows(0)("subtotal")).ToString("####,##0.00")
-                    totdesctosNR.Text = CDbl(cabecera.Rows(0)("descuentos")).ToString("####,##0.00")
-                    totrecargosNR.Text = CDbl(cabecera.Rows(0)("recargos")).ToString("####,##0.00")
-                    totremision.Text = CDbl(cabecera.Rows(0)("total")).ToString("####,##0.00")
+                    subtotalNR.Text = CDbl(cabecera.Rows(0)("subtotal")).ToString("####,##0.000", new CultureInfo("en-US"))
+                    totdesctosNR.Text = CDbl(cabecera.Rows(0)("descuentos")).ToString("####,##0.000", new CultureInfo("en-US"))
+                    totrecargosNR.Text = CDbl(cabecera.Rows(0)("recargos")).ToString("####,##0.000", new CultureInfo("en-US"))
+                    totremision.Text = CDbl(cabecera.Rows(0)("total")).ToString("####,##0.000", new CultureInfo("en-US"))
                      */
 
                     // obtener el total final de la factura del detalle (sumatoria de totales de items)
@@ -3772,7 +3773,41 @@ namespace SIAW.Controllers.ventas.transaccion
         private async Task<(double respdescuentos, List<descuentosData> tabladescuentos)> verdesextra(DBContext _context, string codempresa, double subtotal, string codmoneda, string codcliente, string nit, List<itemDataMatriz> dataDetalle, List<descuentosData> tabladescuentos)
         {
             int coddesextra_depositos = await configuracion.emp_coddesextra_x_deposito(_context, codempresa);
+
+            List<tabladescuentos> descuentos_aux = tabladescuentos.Select(i => new tabladescuentos
+            {
+                codproforma = 0,
+                coddesextra = i.coddesextra,
+                porcen = i.porcen,
+                montodoc = i.montodoc,
+                codcobranza = i.codcobranza,
+                codcobranza_contado = i.codcobranza_contado,
+                codanticipo = i.codanticipo,
+                aplicacion = i.aplicacion,
+                codmoneda = i.codmoneda,
+                descrip = i.descripcion
+            }).ToList();
+
+            descuentos_aux = await ventas.Ordenar_Descuentos_Extra(_context, descuentos_aux);
+
+            tabladescuentos = descuentos_aux.Select(i => new descuentosData
+            {
+                codproforma = i.codproforma,
+                coddesextra = i.coddesextra,
+                descripcion = i.descrip ?? "",
+                porcen = i.porcen,
+                montodoc = i.montodoc,
+                codcobranza = i.codcobranza ?? 0,
+                codcobranza_contado = i.codcobranza_contado ?? 0,
+                codanticipo = i.codanticipo ?? 0,
+                aplicacion = i.aplicacion ?? "",
+                codmoneda = i.codmoneda ?? "",
+            }).ToList();
+
             DateTime fecha = await funciones.FechaDelServidor(_context);
+
+
+
             //calcular el monto  de descuento segun el porcentaje
             ////////////////////////////////////////////////////////////////////////////////
             //primero calcular los montos de los que se aplican en el detalle o son
@@ -4424,9 +4459,9 @@ namespace SIAW.Controllers.ventas.transaccion
                          
                         '.DrawString("UUU 99,999.99  9,999.999   9999,999.99")
                         '//en fecha 04-12-2014 se añadio un decimal se consensuo con norka y mariela
-                        'cadena = sia_funciones.Funciones.Instancia.rellenar(CStr(tabladetalle.Rows(i)("udm")), 3, " ") & " " & sia_funciones.Funciones.Instancia.rellenar(CDbl(tabladetalle.Rows(i)("cantidad")).ToString("####,##0.00"), 11, " ") & "  " & sia_funciones.Funciones.Instancia.rellenar(CDbl(tabladetalle.Rows(i)("preciodist")).ToString("#,##0.000#"), 9, " ") & "  " & sia_funciones.Funciones.Instancia.rellenar(CDbl(tabladetalle.Rows(i)("totaldist")).ToString("####,##0.00"), 11, " ")
+                        'cadena = sia_funciones.Funciones.Instancia.rellenar(CStr(tabladetalle.Rows(i)("udm")), 3, " ") & " " & sia_funciones.Funciones.Instancia.rellenar(CDbl(tabladetalle.Rows(i)("cantidad")).ToString("####,##0.000", new CultureInfo("en-US")), 11, " ") & "  " & sia_funciones.Funciones.Instancia.rellenar(CDbl(tabladetalle.Rows(i)("preciodist")).ToString("#,##0.000#"), 9, " ") & "  " & sia_funciones.Funciones.Instancia.rellenar(CDbl(tabladetalle.Rows(i)("totaldist")).ToString("####,##0.000", new CultureInfo("en-US")), 11, " ")
                         'ya  no en 2 decimales
-                        'cadena = sia_funciones.Funciones.Instancia.rellenar(CStr(tabladetalle.Rows(i)("udm")), 3, " ") & " " & sia_funciones.Funciones.Instancia.rellenar(CDbl(tabladetalle.Rows(i)("cantidad")).ToString("####,##0.00"), 9, " ") & " " & sia_funciones.Funciones.Instancia.rellenar(CDbl(Math.Round(tabladetalle.Rows(i)("precioneto"), 2, MidpointRounding.AwayFromZero)).ToString("#,##0.00#"), 7, " ") & " " & sia_funciones.Funciones.Instancia.rellenar(CDbl(0.0).ToString("####,##0.00"), 8, " ") & "  " & sia_funciones.Funciones.Instancia.rellenar(CDbl(Math.Round(tabladetalle.Rows(i)("total"), 2, MidpointRounding.AwayFromZero)).ToString("####,##0.00"), 9, " ")
+                        'cadena = sia_funciones.Funciones.Instancia.rellenar(CStr(tabladetalle.Rows(i)("udm")), 3, " ") & " " & sia_funciones.Funciones.Instancia.rellenar(CDbl(tabladetalle.Rows(i)("cantidad")).ToString("####,##0.000", new CultureInfo("en-US")), 9, " ") & " " & sia_funciones.Funciones.Instancia.rellenar(CDbl(Math.Round(tabladetalle.Rows(i)("precioneto"), 2, MidpointRounding.AwayFromZero)).ToString("#,##0.00#"), 7, " ") & " " & sia_funciones.Funciones.Instancia.rellenar(CDbl(0.0).ToString("####,##0.000", new CultureInfo("en-US")), 8, " ") & "  " & sia_funciones.Funciones.Instancia.rellenar(CDbl(Math.Round(tabladetalle.Rows(i)("total"), 2, MidpointRounding.AwayFromZero)).ToString("####,##0.000", new CultureInfo("en-US")), 9, " ")
                         'e.Graphics.DrawString(cadena, printFont, System.Drawing.Brushes.Black, x, y)
                         'y += lineOffset
 
@@ -4438,13 +4473,13 @@ namespace SIAW.Controllers.ventas.transaccion
                         if (_codDocSector == 1)
                         {
                             cadena = "" 
-                            + funciones.Rellenar(reg.cantidad.ToString("####,##0.00"), 12, " ", false) 
+                            + funciones.Rellenar(reg.cantidad.ToString("####,##0.000", new CultureInfo("en-US")), 12, " ", false) 
                             + " X " 
-                            + funciones.Rellenar(reg.preciolista.ToString("#,##0.00#"), 13, " ", false) 
+                            + funciones.Rellenar(reg.preciolista.ToString("#,##0.00#", new CultureInfo("en-US")), 13, " ", false) 
                             + " - " 
-                            + funciones.Rellenar(reg.descuento.ToString("####,##0.00"), 5, " ") 
+                            + funciones.Rellenar(reg.descuento.ToString("####,##0.000", new CultureInfo("en-US")), 5, " ") 
                             + " " 
-                            + funciones.Rellenar(reg.total.ToString("####,##0.00"), 35, " ");
+                            + funciones.Rellenar(reg.total.ToString("####,##0.000", new CultureInfo("en-US")), 35, " ");
                             
                             e.Graphics.DrawString(cadena, printFont, System.Drawing.Brushes.Black, x, y);
                             y += lineOffset;
@@ -4452,13 +4487,13 @@ namespace SIAW.Controllers.ventas.transaccion
                         else
                         {
                             cadena = ""
-                            + funciones.Rellenar(reg.cantidad.ToString("####,##0.00"), 12, " ", false)
+                            + funciones.Rellenar(reg.cantidad.ToString("####,##0.000", new CultureInfo("en-US")), 12, " ", false)
                             + " X "
-                            + funciones.Rellenar(reg.preciolista.ToString("#,##0.00000"), 9, " ", false)
+                            + funciones.Rellenar(reg.preciolista.ToString("#,##0.00000", new CultureInfo("en-US")), 9, " ", false)
                             + " - "
-                            + funciones.Rellenar(reg.descuento.ToString("####,##0.00000"), 10, " ", false)
+                            + funciones.Rellenar(reg.descuento.ToString("####,##0.00000", new CultureInfo("en-US")), 10, " ", false)
                             + " "
-                            + funciones.Rellenar(reg.total.ToString("####,##0.00000"), 30, " ");
+                            + funciones.Rellenar(reg.total.ToString("####,##0.00000", new CultureInfo("en-US")), 30, " ");
 
                             e.Graphics.DrawString(cadena, printFont, System.Drawing.Brushes.Black, x, y);
                             y += lineOffset;
@@ -4479,18 +4514,18 @@ namespace SIAW.Controllers.ventas.transaccion
                     lineOffset = printFont.GetHeight(e.Graphics);
 
                     // Subtotal
-                    cadena = "SubTotal(BS):" + funciones.Rellenar(Convert.ToDouble(cabecera.subtotal).ToString("####,##0.00"), 26, " ");
+                    cadena = "SubTotal(BS):" + funciones.Rellenar(Convert.ToDouble(cabecera.subtotal).ToString("####,##0.000", new CultureInfo("en-US")), 26, " ");
                     e.Graphics.DrawString(cadena, printFont, Brushes.Black, x, y);
                     y += lineOffset;
 
                     // Descuentos
                     double descuentos1 = 0; // Si se utiliza en otra parte, asegúrate de asignarle un valor apropiado
-                    cadena = "Descuentos(BS):" + funciones.Rellenar(Convert.ToDouble(cabecera.descuentos).ToString("####,##0.00"), 24, " ");
+                    cadena = "Descuentos(BS):" + funciones.Rellenar(Convert.ToDouble(cabecera.descuentos).ToString("####,##0.000", new CultureInfo("en-US")), 24, " ");
                     e.Graphics.DrawString(cadena, printFont, Brushes.Black, x, y);
                     y += lineOffset;
 
                     // Total
-                    cadena = "Total(BS):" + funciones.Rellenar(Convert.ToDouble(cabecera.total).ToString("####,##0.00"), 29, " ");
+                    cadena = "Total(BS):" + funciones.Rellenar(Convert.ToDouble(cabecera.total).ToString("####,##0.000", new CultureInfo("en-US")), 29, " ");
                     e.Graphics.DrawString(cadena, printFont, Brushes.Black, x, y);
                     y += lineOffset;
 
@@ -4500,7 +4535,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     y += lineOffset;
 
                     // Línea con total
-                    cadena = "_________________________" + funciones.Rellenar(Convert.ToDouble(cabecera.total).ToString("####,##0.00"), 14, " ");
+                    cadena = "_________________________" + funciones.Rellenar(Convert.ToDouble(cabecera.total).ToString("####,##0.000", new CultureInfo("en-US")), 14, " ");
                     e.Graphics.DrawString(cadena, printFont, Brushes.Black, x, y);
                     y += lineOffset;
                     y += lineOffset;
