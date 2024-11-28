@@ -227,7 +227,7 @@ namespace siaw_funciones
                 ////using (var _context = DbContextFactory.Create(userConnectionString))
                 //{
                 var result = await _context.coanticipo
-                .Where(v => v.id == id && v.numeroid == numeroid)
+                .Where(v => v.id == id && v.numeroid == numeroid && v.deposito_cliente == true && v.anulado == false)
                 .Select(v => new { v.iddeposito, v.numeroiddeposito })
                 .FirstOrDefaultAsync();
 

@@ -786,7 +786,7 @@ namespace SIAW.Controllers.ventas.transaccion
                                                                           proforma.numeroid == dataFacturaTienda.nro_id_proforma))
                     .Select(factura => factura.codigo)
                     .ToListAsync();
-                    if (dt != null)
+                    if (dt.Count() > 0)
                     {
                         resultado = false;
                         return (resultado, "La proforma: " + dataFacturaTienda.ids_proforma + "-" + dataFacturaTienda.nro_id_proforma + " ya fue facturada, verifique esta situacion!!!", null);

@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using siaw_DBContext.Data;
 using siaw_ws_siat;
 using siaw_funciones;
+using siaw_DBContext.Models;
 
 public class ServFacturas
 {
@@ -48,7 +49,7 @@ public class ServFacturas
     public class ResultadoAnulacionFactura
     {
         public string CodDescripcion { get; set; }
-        public string CodEstado { get; set; }
+        public int CodEstado { get; set; }
         public string CodEstadoDesc { get; set; }
         public bool Transaccion { get; set; }
         public List<string> ListaMsg { get; set; } = new List<string>();
@@ -67,7 +68,7 @@ public class ServFacturas
     public class ResultadoEstadoFactura
     {
         public string CodDescripcion { get; set; }
-        public string CodEstado { get; set; }
+        public int CodEstado { get; set; }
         public string CodEstadoDesc { get; set; }
         public string CodRecepcion { get; set; }
         public bool Transaccion { get; set; }
@@ -95,7 +96,7 @@ public class ServFacturas
     public class ResultadoReversionAnulacionFactura
     {
         public string CodDescripcion { get; set; }
-        public string CodEstado { get; set; }
+        public int CodEstado { get; set; }
         public string CodEstadoDesc { get; set; }
         public bool Transaccion { get; set; }
         public string CodRecepcion { get; set; }
@@ -115,9 +116,11 @@ public class ServFacturas
     private respuestaComunicacion MyResult_Comunicacion_resp;
 
     private respuestaRecepcion MyResult_AnulacionFactura;
+    private anulacionFacturaResponse MyResult_AnulacionFactura_resp;
     private mensajeServicio MyResult_AnulacionFactura_Lista;
 
     private respuestaRecepcion MyResult_EstadoFactura;
+    private verificacionEstadoFacturaResponse MyResult_EstadoFactura_resp;
 
     private respuestaRecepcion MyResult_RecepcionFactura;
     private recepcionFacturaResponse MyResult_RecepcionFactura_resp;
@@ -131,11 +134,13 @@ public class ServFacturas
     private mensajeServicio MyResult_ValidarFactura_Lista_Paquete;
 
     private respuestaRecepcion MyResult_ReversionAnulacionFactura;
+    private reversionAnulacionFacturaResponse MyResult_ReversionAnulacionFactura_resp;
     private mensajeServicio MyResult_ReversionAnulacionFactura_Lista;
 
     private readonly Adsiat_Parametros_facturacion adsiat_parametros_facturacion = new Adsiat_Parametros_facturacion();
     private readonly Adsiat_Endpoint adsiat_endpoint = new Adsiat_Endpoint();
     private readonly Adsiat_Token adsiat_token = new Adsiat_Token();
+    private readonly Adsiat_Mensaje_Servicio adsiat_Mensaje_Servicio = new Adsiat_Mensaje_Servicio();
    // private readonly Funciones_SIAT funciones_SIAT = new Funciones_SIAT();
     private async Task<bool> Obtener_EndPoint_Token(DBContext _context, int almacen)
     {
@@ -261,6 +266,228 @@ public class ServFacturas
             miRespuesta.ListaMsg.Add("Error - " + e.Message);
         }
 
+        return miRespuesta;
+    }
+
+    public async Task<ResultadoReversionAnulacionFactura> Reversion_Anular_Factura(DBContext _context, int almacen, int codAmbiente, int codDocSector, int codEmision, int codModalidad, int codPtoVta, string codSistema,
+                                                                    int codSucursal, string cuis, string cufd, long nit, int tipoFacturaDocumento, string cuf)
+    {
+        var ini = await Obtener_EndPoint_Token(_context, almacen);
+        var miRespuesta = new ResultadoReversionAnulacionFactura();
+
+        // Configuración del binding y del servicio
+        var binding = new BasicHttpBinding
+        {
+            SendTimeout = TimeSpan.FromSeconds(1000),
+            MaxBufferSize = int.MaxValue,
+            MaxReceivedMessageSize = int.MaxValue,
+            AllowCookies = true,
+            ReaderQuotas = System.Xml.XmlDictionaryReaderQuotas.Max
+            //Security = { Mode = BasicHttpSecurityMode.Transport }
+        };
+
+        ServicePointManager.Expect100Continue = true;
+        ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072; // TLS 1.2
+        binding.Security.Mode = BasicHttpSecurityMode.Transport;
+
+        var address = new EndpointAddress(endpointAddress);
+        var servicio = new ServicioFacturacionClient(binding, address);
+        servicio.Endpoint.EndpointBehaviors.Add(new CustomAuthenticationBehaviour(token));
+
+        // Preparación de la solicitud
+        var sol_reversion_anulacion = new solicitudReversionAnulacion
+        {
+            codigoAmbiente = codAmbiente,
+            codigoDocumentoSector = codDocSector,
+            codigoEmision = codEmision,
+            codigoModalidad = codModalidad,
+            codigoPuntoVentaSpecified = true,
+            codigoPuntoVenta = codPtoVta,
+            codigoSistema = codSistema,
+            codigoSucursal = codSucursal,
+            cufd = cufd,
+            cuis = cuis,
+            cuf = cuf,
+            nit = nit,
+            tipoFacturaDocumento = tipoFacturaDocumento,
+        };
+
+        try
+        {
+            // Llamada al servicio
+            MyResult_ReversionAnulacionFactura_resp = await servicio.reversionAnulacionFacturaAsync(sol_reversion_anulacion);
+            MyResult_ReversionAnulacionFactura = MyResult_ReversionAnulacionFactura_resp.RespuestaServicioFacturacion;
+            // Procesamiento de la respuesta
+            miRespuesta.CodDescripcion = MyResult_ReversionAnulacionFactura.codigoDescripcion;
+            miRespuesta.CodEstado = MyResult_ReversionAnulacionFactura.codigoEstado;
+            miRespuesta.CodEstadoDesc = await adsiat_Mensaje_Servicio.Descripcion_Codigo(_context, miRespuesta.CodEstado);
+            miRespuesta.Transaccion = MyResult_ReversionAnulacionFactura.transaccion;
+
+            // Crear lista de mensajes
+            miRespuesta.ListaMsg.Clear();
+            if (MyResult_ReversionAnulacionFactura.mensajesList != null)
+            {
+                foreach (var mensaje in MyResult_ReversionAnulacionFactura.mensajesList)
+                {
+                    miRespuesta.ListaMsg.Add(mensaje.codigo + " - " + mensaje.descripcion);
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            // Manejo de errores
+            miRespuesta.CodDescripcion = "Error al procesar la reversion de anulacion de factura en el SIN. " + e.Message;
+            miRespuesta.CodEstado = 0;
+            miRespuesta.CodEstadoDesc = "Error";
+            miRespuesta.Transaccion = false;
+            miRespuesta.ListaMsg.Add("Error - " + e.Message);
+        }
+
+        return miRespuesta;
+    }
+
+    public async Task<ResultadoAnulacionFactura> Anular_Factura(DBContext _context, int almacen, int codAmbiente, int codDocSector, int codEmision, int codModalidad, int codPtoVta, string codSistema,
+                                                                    int codSucursal, string cuis, string cufd, long nit, int tipoFacturaDocumento, int codigoMotivo, string cuf)
+    {
+        var ini = await Obtener_EndPoint_Token(_context, almacen);
+        var miRespuesta = new ResultadoAnulacionFactura();
+
+        // Configuración del binding y del servicio
+        var binding = new BasicHttpBinding
+        {
+            SendTimeout = TimeSpan.FromSeconds(1000),
+            MaxBufferSize = int.MaxValue,
+            MaxReceivedMessageSize = int.MaxValue,
+            AllowCookies = true,
+            ReaderQuotas = System.Xml.XmlDictionaryReaderQuotas.Max
+            //Security = { Mode = BasicHttpSecurityMode.Transport }
+        };
+
+        ServicePointManager.Expect100Continue = true;
+        ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072; // TLS 1.2
+        binding.Security.Mode = BasicHttpSecurityMode.Transport;
+
+        var address = new EndpointAddress(endpointAddress);
+        var servicio = new ServicioFacturacionClient(binding, address);
+        servicio.Endpoint.EndpointBehaviors.Add(new CustomAuthenticationBehaviour(token));
+
+        // Preparación de la solicitud
+        var sol_anulacion = new solicitudAnulacion
+        {
+            codigoAmbiente = codAmbiente,
+            codigoDocumentoSector = codDocSector,
+            codigoEmision = codEmision,
+            codigoModalidad = codModalidad,
+            codigoMotivo = codigoMotivo,
+            codigoPuntoVentaSpecified = true,
+            codigoPuntoVenta = codPtoVta,
+            codigoSistema = codSistema,
+            codigoSucursal = codSucursal,
+            cufd = cufd,
+            cuis = cuis,
+            cuf = cuf,
+            nit = nit,
+            tipoFacturaDocumento = tipoFacturaDocumento,
+        };
+
+        try
+        {
+            // Llamada al servicio
+            MyResult_AnulacionFactura_resp = await servicio.anulacionFacturaAsync(sol_anulacion);
+            MyResult_AnulacionFactura = MyResult_AnulacionFactura_resp.RespuestaServicioFacturacion;
+            // Procesamiento de la respuesta
+            miRespuesta.CodDescripcion = MyResult_AnulacionFactura.codigoDescripcion;
+            miRespuesta.CodEstado = MyResult_AnulacionFactura.codigoEstado;
+            miRespuesta.CodEstadoDesc = await adsiat_Mensaje_Servicio.Descripcion_Codigo(_context, miRespuesta.CodEstado);
+            miRespuesta.Transaccion = MyResult_AnulacionFactura.transaccion;
+
+            // Crear lista de mensajes
+            miRespuesta.ListaMsg.Clear();
+            if (MyResult_AnulacionFactura.mensajesList != null)
+            {
+                foreach (var mensaje in MyResult_AnulacionFactura.mensajesList)
+                {
+                    miRespuesta.ListaMsg.Add(mensaje.codigo + " - " + mensaje.descripcion);
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            // Manejo de errores
+            miRespuesta.CodDescripcion = "Error al procesar la anulacion de factura en el SIN. " + e.Message;
+            miRespuesta.CodEstado = 0;
+            miRespuesta.CodEstadoDesc = "Error";
+            miRespuesta.Transaccion = false;
+            miRespuesta.ListaMsg.Add("Error - " + e.Message);
+        }
+
+        return miRespuesta;
+    }
+
+    public async Task<ResultadoEstadoFactura> Verificar_Estado_Factura(DBContext _context, int almacen, int codAmbiente, int codDocSector, int codEmision, int codModalidad, int codPtoVta, string codSistema,
+                                                                    int codSucursal, string cuis, string cufd, long nit, int tipoFacturaDocumento, string cuf)
+    {
+        var ini = await Obtener_EndPoint_Token(_context, almacen);
+        var miRespuesta = new ResultadoEstadoFactura();
+
+        // Configuración del binding y del servicio
+        var binding = new BasicHttpBinding
+        {
+            SendTimeout = TimeSpan.FromSeconds(1000),
+            MaxBufferSize = int.MaxValue,
+            MaxReceivedMessageSize = int.MaxValue,
+            AllowCookies = true,
+            ReaderQuotas = System.Xml.XmlDictionaryReaderQuotas.Max
+            //Security = { Mode = BasicHttpSecurityMode.Transport }
+        };
+
+        ServicePointManager.Expect100Continue = true;
+        ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072; // TLS 1.2
+        binding.Security.Mode = BasicHttpSecurityMode.Transport;
+
+        var address = new EndpointAddress(endpointAddress);
+        var servicio = new ServicioFacturacionClient(binding, address);
+        servicio.Endpoint.EndpointBehaviors.Add(new CustomAuthenticationBehaviour(token));
+
+        // Preparación de la solicitud
+        var sol_verificaEstado = new solicitudVerificacionEstado
+        {
+            codigoAmbiente = codAmbiente,
+            codigoDocumentoSector = codDocSector,
+            codigoEmision = codEmision,
+            codigoModalidad = codModalidad,
+            codigoPuntoVentaSpecified = true,
+            codigoPuntoVenta = codPtoVta,
+            codigoSistema = codSistema,
+            codigoSucursal = codSucursal,
+            cufd = cufd,
+            cuis = cuis,
+            cuf = cuf,
+            nit = nit,
+            tipoFacturaDocumento = tipoFacturaDocumento,
+        };
+
+        try
+        {
+            // Llamada al servicio
+            MyResult_EstadoFactura_resp = await servicio.verificacionEstadoFacturaAsync(sol_verificaEstado);
+            MyResult_EstadoFactura = MyResult_EstadoFactura_resp.RespuestaServicioFacturacion;
+            // Procesamiento de la respuesta
+            miRespuesta.CodDescripcion = MyResult_EstadoFactura.codigoDescripcion;
+            miRespuesta.CodEstado = MyResult_EstadoFactura.codigoEstado;
+            miRespuesta.CodEstadoDesc = await adsiat_Mensaje_Servicio.Descripcion_Codigo(_context, miRespuesta.CodEstado);
+            miRespuesta.Transaccion = MyResult_EstadoFactura.transaccion;
+            miRespuesta.CodRecepcion = MyResult_EstadoFactura.codigoRecepcion;
+        }
+        catch (Exception e)
+        {
+            // Manejo de errores
+            miRespuesta.CodDescripcion = "Error al verificar el estado de la factura!!!" + e.Message;
+            miRespuesta.CodEstado = 0;
+            miRespuesta.CodEstadoDesc = "Error";
+            miRespuesta.Transaccion = false;
+            miRespuesta.CodRecepcion = "0";
+        }
         return miRespuesta;
     }
 

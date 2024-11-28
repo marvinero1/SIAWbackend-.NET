@@ -44,6 +44,7 @@ namespace SIAW.Controllers.ventas.modificacion
         private readonly Restricciones restricciones = new Restricciones();
 
         private readonly ServFacturas serv_Facturas = new ServFacturas();
+        private readonly ServCodigos servCodigos = new ServCodigos();
         private readonly Funciones_SIAT funciones_SIAT = new Funciones_SIAT();
         private readonly Adsiat_Parametros_facturacion adsiat_Parametros_Facturacion = new Adsiat_Parametros_facturacion();
         private readonly Adsiat_Mensaje_Servicio adsiat_Mensaje_Servicio = new Adsiat_Mensaje_Servicio();
@@ -1638,6 +1639,719 @@ namespace SIAW.Controllers.ventas.modificacion
             }
 
         }
+
+
+
+        [HttpPost]
+        [Route("Revertir_Anulacion_Factura_SIN/{userConn}/{usuario}/{codFactura}/{codempresa}")]
+        public async Task<object> Revertir_Anulacion_Factura_SIN(string userConn, string usuario, int codFactura, string codempresa)
+        {
+            List<string> eventos = new List<string>();
+            bool resultado = true;
+            string mensaje = "";
+            bool enviar_mail_rever_anulacion = false;
+            // VALIDACIONES 
+            if (string.IsNullOrWhiteSpace(userConn)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'UserConn'. Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(usuario)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Usuario'. Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(codempresa)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Empresa'. Consulte con el Administrador del sistema." }); }
+            if (codFactura <= 0) { return BadRequest(new { resp = "El valor de 'Codigo de Factura' no puede ser cero o menor a cero. Consulte con el Administrador del sistema." }); }
+
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                try
+                {
+                    var dataFact = await _context.vefactura.Where(i => i.codigo == codFactura).FirstOrDefaultAsync();
+
+                    if (dataFact == null)
+                    {
+                        //return BadRequest(new { resp = mi_msg, eventos });
+                        mensaje = "No se encontró informacion con el codigo de factura proporcionado, consulte con el administrador";
+                        resultado = false;
+                        enviar_mail_rever_anulacion = false;
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        return StatusCode(203, new { resp = resultado, mensaje, eventos, enviar_mail_rever_anulacion });
+                    }
+
+                    if (dataFact.anulada == true)
+                    {
+                        //return BadRequest(new { resp = mi_msg, eventos });
+                        mensaje = "Esta Factura esta anulada en el SIA Local, primero debe habilitar esta factura en el SIA.";
+                        resultado = false;
+                        enviar_mail_rever_anulacion = false;
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        return StatusCode(203, new { resp = resultado, mensaje, eventos, enviar_mail_rever_anulacion });
+                    }
+                    try
+                    {
+                        string idFactura = dataFact.id;
+                        int nroIdFact = dataFact.numeroid;
+
+                        var result = await Solicitar_Reversion_Al_SIN(_context, usuario, codempresa, dataFact.codalmacen, dataFact.cuf, codFactura, dataFact.id, dataFact.numeroid);
+
+                        if (result.result == true)
+                        {
+                            resultado = true;
+                            enviar_mail_rever_anulacion = false;
+                            mensaje = "El proceso de Reversion en el SIN termino, verifique los resultados en la pestaña de observaciones!!!";
+                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                            //await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion);
+                        }
+                        else
+                        {
+                            mensaje = "Alerta el proceso de Reversion en el SIN termino con Errores, verifique los resultados en la pestaña de observaciones!!!";
+                            resultado = false;
+                            enviar_mail_rever_anulacion = false;
+                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                            // await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion);
+                            //return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        mensaje = "Ocurrio un Error y no se pudo revertir la anulacion de la factura en el SIN!!!";
+                        resultado = false;
+                        enviar_mail_rever_anulacion = false;
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        //await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion);
+                        return StatusCode(203, new { resp = resultado, mensaje, eventos, enviar_mail_rever_anulacion });
+                    }
+
+                    return Ok(new
+                    {
+                        resp = resultado,
+                        msgAlert = mensaje,
+                        eventos = eventos,
+                        enviar_mail = enviar_mail_rever_anulacion
+                    });
+                    /////**************************
+                }
+                catch (Exception ex)
+                {
+                    return Problem($"Error en el servidor al revertir anulacion en el SIN la FC: {ex.Message}");
+                }
+            }
+
+        }
+        private async Task<(bool result, List<string> msgAlertas, List<string> eventos, bool enviar_mail_rever_anulacion)> Solicitar_Reversion_Al_SIN(DBContext _context, string usuario, string codempresa, int codalmacen, string CUF_FACTURA, int codFactura, string id, int numeroid)
+        {
+            List<string> msgAlertas = new List<string>();
+            List<string> eventos = new List<string>();
+            bool resultado = false;
+            bool enviar_mail_rever_anulacion = false;
+
+            ServFacturas.ResultadoReversionAnulacionFactura ResReverAnulacion;
+
+            int _codAmbiente = await adsiat_Parametros_Facturacion.Ambiente(_context, codalmacen);
+            int _codDocSector = await adsiat_Parametros_Facturacion.TipoDocSector(_context, codalmacen);
+            int _codEmision = await adsiat_Parametros_Facturacion.TipoEmision(_context, codalmacen);
+            int _codModalidad = await adsiat_Parametros_Facturacion.Modalidad(_context, codalmacen);
+            int _codPtoVta = await adsiat_Parametros_Facturacion.PuntoDeVta(_context, codalmacen);
+            int _codSucursal = await adsiat_Parametros_Facturacion.Sucursal(_context, codalmacen);
+            string _codSistema = await adsiat_Parametros_Facturacion.CodigoSistema(_context, _codSucursal);
+
+            string _cuis = await adsiat_Parametros_Facturacion.CUIS(_context, _codSucursal);
+
+            // Ojo: se envía la solicitud de anulación con CUFD del día
+            Datos_Dosificacion_Activa _datosDosificacion_Activa = new Datos_Dosificacion_Activa();
+            _datosDosificacion_Activa = await siat.Obtener_Cufd_Dosificacion_Activa(_context, await funciones.FechaDelServidor(_context), codalmacen);
+            string _cufd = _datosDosificacion_Activa.cufd;
+
+            string _nit_pertec = await empresa.NITempresa(_context, codempresa);
+            int _tipoFacturaDocumento = await adsiat_Parametros_Facturacion.TipoFactura(_context, codalmacen);
+            string _cuf = CUF_FACTURA;
+            string msje = "";
+            string msje1 = "";
+
+            ResReverAnulacion = await serv_Facturas.Reversion_Anular_Factura(_context, codalmacen, _codAmbiente, _codDocSector, _codEmision, _codModalidad, _codPtoVta, _codSistema, _codSucursal, _cuis, _cufd, long.Parse(_nit_pertec), _tipoFacturaDocumento, _cuf);
+
+            if (ResReverAnulacion.Transaccion == true)
+            {
+                resultado = true;
+                msje = "La peticion de reversion de anulacion en el SIN fue aceptada, el resultado es: " + ResReverAnulacion.CodEstado + "-" + ResReverAnulacion.CodEstadoDesc;
+                msgAlertas.Add(msje);
+                eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + msje);
+                await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), id, numeroid.ToString(), _controllerName, msje, Log.TipoLog_Siat.Anulacion_Facturas);
+                foreach (var lista in ResReverAnulacion.ListaMsg)
+                {
+                    msje1 = lista.ToString();
+                    await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), id, numeroid.ToString(), _controllerName, msje1, Log.TipoLog_Siat.Anulacion_Facturas);
+                }
+                msje = msje1 + ", verifique los resultados en la pestaña de observaciones!!!";
+                msgAlertas.Add(msje);
+                eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + msje);
+                //Desde 03-07-2023
+                //actualizar la cod_recepcion_siat
+                var factura = await _context.vefactura.Where(i => i.codigo == codFactura).FirstOrDefaultAsync();
+                try
+                {
+                    factura.cod_estado_siat = ResReverAnulacion.CodEstado;
+                    await _context.SaveChangesAsync();
+                    msje = "Cod_estado_siat Nuevo: " + ResReverAnulacion.CodEstado;
+                    eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + msje);
+                    await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), id, numeroid.ToString(), _controllerName, msje, Log.TipoLog_Siat.Creacion);
+                }
+                catch (Exception ex)
+                {
+                    msje = "Ocurrio un Error y no se pudo cambiar el codestado_siat de la factura!!!";
+                    resultado = true;
+                    eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + msje);
+                }
+            }
+            else
+            {
+                resultado = false;
+                msje = "La peticion de reversion de anulacion en el SIN fue rechazada: " + ResReverAnulacion.CodEstado + "-" + ResReverAnulacion.CodEstadoDesc;
+                msgAlertas.Add(msje);
+                eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + msje);
+                await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), id, numeroid.ToString(), _controllerName, msje, Log.TipoLog_Siat.Anulacion_Facturas);
+                foreach (var lista in ResReverAnulacion.ListaMsg)
+                {
+                    msje1 = lista.ToString();
+                    await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), id, numeroid.ToString(), _controllerName, msje1, Log.TipoLog_Siat.Anulacion_Facturas);
+                }
+                msje = msje1 + ", verifique los resultados en la pestaña de observaciones!!!";
+                msgAlertas.Add(msje);
+                eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + msje);
+            }
+            if (ResReverAnulacion.CodEstado == 907)
+            {
+                enviar_mail_rever_anulacion = true;
+            }
+            return (resultado, msgAlertas, eventos, enviar_mail_rever_anulacion);
+        }
+
+
+        [HttpGet]
+        [Route("Verificar_NIT_Factura/{userConn}/{usuario}/{codFactura}/{codempresa}")]
+        public async Task<object> Verificar_NIT_Factura(string userConn, string usuario, int codFactura, string codempresa)
+        {
+            List<string> eventos = new List<string>();
+            bool resultado = true;
+            string mensaje = "";
+            // VALIDACIONES 
+            if (string.IsNullOrWhiteSpace(userConn)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'UserConn'. Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(usuario)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Usuario'. Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(codempresa)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Empresa'. Consulte con el Administrador del sistema." }); }
+            if (codFactura <= 0) { return BadRequest(new { resp = "El valor de 'Codigo de Factura' no puede ser cero o menor a cero. Consulte con el Administrador del sistema." }); }
+
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                try
+                {
+                    var dataFact = await _context.vefactura.Where(i => i.codigo == codFactura).FirstOrDefaultAsync();
+
+                    if (dataFact == null)
+                    {
+                        //return BadRequest(new { resp = mi_msg, eventos });
+                        mensaje = "No se encontró informacion con el codigo de factura proporcionado, consulte con el administrador";
+                        resultado = false;
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        return StatusCode(203, new { resp = resultado, mensaje, eventos });
+                    }
+
+                    try
+                    {
+                        string idFactura = dataFact.id;
+                        int nroIdFact = dataFact.numeroid;
+
+                        var result = await Verificar_NIT_Cliente(_context, usuario, codempresa, dataFact.codalmacen, long.Parse(dataFact.nit), codFactura, dataFact.id, dataFact.numeroid);
+
+                        if (result.result == true)
+                        {
+                            resultado = true;
+                            mensaje = "El NIT SI es valido para el SIN!!!; Respuesta: " + result.mensaje;
+                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                            //await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion);
+                        }
+                        else
+                        {
+                            mensaje = "ERROR el NIT NO es valido para el SIN!!!; Respuesta: " + result.mensaje;
+                            resultado = false;
+                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                            // await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion);
+                            //return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        mensaje = "Ocurrio un Error y no se pudo verficiar el NIT de la factura en el SIN!!!";
+                        resultado = false;
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        //await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion);
+                        return StatusCode(203, new { resp = resultado, mensaje, eventos });
+                    }
+
+                    return Ok(new
+                    {
+                        resp = resultado,
+                        msgAlert = mensaje,
+                        eventos = eventos,
+                    });
+                    /////**************************
+                }
+                catch (Exception ex)
+                {
+                    return Problem($"Error en el servidor al verifciar el NIT en el SIN la FC: {ex.Message}");
+                }
+            }
+
+        }
+
+        private async Task<(bool result, string mensaje)> Verificar_NIT_Cliente(DBContext _context, string usuario, string codempresa, int codalmacen, long nit_factura, int codFactura, string id, int numeroid)
+        {
+            string msgAlertas = "";
+            List<string> eventos = new List<string>();
+            //bool resultado = false;
+            ServCodigos.ResultadoVerificarNIT resultado;
+
+            int _codAmbiente = await adsiat_Parametros_Facturacion.Ambiente(_context, codalmacen);
+            int _codDocSector = await adsiat_Parametros_Facturacion.TipoDocSector(_context, codalmacen);
+            int _codEmision = await adsiat_Parametros_Facturacion.TipoEmision(_context, codalmacen);
+            int _codModalidad = await adsiat_Parametros_Facturacion.Modalidad(_context, codalmacen);
+            int _codPtoVta = await adsiat_Parametros_Facturacion.PuntoDeVta(_context, codalmacen);
+            int _codSucursal = await adsiat_Parametros_Facturacion.Sucursal(_context, codalmacen);
+            string _codSistema = await adsiat_Parametros_Facturacion.CodigoSistema(_context, _codSucursal);
+            string _cuis = await adsiat_Parametros_Facturacion.CUIS(_context, _codSucursal);
+            string _nit_pertec = await empresa.NITempresa(_context, codempresa);
+
+            resultado = await servCodigos.Verificar_Nit(_context, _codAmbiente, _codModalidad, _codSistema, _codSucursal, _cuis, long.Parse(_nit_pertec), nit_factura, codalmacen);
+
+            if (resultado.Transaccion == true)
+            {
+                msgAlertas = resultado.Codigo + "-" + resultado.Descripcion;
+            }
+            else
+            {
+                msgAlertas = resultado.Codigo + "-" + resultado.Descripcion;
+            }
+            return (resultado.Transaccion, msgAlertas);
+        }
+
+        [HttpPost]
+        [Route("Anular_Factura_SIN/{userConn}/{usuario}/{codFactura}/{codempresa}/{motivo}/{motivo_sin}")]
+        public async Task<object> Anular_Factura_SIN(string userConn, string usuario, int codFactura, string codempresa, string motivo, string motivo_sin)
+        {
+            List<string> eventos = new List<string>();
+            bool resultado = true;
+            string mensaje = "";
+            int codigo_control = 0;
+            int codigo_motivo = 0;
+            string[] motivo_sin_datos;
+            bool enviar_mail_anulacion = false;
+            // VALIDACIONES 
+            if (string.IsNullOrWhiteSpace(userConn)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'UserConn'. Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(usuario)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Usuario'. Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(codempresa)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Empresa'. Consulte con el Administrador del sistema." }); }
+            if (codFactura <= 0) { return BadRequest(new { resp = "El valor de 'Codigo de Factura' no puede ser cero o menor a cero. Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(motivo)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Motivo'. Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(motivo_sin) && motivo_sin.Contains('-')) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Motivo SIN'. Consulte con el Administrador del sistema." }); }
+
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                try
+                {
+                    var dataFact = await _context.vefactura.Where(i => i.codigo == codFactura).FirstOrDefaultAsync();
+
+                    if (dataFact == null)
+                    {
+                        //return BadRequest(new { resp = mi_msg, eventos });
+                        mensaje = "No se encontró informacion con el codigo de factura proporcionado, consulte con el administrador";
+                        resultado = false;
+                        enviar_mail_anulacion = false;
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        return StatusCode(203, new { resp = resultado, mensaje, eventos, enviar_mail_anulacion });
+                    }
+
+                    if (dataFact.anulada == false)
+                    {
+                        //return BadRequest(new { resp = mi_msg, eventos });
+                        mensaje = "Esta Factura no esta anulada en el SIA Local.";
+                        resultado = false;
+                        enviar_mail_anulacion = false;
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        return StatusCode(203, new { resp = resultado, mensaje, eventos, enviar_mail_anulacion });
+                    }
+
+                    motivo_sin_datos = motivo_sin.Split('-');
+                    if (motivo_sin_datos.Length == 2)
+                    {
+                        codigo_motivo = Convert.ToInt32(motivo_sin_datos[0].Trim());
+                    }
+                    else
+                    {
+                        mensaje = "El formato de la cadena del motivo del SIN no es válido.";
+                        resultado = false;
+                        enviar_mail_anulacion = false;
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        return StatusCode(203, new { resp = resultado, mensaje, eventos, enviar_mail_anulacion });
+                    }
+
+                    try
+                    {
+                        string idFactura = dataFact.id;
+                        int nroIdFact = dataFact.numeroid;
+
+                        var result = await Solicitar_Anulacion_Al_SIN(_context, usuario, codempresa, dataFact.codalmacen, codigo_motivo, dataFact.cuf, codFactura, dataFact.id, dataFact.numeroid);
+
+                        if (result.result == true)
+                        {
+                            resultado = true;
+                            enviar_mail_anulacion = true;
+                            mensaje = "El proceso de anulacion en el SIN termino, verifique los resultados en la pestaña de observaciones!!!";
+                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                            //await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion);
+                        }
+                        else
+                        {
+                            mensaje = "Alerta el proceso de anulacion en el SIN termino con Errores, verifique los resultados en la pestaña de observaciones!!!";
+                            resultado = false;
+                            enviar_mail_anulacion = false;
+                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                            // await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion);
+                            //return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        mensaje = "Ocurrio un Error y no se pudo anular la factura en el SIN!!!";
+                        resultado = false;
+                        enviar_mail_anulacion = false;
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        //await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion);
+                        return StatusCode(203, new { resp = resultado, mensaje, eventos, enviar_mail_anulacion });
+                    }
+
+                    return Ok(new
+                    {
+                        resp = resultado,
+                        msgAlert = mensaje,
+                        eventos = eventos,
+                        enviar_mail = enviar_mail_anulacion
+                    });
+                    /////**************************
+                }
+                catch (Exception ex)
+                {
+                    return Problem($"Error en el servidor al anular en el SIN la FC: {ex.Message}");
+                }
+            }
+
+        }
+        private async Task<(bool result, List<string> msgAlertas, List<string> eventos, bool enviar_mail_anulacion)> Solicitar_Anulacion_Al_SIN(DBContext _context, string usuario, string codempresa, int codalmacen, int motivo_anulacion, string CUF_FACTURA, int codFactura, string id, int numeroid)
+        {
+            List<string> msgAlertas = new List<string>();
+            List<string> eventos = new List<string>();
+            bool resultado = false;
+            bool enviar_mail_anulacion = false;
+
+            ServFacturas.ResultadoAnulacionFactura ResAnulacion;
+
+            int _codAmbiente = await adsiat_Parametros_Facturacion.Ambiente(_context, codalmacen);
+            int _codDocSector = await adsiat_Parametros_Facturacion.TipoDocSector(_context, codalmacen);
+            int _codEmision = await adsiat_Parametros_Facturacion.TipoEmision(_context, codalmacen);
+            int _codModalidad = await adsiat_Parametros_Facturacion.Modalidad(_context, codalmacen);
+            int _codPtoVta = await adsiat_Parametros_Facturacion.PuntoDeVta(_context, codalmacen);
+            int _codSucursal = await adsiat_Parametros_Facturacion.Sucursal(_context, codalmacen);
+            string _codSistema = await adsiat_Parametros_Facturacion.CodigoSistema(_context, _codSucursal);
+
+            string _cuis = await adsiat_Parametros_Facturacion.CUIS(_context, _codSucursal);
+
+            // Ojo: se envía la solicitud de anulación con CUFD del día
+            Datos_Dosificacion_Activa _datosDosificacion_Activa = new Datos_Dosificacion_Activa();
+            _datosDosificacion_Activa = await siat.Obtener_Cufd_Dosificacion_Activa(_context, await funciones.FechaDelServidor(_context), codalmacen);
+            string _cufd = _datosDosificacion_Activa.cufd;
+
+            string _nit_pertec = await empresa.NITempresa(_context, codempresa);
+            int _tipoFacturaDocumento = await adsiat_Parametros_Facturacion.TipoFactura(_context, codalmacen);
+            int _codigoMotivo = motivo_anulacion;
+            string _cuf = CUF_FACTURA;
+            string msje = "";
+            string msje1 = "";
+
+            ResAnulacion = await serv_Facturas.Anular_Factura(_context, codalmacen, _codAmbiente, _codDocSector, _codEmision, _codModalidad, _codPtoVta, _codSistema, _codSucursal, _cuis, _cufd, long.Parse(_nit_pertec), _tipoFacturaDocumento, _codigoMotivo, _cuf);
+
+            if (ResAnulacion.Transaccion == true)
+            {
+                resultado = true;
+                msje = "La peticion de anulacion en el SIN fue aceptada, el resultado es: " + ResAnulacion.CodEstado + "-" + ResAnulacion.CodEstadoDesc;
+                msgAlertas.Add(msje);
+                eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + msje);
+                await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), id, numeroid.ToString(), _controllerName, msje, Log.TipoLog_Siat.Anulacion_Facturas);
+                foreach (var lista in ResAnulacion.ListaMsg)
+                {
+                    msje1 = lista.ToString();
+                    await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), id, numeroid.ToString(), _controllerName, msje1, Log.TipoLog_Siat.Anulacion_Facturas);
+                }
+                msje = msje1 + ", verifique los resultados en la pestaña de observaciones!!!";
+                msgAlertas.Add(msje);
+                eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + msje);
+                //Desde 03-07-2023
+                //actualizar la cod_recepcion_siat
+                var factura = await _context.vefactura.Where(i => i.codigo == codFactura).FirstOrDefaultAsync();
+                try
+                {
+                    factura.cod_estado_siat = ResAnulacion.CodEstado;
+                    await _context.SaveChangesAsync();
+                    msje = "Cod_estado_siat Nuevo: " + ResAnulacion.CodEstado;
+                    eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + msje);
+                    await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), id, numeroid.ToString(), _controllerName, msje, Log.TipoLog_Siat.Creacion);
+                }
+                catch (Exception ex)
+                {
+                    msje = "Ocurrio un Error y no se pudo cambiar el codestado_siat de la factura!!!";
+                    resultado = true;
+                    eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + msje);
+                }
+            }
+            else
+            {
+                resultado = false;
+                msje = "La peticion de anulacion en el SIN fue rechazada: " + ResAnulacion.CodEstado + "-" + ResAnulacion.CodEstadoDesc;
+                msgAlertas.Add(msje);
+                eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + msje);
+                await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), id, numeroid.ToString(), _controllerName, msje, Log.TipoLog_Siat.Anulacion_Facturas);
+                foreach (var lista in ResAnulacion.ListaMsg)
+                {
+                    msje1 = lista.ToString();
+                    await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), id, numeroid.ToString(), _controllerName, msje1, Log.TipoLog_Siat.Anulacion_Facturas);
+                }
+                msje = msje1 + ", verifique los resultados en la pestaña de observaciones!!!";
+                msgAlertas.Add(msje);
+                eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + msje);
+            }
+            if (ResAnulacion.CodEstado == 905)
+            {
+                enviar_mail_anulacion = true;
+            }
+            return (resultado, msgAlertas, eventos, enviar_mail_anulacion);
+        }
+
+
+        [HttpGet]
+        [Route("Verificar_Comunicacion_SIN/{userConn}/{usuario}/{codempresa}/{codalmacen}")]
+        public async Task<object> Verificar_Comunicacion_SIN(string userConn, string usuario, string codempresa, int codalmacen)
+        {
+            List<string> eventos = new List<string>();
+            string mensaje = "";
+            bool result = false;
+            // VALIDACIONES 
+            if (string.IsNullOrWhiteSpace(userConn)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'UserConn'. Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(usuario)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Usuario'. Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(codempresa)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Empresa'. Consulte con el Administrador del sistema." }); }
+            if (codalmacen <= 0) { return BadRequest(new { resp = "El valor de 'Almacen' no puede ser cero o menor a cero. Consulte con el Administrador del sistema." }); }
+
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                try
+                {
+
+                    var resultado = await Verificar_Comunicacion(_context, codalmacen);
+
+                    if (resultado.result == true)
+                    {
+                        result = true;
+                        mensaje = resultado.mensaje;
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        //await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion);
+                    }
+                    else
+                    {
+                        mensaje = resultado.mensaje;
+                        result = false;
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        // await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion);
+                        //return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    mensaje = "Ocurrio un Error y no se pudo verficiar el NIT de la factura en el SIN!!!";
+                    eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                    //await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion);
+                    return StatusCode(203, new { resp = result, mensaje, eventos });
+                }
+
+                return Ok(new
+                {
+                    resp = result,
+                    msgAlert = mensaje,
+                    eventos = eventos,
+                });
+                /////**************************
+            }
+
+        }
+        private async Task<(bool result, string mensaje)> Verificar_Comunicacion(DBContext _context, int codalmacen)
+        {
+            string msgAlertas = "";
+            List<string> eventos = new List<string>();
+            //bool resultado = false;
+            bool resultado = false;
+            resultado = await serv_Facturas.VerificarComunicacion(_context, codalmacen);
+            if (resultado == true)
+            {
+                msgAlertas = "La conexion con el SIN fue exitosa!!!";
+            }
+            else
+            {
+                msgAlertas = "No se pudo establecer la conexion con el SIN, consulte con el administrador del sistema!!!";
+            }
+            return (resultado, msgAlertas);
+        }
+
+
+
+        [HttpGet]
+        [Route("Verificar_Estado_Factura_en_el_SIN/{userConn}/{usuario}/{codFactura}/{codempresa}")]
+        public async Task<object> Verificar_Estado_Factura_en_el_SIN(string userConn, string usuario, int codFactura, string codempresa)
+        {
+            List<string> eventos = new List<string>();
+            bool resultado = true;
+            string mensaje = "";
+            string mensaje_log = "";
+            // VALIDACIONES 
+            if (string.IsNullOrWhiteSpace(userConn)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'UserConn'. Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(usuario)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Usuario'. Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(codempresa)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Empresa'. Consulte con el Administrador del sistema." }); }
+            if (codFactura <= 0) { return BadRequest(new { resp = "El valor de 'Codigo de Factura' no puede ser cero o menor a cero. Consulte con el Administrador del sistema." }); }
+
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                try
+                {
+                    var dataFact = await _context.vefactura.Where(i => i.codigo == codFactura).FirstOrDefaultAsync();
+
+                    if (dataFact == null)
+                    {
+                        //return BadRequest(new { resp = mi_msg, eventos });
+                        mensaje = "No se encontró informacion con el codigo de factura proporcionado, consulte con el administrador";
+                        resultado = false;
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        return StatusCode(203, new { resp = resultado, mensaje, eventos });
+                    }
+
+                    try
+                    {
+                        string idFactura = dataFact.id;
+                        int nroIdFact = dataFact.numeroid;
+
+                        var ResEstado = await Verificar_Estado_Factura(_context, usuario, codempresa, dataFact.codalmacen, long.Parse(dataFact.nit), codFactura, dataFact.id, dataFact.numeroid, dataFact.cuf);
+
+                        if (ResEstado.result == true)
+                        {
+                            resultado = true;
+                            mensaje = "La peticion de verificacion del estado de la factura en el SIN fue Aceptada, el estado de la factura: " + idFactura + "-" + nroIdFact + " es: " + ResEstado.mensaje;
+                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                            //await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion);
+                        }
+                        else
+                        {
+                            mensaje = "La peticion de verificacion del estado de la factura en el SIN fue Rechazada. " + ResEstado.mensaje;
+                            resultado = false;
+                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                            // await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion);
+                            //return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                        }
+                        //Desde 08/05/2023 registrar en el log la respuesta que se recepciono de la factura a consultar su estado
+                        mensaje_log = "El resultado fue: " + ResEstado.mensaje_log;
+                        await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje_log, Log.TipoLog_Siat.Estado_Facturas);
+                    }
+                    catch (Exception ex)
+                    {
+                        mensaje = "Ocurrio un Error y no se pudo verficiar el NIT de la factura en el SIN!!!";
+                        resultado = false;
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        //await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion);
+                        return StatusCode(203, new { resp = resultado, mensaje, eventos });
+                    }
+
+                    return Ok(new
+                    {
+                        resp = resultado,
+                        msgAlert = mensaje,
+                        eventos = eventos,
+                    });
+                    /////**************************
+                }
+                catch (Exception ex)
+                {
+                    return Problem($"Error en el servidor al verifciar el NIT en el SIN la FC: {ex.Message}");
+                }
+            }
+
+        }
+
+        private async Task<(bool result, string mensaje, string mensaje_log)> Verificar_Estado_Factura(DBContext _context, string usuario, string codempresa, int codalmacen, long nit_factura, int codFactura, string id, int numeroid, string cuf)
+        {
+            string mensaje = "";
+            string mensaje_log = "";
+            List<string> eventos = new List<string>();
+            //bool resultado = false;
+            ServFacturas.ResultadoEstadoFactura resultado;
+
+            int _codAmbiente = await adsiat_Parametros_Facturacion.Ambiente(_context, codalmacen);
+            int _codDocSector = await adsiat_Parametros_Facturacion.TipoDocSector(_context, codalmacen);
+            int _codEmision = await adsiat_Parametros_Facturacion.TipoEmision(_context, codalmacen);
+            int _codModalidad = await adsiat_Parametros_Facturacion.Modalidad(_context, codalmacen);
+            int _codPtoVta = await adsiat_Parametros_Facturacion.PuntoDeVta(_context, codalmacen);
+            int _codSucursal = await adsiat_Parametros_Facturacion.Sucursal(_context, codalmacen);
+            string _codSistema = await adsiat_Parametros_Facturacion.CodigoSistema(_context, _codSucursal);
+            string _cuis = await adsiat_Parametros_Facturacion.CUIS(_context, _codSucursal);
+            int _tipoFacturaDocumento = await adsiat_Parametros_Facturacion.TipoFactura(_context, codalmacen);
+            string _nit_pertec = await empresa.NITempresa(_context, codempresa);
+            string _cuf = cuf;
+            string _cufd = "";
+
+            // Ojo: se envía la solicitud de anulación con CUFD del día
+            Datos_Dosificacion_Activa _datosDosificacion_Activa = new Datos_Dosificacion_Activa();
+            _datosDosificacion_Activa = await siat.Obtener_Cufd_Dosificacion_Activa(_context, await funciones.FechaDelServidor(_context), codalmacen);
+            if (_datosDosificacion_Activa.cufd.Length == 0)
+            {
+                mensaje = "No se encontro un CUFD dosificado para el dia de hoy del Almacen: " + codalmacen + ", verifique esta situacion!!!";
+                return (false, mensaje, mensaje_log);
+            }
+            else
+            {
+                _cufd = _datosDosificacion_Activa.cufd;
+            }
+
+            resultado = await serv_Facturas.Verificar_Estado_Factura(_context, codalmacen, _codAmbiente, _codDocSector, _codEmision, _codModalidad, _codPtoVta, _codSistema, _codSucursal, _cuis, _cufd, long.Parse(_nit_pertec), _tipoFacturaDocumento, _cuf);
+
+            if (resultado.Transaccion == true)
+            {
+                mensaje = resultado.CodEstado + "-" + resultado.CodDescripcion;
+            }
+            else
+            {
+                mensaje = resultado.CodEstado + "-" + resultado.CodDescripcion;
+            }
+            mensaje_log = resultado.CodDescripcion + ", " + resultado.CodEstado + ", " + resultado.CodRecepcion;
+            return (resultado.Transaccion, mensaje, mensaje_log);
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
