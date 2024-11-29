@@ -2997,8 +2997,16 @@ namespace SIAW.Controllers.ventas.transaccion
             // accion de guardar
 
             // guarda cabecera (veproforma)
-            _context.veproforma.Add(veproforma);
-            await _context.SaveChangesAsync();
+            try
+            {
+                _context.veproforma.Add(veproforma);
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                return ("Error al grabar la cabecera de la proforma: " + ex.Message, 0, 0);
+            }
+           
 
             var codProforma = veproforma.codigo;
 

@@ -594,7 +594,7 @@ namespace siaw_ws_siat
             }
             return resultado;
         }
-        public async Task<(bool resul, List<string> msgAlertas, List<string> eventos)> ENVIAR_FACTURA_AL_SIN(DBContext _context, string codigocontrol, string codempresa, string usuario, string micufd, long miNIT, string miCUF, byte[] archivogzip, string mihashArchivo, int codalm, int codFactura, string idFac, int nroIdFac)
+        public async Task<(bool resul, List<string> msgAlertas, List<string> eventos)> ENVIAR_FACTURA_AL_SIN(DBContext _context, string codigocontrol, string codempresa, string usuario, string micufd, long miNIT, string miCUF, byte[] archivogzip, string mihashArchivo, int codalm, int codFactura, string idFac, int nroIdFac, string ventana)
         {
             // para devolver lista de registros logs
             List<string> eventos = new List<string>();
@@ -678,7 +678,7 @@ namespace siaw_ws_siat
                         // Guardar cambios en la base de datos
                         _context.SaveChanges();
                         msj = "El estado en línea y en línea SIN de la factura fue cambiado exitosamente a FUERA DE LÍNEA";
-                        await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFac, nroIdFac.ToString(), "prgfacturarNR_cufdController", msj, Log.TipoLog_Siat.Creacion);
+                        await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFac, nroIdFac.ToString(), ventana, msj, Log.TipoLog_Siat.Creacion);
                     }
 
                     if (parametrosFacturacionAg1.resultado)
@@ -693,7 +693,7 @@ namespace siaw_ws_siat
                             _context.SaveChanges();
                             msj = "El CUF de la factura fue cambiado exitosamente por: " + valorCUF;
                             eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + _mensaje);
-                            await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFac, nroIdFac.ToString(), "prgfacturarNR_cufdController", msj, Log.TipoLog_Siat.Creacion);
+                            await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFac, nroIdFac.ToString(), ventana, msj, Log.TipoLog_Siat.Creacion);
                         }
                     }
                     else
@@ -708,7 +708,7 @@ namespace siaw_ws_siat
                             //msj = "No se pudo generar el CUF correcto, se puso un CUF vacío.";
                             string cadenaMsj = $"No se pudo generar el CUF de la factura {idFac}-{nroIdFac} debido a que no se encontraron los parámetros de facturación necesarios de la agencia!!!";
                             eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + cadenaMsj);
-                            await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFac, nroIdFac.ToString(), "prgfacturarNR_cufdController", cadenaMsj, Log.TipoLog_Siat.Creacion);
+                            await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFac, nroIdFac.ToString(), ventana, cadenaMsj, Log.TipoLog_Siat.Creacion);
                         }
                         resultado = false;
                     }

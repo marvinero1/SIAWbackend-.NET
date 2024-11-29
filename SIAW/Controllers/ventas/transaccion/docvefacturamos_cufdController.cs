@@ -388,6 +388,7 @@ namespace SIAW.Controllers.ventas.transaccion
             objDocVta.monto_anticipo = 0;
             objDocVta.idpf_solurgente = "";
             objDocVta.noridpf_solurgente = "0";
+            objDocVta.fechalimite_dosificacion = (DateTime)(DVTA.fechalimite);
 
             return objDocVta;
         }
@@ -859,7 +860,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 List<vedetalleEtiqueta> vedetalleEtiqueta = new List<vedetalleEtiqueta>();
                 List<vedetalleanticipoProforma>? vedetalleanticipoProforma = new List<vedetalleanticipoProforma>();
                 List<verecargosDatos>? verecargosDatos = new List<verecargosDatos>();
-                List<Controles>? controles_recibidos = new List<Controles>();
+                List<Controles>? controles_recibidos = new List<Controles>(); 
                 List<Controles>? controles_nuevos = new List<Controles>();
 
                 itemDataMatriz = dataFacturaTienda.detalleItemsProf_fact;
@@ -874,7 +875,8 @@ namespace SIAW.Controllers.ventas.transaccion
                 if (dtvalidar != null)
                 {
                     //contar los no validos; sino hacer en un foreach
-                    NroNoValidos = dtvalidar.Select(p => { p.Valido = "NO"; return p; }).Count();
+                    NroNoValidos = dtvalidar.Where(p => p.Valido == "NO" ).Count();
+                    // NroNoValidos = dtvalidar.Select(p => { p.Valido = "NO"; return p; }).Count();
 
                     if (NroNoValidos > 0)
                     {
@@ -886,6 +888,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         {
                             msg = "El documento no cumple condiciones para ser Grabado y Aprobado, verifique el resultado de la revision!!!";
                         }
+                        resultado = false;
                     }
                     else
                     {
@@ -1215,7 +1218,7 @@ namespace SIAW.Controllers.ventas.transaccion
                                 if ((bool)dtFactura.Rows[0]["en_linea"] && (bool)dtFactura.Rows[0]["en_linea_sin"])
                                 {
                                     //ESTA EN MODO FACTURACION EN LINEA
-                                    var enviar_factura_al_sin = await funciones_SIAT.ENVIAR_FACTURA_AL_SIN(_context, codigocontrol, codempresa, usuario, cufd, long.Parse(nit), cuf, miComprimidoGZIP, miHASH, codalmacen, (int)dtFactura.Rows[0]["codigo"], (string)dtFactura.Rows[0]["id"], (int)dtFactura.Rows[0]["numeroid"]);
+                                    var enviar_factura_al_sin = await funciones_SIAT.ENVIAR_FACTURA_AL_SIN(_context, codigocontrol, codempresa, usuario, cufd, long.Parse(nit), cuf, miComprimidoGZIP, miHASH, codalmacen, (int)dtFactura.Rows[0]["codigo"], (string)dtFactura.Rows[0]["id"], (int)dtFactura.Rows[0]["numeroid"],_controllerName);
                                     if (enviar_factura_al_sin.resul)
                                     {
                                         //se envio al SIN
@@ -1231,6 +1234,7 @@ namespace SIAW.Controllers.ventas.transaccion
                                         eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - ---> " + id + "-" + numeroid + " " + mensaje);
                                         factura_se_imprime = false;
                                         await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFacturas.ToString(), id, numeroid.ToString(), "docvefacturamos_cufdController", mensaje, Log.TipoLog_Siat.Envio_Factura);
+                                        msgAlertas.Add(mensaje);
                                     }
                                 }
                                 else
@@ -1863,7 +1867,7 @@ namespace SIAW.Controllers.ventas.transaccion
                                 msgAlertas.AddRange(xml_generado.msgAlertas);
                                 eventosLog.AddRange(xml_generado.eventos);
                                 nomArchivoXML = xml_generado.nomArchivoXML;
-                                imprime = xml_generado.resul;
+                                imprime = xml_generado.factura_se_imprime;
 
                             }
 
@@ -2536,11 +2540,11 @@ namespace SIAW.Controllers.ventas.transaccion
                 //fin de obtener id actual
                 if (await ventas.iddescarga(_context, idfactura))
                 {
-                    descarga = false;
+                    descarga = true;
                 }
                 else
                 {
-                    descarga = true;
+                    descarga = false;
                 }
                 // ver si me queda dosificacion
                 if (await ventas.cufd_fechalimiteDate(_context, cufd) >= cabecera.fecha.Date)
@@ -3702,7 +3706,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 {
                     string monBaseTarif = await ventas.monedabasetarifa(_context, reg.codtarifa);
                     reg.preciolista = await tipocambio._conversion(_context, codmoneda, monBaseTarif, fecha, (decimal)(await ventas.preciodelistaitem(_context, reg.codtarifa, reg.coditem)));
-
+                    reg.preciolista = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, reg.preciolista);
                     // si hay descuento
                     reg.preciodesc = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, (await tipocambio._conversion(_context, codmoneda, monBaseTarif, fecha, (decimal)(await ventas.preciocliente(_context, codcliente, codalmacen, reg.codtarifa, reg.coditem, "NO", reg.niveldesc, "ACTUAL")))));
                     reg.precioneto = await siat.Redondeo_Decimales_SIA_5_decimales_SQL(_context, (await tipocambio._conversion(_context, codmoneda, monBaseTarif, fecha, (decimal)(await ventas.preciocondescitem(_context, codcliente, codalmacen, reg.codtarifa, reg.coditem, reg.coddescuento, "NO", reg.niveldesc, "ACTUAL")))));

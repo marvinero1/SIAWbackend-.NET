@@ -1671,7 +1671,7 @@ namespace SIAW.Controllers.z_pruebas
                                 if ((bool)dtFactura.Rows[0]["en_linea"] && (bool)dtFactura.Rows[0]["en_linea_sin"])
                                 {
                                     //ESTA EN MODO FACTURACION EN LINEA
-                                    var enviar_factura_al_sin = await funciones_SIAT.ENVIAR_FACTURA_AL_SIN(_context, codigocontrol, codempresa, usuario, cufd, long.Parse(nit), cuf, miComprimidoGZIP, miHASH, codalmacen, (int)dtFactura.Rows[0]["codigo"], (string)dtFactura.Rows[0]["id"], (int)dtFactura.Rows[0]["numeroid"]);
+                                    var enviar_factura_al_sin = await funciones_SIAT.ENVIAR_FACTURA_AL_SIN(_context, codigocontrol, codempresa, usuario, cufd, long.Parse(nit), cuf, miComprimidoGZIP, miHASH, codalmacen, (int)dtFactura.Rows[0]["codigo"], (string)dtFactura.Rows[0]["id"], (int)dtFactura.Rows[0]["numeroid"],_controllerName);
                                     if (enviar_factura_al_sin.resul)
                                     {
                                         //se envio al SIN

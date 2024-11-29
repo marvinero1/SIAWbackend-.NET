@@ -746,7 +746,7 @@ namespace siaw_funciones
 
                     var vedescliente2 = await _context.vedescliente
                         .Where(c => c.cliente == codcliente).ToListAsync();
-                    if (vedescliente.Count() > 0)
+                    if (vedescliente2.Count() > 0)
                     {
                         _context.vedescliente.RemoveRange(vedescliente2);
                         await _context.SaveChangesAsync();

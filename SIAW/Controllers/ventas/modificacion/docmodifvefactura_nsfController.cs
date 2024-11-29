@@ -2001,6 +2001,7 @@ namespace SIAW.Controllers.ventas.modificacion
                             resultado = true;
                             enviar_mail_anulacion = true;
                             mensaje = "El proceso de anulacion en el SIN termino, verifique los resultados en la pestaña de observaciones!!!";
+                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + result.eventos);
                             eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
                             //await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion);
                         }
@@ -2009,6 +2010,7 @@ namespace SIAW.Controllers.ventas.modificacion
                             mensaje = "Alerta el proceso de anulacion en el SIN termino con Errores, verifique los resultados en la pestaña de observaciones!!!";
                             resultado = false;
                             enviar_mail_anulacion = false;
+                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + result.eventos);
                             eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
                             // await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion);
                             //return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
