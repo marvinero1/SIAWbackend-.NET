@@ -281,7 +281,7 @@ namespace SIAW.Controllers.ventas.transaccion
             }).ToList();
         }
 
-        private async Task<object?> Llenar_Datos_Del_Documento(DBContext _context, string codempresa, vefactura DVTA, List<itemDataMatriz> tabladetalle, DatosDocVta objDocVta)
+        private async Task<object?> Llenar_Datos_Del_Documento(DBContext _context, string codempresa, vefactura DVTA, List<itemDataMatriz> tabladetalle, DatosDocVta objDocVta, string idpf_solurgente, int nroidpf_solurgente)
         {
             // Llena los datos de la proforma
             objDocVta.coddocumento = 0;
@@ -386,8 +386,8 @@ namespace SIAW.Controllers.ventas.transaccion
             objDocVta.idanticipo = "";
             objDocVta.noridanticipo = "0";
             objDocVta.monto_anticipo = 0;
-            objDocVta.idpf_solurgente = "";
-            objDocVta.noridpf_solurgente = "0";
+            objDocVta.idpf_solurgente = idpf_solurgente;
+            objDocVta.noridpf_solurgente = nroidpf_solurgente.ToString();
             objDocVta.fechalimite_dosificacion = (DateTime)(DVTA.fechalimite);
 
             return objDocVta;
@@ -523,7 +523,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 validar_Vta.InicializarResultado(objres); // Inicializar_Resultado_Validacion(objres);
                 DatosDocVta datosDocVta = new DatosDocVta();
                 List<itemDataMatriz> tabladetalle2 = await ConvertirDetalleFactura(tabladetalle);
-                await Llenar_Datos_Del_Documento(_context, codempresa, cabecera, tabladetalle2, datosDocVta);
+                await Llenar_Datos_Del_Documento(_context, codempresa, cabecera, tabladetalle2, datosDocVta, dataFacturaTienda.ids_proforma, dataFacturaTienda.nro_id_proforma);
 
                 objres = await validar_Vta.Validar_Items_Repetidos(_context, tabladetalle2, datosDocVta, codempresa);
                 if (objres.resultado == false)
@@ -559,7 +559,7 @@ namespace SIAW.Controllers.ventas.transaccion
             validar_Vta.InicializarResultado(objres); // Inicializar_Resultado_Validacion(objres);
             DatosDocVta datosDocVta = new DatosDocVta();
             List<itemDataMatriz> tabladetalle2 = await ConvertirDetalleFactura(tabladetalle);
-            await Llenar_Datos_Del_Documento(_context, codempresa, cabecera, tabladetalle2, datosDocVta);
+            await Llenar_Datos_Del_Documento(_context, codempresa, cabecera, tabladetalle2, datosDocVta,dataFacturaTienda.ids_proforma, dataFacturaTienda.nro_id_proforma);
 
             (objres, dtnegativos) = await validar_Vta.Validar_Saldos_Negativos_Doc(_context, tabladetalle2, datosDocVta, dtnegativos, codempresa, usuario);
             if (objres.resultado == false)
@@ -851,7 +851,7 @@ namespace SIAW.Controllers.ventas.transaccion
             List<dataDetalleFactura> tabladetalle = dataFacturaTienda.detalle;
             DatosDocVta datosDocVta = new DatosDocVta();
             List<itemDataMatriz> tabladetalle2 = await ConvertirDetalleFactura(tabladetalle);
-            await Llenar_Datos_Del_Documento(_context, codempresa, cabecera, tabladetalle2, datosDocVta);
+            await Llenar_Datos_Del_Documento(_context, codempresa, cabecera, tabladetalle2, datosDocVta, dataFacturaTienda.ids_proforma, dataFacturaTienda.nro_id_proforma);
             try
             {
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
@@ -1696,6 +1696,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     }
                     //Aqui se separo la funcion Validar_Datos_DSD_JULIO2021 del SIA donde de igual manera hace lo mismo, primero valida los datos de la cabecer y luego los controles del SIA
                     //VALIDAR LA CABECERA DE LA FACTURA RECIBIDA
+
                     var validacion_cabecera = await Validar_Datos_Cabecera(_context, dataFactura);
                     if (validacion_cabecera.resp == false)  // quiere decir que hay un problema con la Validacion
                     {
@@ -1716,6 +1717,8 @@ namespace SIAW.Controllers.ventas.transaccion
                     }
 
                     //VALIDAR TODO EL DOCUMENTO DE LA FACTURA RECIBIDA
+
+                    /*
                     var validacion_documento = await Validar_Documento(_context, userConn, "grabar", false, "", dataFactura);// Validar_Documento
                     if (validacion_documento.resp == false)  // quiere decir que hay un problema con la Validacion
                     {
@@ -1734,6 +1737,7 @@ namespace SIAW.Controllers.ventas.transaccion
                             });
                         }
                     }
+                    */
                     //justo antes de grabar se verifica si se generan saldos negativos
                     //VALIDAR NEGATIVOS
                     var validacion_negativos = await Validar_Negativos(_context, false, dataFactura);
