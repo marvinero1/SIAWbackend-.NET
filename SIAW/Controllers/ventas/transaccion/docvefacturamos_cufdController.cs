@@ -281,7 +281,7 @@ namespace SIAW.Controllers.ventas.transaccion
             }).ToList();
         }
 
-        private async Task<object?> Llenar_Datos_Del_Documento(DBContext _context, string codempresa, vefactura DVTA, List<itemDataMatriz> tabladetalle, DatosDocVta objDocVta, string idpf_solurgente, int nroidpf_solurgente)
+        private async Task<object?> Llenar_Datos_Del_Documento(DBContext _context, string codempresa, vefactura DVTA, List<itemDataMatriz> tabladetalle, DatosDocVta objDocVta, string idpf_solurgente, int nroidpf_solurgente, string niveles_descuento)
         {
             // Llena los datos de la proforma
             objDocVta.coddocumento = 0;
@@ -323,7 +323,7 @@ namespace SIAW.Controllers.ventas.transaccion
             objDocVta.codvendedor = DVTA.codvendedor.ToString();
             objDocVta.preciovta = objDocVta.codtarifadefecto.ToString();
             objDocVta.desctoespecial = "0";
-            objDocVta.preparacion = "NORMAL";
+            objDocVta.preparacion = "";
             if (DVTA.contra_entrega == true)
             {
                 objDocVta.contra_entrega = "SI";
@@ -349,7 +349,8 @@ namespace SIAW.Controllers.ventas.transaccion
                 objDocVta.nomcliente_real = await cliente.Razonsocial(_context, objDocVta.codcliente_real);
             }
 
-            objDocVta.niveles_descuento = "ACTUAL";
+            // objDocVta.niveles_descuento = "ACTUAL";
+            objDocVta.niveles_descuento = niveles_descuento;
 
             // Datos al pie de la proforma
             objDocVta.transporte = DVTA.transporte;
@@ -523,7 +524,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 validar_Vta.InicializarResultado(objres); // Inicializar_Resultado_Validacion(objres);
                 DatosDocVta datosDocVta = new DatosDocVta();
                 List<itemDataMatriz> tabladetalle2 = await ConvertirDetalleFactura(tabladetalle);
-                await Llenar_Datos_Del_Documento(_context, codempresa, cabecera, tabladetalle2, datosDocVta, dataFacturaTienda.ids_proforma, dataFacturaTienda.nro_id_proforma);
+                await Llenar_Datos_Del_Documento(_context, codempresa, cabecera, tabladetalle2, datosDocVta, dataFacturaTienda.ids_proforma, dataFacturaTienda.nro_id_proforma, dataFacturaTienda.niveles_descuento);
 
                 objres = await validar_Vta.Validar_Items_Repetidos(_context, tabladetalle2, datosDocVta, codempresa);
                 if (objres.resultado == false)
@@ -559,7 +560,7 @@ namespace SIAW.Controllers.ventas.transaccion
             validar_Vta.InicializarResultado(objres); // Inicializar_Resultado_Validacion(objres);
             DatosDocVta datosDocVta = new DatosDocVta();
             List<itemDataMatriz> tabladetalle2 = await ConvertirDetalleFactura(tabladetalle);
-            await Llenar_Datos_Del_Documento(_context, codempresa, cabecera, tabladetalle2, datosDocVta,dataFacturaTienda.ids_proforma, dataFacturaTienda.nro_id_proforma);
+            await Llenar_Datos_Del_Documento(_context, codempresa, cabecera, tabladetalle2, datosDocVta,dataFacturaTienda.ids_proforma, dataFacturaTienda.nro_id_proforma, dataFacturaTienda.niveles_descuento);
 
             (objres, dtnegativos) = await validar_Vta.Validar_Saldos_Negativos_Doc(_context, tabladetalle2, datosDocVta, dtnegativos, codempresa, usuario);
             if (objres.resultado == false)
@@ -851,7 +852,7 @@ namespace SIAW.Controllers.ventas.transaccion
             List<dataDetalleFactura> tabladetalle = dataFacturaTienda.detalle;
             DatosDocVta datosDocVta = new DatosDocVta();
             List<itemDataMatriz> tabladetalle2 = await ConvertirDetalleFactura(tabladetalle);
-            await Llenar_Datos_Del_Documento(_context, codempresa, cabecera, tabladetalle2, datosDocVta, dataFacturaTienda.ids_proforma, dataFacturaTienda.nro_id_proforma);
+            await Llenar_Datos_Del_Documento(_context, codempresa, cabecera, tabladetalle2, datosDocVta, dataFacturaTienda.ids_proforma, dataFacturaTienda.nro_id_proforma, dataFacturaTienda.niveles_descuento);
             try
             {
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
@@ -1718,7 +1719,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
                     //VALIDAR TODO EL DOCUMENTO DE LA FACTURA RECIBIDA
 
-                    /*
+                    
                     var validacion_documento = await Validar_Documento(_context, userConn, "grabar", false, "", dataFactura);// Validar_Documento
                     if (validacion_documento.resp == false)  // quiere decir que hay un problema con la Validacion
                     {
@@ -1737,7 +1738,7 @@ namespace SIAW.Controllers.ventas.transaccion
                             });
                         }
                     }
-                    */
+                    
                     //justo antes de grabar se verifica si se generan saldos negativos
                     //VALIDAR NEGATIVOS
                     var validacion_negativos = await Validar_Negativos(_context, false, dataFactura);
@@ -1953,7 +1954,7 @@ namespace SIAW.Controllers.ventas.transaccion
                                     txtnroid_solurgente = doc_solurgente.nroId;
                                     // actualizar la Codfactura_web
                                     var solurgente = await _context.insolurgente.Where(i => i.id == doc_solurgente.id && i.numeroid == doc_solurgente.nroId).FirstOrDefaultAsync();
-                                    solurgente.idfc = factura.id;
+                                    solurgente.fid = factura.id;
                                     solurgente.fnumeroid = factura.numeroid;
                                     await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
                                     await log.RegistrarEvento(_context, dataFactura.usuario, Log.Entidades.SW_Factura, codigo_factura.ToString(), factura.id, factura.numeroid.ToString(), "docvefacturamos_cufdController", "Grabar enlace FC: " + factura.id + "-" + factura.numeroid + " con SU: " + solurgente.id + "-" + solurgente.numeroid, Log.TipoLog.Creacion);
@@ -5055,6 +5056,8 @@ namespace SIAW.Controllers.ventas.transaccion
         public string factnomb { get; set; }
         public string ids_proforma { get; set; }
         public int nro_id_proforma { get; set; }
+
+        public string niveles_descuento {  get; set; }
 
         public vefactura cabecera { get; set; }
         public List<dataDetalleFactura> detalle { get; set; }
