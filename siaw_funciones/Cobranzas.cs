@@ -27,6 +27,7 @@ namespace siaw_funciones
         ProntoPago prontopago = new ProntoPago();
         datosProforma datosProforma = new datosProforma();
         Log log = new Log();
+        private readonly siaw_funciones.Creditos creditos = new siaw_funciones.Creditos();
         //Clase necesaria para el uso del DBContext del proyecto siaw_Context
 
 
@@ -1471,6 +1472,84 @@ namespace siaw_funciones
             catch (Exception ex)
             {
                 resultado = DateTime.Today;
+            }
+            return resultado;
+        }
+        public async Task<bool> AnularDevolucionesDeDeFactura(DBContext _context, string idfactura, int numeroidfactura, string usuario, string codempresa)
+        {
+            bool resultado;
+            try
+            {
+                //Buscar devoluciones/reversiones
+                var result = _context.codevanticipo
+                   .Where(c => c.idfactura == idfactura && c.numeroidfactura == numeroidfactura && c.anulada == false)
+                   .OrderBy(c => c.fecha)
+                   .FirstOrDefault();
+
+                if (result != null)
+                {
+                    //Una por una anular y poner fecha de anulacion
+                    var desligar_anticipo = await DesligarDeAnticipo(_context, result.codigo, result.idanticipo, result.numeroidanticipo, (decimal)result.monto, usuario, codempresa);
+                    if (desligar_anticipo)
+                    {
+                        result.anulada = true;
+                        result.fecha_anulacion = await funciones.FechaDelServidor(_context);
+                        await _context.SaveChangesAsync();
+                        resultado = true;
+                    }
+                    else
+                    {
+                        resultado = false;
+                    }
+                }
+                else
+                {
+                    resultado = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                resultado = false;
+            }
+            return resultado;
+        }
+        public async Task<bool> DesligarDeAnticipo(DBContext _context, int codigo, string idanticipo, int numeroidanticipo, decimal monto, string usuario, string codempresa)
+        {
+            bool resultado;
+            decimal monto_actualizar;
+            try
+            {
+                //Buscar devoluciones/reversiones
+                var result = _context.coanticipo
+                   .Where(c => c.id == idanticipo && c.numeroid == numeroidanticipo)
+                   .OrderBy(c => c.fecha)
+                   .FirstOrDefault();
+
+                if (result != null)
+                {
+                    monto_actualizar = (decimal)(result.montorest + monto);
+                    if (monto_actualizar > result.monto)
+                    {
+                        result.montorest = result.monto;
+                        await _context.SaveChangesAsync();
+                    }
+                    else
+                    {
+                        result.montorest = result.montorest + monto;
+                        await _context.SaveChangesAsync();
+                    }
+                    //su credito vovlerlo aponer como estaba
+                    await creditos.Actualizar_Credito_2023(_context, result.codcliente, usuario, codempresa, true);
+                    resultado = true;
+                }
+                else
+                {
+                    resultado = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                resultado = false;
             }
             return resultado;
         }

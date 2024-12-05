@@ -558,7 +558,11 @@ namespace SIAW.Controllers.ventas.modificacion
 
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
-
+                int validaNroID = await _context.veproforma.Where(i => i.id == veproforma.id && i.numeroid == veproforma.numeroid).CountAsync();
+                if (validaNroID == 0)
+                {
+                    return BadRequest(new { resp = "Existe un problema con el número ID, se esta tratanto de crear una nueva proforma, consulte con el Administrador!!!" });
+                }
                 // ###############################
                 // ACTUALIZAR DATOS DE CODIGO PRINCIPAL SI ES APLICABLE
                 await cliente.ActualizarParametrosDePrincipal(_context, veproforma.codcliente);

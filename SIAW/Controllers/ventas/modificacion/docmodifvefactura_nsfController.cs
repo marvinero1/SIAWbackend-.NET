@@ -32,6 +32,10 @@ namespace SIAW.Controllers.ventas.modificacion
         private readonly siaw_funciones.Saldos saldos = new siaw_funciones.Saldos();
         private readonly siaw_funciones.Items items = new siaw_funciones.Items();
         private readonly siaw_funciones.Validar_Vta validar_Vta = new siaw_funciones.Validar_Vta();
+        private readonly siaw_funciones.Inventario inventario = new siaw_funciones.Inventario();
+        private readonly siaw_funciones.Creditos creditos = new siaw_funciones.Creditos();
+        private readonly siaw_funciones.Despachos despachos = new siaw_funciones.Despachos();
+        private readonly siaw_funciones.Anticipos_Vta_Contado anticipos_Vta_Contado = new siaw_funciones.Anticipos_Vta_Contado();
 
         private readonly Seguridad seguridad = new Seguridad();
         private readonly SIAT siat = new SIAT();
@@ -58,10 +62,17 @@ namespace SIAW.Controllers.ventas.modificacion
         {
             _userConnectionManager = userConnectionManager;
         }
+        public class DatosAnulacionFC
+        {
+            public string Motivo_SIA { get; set; } = "";
+            public int CodMotivo_SIN_Datos { get; set; }
+            public string Descmotivo_SIN_Datos { get; set; }
+            public bool Refacturar { get; set; } = false;
+        }
 
         [HttpGet]
-        [Route("getDataInicial/{userConn}/{usuario}")]
-        public async Task<object> getDataInicial(string userConn, string usuario)
+        [Route("getDataInicial/{userConn}/{usuario}/{codalmacen}")]
+        public async Task<object> getDataInicial(string userConn, string usuario, int codalmacen)
         {
             try
             {
@@ -85,8 +96,13 @@ namespace SIAW.Controllers.ventas.modificacion
                     // si puede generar XML? 
                     bool btn_generar_xml_firmar_enviar = await configuracion.Usuario_Ver_Boton_Generar_XML(_context, usuario);
 
+                    // obtener si es tienda o no
+                    bool esTienda = await almacen.Es_Tienda(_context, codalmacen);
+
                     return Ok(new
                     {
+                        esTienda = esTienda,
+
                         codUltimaFact = ultimo,
                         btnanular_en_el_sin,
                         btn_generar_xml_firmar_enviar
@@ -123,6 +139,27 @@ namespace SIAW.Controllers.ventas.modificacion
                     {
                         codigoFact
                     });
+                }
+            }
+            catch (Exception ex)
+            {
+                return Problem($"Error en el servidor: {ex.Message}");
+                throw;
+            }
+        }
+
+        [HttpGet]
+        [Route("cargarMotivosAnulaSIN/{userConn}")]
+        public async Task<object> cargarMotivosAnulaSIN(string userConn)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var motivos = await _context.adsiat_motivoanulacion.OrderBy(i => i.codigoclasificador).ToListAsync();
+                    return Ok(motivos);
                 }
             }
             catch (Exception ex)
@@ -574,7 +611,7 @@ namespace SIAW.Controllers.ventas.modificacion
                 }
                 catch (Exception ex)
                 {
-                    return Problem($"Error en el servidor al cambiar fecha anulacion FC: {ex.Message}");
+                    return Problem($"Error en el servidor al cambiar CUF FC: {ex.Message}");
                 }
             }
 
@@ -2131,6 +2168,877 @@ namespace SIAW.Controllers.ventas.modificacion
             return (resultado, msgAlertas, eventos, enviar_mail_anulacion);
         }
 
+        [HttpPost]
+        [Route("Anular_Factura/{userConn}/{usuario}/{codFactura}/{codempresa}/{sin_validar_anulacion}/{sin_validar_inventario}/{tipo_anulacion}")]
+        public async Task<object> Anular_Factura(string userConn, string usuario, int codFactura, string codempresa, bool? sin_validar_anulacion, bool? sin_validar_inventario, string tipo_anulacion, List<DatosAnulacionFC> RazonAnulacionFC)
+        {
+            List<string> eventos = new List<string>();
+            bool resultado = true;
+            string mensaje = "";
+            int codigo_control = 0;
+            DateTime fecha_anulacion;
+            // VALIDACIONES 
+            if (string.IsNullOrWhiteSpace(userConn)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'UserConn'. Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(usuario)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Usuario'. Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(codempresa)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Empresa'. Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(tipo_anulacion)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Tipo Anulacion'. Consulte con el Administrador del sistema." }); }
+            if (codFactura <= 0) { return BadRequest(new { resp = "El valor de 'Codigo de Factura' no puede ser cero o menor a cero. Consulte con el Administrador del sistema." }); }
+            if (sin_validar_anulacion == null) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Sin Validar Clave'. Consulte con el Administrador del sistema." }); }
+            if (sin_validar_inventario == null) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Sin Validar Clave Inventario'. Consulte con el Administrador del sistema." }); }
+
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                try
+                {
+                    var dataFact = await _context.vefactura.Where(i => i.codigo == codFactura).FirstOrDefaultAsync();
+
+                    if (dataFact == null)
+                    {
+                        //return BadRequest(new { resp = mi_msg, eventos });
+                        mensaje = "No se encontró informacion con el codigo de factura proporcionado, consulte con el administrador";
+                        resultado = false;
+                        codigo_control = 0;
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                    }
+                    string idFactura = dataFact.id;
+                    int nroIdFact = dataFact.numeroid;
+                    bool descarga = dataFact.descarga;
+                    var resultado_validacion = await Validar_Anular_Factura(_context, dataFact.codalmacen, codempresa, dataFact, (bool)sin_validar_anulacion, (bool)sin_validar_inventario, tipo_anulacion);
+                    if (resultado_validacion.result == false)
+                    {
+                        //return BadRequest(new { resp = mi_msg, eventos });
+                        mensaje = resultado_validacion.msgAlertas;
+                        resultado = false;
+                        codigo_control = resultado_validacion.codigo_control;
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                    }
+                    try
+                    {
+                        var resultado_proceso_anulacion = await Realizar_Proceso_Anulacion_Local(_context, usuario, dataFact.codalmacen, codempresa, dataFact, dataFact.cuf, codFactura, idFactura, nroIdFact, (int)dataFact.codremision, dataFact.codcliente, resultado_validacion.doc_nr, resultado_validacion.codproforma, resultado_validacion.doc_prof, resultado_validacion.opcion_anulacion, RazonAnulacionFC, resultado_validacion.LISTA_FACTURAS, descarga);
+                        if (resultado_validacion.result == false)
+                        {
+                            //return BadRequest(new { resp = mi_msg, eventos });
+                            mensaje = resultado_validacion.msgAlertas;
+                            resultado = false;
+                            codigo_control = resultado_validacion.codigo_control;
+                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + resultado_validacion.eventos);
+                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + "Alerta!!! el proceso de anulacion termino con errores, verifique minuciosamente la pestaña de observaciones.");
+                            return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                        }
+                        else
+                        {
+                            mensaje = resultado_validacion.msgAlertas;
+                            resultado = true;
+                            codigo_control = 0;
+                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + resultado_validacion.eventos);
+                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + "El proceso de anulacion termino con exito, verifique detenidamente los resultados en la pestaña de observaciones!!!");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        mensaje = "Ocurrio un Error y no se pudo Anular la factura: " + ex.ToString();
+                        resultado = false;
+                        codigo_control = 0;
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion);
+                        return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
+                    }
+
+                    return Ok(new
+                    {
+                        resp = resultado,
+                        msgAlert = mensaje,
+                        eventos = eventos,
+                        codigo_control = codigo_control
+
+                    });
+                    /////**************************
+                }
+                catch (Exception ex)
+                {
+                    return Problem($"Error en el servidor al cambiar fecha anulacion FC: {ex.Message}");
+                }
+            }
+
+        }
+        private async Task<(bool result, string msgAlertas, List<string> eventos, int codigo_control, int codproforma, string doc_prof, string doc_nr, List<string> opcion_anulacion, List<string> LISTA_FACTURAS)> Validar_Anular_Factura(DBContext _context, int codalmacen, string codempresa, vefactura tablacabecera, bool sin_validar_anulacion, bool sin_validar_inventario, string tipo_anulacion)
+        {
+            string msgAlertas = "";
+            List<string> eventos = new List<string>();
+            string msj = "";
+            bool resultado = true;
+            int codigo_control = 0;
+            int codremision = (int)tablacabecera.codremision;
+            int codfactura = tablacabecera.codigo;
+
+            //documentos de la factura PROFORMA - NOTA DE REMISION Y FACTURA
+            string cadena_facturas = "";
+            int codproforma = 0;
+            string cadena_prof = "";
+            string doc_prof = "";
+            string doc_nr = "";
+            List<string> opciones_anulo = new List<string>();
+            List<string> LISTA_FACTURAS = new List<string>();
+
+            if (tablacabecera.anulada == true)
+            {
+                resultado = false;
+                msj = "Esta Factura ya esta Anulada.";
+                msgAlertas = msj;
+                eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + msj);
+                codigo_control = 0;
+                return (resultado, msgAlertas, eventos, codigo_control, codproforma, doc_prof, doc_nr, opciones_anulo, LISTA_FACTURAS);
+            }
+
+            if (await seguridad.periodo_fechaabierta_context(_context, tablacabecera.fecha, 3) == false)
+            {
+                resultado = false;
+                msj = "No puede modificar documentos para ese periodo de fechas.";
+                msgAlertas = msj;
+                eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + msj);
+                codigo_control = 0;
+                return (resultado, msgAlertas, eventos, codigo_control, codproforma, doc_prof, doc_nr, opciones_anulo, LISTA_FACTURAS);
+            }
+            //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+            //&&            validar si la factura es del mismo mes y anio
+            //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+            DateTime fecha_Actual = await funciones.FechaDelServidor(_context);
+            int anio_actual = fecha_Actual.Date.Year;
+            int mes_actual = fecha_Actual.Date.Month;
+            if (tablacabecera.fecha.Date.Year == anio_actual && tablacabecera.fecha.Date.Month == mes_actual)
+            {//factura SI ES del mismo anio-mes
+             //SE NECESITA PERMISO ESPECIAL
+                if (sin_validar_anulacion == false)
+                {
+                    resultado = false;
+                    msj = "Nesecita Ingresar Permiso especial.";
+                    msgAlertas = msj;
+                    eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + msj);
+                    codigo_control = 83;
+                    return (resultado, msgAlertas, eventos, codigo_control, codproforma, doc_prof, doc_nr, opciones_anulo, LISTA_FACTURAS);
+                }
+            }
+            else
+            {
+                //SE NECESITA PERMISO ESPECIAL
+                if (sin_validar_anulacion == false)
+                {
+                    resultado = false;
+                    msj = "Nesecita Ingresar Permiso especial.";
+                    msgAlertas = msj;
+                    eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + msj);
+                    codigo_control = 84;
+                    return (resultado, msgAlertas, eventos, codigo_control, codproforma, doc_prof, doc_nr, opciones_anulo, LISTA_FACTURAS);
+                }
+            }
+            //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+            //&&            validar si la factura es anterior a un inventario
+            //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+            if (await restricciones.ValidarModifDocAntesInventario(_context, tablacabecera.codalmacen, tablacabecera.fecha) == false)
+            {
+                if (sin_validar_inventario == false)
+                {
+                    resultado = false;
+                    msj = "No puede modificar datos anteriores al ultimo inventario, Para eso necesita una autorizacion especial.";
+                    msgAlertas = msj;
+                    eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + msj);
+                    codigo_control = 48;
+                    return (resultado, msgAlertas, eventos, codigo_control, codproforma, doc_prof, doc_nr, opciones_anulo, LISTA_FACTURAS);
+                }
+            }
+            //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+            //verificar como se anulara: factura nota de remision y proforma??
+            //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+            int codfc = 0;
+            int nro_facturas = await ventas.nro_facturas_de_una_nr(_context, codremision);
+            if (tablacabecera.codremision != 0)
+            {
+                cadena_facturas = await ventas.facturas_de_una_nr(_context, codremision);
+                codproforma = await ventas.codproforma_de_remision(_context, codremision);
+                cadena_prof = await ventas.proforma_id_nro(_context, codproforma);
+                doc_prof = await ventas.proforma_id_nro(_context, codremision);
+                doc_nr = await ventas.remision_id_nro(_context, codremision);
+                //cargar_anticipos_aplicados()
+
+            }
+            else
+            {
+                cadena_facturas = tablacabecera.id + "-" + tablacabecera.numeroid;
+                codproforma = await ventas.codproforma_de_remision(_context, codremision);
+                cadena_prof = await ventas.proforma_id_nro(_context, codproforma);
+                if (cadena_prof == null) cadena_prof = "";
+
+                doc_prof = await ventas.proforma_id_nro(_context, codproforma);
+                if (doc_prof == null) doc_prof = "";
+
+                doc_nr = await ventas.remision_id_nro(_context, codremision);
+                if (doc_nr == null) doc_nr = "";
+            }
+            LISTA_FACTURAS.Clear();
+            LISTA_FACTURAS = await ventas.Lista_IdNroID_Facturas_De_Remision(cadena_facturas);
+
+            opciones_anulo.Clear();
+            opciones_anulo = await opciones_anulacion(tipo_anulacion);
+
+            if (opciones_anulo.Contains("No Anular"))
+            {
+                resultado = false;
+            }
+            else
+            {
+                resultado = true;
+            }
+            ////////////////////////////////////////////////////////////////////////
+            // VERIFICAR SI TIENE MONTO PAGADO
+            ////////////////////////////////////////////////////////////////////////
+            if (resultado)
+            {//verifica si tiene monto pagada con cobranza de venta al credito
+                if (await ventas.RemisionEstaPagadaEnParte(_context, await ventas.CodRemisionDeFactura(_context, codfactura)))
+                {
+                    resultado = false;
+                    msj = "La Nota de Remision:" + doc_nr + " que pertenece a esta factura, tiene un monto pagado y no puede ser Anulada." + Environment.NewLine + "Para anularla anule el/los documento/s al cual fue transferido. " + Environment.NewLine + ventas.facturas_de_una_nr(_context, codremision);
+                    msgAlertas = msj;
+                    eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + msj);
+                    codigo_control = 0;
+                    return (resultado, msgAlertas, eventos, codigo_control, codproforma, doc_prof, doc_nr, opciones_anulo, LISTA_FACTURAS);
+                }
+                //Desde 14/12/2023 si la proforma de la factura esta enlazado en veproforma_anticipo debe permitir anular la factura y nota de remision
+                //'simplemente alertar al usuario y pedir la confirmacion respectiva
+                if (await ventas.Remision_Contado_Pago_Anticipado_Esta_Pagada(_context, await ventas.CodRemisionDeFactura(_context, codfactura)))
+                {
+                    resultado = true;
+                    msj = "La Nota de Remision:" + doc_nr + " que pertenece a esta factura contado,  tiene un monto pagado con anticipo en Proforma." + Environment.NewLine + " Se procedera a la anulacion de las facturas: " + Environment.NewLine + ventas.facturas_de_una_nr(_context, codremision);
+                    msgAlertas = msj;
+                    eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + msj);
+                    //codigo_control = 0;
+                    //return (resultado, msgAlertas, eventos, codigo_control, codproforma, doc_prof, doc_nr, opciones_anulo);
+                }
+                //implementado en feccha 10-08-2019
+                //verifica si tiene monto pagada con cobranza contado
+                if (await ventas.Remision_Contado_Contra_Entrega_Esta_Pagada(_context, await ventas.CodRemisionDeFactura(_context, codfactura)))
+                {
+                    resultado = false;
+                    msj = "La Nota de Remision:" + doc_nr + " que pertenece a esta factura contado-contra entrega,  tiene un monto pagado y no puede ser Anulada." + Environment.NewLine + "Para anularla anule el/los documento/s que realizaron el pago. " + Environment.NewLine + ventas.facturas_de_una_nr(_context, codremision);
+                    msgAlertas = msj;
+                    eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + msj);
+                    codigo_control = 0;
+                    return (resultado, msgAlertas, eventos, codigo_control, codproforma, doc_prof, doc_nr, opciones_anulo, LISTA_FACTURAS);
+                }
+                //implementado en feccha 24-01-2020
+                //verifica si tiene monto pagada con cobranza contado
+                if (await ventas.Remision_Contado_Contra_Entrega_Esta_Pagada_2(_context, await ventas.CodRemisionDeFactura(_context, codfactura)))
+                {
+                    resultado = false;
+                    msj = "La Nota de Remision:" + doc_nr + " que pertenece a esta factura contado-contra entrega,  tiene un monto pagado y no puede ser Anulada." + Environment.NewLine + "Para anularla anule el/los documento/s que realizaron el pago. " + Environment.NewLine + ventas.facturas_de_una_nr(_context, codremision);
+                    msgAlertas = msj;
+                    eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + msj);
+                    codigo_control = 0;
+                    return (resultado, msgAlertas, eventos, codigo_control, codproforma, doc_prof, doc_nr, opciones_anulo, LISTA_FACTURAS);
+                }
+            }
+            /////////////////////////////////////////////////////////////////////////////////
+            //// verificar si la proforma de la factura fue utilizada para complementar para que el cliente se beneficio de descto extra
+            /////////////////////////////////////////////////////////////////////////////////
+            if (resultado)
+            {
+                var resComplemento = new Ventas.ResProformaEsComplementoDeOtra();
+                resComplemento = await ventas.Proforma_Es_Complemento_De_Otra(_context, codproforma);
+                if (resComplemento.Resultado == true)
+                {
+                    resultado = false;
+                    msj = "La factura no puede ser anulada, debido a que la proforma de esta factura fue utilizada para complementar(precio minimo y/o monto minimo para descuento) a la proforma: " + resComplemento.IdNroIdPfComplemento + " !!!";
+                    msgAlertas = msj;
+                    eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + msj);
+                    codigo_control = 0;
+                    return (resultado, msgAlertas, eventos, codigo_control, codproforma, doc_prof, doc_nr, opciones_anulo, LISTA_FACTURAS);
+                }
+            }
+            return (resultado, msgAlertas, eventos, codigo_control, codproforma, doc_prof, doc_nr, opciones_anulo, LISTA_FACTURAS);
+        }
+        private async Task<List<string>> opciones_anulacion(string tipo_anulacion)
+        {
+            var resultado = new List<string>();
+            resultado.Clear();
+            if (tipo_anulacion == "FC")
+            {
+                resultado.Add("Anular Factura");
+            }
+            else if (tipo_anulacion == "NR-FC")
+            {
+                resultado.Add("Anular Todas Facturas");
+                resultado.Add("Anular Nota de Remisión");
+                resultado.Add("Desaprobar Proforma");
+            }
+            else if (tipo_anulacion == "NR-FC-PF")
+            {
+                resultado.Add("Anular Todas Facturas");
+                resultado.Add("Anular Nota de Remisión");
+                resultado.Add("Anular Proforma");
+            }
+            else
+            {
+                resultado.Add("No Anular");
+            }
+            //return await Task.FromResult(resultado);
+            return resultado;
+        }
+        private async Task<(bool result, string msgAlertas, List<string> eventos)> Realizar_Proceso_Anulacion_Local(DBContext _context, string usuario, int codalmacen, string codempresa, vefactura tablacabecera, string cuf, int codfactura, string id, int numeroid, int codremision, string codcliente, string DOC_NR, int codproforma, string DOC_PF, List<string> opciones_anulo, List<DatosAnulacionFC> RazonAnulacionFC, List<string> LISTA_FACTURAS, bool descarga)
+        {
+            string mensaje = "";
+            List<string> eventos = new List<string>();
+            string msj = "";
+            bool resultado = true;
+
+            bool resultado_anulacion_FC_Local = true;
+            bool resultado_anulacion_FC_En_EL_SIN = true;
+            bool resultado_anulacion_NR = true;
+            bool resultado_Desaprobar_Proforma = true;
+            bool resultado_Anular_Proforma = true;
+
+            string qry = "";
+            int i = 0;
+            string MiFc;
+            bool solo_una_factura = true;
+            int CodFC = 0;
+            string[] IdNroidFC;
+            DateTime F_Anul = DateTime.Now;
+            DateTime fecha_serv = await funciones.FechaDelServidor(_context);
+            string id_pf = "";
+            int nroid_pf = 0;
+
+            var dataRem = await _context.veremision.Where(i => i.codigo == codremision).FirstOrDefaultAsync();
+
+            if (dataRem == null)
+            {
+                //return BadRequest(new { resp = mi_msg, eventos });
+                mensaje = "No se encontró informacion con el codigo de remision proporcionado, consulte con el administrador.";
+                resultado = false;
+                eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                return (resultado, mensaje, eventos);
+            }
+
+            //Desdee 11-11-2024 primero se anula en el SIN y si se anulo en el SIN recien anular en el SIA
+            //si la anulacion en el servidor local del SIA es exitosa continua anulando en el SIN
+            var anulacion_en_el_SIN = await Solicitar_Anulacion_Al_SIN(_context, usuario, codempresa, codalmacen, RazonAnulacionFC[0].CodMotivo_SIN_Datos, cuf, codfactura, id, numeroid);
+
+            if (anulacion_en_el_SIN.result == true)
+            {
+                resultado_anulacion_FC_En_EL_SIN = true;
+                if (codremision > 0)
+                {   //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+                    //&& SI LA FACTURA TIENE NOTA DE REMISION  ALMACENES
+                    //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+                    //// ACTUALIZAR NO TRANSFERIDA LA NR
+                    try
+                    {
+                        dataRem.transferida = false;
+                        await _context.SaveChangesAsync();
+                        if (tablacabecera.fecha.Year < fecha_serv.Year)
+                        {
+                            F_Anul = new DateTime(tablacabecera.fecha.Date.Year, tablacabecera.fecha.Date.Month, DateTime.DaysInMonth(tablacabecera.fecha.Date.Year, tablacabecera.fecha.Date.Month));
+                        }
+                        else
+                        {
+                            if (tablacabecera.fecha.Month < fecha_serv.Month)
+                            {
+                                F_Anul = new DateTime(tablacabecera.fecha.Date.Year, tablacabecera.fecha.Date.Month, DateTime.DaysInMonth(tablacabecera.fecha.Date.Year, tablacabecera.fecha.Date.Month));
+                            }
+                            else
+                            {
+                                F_Anul = await funciones.FechaDelServidor(_context);
+                            }
+                        }
+
+                        mensaje = "Nota de Remision " + DOC_NR + " se cambio a: No Transferida por anulacion de la Factura";
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codfactura.ToString(), id, numeroid.ToString(), _controllerName, mensaje, Log.TipoLog.Anulacion);
+                        resultado_anulacion_FC_Local = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        mensaje = "No se pudo Anular la Factura " + id + "-" + numeroid;
+                        resultado = false;
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codfactura.ToString(), id, numeroid.ToString(), _controllerName, mensaje, Log.TipoLog.Anulacion);
+                        resultado_anulacion_FC_Local = false;
+                        //return (resultado, mensaje, eventos);
+                    }
+                    //+++++++++++++++++++++++++++++++
+                    // ANULAR FACTURA
+                    //+++++++++++++++++++++++++++++++
+                    if (opciones_anulo.Contains("Anular Factura"))
+                    {
+                        solo_una_factura = true;
+                    }
+                    else
+                    {
+                        solo_una_factura = false;
+                    }
+
+                    if (resultado_anulacion_FC_Local == true && (opciones_anulo.Contains("Anular Factura") || opciones_anulo.Contains("Anular Todas Facturas")))
+                    {
+                        foreach (var factura in LISTA_FACTURAS)
+                        {
+                            if (solo_una_factura)
+                            {
+                                if (factura.Trim() == id + "-" + numeroid)
+                                {
+                                    goto realizar_anulacion;
+                                }
+                                else
+                                {
+                                    goto siguiente_factura;
+                                }
+                            }
+
+                        realizar_anulacion:
+                            MiFc = factura;
+                            IdNroidFC = MiFc.Split('-');
+                            //CodFC = sia_funciones.Ventas.Instancia.Codigo_de_Factura1(IdNroidFC[0].Trim(), IdNroidFC[1].Trim());
+                            CodFC = codfactura;
+                            // Obtener datos de la factura
+                            //var dtDatosFC = tablacabecera;
+                            //// Ejecutar anulación de la factura
+                            //qry = $"UPDATE vefactura SET motivo_anulacion = '{RazonAnulaFC.Motivo_SIA}', refacturar = '{(RazonAnulaFC.Refacturar ? "1" : "0")}', anulada = 1, fecha_anulacion = '{sia_DAL.Datos.Instancia.FechaISO(F_Anul)}' WHERE codigo = '{CodFC}'";
+                            try
+                            {
+                                var dataFact = await _context.vefactura.Where(i => i.codigo == CodFC).FirstOrDefaultAsync();
+                                //Desde 10-11-2022 cuando se anule una factura ya no se cambiara el datos de fechareg ni horareg, debido a que esto causa en ocasion que al anular una factura que aun no a sido VALIDADA EN EL SIN
+                                //el CUF no se el correcto ya que una vez que el dato de horareg se cambie de una factura no igualara con el CUF ya grabado en la factura
+                                dataFact.motivo_anulacion = RazonAnulacionFC[0].Motivo_SIA;
+                                dataFact.refacturar = RazonAnulacionFC[0].Refacturar;
+                                dataFact.anulada = true;
+                                dataFact.fecha_anulacion = F_Anul.Date;
+
+                                await _context.SaveChangesAsync();
+                                mensaje = IdNroidFC[0] + "-" + IdNroidFC[1] + " Anulacion local Exitosa de Factura";
+                                eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                                await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codfactura.ToString(), id, numeroid.ToString(), _controllerName, mensaje, Log.TipoLog.Anulacion);
+
+
+                                resultado_anulacion_FC_Local = true;
+                            }
+                            catch (Exception ex)
+                            {
+                                mensaje = "La Factura: " + IdNroidFC[0] + "-" + IdNroidFC[1] + " no se pudo localmente por tanto tampoco en el SIN.";
+                                resultado = false;
+                                eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                                await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codfactura.ToString(), id, numeroid.ToString(), _controllerName, mensaje, Log.TipoLog.Anulacion);
+                                resultado_anulacion_FC_Local = false;
+                                //return (resultado, mensaje, eventos);
+                            }
+                            //Anular el remito
+                            if (resultado_anulacion_FC_Local)
+                            {
+                                try
+                                {
+                                    var dataRemito = await _context.veremito.Where(i => i.idfactura == id && i.numeroidfactura == numeroid).FirstOrDefaultAsync();
+                                    dataRemito.anulado = true;
+                                    dataRemito.horareg = await funciones.hora_del_servidor_cadena(_context);
+                                    dataRemito.fechareg = await funciones.FechaDelServidor(_context);
+                                    dataRemito.usuarioreg = usuario;
+                                    await _context.SaveChangesAsync();
+                                    //Actualizar saldo
+                                    if (descarga)
+                                    {
+                                        var actualiza_saldo = await saldos.Vefactura_ActualizarSaldo(_context, codfactura, Saldos.ModoActualizacion.Eliminar);
+                                        if (!actualiza_saldo)
+                                        {
+                                            mensaje = id + "-" + numeroid + " No se pudo actualizar el saldo de la factura.";
+                                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                                            await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codfactura.ToString(), id, numeroid.ToString(), _controllerName, mensaje, Log.TipoLog.Modificacion);
+                                        }
+
+                                    }
+                                    //sia_funciones.Inventario.Instancia.actaduanafactura(CodFC, "eliminar", fecha.Value.Date)
+
+                                    // ANULAR CUALQUIER REVERSION DE ANTICIPO QUE ESTE ENLAZADA A ESTA FACTURA
+                                    await cobranzas.AnularDevolucionesDeDeFactura(_context, id, numeroid, usuario, codempresa);
+
+                                    // antes de devolver OK se debe guardar logs de autorizacion
+                                    //await grabar_log_permisos();
+
+                                    resultado_anulacion_FC_Local = true;
+                                    //si la anulacion en el servidor local del SIA es exitosa continua anulando en el SIN
+                                    //'If Solicitar_Anulacion_Al_SIN(RazonAnulaFC.CodMotivo_SIN_Datos, dtDatosFC.Rows(0)("cuf")) Then
+                                    //'    resultado_anulacion_FC_En_EL_SIN = True
+                                    //'Else
+                                    //'    resultado_anulacion_FC_En_EL_SIN = False
+                                    //'End If
+                                }
+                                catch (Exception ex)
+                                {
+                                    mensaje = "La Factura: " + IdNroidFC[0] + "-" + IdNroidFC[1] + " no se pudo localmente por tanto tampoco en el SIN.";
+                                    resultado = false;
+                                    eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                                    await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codfactura.ToString(), id, numeroid.ToString(), _controllerName, mensaje, Log.TipoLog.Anulacion);
+                                    resultado_anulacion_FC_Local = false;
+                                    //return (resultado, mensaje, eventos);
+                                }
+                                //fin anular remito
+                            }
+
+                        siguiente_factura:
+                            qry = "0";
+                        }
+
+                    }
+                    ////+++++++++++++++++++++++++++++++
+                    // ANULAR NOTA DE REMISION
+                    //+++++++++++++++++++++++++++++++
+                    resultado_anulacion_NR = true;
+                    if (resultado_anulacion_FC_Local == true)
+                    {
+                        if (opciones_anulo.Contains("Anular Nota de Remision"))
+                        {
+                            if (await ventas.RemisionEstaPagadaEnParte(_context, codremision))
+                            {
+                                mensaje = "La Nota de Remision " + DOC_NR + " tiene un monto pagado, no puede ser Anulada. Para anularla anule el/los documento/s al cual fue transferido. " + await ventas.facturas_de_una_nr(_context, codremision);
+                                resultado = false;
+                                eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                                await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codfactura.ToString(), id, numeroid.ToString(), _controllerName, mensaje, Log.TipoLog.Anulacion);
+                                resultado_anulacion_NR = false;
+                            }
+                            else
+                            {
+                                try
+                                {//proceder a anular no nota de remision
+                                    if (await ventas.anular_NotaDeRemision(_context, codremision, codempresa, usuario))
+                                    {
+                                        mensaje = "Nota de Remision " + DOC_NR + " anulada con exito.";
+                                        resultado = false;
+                                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                                        await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codfactura.ToString(), id, numeroid.ToString(), _controllerName, mensaje, Log.TipoLog.Anulacion);
+                                        resultado_anulacion_NR = true;
+                                    }
+                                    else
+                                    {
+                                        mensaje = "Nota de Remision " + DOC_NR + " NO pudo ser anulada.";
+                                        resultado = false;
+                                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                                        await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codfactura.ToString(), id, numeroid.ToString(), _controllerName, mensaje, Log.TipoLog.Anulacion);
+                                        resultado_anulacion_NR = false;
+                                    }
+                                    //poner fecha de anulacion en la NR
+                                    if (resultado_anulacion_NR)
+                                    {
+                                        //aqui esta igual que en el SIA se envia el codigo de factura y no el codigo de remision
+                                        if (await ventas.RemisionPonerFechaAnulacion(_context, codfactura))
+                                        {
+                                            mensaje = "Nota de Remision " + DOC_NR + " se actualizo fecha de anulacion con exito";
+                                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                                            await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codfactura.ToString(), id, numeroid.ToString(), _controllerName, mensaje, Log.TipoLog.Anulacion);
+                                        }
+                                        else
+                                        {
+                                            mensaje = "Nota de Remision " + DOC_NR + " no se pudo actualizar la fecha de anulacion";
+                                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                                            await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codfactura.ToString(), id, numeroid.ToString(), _controllerName, mensaje, Log.TipoLog.Anulacion);
+                                        }
+                                    }
+                                    // actualizar credito del cliente
+                                    if (resultado_anulacion_NR)
+                                    {
+                                        var resultAct_Credito = await creditos.Actualizar_Credito_2023(_context, codcliente, usuario, codempresa, true);
+                                        if (resultAct_Credito.value == false)
+                                        {
+                                            mensaje = "Se actualizo el credito disponible del cliente:" + codcliente + " por anulacion de la: " + DOC_NR;
+                                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                                            await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codfactura.ToString(), id, numeroid.ToString(), _controllerName, mensaje, Log.TipoLog.Anulacion);
+                                        }
+                                    }
+
+                                }
+                                catch (Exception ex)
+                                {
+                                    mensaje = "Error al intentar anular la Nota de Remision: " + DOC_NR;
+                                    eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                                    await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codfactura.ToString(), id, numeroid.ToString(), _controllerName, mensaje, Log.TipoLog.Anulacion);
+                                    resultado_anulacion_NR = false;
+                                    //return (resultado, mensaje, eventos);
+                                }
+                            }
+                        }
+                    }
+                    //+++++++++++++++++++++++++++++++
+                    // SOLO DESAPRUEBA PROFORMA
+                    //+++++++++++++++++++++++++++++++
+                    if (resultado_anulacion_NR == true)
+                    {
+                        if (opciones_anulo.Contains("Desaprobar Proforma"))
+                        {
+                            try
+                            {
+                                var dataProf = await _context.veproforma.Where(i => i.codigo == codproforma).FirstOrDefaultAsync();
+                                dataProf.aprobada = false;
+                                dataProf.paraaprobar = false;
+                                dataProf.transferida = false;
+                                id_pf = dataProf.id;
+                                nroid_pf = dataProf.numeroid;
+                                await _context.SaveChangesAsync();
+                                mensaje = "La proforma " + DOC_PF + " de la " + DOC_NR + " fue desaprobada exitosamente!!!";
+                                eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                                await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codfactura.ToString(), id, numeroid.ToString(), _controllerName, mensaje, Log.TipoLog.Anulacion);
+                                resultado_Desaprobar_Proforma = true;
+                            }
+                            catch (Exception ex)
+                            {
+                                mensaje = "No se pudo des-aprobar la proforma " + DOC_PF + " de la " + DOC_NR + " por anulacion de su factura factura";
+                                eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                                await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codfactura.ToString(), id, numeroid.ToString(), _controllerName, mensaje, Log.TipoLog.Anulacion);
+                                resultado_Desaprobar_Proforma = false;
+                            }
+                            //Desde 24 / 10 / 2023 el estado al cual se actualizara el despacho desaprobado ya no sera PENDIENTE sino sera REFACTURACION solicitado por sup Stocl y gerencia
+                            //se añadio tb el registro en la tabla de log de estados de pedidos en despachos ya que hasta esta fecha no se realizaba ese registro
+                            //Desde fecha 18/01/2024 la supervisor de stock solicito que al pasar al estado REFACTURACION en despachos se debe cerear los datos de bolsas='0',cajas='0',amarres='0',bultos='0',nroitems='0',monto_flete='0',peso='0'
+                            if (resultado_Desaprobar_Proforma)
+                            {
+                                try
+                                {
+                                    var dataDespacho = await _context.vedespacho.Where(i => i.id == id_pf && i.nroid == nroid_pf).FirstOrDefaultAsync();
+                                    dataDespacho.estado = "REFACTURACION";
+                                    dataDespacho.bolsas = 0;
+                                    dataDespacho.cajas = 0;
+                                    dataDespacho.amarres = 0;
+                                    dataDespacho.bultos = 0;
+                                    dataDespacho.nroitems = 0;
+                                    dataDespacho.monto_flete = 0;
+                                    dataDespacho.peso = 0;
+                                    dataDespacho.frefacturacion = await funciones.FechaDelServidor(_context);
+                                    dataDespacho.hrefacturacion = await funciones.hora_del_servidor_cadena(_context);
+                                    await _context.SaveChangesAsync();
+
+                                    mensaje = "La proforma " + DOC_PF + " de la " + DOC_NR + " se desaprobo y paso a estado REFACTURACION!!!";
+                                    eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                                    await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codfactura.ToString(), id, numeroid.ToString(), _controllerName, mensaje, Log.TipoLog.Anulacion);
+                                    //se añadio tb el registro en la tabla de log de estados de pedidos en despachos ya que hasta esta fecha no se realizaba ese registro
+                                    if (await despachos.cadena_insertar_log_estado_pedido(_context, id_pf, nroid_pf, "REFACTURACION", usuario))
+                                    {
+                                    }
+
+                                }
+                                catch (Exception ex)
+                                {
+                                    //return (resultado, mensaje, eventos);
+                                }
+                                //fin anular remito
+                            }
+
+                        }
+                    }
+                    //+++++++++++++++++++++++++++++++
+                    // ANULAR PROFORMA(incluye desaprobar proforma)
+                    //+++++++++++++++++++++++++++++++
+                    //'Desde 24/10/2023 el estado al cual se actualizara el despacho de la proforma anulada sera a ANULADO solicitado por sup Stock y gerencia
+                    //' hasta antes de esto cuando se anulaba una proforma el estado del despacho se quedaba como estaba hasta la anulacion y no se modificaba su estado
+                    //' desde ahora se cambiara el estado del despacho a ANULADO y se añadio tb el registro en la tabla de log de estados de pedidos en despachos a ANULADO
+                    if (resultado_Desaprobar_Proforma == true)
+                    {
+                        if (opciones_anulo.Contains("Anular Proforma"))
+                        {
+                            try
+                            {
+                                var dataProf = await _context.veproforma.Where(i => i.codigo == codproforma).FirstOrDefaultAsync();
+                                dataProf.anulada = true;
+                                dataProf.aprobada = false;
+                                dataProf.paraaprobar = false;
+                                dataProf.transferida = false;
+                                id_pf = dataProf.id;
+                                nroid_pf = dataProf.numeroid;
+                                await _context.SaveChangesAsync();
+                                mensaje = "Proforma " + DOC_PF + " anulada exitosamente!!!";
+                                eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                                await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codfactura.ToString(), id, numeroid.ToString(), _controllerName, mensaje, Log.TipoLog.Anulacion);
+                                resultado_Anular_Proforma = true;
+                            }
+                            catch (Exception ex)
+                            {
+                                mensaje = "No se pudo anular la proforma " + DOC_PF;
+                                eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                                await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codfactura.ToString(), id, numeroid.ToString(), _controllerName, mensaje, Log.TipoLog.Anulacion);
+                                resultado_Anular_Proforma = false;
+                            }
+
+                            if (resultado_Anular_Proforma)
+                            {
+                                try
+                                {
+                                    var dataDespacho = await _context.vedespacho.Where(i => i.id == id_pf && i.nroid == nroid_pf).FirstOrDefaultAsync();
+                                    dataDespacho.estado = "ANULADO";
+                                    dataDespacho.fanulado = await funciones.FechaDelServidor(_context);
+                                    dataDespacho.hanulado = await funciones.hora_del_servidor_cadena(_context);
+                                    await _context.SaveChangesAsync();
+
+                                    mensaje = "La proforma " + DOC_PF + " de la " + DOC_NR + " se anulo y paso a estado ANULADO!!!";
+                                    eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                                    await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codfactura.ToString(), id, numeroid.ToString(), _controllerName, mensaje, Log.TipoLog.Anulacion);
+                                    //se añadio tb el registro en la tabla de log de estados de pedidos en despachos ya que hasta esta fecha no se realizaba ese registro
+                                    if (await despachos.cadena_insertar_log_estado_pedido(_context, id_pf, nroid_pf, "ANULADO", usuario))
+                                    {
+                                    }
+
+                                }
+                                catch (Exception ex)
+                                {
+                                    //return (resultado, mensaje, eventos);
+                                }
+                            }
+                            //Desde 14/12/2023 si la proforma se anula se debe actualizar el saldo del anticipo si la proforma fue pagado con anticipo en veproforma_anticipo
+                            //actualizar el monto restante del anticipo
+                            if (resultado_Anular_Proforma)
+                            {
+                                try
+                                {
+                                    var dt_anticipo_pf = await anticipos_Vta_Contado.Anticipos_Aplicados_a_Proforma(_context, id_pf, nroid_pf);
+                                    foreach (var reg in dt_anticipo_pf)
+                                    {
+                                        if (await anticipos_Vta_Contado.ActualizarMontoRestAnticipo(_context, reg.id_anticipo, reg.nroid_anticipo, 0, reg.codanticipo, 0, codempresa))
+                                        {
+                                            mensaje = "Actualizar monto restante anticipo aplicado a factura al anular factura";
+                                            await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codfactura.ToString(), reg.id_anticipo, reg.nroid_anticipo.ToString(), _controllerName, mensaje, Log.TipoLog.Edicion);
+                                        }
+                                        else
+                                        {
+                                            mensaje = "No se pudo Actualizar monto restante anticipo aplicado a factura al anular factura";
+                                            await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codfactura.ToString(), reg.id_anticipo, reg.nroid_anticipo.ToString(), _controllerName, mensaje, Log.TipoLog.Edicion);
+                                        }
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    //return (resultado, mensaje, eventos);
+                                }
+                            }
+                        }
+                    }
+                    //verifica el resultado de capa operacion
+                    if (resultado_Anular_Proforma == true && resultado_anulacion_NR == true && resultado_anulacion_FC_Local == true && resultado_anulacion_FC_En_EL_SIN == true && resultado_Desaprobar_Proforma == true)
+                    {
+                        resultado = true;
+                    }
+                    else
+                    {
+                        resultado = false;
+                    }
+
+                }
+                else
+                {
+                    ////////////////////////////////////////////////////////////////////////
+                    //si es que la factura no tiene nota de remision entra por aqui TIENDAS
+                    ////////////////////////////////////////////////////////////////////////
+                    if (tablacabecera.fecha.Month < fecha_serv.Month)
+                    {
+                        F_Anul = new DateTime(tablacabecera.fecha.Date.Year, tablacabecera.fecha.Date.Month, DateTime.DaysInMonth(tablacabecera.fecha.Date.Year, tablacabecera.fecha.Date.Month));
+                    }
+                    else
+                    {
+                        F_Anul = await funciones.FechaDelServidor(_context);
+                    }
+                    try
+                    {
+                        var dataFact = await _context.vefactura.Where(i => i.codigo == codfactura).FirstOrDefaultAsync();
+                        //Desde 10-11-2022 cuando se anule una factura ya no se cambiara el datos de fechareg ni horareg, debido a que esto causa en ocasion que al anular una factura que aun no a sido VALIDADA EN EL SIN
+                        //el CUF no se el correcto ya que una vez que el dato de horareg se cambie de una factura no igualara con el CUF ya grabado en la factura
+                        dataFact.motivo_anulacion = RazonAnulacionFC[0].Motivo_SIA;
+                        dataFact.refacturar = RazonAnulacionFC[0].Refacturar;
+                        dataFact.anulada = true;
+                        dataFact.fecha_anulacion = F_Anul.Date;
+                        await _context.SaveChangesAsync();
+                        mensaje = "La Factura " + id + " - " + numeroid + " fue anulada localmente con exito!!!";
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codfactura.ToString(), id, numeroid.ToString(), _controllerName, mensaje, Log.TipoLog.Anulacion);
+                        resultado_anulacion_FC_Local = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        mensaje = "La Factura: " + id + "-" + numeroid + " no se pudo localmente por tanto tampoco en el SIN.";
+                        resultado = false;
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codfactura.ToString(), id, numeroid.ToString(), _controllerName, mensaje, Log.TipoLog.Anulacion);
+                        resultado_anulacion_FC_Local = false;
+                        //return (resultado, mensaje, eventos);
+                    }
+                    //Anular el remito
+                    if (resultado_anulacion_FC_Local)
+                    {
+                        try
+                        {
+                            var dataRemito = await _context.veremito.Where(i => i.idfactura == id && i.numeroidfactura == numeroid).FirstOrDefaultAsync();
+                            dataRemito.anulado = true;
+                            dataRemito.horareg = await funciones.hora_del_servidor_cadena(_context);
+                            dataRemito.fechareg = await funciones.FechaDelServidor(_context);
+                            dataRemito.usuarioreg = usuario;
+                            await _context.SaveChangesAsync();
+                            //Actualizar saldo
+                            if (descarga)
+                            {
+                                var actualiza_saldo = await saldos.Vefactura_ActualizarSaldo(_context, codfactura, Saldos.ModoActualizacion.Eliminar);
+                                if (!actualiza_saldo)
+                                {
+                                    mensaje = id + "-" + numeroid + " No se pudo actualizar el saldo de la factura.";
+                                    eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                                    await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codfactura.ToString(), id, numeroid.ToString(), _controllerName, mensaje, Log.TipoLog.Modificacion);
+                                }
+
+                            }
+                            //sia_funciones.Inventario.Instancia.actaduanafactura(CodFC, "eliminar", fecha.Value.Date)
+                            // antes de devolver OK se debe guardar logs de autorizacion
+                            //await grabar_log_permisos();
+                            resultado_anulacion_FC_Local = true;
+                            //Desde 23 / 08 / 2023 si la factura es pagada con un anticipo actualizar el monto_rest del anticipo segun el monto aplicado
+                            if (tablacabecera.idanticipo.Length > 0 && tablacabecera.numeroidanticipo > 0 && tablacabecera.monto_anticipo > 0)
+                            {
+                                //actualizar el monto restante del anticipo
+                                if (await anticipos_Vta_Contado.ActualizarMontoRestAnticipo(_context, tablacabecera.idanticipo, (int)tablacabecera.numeroidanticipo, 0, 0, 0, codempresa))
+                                {
+                                    mensaje = "Actualizar monto restante anticipo aplicado a factura al anular factura";
+                                    await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codfactura.ToString(), tablacabecera.idanticipo, tablacabecera.numeroidanticipo.ToString(), _controllerName, mensaje, Log.TipoLog.Edicion);
+                                }
+                                else
+                                {
+                                    mensaje = "No se pudo Actualizar monto restante anticipo aplicado a factura al anular factura";
+                                    await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codfactura.ToString(), tablacabecera.idanticipo, tablacabecera.numeroidanticipo.ToString(), _controllerName, mensaje, Log.TipoLog.Edicion);
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            mensaje = "La Factura: " + id + "-" + numeroid + " no se pudo localmente por tanto tampoco en el SIN.";
+                            resultado = false;
+                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                            await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codfactura.ToString(), id, numeroid.ToString(), _controllerName, mensaje, Log.TipoLog.Anulacion);
+                            resultado_anulacion_FC_Local = false;
+                            //return (resultado, mensaje, eventos);
+                        }
+                    }
+                    //si todo ok devolver true
+                    if (resultado_anulacion_FC_En_EL_SIN == true && resultado_anulacion_FC_Local == true)
+                    {
+                        resultado = true;
+                    }
+                    else
+                    {
+                        resultado = false;
+                    }
+                }
+                return (resultado, mensaje, eventos);
+            }
+            else
+            {
+                resultado_anulacion_FC_En_EL_SIN = false;
+                resultado = false;
+                msj = "No se pudo anular en el SIN...";
+                mensaje = msj;
+                eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + msj);
+                return (resultado, mensaje, eventos);
+            }
+        }
 
         [HttpGet]
         [Route("Verificar_Comunicacion_SIN/{userConn}/{usuario}/{codempresa}/{codalmacen}")]

@@ -3321,7 +3321,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 {
                     items += reg + ", ";
                 }
-                return BadRequest(new { resp = "Los siguientes items no tienen cantidad en el detalle: " + items });
+                return BadRequest(new { resp = "Los siguientes items se estan recibiendo con valores Nulo en el detalle: " + items });
             }
 
             var data = veproforma1_2.Select(i => new cargadofromMatriz

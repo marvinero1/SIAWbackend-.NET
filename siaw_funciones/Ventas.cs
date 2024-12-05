@@ -46,12 +46,20 @@ namespace siaw_funciones
         private readonly SIAT siat = new SIAT();
         private readonly Items items = new Items();
         private readonly Log log = new Log();
+        private readonly Saldos saldos = new Saldos();
 
         //private readonly Anticipos_Vta_Contado anticipos_vta_contado = new Anticipos_Vta_Contado();
 
         //private readonly IDepositosCliente depositos_cliente;
 
         private const int CODDESEXTRA_PROMOCION = 10;
+        public class ResProformaEsComplementoDeOtra
+        {
+            public bool Resultado { get; set; }
+            public string IdNroIdPfComplemento { get; set; } = "";
+            public string IdPfComplemento { get; set; } = "";
+            public string NroIdPfComplemento { get; set; } = "";
+        }
         public async Task<string> monedabasetarifa(DBContext _context, int codtarifa)
         {
             string resultado = "";
@@ -403,6 +411,11 @@ namespace siaw_funciones
         {
             var resultado = await _context.veproforma.Where(i => i.codigo == codproforma).Select(i => i.numeroid).FirstOrDefaultAsync();
             return resultado;
+        }
+        public async Task<int> CodRemisionDeFactura(DBContext _context, int codfactura)
+        {
+            var resultado = await _context.vefactura.Where(i => i.codigo == codfactura).Select(i => i.codremision).FirstOrDefaultAsync();
+            return resultado ?? 0;
         }
 
         public async Task<int> codproforma_de_remision(DBContext _context, int codremision)
@@ -2121,6 +2134,34 @@ namespace siaw_funciones
                 {
                     resultado = (int)res;
                 }
+                //}
+            }
+            catch (Exception ex)
+            {
+                //Console.WriteLine($"Error: {ex.Message}");
+                return 0;
+            }
+            return resultado;
+        }
+        public async Task<int> nro_facturas_de_una_nr(DBContext _context, int codremision)
+        {
+            int resultado = 0;
+            try
+            {
+                //using (_context)
+                ////using (var _context = DbContextFactory.Create(userConnectionString))
+                //{
+                var res = await _context.vefactura
+                     .Where(x => x.codremision == codremision)
+                     .Select(x => x.codremision)
+                     .Distinct()
+                     .CountAsync();
+
+                resultado = (int)res;
+                //if (res != 0)
+                //{
+                //    resultado = (int)res;
+                //}
                 //}
             }
             catch (Exception ex)
@@ -4068,7 +4109,207 @@ namespace siaw_funciones
                 return false;
             }
         }
+        public async Task<bool> anular_NotaDeRemision(DBContext _context, int codigo, string codempresa, string usuario)
+        {
+            bool resultado = true;
+            string id_nr = "";
+            int nroid_nr = 0;
+            DateTime fecha = DateTime.Now;
+            DateTime f_anul = DateTime.Now;
+            try
+            {
+                var dt_remision = await _context.veremision.Where(i => i.codigo == codigo).FirstOrDefaultAsync();
+                if (dt_remision != null)
+                {
+                    id_nr = dt_remision.id;
+                    nroid_nr = dt_remision.numeroid;
+                    fecha = dt_remision.fecha;
+                    DateTime fecha_serv = await funciones.FechaDelServidor(_context);
 
+                    if (fecha.Month < fecha_serv.Date.Month)
+                    {
+                        f_anul = new DateTime(fecha.Date.Year, fecha.Date.Month, DateTime.DaysInMonth(fecha.Date.Year, fecha.Date.Month));
+                    }
+                    else
+                    {
+                        f_anul = await funciones.FechaDelServidor(_context);
+                    }
+
+                    if (await proforma_es_complementaria(_context, (int)dt_remision.codproforma))
+                    {
+                        //ANULAR COMPLEMENTARIA
+                        if (await revertirpagos(_context, codigo, 4))
+                        {
+                            //si era complementaria revertir pagos de su compleentos y hacerles nuevos planes de pago
+                            if (dt_remision.codproforma != 0)
+                            {
+                                try
+                                {
+                                    var dataProf = await _context.veproforma.Where(i => i.codigo == dt_remision.codproforma).FirstOrDefaultAsync();
+                                    dataProf.transferida = false;
+                                    await _context.SaveChangesAsync();
+                                    resultado = true;
+                                }
+                                catch (Exception ex)
+                                {
+                                    resultado = false;
+                                }
+                                if (resultado)
+                                {
+                                    try
+                                    {
+                                        var dataRemi = await _context.veremision.Where(i => i.codigo == codigo).FirstOrDefaultAsync();
+                                        dataRemi.anulada = true;
+                                        dataRemi.fecha_anulacion = f_anul;
+                                        await _context.SaveChangesAsync();
+                                        if (dt_remision.descarga)
+                                        {
+                                            //Desde 23/11/2023 registrar en el log si por alguna razon no actualiza en instoactual correctamente al disminuir el saldo de cantidad y la reserva en proforma
+                                            if (await saldos.Veremision_ActualizarSaldo(_context, codigo, Saldos.ModoActualizacion.Eliminar) == false)
+                                            {
+                                                await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, codigo.ToString(), id_nr, nroid_nr.ToString(), "anular_NotaDeRemision", "No actualizo stock al restar cantidad en NR al Anular Factura-Remision", Log.TipoLog.Modificacion);
+                                            }
+                                        }
+                                        resultado = true;
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        resultado = false;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                try
+                                {
+                                    var dataRemi = await _context.veremision.Where(i => i.codigo == codigo).FirstOrDefaultAsync();
+                                    dataRemi.anulada = true;
+                                    dataRemi.fecha_anulacion = f_anul;
+                                    await _context.SaveChangesAsync();
+                                    if (dt_remision.descarga)
+                                    {
+                                        //Desde 23/11/2023 registrar en el log si por alguna razon no actualiza en instoactual correctamente al disminuir el saldo de cantidad y la reserva en proforma
+                                        if (await saldos.Veremision_ActualizarSaldo(_context, codigo, Saldos.ModoActualizacion.Eliminar) == false)
+                                        {
+                                            await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, codigo.ToString(), id_nr, nroid_nr.ToString(), "anular_NotaDeRemision", "No actualizo stock al restar cantidad en NR al Anular Factura-Remision", Log.TipoLog.Modificacion);
+                                        }
+                                    }
+                                    resultado = true;
+                                }
+                                catch (Exception ex)
+                                {
+                                    resultado = false;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            resultado = false;
+                        }
+                        if (resultado)
+                        {
+                            //recalcular planes de pago para las notas restantes
+                            var lista = await lista_PFNR_complementarias(_context, (int)dt_remision.codproforma);
+                            string plan = "";
+                            foreach (var reg in lista)
+                            {
+                                if (reg.codremision == 0 || reg.codremision == codigo)
+                                {
+                                    // nada
+                                }
+                                else
+                                {
+                                    if (await revertirpagos(_context, reg.codremision, 4))
+                                    {
+                                        await generarcuotaspago(_context, reg.codremision, 4, (double)await montocomplementarias(_context, lista, 0), 0, dt_remision.codmoneda, dt_remision.codcliente, await fechacomplementaria_menor(_context, lista, dt_remision.fecha), false, codempresa);
+                                    }
+                                }
+                            }
+                        }
+                        //#######FIN ANULAR COMPLEMENTARIA
+                    }
+                    else
+                    {
+                        //##########ANULAR NORMAL
+                        if (await revertirpagos(_context, codigo, 4))
+                        {
+                            //si era complementaria revertir pagos de su compleentos y hacerles nuevos planes de pago
+                            if (dt_remision.codproforma != 0)
+                            {
+                                try
+                                {
+                                    var dataProf = await _context.veproforma.Where(i => i.codigo == dt_remision.codproforma).FirstOrDefaultAsync();
+                                    dataProf.transferida = false;
+                                    await _context.SaveChangesAsync();
+                                    resultado = true;
+                                }
+                                catch (Exception ex)
+                                {
+                                    resultado = false;
+                                }
+                                if (resultado)
+                                {
+                                    try
+                                    {
+                                        var dataRemi = await _context.veremision.Where(i => i.codigo == codigo).FirstOrDefaultAsync();
+                                        dataRemi.anulada = true;
+                                        dataRemi.fecha_anulacion = f_anul;
+                                        await _context.SaveChangesAsync();
+                                        if (dt_remision.descarga)
+                                        {
+                                            //Desde 23/11/2023 registrar en el log si por alguna razon no actualiza en instoactual correctamente al disminuir el saldo de cantidad y la reserva en proforma
+                                            if (await saldos.Veremision_ActualizarSaldo(_context, codigo, Saldos.ModoActualizacion.Eliminar) == false)
+                                            {
+                                                await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, codigo.ToString(), id_nr, nroid_nr.ToString(), "anular_NotaDeRemision", "No actualizo stock al restar cantidad en NR al Anular Factura-Remision", Log.TipoLog.Modificacion);
+                                            }
+                                        }
+                                        resultado = true;
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        resultado = false;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                try
+                                {
+                                    var dataRemi = await _context.veremision.Where(i => i.codigo == codigo).FirstOrDefaultAsync();
+                                    dataRemi.anulada = true;
+                                    dataRemi.fecha_anulacion = f_anul;
+                                    await _context.SaveChangesAsync();
+                                    if (dt_remision.descarga)
+                                    {
+                                        //Desde 23/11/2023 registrar en el log si por alguna razon no actualiza en instoactual correctamente al disminuir el saldo de cantidad y la reserva en proforma
+                                        if (await saldos.Veremision_ActualizarSaldo(_context, codigo, Saldos.ModoActualizacion.Eliminar) == false)
+                                        {
+                                            await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Remision, codigo.ToString(), id_nr, nroid_nr.ToString(), "anular_NotaDeRemision", "No actualizo stock al restar cantidad en NR al Anular Factura-Remision", Log.TipoLog.Modificacion);
+                                        }
+                                    }
+                                    resultado = true;
+                                }
+                                catch (Exception ex)
+                                {
+                                    resultado = false;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            resultado = false;
+                        }
+                        //##########FIN ANULAR NORMAL
+                    }
+                }
+
+            }
+            catch (Exception)
+            {
+                resultado = false;
+            }
+            return resultado;
+        }
 
         ///////////////////////////////////////////////////////////////////////////////
         //esta funcion verifica si un id de ventas descarga mercaderia o no
@@ -4753,8 +4994,124 @@ namespace siaw_funciones
                 return "";
             }
         }
+        public async Task<string> proforma_id_nro(DBContext _context, int codigo)
+        {
+            try
+            {
+                string resultado = await _context.veproforma.Where(i => i.codigo == codigo).Select(i => i.id + "-" + i.numeroid).FirstOrDefaultAsync() ?? "";
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
+        public async Task<bool> Remision_Contado_Contra_Entrega_Esta_Pagada_2(DBContext _context, int codremision)
+        {
+            try
+            {
+                var tblpagos = await _context.copagos
+                    .Where(p1 => p1.codremision == codremision)
+                    .Join(
+                        _context.cocobranza,
+                        p1 => p1.codcobranza,
+                        p2 => p2.codigo,
+                        (p1, p2) => new { p1, p2 }
+                    )
+                    .Where(joined => joined.p2.reciboanulado == false)
+                    .Select(joined => new
+                    {
+                        joined.p2.reciboanulado,
+                        joined.p2.id,
+                        joined.p2.numeroid,
+                        joined.p2.fecha,
+                        joined.p2.nit,
+                        monto_cbza = joined.p2.monto,
+                        monto_dist = joined.p1.monto
+                    })
+                    .ToListAsync();
+                double pagado = 0;
+                foreach (var reg in tblpagos)
+                {
+                    pagado = (double)reg.monto_dist;
+                }
+                ///////////////////////////////
+                // si hay monto pagado
+                ///////////////////////////////
+                if (pagado > 0)
+                {
+                    return true;
+                }
+                return false;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+        public async Task<ResProformaEsComplementoDeOtra> Proforma_Es_Complemento_De_Otra(DBContext _context, int codpf)
+        {
+            var resultado = new ResProformaEsComplementoDeOtra();
+            try
+            {
+                if (codpf == 0)
+                {
+                    resultado.Resultado = false;
+                    resultado.IdNroIdPfComplemento = "";
+                    resultado.IdPfComplemento = "";
+                    resultado.NroIdPfComplemento = "";
+                    return resultado;
+                }
 
+                // Simulación del método para obtener la cadena (reemplazar con tu lógica real)
+                string cadena = await proforma_id_nro(_context, codpf);
+                string[]? docpf = cadena?.Split('-');
 
+                if (docpf != null && docpf.Length == 2)
+                {
+                    string idPfComplemento = docpf[0];
+                    int nroIdPfComplemento = Convert.ToInt32(docpf[1]);
+
+                    // Consulta asíncrona a la base de datos usando LINQ y DbContext
+                    var veProforma = await _context.veproforma
+                        .Where(p => p.anulada == false &&
+                                    p.idpf_complemento == idPfComplemento &&
+                                    p.nroidpf_complemento == nroIdPfComplemento)
+                        .Select(p => new
+                        {
+                            p.id,
+                            p.numeroid
+                        })
+                        .FirstOrDefaultAsync();
+
+                    if (veProforma != null)
+                    {
+                        resultado.Resultado = true;
+                        resultado.IdNroIdPfComplemento = $"{veProforma.id}-{veProforma.numeroid}";
+                    }
+                    else
+                    {
+                        resultado.Resultado = false;
+                        resultado.IdNroIdPfComplemento = "";
+                        resultado.IdPfComplemento = "";
+                        resultado.NroIdPfComplemento = "";
+                    }
+                }
+                else
+                {
+                    resultado.Resultado = false;
+                    resultado.IdNroIdPfComplemento = "";
+                    resultado.IdPfComplemento = "";
+                    resultado.NroIdPfComplemento = "";
+                }
+
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return resultado;
+            }
+        }
         public async Task<List<list_PFNR_comp_>> lista_PFNR_complementarias(DBContext _context, int codproforma)
         {
             bool bandera = true;
@@ -4847,7 +5204,28 @@ namespace siaw_funciones
             }
             return lista;
         }
+        public async Task<List<string>> Lista_IdNroID_Facturas_De_Remision(string cadenaFacturas)
+        {
+            var resultado = new List<string>();
 
+            if (cadenaFacturas.Contains("."))
+            {
+                int posi = cadenaFacturas.IndexOf(".");
+                cadenaFacturas = cadenaFacturas.Remove(posi, 1);
+            }
+
+            var cadenaDocfc = cadenaFacturas.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (var item in cadenaDocfc)
+            {
+                if (!string.IsNullOrWhiteSpace(item))
+                {
+                    resultado.Add(item.Trim());
+                }
+            }
+
+            return await Task.FromResult(resultado);
+        }
 
 
         public async Task<List<list_PFNR_comp_>> lista_PFNR_complementarias_noPP(DBContext _context, int codproforma)
@@ -4957,7 +5335,27 @@ namespace siaw_funciones
             }
             return lista;
         }
-
+        public async Task<decimal> montocomplementarias(DBContext _context, List<list_PFNR_comp_> lista, double total)
+        {
+            decimal totalc = 0;
+            totalc = (decimal)total;
+            foreach (var reg in lista)
+            {
+                if (reg.codremision == 0)
+                {
+                    // nada
+                }
+                else
+                {
+                    var tabla = await _context.veremision.Where(i => i.codigo == reg.codremision).FirstOrDefaultAsync();
+                    if (tabla != null)
+                    {
+                        totalc = totalc + tabla.total;
+                    }
+                }
+            }
+            return totalc;
+        }
         public async Task<double> MontoTotalComplementarias(DBContext _context, List<list_PFNR_comp_> lista)
         {
             double totalc = 0;
@@ -5004,6 +5402,25 @@ namespace siaw_funciones
                 }
             }
             return fecha;
+        }
+        public async Task<DateTime> fechacomplementaria_menor(DBContext _context, List<list_PFNR_comp_> lista, DateTime fecha)
+        {
+            DateTime fecha_menor = fecha;
+            foreach (var reg in lista)
+            {
+                if (reg.codremision == 0)
+                {
+                    // nada
+                }
+                else
+                {
+                    if (reg.fecharemision.Date < fecha_menor.Date)
+                    {
+                        fecha_menor = reg.fecharemision.Date;
+                    }
+                }
+            }
+            return fecha_menor.Date;
         }
         public async Task<double> RemisionMonto(DBContext _context, int codigo)
         {
@@ -5669,15 +6086,149 @@ namespace siaw_funciones
                 return false;
             }
         }
+        public async Task<bool> Remision_Contado_Pago_Anticipado_Esta_Pagada(DBContext _context, int codremision)
+        {
+            bool resultado = false;
+            int codproforma = 0;
+            try
+            {//busca la proforma de la nota de remision  para verificar si es contado
+                var tblproforma = await _context.veremision
+                    .Where(p1 => p1.codigo == codremision)
+                    .Join(
+                        _context.veproforma,
+                        p1 => p1.codproforma,
+                        p2 => p2.codigo,
+                        (p1, p2) => new { p1, p2 }
+                    )
+                    .Where(joined => joined.p1.anulada == false && joined.p2.anulada == false)
+                    .Select(joined => new
+                    {
+                        joined.p1.id,
+                        joined.p1.numeroid,
+                        joined.p1.fecha,
+                        joined.p1.total,
+                        joined.p1.codmoneda,
+                        joined.p1.codproforma,
+                        joined.p2.tipopago,
+                        joined.p1.contra_entrega,
+                        joined.p2.pago_contado_anticipado
+                    })
+                    .ToListAsync();
 
-        public async Task<bool> Remision_Contado_Contra_Entrega_Esta_Pagada_2(DBContext _context, int codremision)
+                if (tblproforma != null)
+                {//busca los pagos
+                    foreach (var pf in tblproforma)
+                    {
+                        codproforma = (int)pf.codproforma;
+                    }
+
+                    var tblpagos = await _context.veproforma_anticipo
+                    .Join(
+                        _context.veproforma,
+                        p1 => p1.codproforma,
+                        p2 => p2.codigo,
+                        (p1, p2) => new { p1, p2 }
+                    )
+                    .Join(
+                        _context.coanticipo,
+                        combined => combined.p1.codanticipo,
+                        p3 => p3.codigo,
+                        (combined, p3) => new { combined.p1, combined.p2, p3 }
+                    )
+                    .Where(data => data.p1.codproforma == codproforma && data.p3.anulado == false)
+                    .Select(data => new
+                    {
+                        data.p2.id,
+                        data.p2.numeroid,
+                        data.p2.total,
+                        data.p2.codmoneda,
+                        monto_dist = data.p1.monto,
+                        P3Id = data.p3.id,
+                        P3Numeroid = data.p3.numeroid
+                    }).ToListAsync();
+
+                    double pagado = 0;
+                    if (tblpagos != null)
+                    {
+                        foreach (var reg in tblpagos)
+                        {
+                            pagado += (double)reg.monto_dist;
+                        }
+                    }
+                    ///////////////////////////////
+                    // si hay monto pagado
+                    ///////////////////////////////
+                    if (pagado > 0)
+                    {
+                        resultado = true;
+                    }
+                    else
+                    {
+                        resultado = false;
+                    }
+                }
+                else
+                {//si hay la proforma y es contado con pago anticipado
+                    resultado = false;
+                }
+            }
+            catch (Exception)
+            {
+                resultado = false;
+            }
+            return resultado;
+        }
+        //public async Task<bool> Remision_Contado_Contra_Entrega_Esta_Pagada_2(DBContext _context, int codremision)
+        //{
+        //    try
+        //    {
+        //        var tblpagos = await _context.copagos
+        //            .Where(p1 => p1.codremision == codremision)
+        //            .Join(
+        //                _context.cocobranza,
+        //                p1 => p1.codcobranza,
+        //                p2 => p2.codigo,
+        //                (p1, p2) => new { p1, p2 }
+        //            )
+        //            .Where(joined => joined.p2.reciboanulado == false)
+        //            .Select(joined => new
+        //            {
+        //                joined.p2.reciboanulado,
+        //                joined.p2.id,
+        //                joined.p2.numeroid,
+        //                joined.p2.fecha,
+        //                joined.p2.nit,
+        //                monto_cbza = joined.p2.monto,
+        //                monto_dist = joined.p1.monto
+        //            })
+        //            .ToListAsync();
+        //        double pagado = 0;
+        //        foreach (var reg in tblpagos)
+        //        {
+        //            pagado = (double)reg.monto_dist;
+        //        }
+        //        ///////////////////////////////
+        //        // si hay monto pagado
+        //        ///////////////////////////////
+        //        if (pagado > 0)
+        //        {
+        //            return true;
+        //        }
+        //        return false;
+        //    }
+        //    catch (Exception)
+        //    {
+        //        return false;
+        //    }
+        //}
+        public async Task<bool> Remision_Contado_Contra_Entrega_Esta_Pagada(DBContext _context, int codremision)
         {
             try
             {
-                var tblpagos = await _context.copagos
+                var tblpagos = await _context.copagos_contado
                     .Where(p1 => p1.codremision == codremision)
                     .Join(
-                        _context.cocobranza,
+                        _context.cocobranza_contado,
                         p1 => p1.codcobranza,
                         p2 => p2.codigo,
                         (p1, p2) => new { p1, p2 }
