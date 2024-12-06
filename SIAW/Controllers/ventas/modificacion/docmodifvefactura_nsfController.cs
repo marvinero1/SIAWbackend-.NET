@@ -1367,11 +1367,14 @@ namespace SIAW.Controllers.ventas.modificacion
                             try
                             {
                                 var remito = await _context.veremito.Where(i => i.idfactura == idFactura && i.numeroidfactura == nroIdFact).FirstOrDefaultAsync();
-                                remito.anulado = false;
-                                remito.horareg = await funciones.hora_del_servidor_cadena(_context);
-                                remito.fechareg = await funciones.FechaDelServidor(_context);
-                                remito.usuarioreg = usuario;
-                                await _context.SaveChangesAsync();
+                                if (remito != null)
+                                {
+                                    remito.anulado = false;
+                                    remito.horareg = await funciones.hora_del_servidor_cadena(_context);
+                                    remito.fechareg = await funciones.FechaDelServidor(_context);
+                                    remito.usuarioreg = usuario;
+                                    await _context.SaveChangesAsync();
+                                }
 
                                 if (descarga)
                                 {
@@ -1427,11 +1430,14 @@ namespace SIAW.Controllers.ventas.modificacion
                             try
                             {
                                 var remito = await _context.veremito.Where(i => i.idfactura == idFactura && i.numeroidfactura == nroIdFact).FirstOrDefaultAsync();
-                                remito.anulado = false;
-                                remito.horareg = await funciones.hora_del_servidor_cadena(_context);
-                                remito.fechareg = await funciones.FechaDelServidor(_context);
-                                remito.usuarioreg = usuario;
-                                await _context.SaveChangesAsync();
+                                if (remito != null)
+                                {
+                                    remito.anulado = false;
+                                    remito.horareg = await funciones.hora_del_servidor_cadena(_context);
+                                    remito.fechareg = await funciones.FechaDelServidor(_context);
+                                    remito.usuarioreg = usuario;
+                                    await _context.SaveChangesAsync();
+                                }
 
                                 if (descarga)
                                 {
@@ -1731,6 +1737,7 @@ namespace SIAW.Controllers.ventas.modificacion
                             resultado = true;
                             enviar_mail_rever_anulacion = false;
                             mensaje = "El proceso de Reversion en el SIN termino, verifique los resultados en la pestaña de observaciones!!!";
+                            eventos = result.eventos;
                             eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
                             //await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion);
                         }
@@ -1739,6 +1746,7 @@ namespace SIAW.Controllers.ventas.modificacion
                             mensaje = "Alerta el proceso de Reversion en el SIN termino con Errores, verifique los resultados en la pestaña de observaciones!!!";
                             resultado = false;
                             enviar_mail_rever_anulacion = false;
+                            eventos = result.eventos;
                             eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
                             // await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion);
                             //return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
@@ -1770,6 +1778,8 @@ namespace SIAW.Controllers.ventas.modificacion
             }
 
         }
+
+
         private async Task<(bool result, List<string> msgAlertas, List<string> eventos, bool enviar_mail_rever_anulacion)> Solicitar_Reversion_Al_SIN(DBContext _context, string usuario, string codempresa, int codalmacen, string CUF_FACTURA, int codFactura, string id, int numeroid)
         {
             List<string> msgAlertas = new List<string>();
@@ -1967,8 +1977,8 @@ namespace SIAW.Controllers.ventas.modificacion
         }
 
         [HttpPost]
-        [Route("Anular_Factura_SIN/{userConn}/{usuario}/{codFactura}/{codempresa}/{motivo}/{motivo_sin}")]
-        public async Task<object> Anular_Factura_SIN(string userConn, string usuario, int codFactura, string codempresa, string motivo, string motivo_sin)
+        [Route("Anular_Factura_SIN/{userConn}/{usuario}/{codFactura}/{codempresa}")]
+        public async Task<object> Anular_Factura_SIN(string userConn, string usuario, int codFactura, string codempresa, List<DatosAnulacionFC> RazonAnulacionFC)
         {
             List<string> eventos = new List<string>();
             bool resultado = true;
@@ -1982,8 +1992,9 @@ namespace SIAW.Controllers.ventas.modificacion
             if (string.IsNullOrWhiteSpace(usuario)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Usuario'. Consulte con el Administrador del sistema." }); }
             if (string.IsNullOrWhiteSpace(codempresa)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Empresa'. Consulte con el Administrador del sistema." }); }
             if (codFactura <= 0) { return BadRequest(new { resp = "El valor de 'Codigo de Factura' no puede ser cero o menor a cero. Consulte con el Administrador del sistema." }); }
-            if (string.IsNullOrWhiteSpace(motivo)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Motivo'. Consulte con el Administrador del sistema." }); }
-            if (string.IsNullOrWhiteSpace(motivo_sin) && motivo_sin.Contains('-')) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Motivo SIN'. Consulte con el Administrador del sistema." }); }
+            if (RazonAnulacionFC == null) { return BadRequest(new { resp = "El valor de 'Razon AnulacionFC' no puede ser mulo. Consulte con el Administrador del sistema." }); }
+            //if (string.IsNullOrWhiteSpace(motivo)) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Motivo'. Consulte con el Administrador del sistema." }); }
+            //if (string.IsNullOrWhiteSpace(motivo_sin) && motivo_sin.Contains('-')) { return BadRequest(new { resp = "No se ha proporcionado el valor del dato 'Motivo SIN'. Consulte con el Administrador del sistema." }); }
 
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
             using (var _context = DbContextFactory.Create(userConnectionString))
@@ -2012,14 +2023,16 @@ namespace SIAW.Controllers.ventas.modificacion
                         return StatusCode(203, new { resp = resultado, mensaje, eventos, enviar_mail_anulacion });
                     }
 
-                    motivo_sin_datos = motivo_sin.Split('-');
-                    if (motivo_sin_datos.Length == 2)
+                    //motivo_sin_datos = motivo_sin.Split('-');
+                    if (RazonAnulacionFC != null)
                     {
-                        codigo_motivo = Convert.ToInt32(motivo_sin_datos[0].Trim());
+                        //codigo_motivo = Convert.ToInt32(motivo_sin_datos[0].Trim());
+                        codigo_motivo = RazonAnulacionFC[0].CodMotivo_SIN_Datos;
                     }
+
                     else
                     {
-                        mensaje = "El formato de la cadena del motivo del SIN no es válido.";
+                        mensaje = "El formato de la cadena del Cod motivo del SIN no es válido.";
                         resultado = false;
                         enviar_mail_anulacion = false;
                         eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
@@ -2037,8 +2050,8 @@ namespace SIAW.Controllers.ventas.modificacion
                         {
                             resultado = true;
                             enviar_mail_anulacion = true;
+                            eventos = result.eventos;
                             mensaje = "El proceso de anulacion en el SIN termino, verifique los resultados en la pestaña de observaciones!!!";
-                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + result.eventos);
                             eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
                             //await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion);
                         }
@@ -2047,7 +2060,7 @@ namespace SIAW.Controllers.ventas.modificacion
                             mensaje = "Alerta el proceso de anulacion en el SIN termino con Errores, verifique los resultados en la pestaña de observaciones!!!";
                             resultado = false;
                             enviar_mail_anulacion = false;
-                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + result.eventos);
+                            eventos = result.eventos;
                             eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
                             // await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), idFactura, nroIdFact.ToString(), _controllerName, mensaje, Log.TipoLog_Siat.Modificacion);
                             //return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
@@ -2079,6 +2092,9 @@ namespace SIAW.Controllers.ventas.modificacion
             }
 
         }
+
+
+
         private async Task<(bool result, List<string> msgAlertas, List<string> eventos, bool enviar_mail_anulacion)> Solicitar_Anulacion_Al_SIN(DBContext _context, string usuario, string codempresa, int codalmacen, int motivo_anulacion, string CUF_FACTURA, int codFactura, string id, int numeroid)
         {
             List<string> msgAlertas = new List<string>();
@@ -2124,9 +2140,9 @@ namespace SIAW.Controllers.ventas.modificacion
                     msje1 = lista.ToString();
                     await log.RegistrarEvento_Siat(_context, usuario, Log.Entidades.SW_Factura, codFactura.ToString(), id, numeroid.ToString(), _controllerName, msje1, Log.TipoLog_Siat.Anulacion_Facturas);
                 }
-                msje = msje1 + ", verifique los resultados en la pestaña de observaciones!!!";
-                msgAlertas.Add(msje);
-                eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + msje);
+                //msje = msje1 + ", verifique los resultados en la pestaña de observaciones!!!";
+                //msgAlertas.Add(msje);
+                //eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + msje);
                 //Desde 03-07-2023
                 //actualizar la cod_recepcion_siat
                 var factura = await _context.vefactura.Where(i => i.codigo == codFactura).FirstOrDefaultAsync();
@@ -2167,6 +2183,8 @@ namespace SIAW.Controllers.ventas.modificacion
             }
             return (resultado, msgAlertas, eventos, enviar_mail_anulacion);
         }
+
+
 
         [HttpPost]
         [Route("Anular_Factura/{userConn}/{usuario}/{codFactura}/{codempresa}/{sin_validar_anulacion}/{sin_validar_inventario}/{tipo_anulacion}")]
@@ -2212,30 +2230,31 @@ namespace SIAW.Controllers.ventas.modificacion
                         mensaje = resultado_validacion.msgAlertas;
                         resultado = false;
                         codigo_control = resultado_validacion.codigo_control;
-                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        eventos = resultado_validacion.eventos;
+                        //eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
                         return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
                     }
                     try
                     {
                         var resultado_proceso_anulacion = await Realizar_Proceso_Anulacion_Local(_context, usuario, dataFact.codalmacen, codempresa, dataFact, dataFact.cuf, codFactura, idFactura, nroIdFact, (int)dataFact.codremision, dataFact.codcliente, resultado_validacion.doc_nr, resultado_validacion.codproforma, resultado_validacion.doc_prof, resultado_validacion.opcion_anulacion, RazonAnulacionFC, resultado_validacion.LISTA_FACTURAS, descarga);
-                        if (resultado_validacion.result == false)
+                        if (resultado_proceso_anulacion.result == false)
                         {
                             //return BadRequest(new { resp = mi_msg, eventos });
-                            mensaje = resultado_validacion.msgAlertas;
+                            mensaje = resultado_proceso_anulacion.msgAlertas;
                             resultado = false;
-                            codigo_control = resultado_validacion.codigo_control;
-                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
-                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + resultado_validacion.eventos);
+                            codigo_control = 0;
+                            eventos = resultado_proceso_anulacion.eventos;
+                            //ventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
                             eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + "Alerta!!! el proceso de anulacion termino con errores, verifique minuciosamente la pestaña de observaciones.");
                             return StatusCode(203, new { resp = resultado, mensaje, eventos, codigo_control });
                         }
                         else
                         {
-                            mensaje = resultado_validacion.msgAlertas;
+                            mensaje = resultado_proceso_anulacion.msgAlertas;
                             resultado = true;
                             codigo_control = 0;
-                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
-                            eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + resultado_validacion.eventos);
+                            eventos = resultado_proceso_anulacion.eventos;
+                            //eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
                             eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + "El proceso de anulacion termino con exito, verifique detenidamente los resultados en la pestaña de observaciones!!!");
                         }
                     }
@@ -2261,11 +2280,14 @@ namespace SIAW.Controllers.ventas.modificacion
                 }
                 catch (Exception ex)
                 {
-                    return Problem($"Error en el servidor al cambiar fecha anulacion FC: {ex.Message}");
+                    return Problem($"Error en el servidor al anular FC: {ex.Message}");
                 }
             }
 
         }
+
+
+
         private async Task<(bool result, string msgAlertas, List<string> eventos, int codigo_control, int codproforma, string doc_prof, string doc_nr, List<string> opcion_anulacion, List<string> LISTA_FACTURAS)> Validar_Anular_Factura(DBContext _context, int codalmacen, string codempresa, vefactura tablacabecera, bool sin_validar_anulacion, bool sin_validar_inventario, string tipo_anulacion)
         {
             string msgAlertas = "";
@@ -2487,6 +2509,8 @@ namespace SIAW.Controllers.ventas.modificacion
             //return await Task.FromResult(resultado);
             return resultado;
         }
+
+
         private async Task<(bool result, string msgAlertas, List<string> eventos)> Realizar_Proceso_Anulacion_Local(DBContext _context, string usuario, int codalmacen, string codempresa, vefactura tablacabecera, string cuf, int codfactura, string id, int numeroid, int codremision, string codcliente, string DOC_NR, int codproforma, string DOC_PF, List<string> opciones_anulo, List<DatosAnulacionFC> RazonAnulacionFC, List<string> LISTA_FACTURAS, bool descarga)
         {
             string mensaje = "";
@@ -2511,31 +2535,32 @@ namespace SIAW.Controllers.ventas.modificacion
             string id_pf = "";
             int nroid_pf = 0;
 
-            var dataRem = await _context.veremision.Where(i => i.codigo == codremision).FirstOrDefaultAsync();
-
-            if (dataRem == null)
-            {
-                //return BadRequest(new { resp = mi_msg, eventos });
-                mensaje = "No se encontró informacion con el codigo de remision proporcionado, consulte con el administrador.";
-                resultado = false;
-                eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
-                return (resultado, mensaje, eventos);
-            }
-
             //Desdee 11-11-2024 primero se anula en el SIN y si se anulo en el SIN recien anular en el SIA
             //si la anulacion en el servidor local del SIA es exitosa continua anulando en el SIN
             var anulacion_en_el_SIN = await Solicitar_Anulacion_Al_SIN(_context, usuario, codempresa, codalmacen, RazonAnulacionFC[0].CodMotivo_SIN_Datos, cuf, codfactura, id, numeroid);
 
             if (anulacion_en_el_SIN.result == true)
             {
+                eventos = anulacion_en_el_SIN.eventos;
                 resultado_anulacion_FC_En_EL_SIN = true;
                 if (codremision > 0)
                 {   //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
                     //&& SI LA FACTURA TIENE NOTA DE REMISION  ALMACENES
                     //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
                     //// ACTUALIZAR NO TRANSFERIDA LA NR
+                    var dataRem = await _context.veremision.Where(i => i.codigo == codremision).FirstOrDefaultAsync();
+
+                    if (dataRem == null)
+                    {
+                        //return BadRequest(new { resp = mi_msg, eventos });
+                        mensaje = "No se encontró informacion con el codigo de remision proporcionado, consulte con el administrador.";
+                        resultado = false;
+                        eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + mensaje);
+                        return (resultado, mensaje, eventos);
+                    }
                     try
                     {
+
                         dataRem.transferida = false;
                         await _context.SaveChangesAsync();
                         if (tablacabecera.fecha.Year < fecha_serv.Year)
@@ -2638,11 +2663,15 @@ namespace SIAW.Controllers.ventas.modificacion
                                 try
                                 {
                                     var dataRemito = await _context.veremito.Where(i => i.idfactura == id && i.numeroidfactura == numeroid).FirstOrDefaultAsync();
-                                    dataRemito.anulado = true;
-                                    dataRemito.horareg = await funciones.hora_del_servidor_cadena(_context);
-                                    dataRemito.fechareg = await funciones.FechaDelServidor(_context);
-                                    dataRemito.usuarioreg = usuario;
-                                    await _context.SaveChangesAsync();
+                                    if (dataRemito != null) 
+                                    {
+                                        dataRemito.anulado = true;
+                                        dataRemito.horareg = await funciones.hora_del_servidor_cadena(_context);
+                                        dataRemito.fechareg = await funciones.FechaDelServidor(_context);
+                                        dataRemito.usuarioreg = usuario;
+                                        await _context.SaveChangesAsync();
+                                    }
+
                                     //Actualizar saldo
                                     if (descarga)
                                     {
@@ -2970,11 +2999,14 @@ namespace SIAW.Controllers.ventas.modificacion
                         try
                         {
                             var dataRemito = await _context.veremito.Where(i => i.idfactura == id && i.numeroidfactura == numeroid).FirstOrDefaultAsync();
-                            dataRemito.anulado = true;
-                            dataRemito.horareg = await funciones.hora_del_servidor_cadena(_context);
-                            dataRemito.fechareg = await funciones.FechaDelServidor(_context);
-                            dataRemito.usuarioreg = usuario;
-                            await _context.SaveChangesAsync();
+                            if (dataRemito != null)
+                            {
+                                dataRemito.anulado = true;
+                                dataRemito.horareg = await funciones.hora_del_servidor_cadena(_context);
+                                dataRemito.fechareg = await funciones.FechaDelServidor(_context);
+                                dataRemito.usuarioreg = usuario;
+                                await _context.SaveChangesAsync();
+                            }
                             //Actualizar saldo
                             if (descarga)
                             {
@@ -3033,12 +3065,15 @@ namespace SIAW.Controllers.ventas.modificacion
             {
                 resultado_anulacion_FC_En_EL_SIN = false;
                 resultado = false;
+                eventos = anulacion_en_el_SIN.eventos;
                 msj = "No se pudo anular en el SIN...";
                 mensaje = msj;
-                eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + msj);
+                //eventos.Add(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff") + " - " + msj);
                 return (resultado, mensaje, eventos);
             }
         }
+
+
 
         [HttpGet]
         [Route("Verificar_Comunicacion_SIN/{userConn}/{usuario}/{codempresa}/{codalmacen}")]

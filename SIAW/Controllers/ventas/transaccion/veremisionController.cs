@@ -767,6 +767,8 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
         public List<Dtnegativos> dtnegativos = new List<Dtnegativos>();
+
+
         private async Task<(bool bandera, string msg, int codigo_control, List<Dtnegativos> dtnegativos_result)> Validar_Detalle(DBContext _context, bool sin_validar, bool sin_validar_empaques, bool sin_validar_negativos, string codempresa, string usuario, string codcliente_real, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos, string id_pf, int numeroid_pf)
         {
             bool resultado = true;
@@ -819,26 +821,76 @@ namespace SIAW.Controllers.ventas.transaccion
                     resultado = false;
                     return (false, "No puso la cantidad en la Linea " + (i + 1) + " " + Convert.ToString(row.coditem) + " .", 0, dtnegativos);
                 }
-                else if (Convert.ToDouble(row.cantidad) < 0)
+                else if (Convert.ToDouble(row.cantidad) <= 0)
                 {
                     resultado = false;
                     return (false, "No puso la cantidad en la Linea " + (i + 1) + " " + Convert.ToString(row.coditem) + " .", 0, dtnegativos);
                 }
+                else if (Convert.IsDBNull(row.preciodesc))
+                {
+                    resultado = false;
+                    return (false, "No puso el Precio Desc en la Linea " + (i + 1) + " Item : " + Convert.ToString(row.coditem) + " .", 0, dtnegativos);
+                }
+                else if (Convert.ToString(row.preciodesc).Length < 1)
+                {
+                    resultado = false;
+                    return (false, "No puso el Precio Desc en la Linea " + (i + 1) + " Item : " + Convert.ToString(row.coditem) + " .", 0, dtnegativos);
+                }
+                else if (Convert.ToDouble(row.preciodesc) <= 0)
+                {
+                    resultado = false;
+                    return (false, "No puso el Precio Desc en la Linea " + (i + 1) + " Item : " + Convert.ToString(row.coditem) + " .", 0, dtnegativos);
+                }
+                //Desde 06/12/2024
                 else if (Convert.IsDBNull(row.preciolista))
                 {
                     resultado = false;
-                    return (false, "No puso la Precio en la Linea " + (i + 1) + " Item : " + Convert.ToString(row.coditem) + " .", 0, dtnegativos);
+                    return (false, "No puso el Precio en la Linea " + (i + 1) + " Item : " + Convert.ToString(row.coditem) + " .", 0, dtnegativos);
                 }
                 else if (Convert.ToString(row.preciolista).Length < 1)
                 {
                     resultado = false;
-                    return (false, "No puso la Precio en la Linea " + (i + 1) + " Item : " + Convert.ToString(row.coditem) + " .", 0, dtnegativos);
+                    return (false, "No puso el Precio en la Linea " + (i + 1) + " Item : " + Convert.ToString(row.coditem) + " .", 0, dtnegativos);
                 }
                 else if (Convert.ToDouble(row.preciolista) <= 0)
                 {
                     resultado = false;
-                    return (false, "No puso la Precio en la Linea " + (i + 1) + " Item : " + Convert.ToString(row.coditem) + " .", 0, dtnegativos);
+                    return (false, "No puso el Precio en la Linea " + (i + 1) + " Item : " + Convert.ToString(row.coditem) + " .", 0, dtnegativos);
                 }
+                //
+                else if (Convert.IsDBNull(row.precioneto))
+                {
+                    resultado = false;
+                    return (false, "No puso el Precio Neto en la Linea " + (i + 1) + " Item : " + Convert.ToString(row.coditem) + " .", 0, dtnegativos);
+                }
+                else if (Convert.ToString(row.precioneto).Length < 1)
+                {
+                    resultado = false;
+                    return (false, "No puso el Precio Neto en la Linea " + (i + 1) + " Item : " + Convert.ToString(row.coditem) + " .", 0, dtnegativos);
+                }
+                else if (Convert.ToDouble(row.precioneto) <= 0)
+                {
+                    resultado = false;
+                    return (false, "No puso el Precio Neto en la Linea " + (i + 1) + " Item : " + Convert.ToString(row.coditem) + " .", 0, dtnegativos);
+                }
+                //
+                else if (Convert.IsDBNull(row.total))
+                {
+                    resultado = false;
+                    return (false, "No puso el Total en la Linea " + (i + 1) + " Item : " + Convert.ToString(row.coditem) + " .", 0, dtnegativos);
+                }
+                else if (Convert.ToString(row.total).Length < 1)
+                {
+                    resultado = false;
+                    return (false, "No puso el Total en la Linea " + (i + 1) + " Item : " + Convert.ToString(row.coditem) + " .", 0, dtnegativos);
+                }
+                else if (Convert.ToDouble(row.total) <= 0)
+                {
+                    resultado = false;
+                    return (false, "No puso el Total en la Linea " + (i + 1) + " Item : " + Convert.ToString(row.coditem) + " .", 0, dtnegativos);
+                }
+                //
+
                 else if (!await ventas.ValidarTarifa(_context, codcliente_real, Convert.ToString(row.coditem), Convert.ToInt32(row.codtarifa)))
                 {
                     resultado = false;

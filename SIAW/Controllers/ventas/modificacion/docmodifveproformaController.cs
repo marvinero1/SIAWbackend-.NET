@@ -464,12 +464,158 @@ namespace SIAW.Controllers.ventas.modificacion
         }
 
 
+        private (bool valido, string mensaje) validarDetalle(List<veproforma1> veproforma1)
+        {
+            bool bandVep1 = true;
+            string msgValDetalle = "";
+            int indice = 1;
+            foreach (var item in veproforma1)
+            {
+                if (item.coditem == null)
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir nulos en codigo de item, en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+                if (item.cantidad == null)
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir nulos en cantidad. en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+                if (item.udm == null)
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir nulos en unidad de medida en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+                if (item.precioneto == null)
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir nulos en precioNeto en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+                if (item.preciodesc == null)
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir nulos en precio descuento en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+                if (item.niveldesc == null)
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir nulos en nivel descuento en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+                if (item.preciolista == null)
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir nulos en precio lista en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+                if (item.codtarifa == null)
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir nulos en codigo de tarifa en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+                if (item.coddescuento == null)
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir nulos en codigo descuento en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+                if (item.total == null)
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir nulos en los totales en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+                if (item.cantaut == null)
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir nulos en la cantidad autorizada en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+                if (item.totalaut == null)
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir nulos en el total autorizado en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+                if (item.porceniva == null)
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir nulos en porcentaje IVA en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+                if (item.cantidad_pedida == null)
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir nulos en Cantidad Pedida en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+                if (item.nroitem == null)
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir nulos en el nro de item en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+                if (item.precioneto <= 0)
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir un número menor o igual que 0 en el Precio Neto en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+                if (item.preciodesc <= 0)
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir un número menor o igual que 0 en el Precio Descuento en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+                if (item.preciolista <= 0)
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir un número menor o igual que 0 en el Precio Lista en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+                if (item.cantidad_pedida <= 0)
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir un número menor o igual que 0 en la Cantidad Pedida en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+                if (item.cantidad > 0)
+                {
+                    if (item.total <= 0)
+                    {
+                        bandVep1 = false;
+                        msgValDetalle = "No se puede recibir 0 en el total si la cantidad es distinto de 0. en detalle de pedido Error en linea: " + indice;
+                        break;
+                    }
+                }
+                if (item.cantaut > 0)
+                {
+                    if (item.totalaut <= 0)
+                    {
+                        bandVep1 = false;
+                        msgValDetalle = "No se puede recibir 0 en el total si la cantidad es distinto de 0. en detalle de pedido Error en linea: " + indice;
+                        break;
+                    }
+                }
+                indice++;
+            }
+            return (bandVep1, msgValDetalle);
+        }
+
+
         //[Authorize]
         [HttpPost]
         [QueueFilter(1)] // Limitar a 1 solicitud concurrente
         [Route("guardarProforma/{userConn}/{codProforma}/{codempresa}/{paraAprobar}/{codcliente_real}")]
         public async Task<object> guardarProforma(string userConn, int codProforma, string codempresa, bool paraAprobar, string codcliente_real, SaveProformaCompleta datosProforma)
         {
+            datosProforma.veproforma1 = datosProforma.veproforma1.Select(p => { p.obs = ""; return p; }).ToList();
             bool check_desclinea_segun_solicitud = false;  // de momento no se utiliza, si se llegara a utilizar, se debe pedir por ruta
             veproforma veproforma = datosProforma.veproforma;
             List<veproforma1> veproforma1 = datosProforma.veproforma1;
@@ -528,6 +674,16 @@ namespace SIAW.Controllers.ventas.modificacion
                     return BadRequest(new { resp = "Hay un problema con la etiqueta, se esta intentando guardar el mismo dato en la longitud y latitud de entrega." });
                 }
             }
+
+
+            var validaDet = validarDetalle(veproforma1);
+            if (validaDet.valido == false)
+            {
+                return BadRequest(new { resp = validaDet.mensaje });
+            }
+
+
+
             /*
             List<veproforma_valida> veproforma_valida = datosProforma.veproforma_valida;
             List<veproforma_anticipo> veproforma_anticipo = datosProforma.veproforma_anticipo;
