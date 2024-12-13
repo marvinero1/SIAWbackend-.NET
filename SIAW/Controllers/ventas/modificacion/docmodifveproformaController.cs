@@ -37,6 +37,7 @@ using NuGet.Packaging;
 using System.Xml.Linq;
 using Humanizer;
 using System.Globalization;
+using siaw_ws_siat;
 
 namespace SIAW.Controllers.ventas.modificacion
 {
@@ -59,7 +60,10 @@ namespace SIAW.Controllers.ventas.modificacion
         private readonly siaw_funciones.Validar_Vta validar_Vta = new siaw_funciones.Validar_Vta();
         private readonly siaw_funciones.Despachos despachos = new siaw_funciones.Despachos();
         private readonly siaw_funciones.Cobranzas cobranzas = new siaw_funciones.Cobranzas();
+        private readonly siaw_funciones.Items items = new siaw_funciones.Items();
+        private readonly siaw_funciones.SIAT siat = new siaw_funciones.SIAT();
 
+        private readonly Funciones_SIAT funciones_SIAT = new Funciones_SIAT();
         private readonly Log log = new Log();
         private readonly string _controllerName = "docmodifveproformaController";
 
@@ -612,16 +616,66 @@ namespace SIAW.Controllers.ventas.modificacion
         //[Authorize]
         [HttpPost]
         [QueueFilter(1)] // Limitar a 1 solicitud concurrente
-        [Route("guardarProforma/{userConn}/{codProforma}/{codempresa}/{paraAprobar}/{codcliente_real}")]
-        public async Task<object> guardarProforma(string userConn, int codProforma, string codempresa, bool paraAprobar, string codcliente_real, SaveProformaCompleta datosProforma)
+        [Route("guardarProforma/{userConn}/{codProforma}/{codempresa}/{paraAprobar}/{codcliente_real}/{grabar_con_negativos}")]
+        public async Task<object> guardarProforma(string userConn, int codProforma, string codempresa, bool paraAprobar, string codcliente_real, bool grabar_con_negativos, SaveProformaCompleta datosProforma)
         {
             datosProforma.veproforma1 = datosProforma.veproforma1.Select(p => { p.obs = ""; return p; }).ToList();
             bool check_desclinea_segun_solicitud = false;  // de momento no se utiliza, si se llegara a utilizar, se debe pedir por ruta
             veproforma veproforma = datosProforma.veproforma;
             List<veproforma1> veproforma1 = datosProforma.veproforma1;
+
+            if (string.IsNullOrWhiteSpace(codempresa))
+            {
+                return BadRequest(new { resp = "No se recibio de la empresa, consulte con el administrador del sistema." });
+            }
+            if (string.IsNullOrWhiteSpace(codcliente_real))
+            {
+                return BadRequest(new { resp = "No se recibio el Codigo del cliente de la proforma, consulte con el administrador del sistema." });
+            }
+            if (datosProforma == null)
+            {
+                return BadRequest(new { resp = "No se recibe el cuerpo de datos, consulte con el administrador del sistema." });
+            }
+            if (datosProforma.veproforma == null)
+            {
+                return BadRequest(new { resp = "No se recibe los datos de la proforma, consulte con el administrador del sistema." });
+            }
+            if (datosProforma.veproforma1 == null)
+            {
+                return BadRequest(new { resp = "No se recibe los datos del detalle de la proforma, consulte con el administrador del sistema." });
+            }
+            if (datosProforma.veproforma1.Count == 0)
+            {
+                return BadRequest(new { resp = "No existen item en el detalle de la proforma, consulte con el administrador del sistema." });
+            }
+            if (datosProforma.veproforma_valida == null)
+            {
+                return BadRequest(new { resp = "No se recibe los datos del detalle de validaciones de la proforma, consulte con el administrador del sistema." });
+            }
+            if (datosProforma.vedesextraprof == null)
+            {
+                return BadRequest(new { resp = "No se recibe los datos del detalle de Desc Extra de la proforma, consulte con el administrador del sistema." });
+            }
+            if (datosProforma.verecargoprof == null)
+            {
+                return BadRequest(new { resp = "No se recibe los datos del detalle de los recargos de la proforma, consulte con el administrador del sistema." });
+            }
+
+            if (datosProforma.dt_anticipo_pf == null)
+            {
+                return BadRequest(new { resp = "No se recibe los datos de los anticipos aplicados de la proforma, consulte con el administrador del sistema." });
+            }
+            //if (datosProforma.DVTA == null)
+            //{
+            //    return BadRequest(new { resp = "No se recibe los datos del detalle de datos para validar la proforma, consulte con el administrador del sistema." });
+            //}
             if (datosProforma.veetiqueta_proforma == null)
             {
-                return BadRequest(new { resp = "Hay un problema con la etiqueta, intente grabarla de nuevo." });
+                return BadRequest(new { resp = "No se recibe la etiqueta de la proforma, consulte con el administrador del sistema." });
+            }
+            if (datosProforma.veetiqueta_proforma == null)
+            {
+                return BadRequest(new { resp = "No se recibe la etiqueta de la proforma, consulte con el administrador del sistema." });
             }
             if (datosProforma.veetiqueta_proforma.id == null || datosProforma.veetiqueta_proforma.id == "")
             {
@@ -674,15 +728,133 @@ namespace SIAW.Controllers.ventas.modificacion
                     return BadRequest(new { resp = "Hay un problema con la etiqueta, se esta intentando guardar el mismo dato en la longitud y latitud de entrega." });
                 }
             }
+            //VALIDAR DATOS DE VEPROFORMA
+            // VALIDACIONES PARA EVITAR NULOS
 
+            if (string.IsNullOrWhiteSpace(veproforma.id)) { return BadRequest(new { resp = "No se esta recibiendo el ID del documento, Consulte con el Administrador del sistema." }); }
+            if (veproforma.numeroid <= 0) { return BadRequest(new { resp = "No se esta recibiendo el número de ID del documento, Consulte con el Administrador del sistema." }); }
+            if (veproforma.codalmacen <= 0) { return BadRequest(new { resp = "No se esta recibiendo el codigo de Almacen, Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(veproforma.codcliente)) { return BadRequest(new { resp = "No se esta recibiendo el codigo de cliente, Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(veproforma.codcliente_real)) { return BadRequest(new { resp = "No se esta recibiendo el codigo de clienteR, Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(veproforma.nomcliente)) { return BadRequest(new { resp = "No se esta recibiendo el nombre del cliente, Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(veproforma.nit)) { return BadRequest(new { resp = "No se esta recibiendo el NIT/CI del cliente, Consulte con el Administrador del sistema." }); }
+            if (veproforma.codvendedor <= 0) { return BadRequest(new { resp = "No se esta recibiendo el código de vendedor, Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(veproforma.codmoneda)) { return BadRequest(new { resp = "No se esta recibiendo el codigo de moneda, Consulte con el Administrador del sistema." }); }
+            if (veproforma.tdc <= 0) { return BadRequest(new { resp = "No se esta recibiendo el TDC, Consulte con el Administrador del sistema." }); }
+            if (veproforma.tipopago < 0) { return BadRequest(new { resp = "No se esta recibiendo el tipo de pago, Consulte con el Administrador del sistema." }); }
+            if (veproforma.subtotal <= 0) { return BadRequest(new { resp = "No se esta recibiendo el subtotal, Consulte con el Administrador del sistema." }); }
+            if (veproforma.descuentos < 0) { return BadRequest(new { resp = "No se esta recibiendo el descuentos, Consulte con el Administrador del sistema." }); }
+            if (veproforma.recargos < 0) { return BadRequest(new { resp = "No se esta recibiendo el recargos, Consulte con el Administrador del sistema." }); }
+            if (veproforma.total <= 0) { return BadRequest(new { resp = "No se esta recibiendo el total, Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(veproforma.transporte)) { return BadRequest(new { resp = "No se esta recibiendo el transporte, Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(veproforma.fletepor)) { return BadRequest(new { resp = "No se esta recibiendo el flete, Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(veproforma.direccion)) { return BadRequest(new { resp = "No se esta recibiendo el direccion, Consulte con el Administrador del sistema." }); }
+            if (veproforma.obs == null) { return BadRequest(new { resp = "No se esta recibiendo el obs, Consulte con el Administrador del sistema." }); }
+            if (veproforma.obs2 == null) { return BadRequest(new { resp = "No se esta recibiendo el obs2, Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(veproforma.preparacion)) { return BadRequest(new { resp = "No se esta recibiendo el tipo de preparación, Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(veproforma.tipoentrega)) { return BadRequest(new { resp = "No se esta recibiendo el tipo de entrega, Consulte con el Administrador del sistema." }); }
+            if (veproforma.odc == null) { return BadRequest(new { resp = "No se esta recibiendo el ODC, Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(veproforma.hora_inicial)) { return BadRequest(new { resp = "No se esta recibiendo la hora inicial, Consulte con el Administrador del sistema." }); }
+            if (veproforma.contra_entrega == null) { return BadRequest(new { resp = "No se esta recibiendo si la venta es contra entrega o no, Consulte con el Administrador del sistema." }); }
+            if (veproforma.pago_contado_anticipado == null) { return BadRequest(new { resp = "No se esta recibiendo si el pago de realiza de forma anticipada o No, Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(veproforma.estado_contra_entrega) && veproforma.tipopago == 0 && veproforma.contra_entrega == true && veproforma.pago_contado_anticipado == false) { return BadRequest(new { resp = "No se esta recibiendo el estado contra entrega, Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(veproforma.nombre_transporte)) { return BadRequest(new { resp = "No se esta recibiendo el nombre transporte, Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(veproforma.hora)) { return BadRequest(new { resp = "No se esta recibiendo la hora, Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(veproforma.hora_confirmada)) { return BadRequest(new { resp = "No se esta recibiendo la hora confirmada, Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(veproforma.ubicacion)) { return BadRequest(new { resp = "No se esta recibiendo la ubicacion, Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(veproforma.niveles_descuento)) { return BadRequest(new { resp = "No se esta recibiendo los niveles, Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(veproforma.tipo_docid.ToString()) || veproforma.tipo_docid <= 0) { return BadRequest(new { resp = "No se esta recibiendo el tipo de documento, Consulte con el Administrador del sistema." }); }
+            if (veproforma.complemento_ci == null) { return BadRequest(new { resp = "No se esta recibiendo el complemento del CI del documento, Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(veproforma.email)) { return BadRequest(new { resp = "No se esta recibiendo el Email del cliente, Consulte con el Administrador del sistema." }); }
+            if (veproforma.idpf_complemento == null) { return BadRequest(new { resp = "No se esta recibiendo el ID de proforma complemento, Consulte con el Administrador del sistema." }); }
+            if (veproforma.nroidpf_complemento == null) { return BadRequest(new { resp = "No se esta recibiendo el Número ID de proforma complemento, Consulte con el Administrador del sistema." }); }
+            if (veproforma.tipo_complementopf == null) { return BadRequest(new { resp = "No se esta recibiendo el tipo de proforma complemento, Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(veproforma.latitud_entrega)) { return BadRequest(new { resp = "No se esta recibiendo la latitud del cliente, Consulte con el Administrador del sistema." }); }
+            if (string.IsNullOrWhiteSpace(veproforma.longitud_entrega)) { return BadRequest(new { resp = "No se esta recibiendo la longitud del cliente, Consulte con el Administrador del sistema." }); }
 
-            var validaDet = validarDetalle(veproforma1);
-            if (validaDet.valido == false)
+            //validar que si es una venta al contado con pago anticipado exista los anticipos
+            if (veproforma.tipopago == 1 && veproforma.contra_entrega == true)
             {
-                return BadRequest(new { resp = validaDet.mensaje });
+                return BadRequest(new { resp = "Una venta al CREDITO con CONTRA ENTREGA NO ES POSIBLE, verifique esta situacion." });
             }
-
-
+            if (veproforma.tipopago == 1 && veproforma.estado_contra_entrega.Length > 0)
+            {
+                return BadRequest(new { resp = "Una venta al CREDITO con ESTADO CONTRA ENTREGA NO ES POSIBLE, verifique esta situacion." });
+            }
+            if (veproforma.tipopago == 1 && veproforma.pago_contado_anticipado == true)
+            {
+                return BadRequest(new { resp = "Una venta al CREDITO con PAGO CONTADO ANTICIPADO NO ES POSIBLE, verifique esta situacion." });
+            }
+            if (veproforma.tipopago == 0 && veproforma.contra_entrega == true && veproforma.pago_contado_anticipado == true)
+            {
+                return BadRequest(new { resp = "Una venta al CONTADO-CONTRA ENTREGA con PAGO ANTICIPADO NO ES POSIBLE, verifique esta situacion." });
+            }
+            if (veproforma.tipopago == 0 && veproforma.contra_entrega == true && veproforma.estado_contra_entrega == "")
+            {
+                return BadRequest(new { resp = "Una venta al CONTADO-CONTRA ENTREGA sin ESTADO CONTRA ENTREGA NO ES POSIBLE, verifique esta situacion." });
+            }
+            if (veproforma.tipopago == 0 && veproforma.contra_entrega == false && veproforma.pago_contado_anticipado == false)
+            {
+                return BadRequest(new { resp = "Una venta al CONTADO QUE NO ES CONTRA ENTREGA SIN PAGO ANTICIPADO NO ES POSIBLE, verifique esta situacion." });
+            }
+            if (veproforma.tipopago == 0 && veproforma.contra_entrega == true && veproforma.pago_contado_anticipado == true)
+            {
+                return BadRequest(new { resp = "Una venta al CONTADO-CONTRA ENTREGA con PAGO ANTICIPADO NO ES POSIBLE, verifique esta situacion." });
+            }
+            if (veproforma.tipopago == 0 && veproforma.contra_entrega == false && veproforma.estado_contra_entrega != "")
+            {
+                return BadRequest(new { resp = "Una venta al CONTADO con PAGO ANTICIPADO y ESTADO CONTRA ENTREGA NO ES POSIBLE, verifique esta situacion." });
+            }
+            if (veproforma.tipopago == 0 && veproforma.contra_entrega == false && veproforma.pago_contado_anticipado == true)
+            {
+                if (datosProforma.dt_anticipo_pf != null)
+                {
+                    if (datosProforma.dt_anticipo_pf.Count() == 0)
+                    {
+                        return BadRequest(new { resp = "No se encontraron anticipos asignados en esta proforma al CONTADO CON PAGO ANTICIPADO, verifique esta situacion en los Anticipos asignados." });
+                    }
+                }
+                //validar que los anticipos no esten duplicados
+                if (datosProforma.dt_anticipo_pf.Count() >= 1)
+                {
+                    int duplicados = datosProforma.dt_anticipo_pf
+                        .GroupBy(i => (i.id_anticipo, i.nroid_anticipo))
+                        .Where(g => g.Count() > 1)
+                        .Count();
+                    if (duplicados > 0)
+                    {
+                        return BadRequest(new { resp = "Se encontraron anticipos duplicados, verifique esta situacion en los Anticipos asignados." });
+                    }
+                }
+            }
+            if (veproforma.descuentos > 0)
+            {
+                if (datosProforma.vedesextraprof.Count == 0)
+                {
+                    return BadRequest(new { resp = "Segun la cabecera esta proforma SI tiene descuentos pero en el detalle de descuentos no hay descuentos asignados, verifique esta situacion en los Descuentos asignados." });
+                }
+            }
+            if (veproforma.descuentos == 0)
+            {
+                if (datosProforma.vedesextraprof.Count > 0)
+                {
+                    return BadRequest(new { resp = "Segun la cabecera esta proforma NO tiene descuentos pero en el detalle de descuentos si hay descuentos asignados, verifique esta situacion en los Descuentos asignados." });
+                }
+            }
+            if (veproforma.recargos > 0)
+            {
+                if (datosProforma.verecargoprof.Count == 0)
+                {
+                    return BadRequest(new { resp = "Segun la cabecera esta proforma SI tiene recargos pero en el detalle de recargos no hay recargos asignados, verifique esta situacion en los recargos asignados." });
+                }
+            }
+            if (veproforma.recargos == 0)
+            {
+                if (datosProforma.verecargoprof.Count > 0)
+                {
+                    return BadRequest(new { resp = "Segun la cabecera esta proforma NO tiene recargos pero en el detalle de recargos si hay recargos asignados, verifique esta situacion en los recargos asignados." });
+                }
+            }
 
             /*
             List<veproforma_valida> veproforma_valida = datosProforma.veproforma_valida;
@@ -692,15 +864,6 @@ namespace SIAW.Controllers.ventas.modificacion
             List<veproforma_iva> veproforma_iva = datosProforma.veproforma_iva;
 
             */
-            if (veproforma.tdc == null)
-            {
-                return BadRequest(new { resp = "No se esta recibiendo el tipo de cambio verifique esta situación." });
-            }
-
-            if (veproforma.tdc == 0)
-            {
-                return BadRequest(new { resp = "El tipo de cambio esta como 0 verifique esta situación." });
-            }
 
             if (codProforma != veproforma.codigo)
             {
@@ -714,11 +877,44 @@ namespace SIAW.Controllers.ventas.modificacion
 
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
+                DatosDocVta DVTA = await ConvertirVeproformaADatosDocVta(veproforma);
+                DVTA.codcliente_real = codcliente_real;
+                List<itemDataMatriz> tabladetalle = await ConvertirListaVeproforma1AListaItemDataMatriz(veproforma1);
+
                 int validaNroID = await _context.veproforma.Where(i => i.id == veproforma.id && i.numeroid == veproforma.numeroid).CountAsync();
                 if (validaNroID == 0)
                 {
                     return BadRequest(new { resp = "Existe un problema con el número ID, se esta tratanto de crear una nueva proforma, consulte con el Administrador!!!" });
                 }
+
+                //Controlar que la suma de veproforma1 campo total sea igual al subtotal de veproforma
+                decimal subtotal_detalle = 0;
+                //foreach (var items in veproforma1)
+                //{
+                //    subtotal_detalle = subtotal_detalle + items.total;
+                //}
+                var total2 = veproforma1.Sum(x => x.total);
+                subtotal_detalle = total2;
+
+                subtotal_detalle = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (double)subtotal_detalle);
+                if (subtotal_detalle != veproforma.subtotal)
+                {
+                    return BadRequest(new { resp = "La suma del total del detalle de items de la proforma no coincide con el subtotal de la cabecera, verifique esta situacion." });
+                }
+                decimal total = 0;
+                total = veproforma.subtotal - veproforma.descuentos + veproforma.recargos;
+                if (total != veproforma.total)
+                {
+                    return BadRequest(new { resp = "Los montos del subtotal menos los descuentos y mas los recargos no coincide con el total de la proforma, verifique esta situacion." });
+                }
+
+                //Validar detalle de la proforma
+                var validaDet = await Validar_Detalle(_context, codcliente_real, veproforma.usuarioreg, codempresa, DVTA, veproforma1, tabladetalle);
+                if (validaDet.valido == false)
+                {
+                    return BadRequest(new { resp = validaDet.mensaje });
+                }
+
                 // ###############################
                 // ACTUALIZAR DATOS DE CODIGO PRINCIPAL SI ES APLICABLE
                 await cliente.ActualizarParametrosDePrincipal(_context, veproforma.codcliente);
@@ -735,7 +931,7 @@ namespace SIAW.Controllers.ventas.modificacion
                 }
 
                 // VALIDACIONES OBTENIDAS POR BASE DE DATOS 
-                var profAnulAprobTrans = await _context.veproforma.Where(i=> i.codigo == veproforma.codigo).Select(i=> new
+                var profAnulAprobTrans = await _context.veproforma.Where(i => i.codigo == veproforma.codigo).Select(i => new
                 {
                     i.codigo,
                     i.anulada,
@@ -774,47 +970,47 @@ namespace SIAW.Controllers.ventas.modificacion
                 {
                     datosProforma.veproforma.idsoldesctos = "";
                 }
-                if (datosProforma.veproforma.estado_contra_entrega == null)
-                {
-                    datosProforma.veproforma.estado_contra_entrega = "";
-                }
-                if (datosProforma.veproforma.contra_entrega == null)
-                {
-                    datosProforma.veproforma.contra_entrega = false;
-                }
+                //if (datosProforma.veproforma.estado_contra_entrega == null)
+                //{
+                //    datosProforma.veproforma.estado_contra_entrega = "";
+                //}
+                //if (datosProforma.veproforma.contra_entrega == null)
+                //{
+                //    datosProforma.veproforma.contra_entrega = false;
+                //}
 
                 if (datosProforma.veproforma.tipo_complementopf >= 0 && datosProforma.veproforma.tipo_complementopf <= 1)
                 {
                     datosProforma.veproforma.tipo_complementopf = datosProforma.veproforma.tipo_complementopf + 1;
                 }
-                if (datosProforma.veproforma.tipo_complementopf == null)
-                {
-                    datosProforma.veproforma.tipo_complementopf = 0;
-                }
+                //if (datosProforma.veproforma.tipo_complementopf == null)
+                //{
+                //    datosProforma.veproforma.tipo_complementopf = 0;
+                //}
                 if (datosProforma.veproforma.tipo_complementopf >= 3)
                 {
                     datosProforma.veproforma.tipo_complementopf = 0;
                 }
-                if (datosProforma.veproforma.pago_contado_anticipado == null)
-                {
-                    datosProforma.veproforma.pago_contado_anticipado = false;
-                }
-                if (datosProforma.veproforma.obs == null)
-                {
-                    datosProforma.veproforma.obs = "---";
-                }
-                if (datosProforma.veproforma.obs2 == null)
-                {
-                    datosProforma.veproforma.obs2 = "";
-                }
-                if (datosProforma.veproforma.odc == null)
-                {
-                    datosProforma.veproforma.odc = "";
-                }
-                if (datosProforma.veproforma.porceniva == null)
-                {
-                    datosProforma.veproforma.porceniva = 0;
-                }
+                //if (datosProforma.veproforma.pago_contado_anticipado == null)
+                //{
+                //    datosProforma.veproforma.pago_contado_anticipado = false;
+                //}
+                //if (datosProforma.veproforma.obs == null)
+                //{
+                //    datosProforma.veproforma.obs = "---";
+                //}
+                //if (datosProforma.veproforma.obs2 == null)
+                //{
+                //    datosProforma.veproforma.obs2 = "";
+                //}
+                //if (datosProforma.veproforma.odc == null)
+                //{
+                //    datosProforma.veproforma.odc = "";
+                //}
+                //if (datosProforma.veproforma.porceniva == null)
+                //{
+                //    datosProforma.veproforma.porceniva = 0;
+                //}
 
                 datosProforma.veproforma.fechareg = DateTime.Today.Date;
                 // datosProforma.veproforma.fechaaut = new DateTime(1900, 1, 1);     // PUEDE VARIAR SI ES PARA APROBAR
@@ -848,14 +1044,28 @@ namespace SIAW.Controllers.ventas.modificacion
                     msgCondClienteAlert = "Verifique las condiciones de venta ya que se trata de un cliente de tipo: " + lbltipo_cliente;
                 }
 
-
-
-
                 // ESTA VALIDACION ES MOMENTANEA, DESPUES SE DEBE COLOCAR SU PROPIA RUTA PARA VALIDAR, YA QUE PEDIRA CLAVE.
                 var validacion_inicial = await Validar_Datos_Cabecera(_context, codempresa, codcliente_real, veproforma);
                 if (!validacion_inicial.bandera)
                 {
                     return BadRequest(new { resp = validacion_inicial.msg });
+                }
+
+                var validar_negativos = await Validar_Saldos_Negativos(_context, codempresa, veproforma.usuarioreg, codcliente_real, DVTA, tabladetalle);
+
+                if (!validar_negativos.bandera)
+                {
+                    if (paraAprobar)
+                    {
+                        return BadRequest(new { resp = "No se puede grabar la proforma, existen items que generaran saldos negativos!!!" });
+                    }
+                    else
+                    {
+                        if (grabar_con_negativos == false)
+                        {
+                            return BadRequest(new { resp = "Existen saldos negativos!!!, SI aun asi desea solo GRABAR la Proforma vuelva a Grabarlo." });
+                        }
+                    }
                 }
 
                 int codprofGrbd = 0;
@@ -957,7 +1167,9 @@ namespace SIAW.Controllers.ventas.modificacion
 
 
                             string mensajeAprobacion = "";
-                            var resultValApro = await Validar_Aprobar_Proforma(_context, veproforma.id, result.numeroId, result.codprof, codempresa, datosProforma.tabladescuentos, datosProforma.DVTA, datosProforma.tablarecargos);
+                            List<vedesextraDatos> tabladescuentos = await Convertirvedesextraprof_a_vedesextraDatos(datosProforma.vedesextraprof);
+                            List<verecargosDatos> tablarecargos = await Convertirverecargoprof_a_verecargosDatos(datosProforma.verecargoprof);
+                            var resultValApro = await Validar_Aprobar_Proforma(_context, veproforma.id, result.numeroId, result.codprof, codempresa, tabladescuentos, DVTA, tablarecargos);
 
                             msgAlerts.AddRange(resultValApro.msgsAlert);
 
@@ -979,7 +1191,7 @@ namespace SIAW.Controllers.ventas.modificacion
                                     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
                                     // realizar la reserva de la mercaderia
                                     // Desde 15/11/2023 registrar en el log si por alguna razon no actualiza en instoactual correctamente al disminuir el saldo de cantidad y la reserva en proforma
-                                    
+
                                     actualizaSaldos = true;
                                     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -1053,7 +1265,7 @@ namespace SIAW.Controllers.ventas.modificacion
 
                         }
                         /*
-                         
+
                          '//validar lo que se validaba en la ventana de aprobar proforma
                             Dim mi_idpf As String = sia_funciones.Ventas.Instancia.proforma_id(_CODPROFORMA)
                             Dim mi_nroidpf As String = sia_funciones.Ventas.Instancia.proforma_numeroid(_CODPROFORMA)
@@ -1087,7 +1299,7 @@ namespace SIAW.Controllers.ventas.modificacion
                         throw;
                     }
 
-                    
+
                 }
                 try
                 {
@@ -1102,11 +1314,553 @@ namespace SIAW.Controllers.ventas.modificacion
                 }
                 catch (Exception ex)
                 {
+                    await log.RegistrarEvento(_context, veproforma.usuarioreg, Log.Entidades.SW_Proforma, codprofGrbd.ToString(), veproforma.id, numeroIdGrbd.ToString(), this._controllerName, ex.ToString(), Log.TipoLog.Creacion);
                     return Problem($"Se grabo la proforma, Error en el servidor al actualizar Saldos: {ex.Message}");
                     throw;
                 }
                 return Ok(new { resp = "Se Grabo la Proforma de manera Exitosa", codProf = codprofGrbd, alerts = msgAlerts });
             }
+        }
+
+        private async Task<DatosDocVta> ConvertirVeproformaADatosDocVta(veproforma veproforma)
+        {
+            // Simulación de operación asincrónica (por ejemplo, alguna consulta a la base de datos)
+            await Task.Delay(10); // Simula una pequeña demora
+            return new DatosDocVta
+            {
+                estado_doc_vta = veproforma.anulada ? "Anulada" : "Activa",
+                coddocumento = veproforma.codigo,
+                id = veproforma.id,
+                numeroid = veproforma.numeroid.ToString(),
+                fechadoc = veproforma.fecha,
+                codcliente = veproforma.codcliente,
+                nombcliente = veproforma.nomcliente,
+                nitfactura = veproforma.nit,
+                tipo_doc_id = veproforma.tipo_docid?.ToString(),
+                codcliente_real = veproforma.codcliente_real,
+                nomcliente_real = "", // Asigna según lo que necesites
+                codtarifadefecto = 0, // Asigna según lo que necesites
+                codmoneda = veproforma.codmoneda,
+                subtotaldoc = (double)veproforma.subtotal,
+                totaldoc = (double)veproforma.total,
+                tipo_vta = veproforma.tipopago.ToString(),
+                codalmacen = veproforma.codalmacen.ToString(),
+                codvendedor = veproforma.codvendedor.ToString(),
+                preciovta = "", // Asigna según lo que necesites
+                desctoespecial = "", // Asigna según lo que necesites
+                preparacion = veproforma.preparacion,
+                tipo_cliente = "", // Asigna según lo que necesites
+                cliente_habilitado = "", // Asigna según lo que necesites
+                contra_entrega = (bool)veproforma.contra_entrega ? "SI" : "NO",
+                vta_cliente_en_oficina = false, // Asigna según lo que necesites
+                estado_contra_entrega = veproforma.estado_contra_entrega,
+                desclinea_segun_solicitud = veproforma.desclinea_segun_solicitud ?? false,
+                idsol_nivel = veproforma.idsoldesctos,
+                nroidsol_nivel = veproforma.nroidsoldesctos?.ToString(),
+                pago_con_anticipo = false, // Asigna según lo que necesites
+                niveles_descuento = veproforma.niveles_descuento, // Asigna según lo que necesites
+
+                // datos al pie de la proforma
+                transporte = veproforma.transporte,
+                nombre_transporte = veproforma.nombre_transporte,
+                fletepor = veproforma.fletepor,
+                tipoentrega = veproforma.tipoentrega,
+                direccion = veproforma.direccion,
+                ubicacion = veproforma.ubicacion,
+                latitud = veproforma.latitud_entrega,
+                longitud = veproforma.longitud_entrega,
+                nroitems = 0, // Asigna según lo que necesites
+                totdesctos_extras = (double)veproforma.descuentos,
+                totrecargos = (double)veproforma.recargos,
+
+                // complemento mayorista-dimediado / o complemento para descto por importe
+                tipo_complemento = veproforma.tipo_complementopf.ToString(),
+                idpf_complemento = veproforma.idpf_complemento,
+                nroidpf_complemento = veproforma.nroidpf_complemento.ToString(),
+
+                // para facturación mostrador
+                idFC_complementaria = "", // Asigna según lo que necesites
+                nroidFC_complementaria = "0", // Asigna según lo que necesites
+                nrocaja = "", // Asigna según lo que necesites
+                nroautorizacion = "", // Asigna según lo que necesites
+                fechalimite_dosificacion = DateTime.MinValue, // Asigna según lo que necesites
+                tipo_caja = "", // Asigna según lo que necesites
+                version_codcontrol = "", // Asigna según lo que necesites
+                nrofactura = "", // Asigna según lo que necesites
+                nroticket = "", // Asigna según lo que necesites
+                idanticipo = "", // Asigna según lo que necesites
+                noridanticipo = "0", // Asigna según lo que necesites
+                monto_anticipo = 0, // Asigna según lo que necesites
+                idpf_solurgente = "", // Asigna según lo que necesites
+                noridpf_solurgente = "0" // Asigna según lo que necesites
+            };
+        }
+
+        private async Task<List<itemDataMatriz>> ConvertirListaVeproforma1AListaItemDataMatriz(List<veproforma1> listaVeproforma1)
+        {
+            // Simulación de operación asincrónica (por ejemplo, alguna consulta a la base de datos)
+            await Task.Delay(10); // Simula una pequeña demora
+            if (listaVeproforma1 == null)
+            {
+                return new List<itemDataMatriz>();
+            }
+
+            return listaVeproforma1
+                .Select(ver => ConvertirVeproforma1AItemDataMatriz(ver))
+                .ToList();
+        }
+
+        private async Task<List<vedesextraDatos>> Convertirvedesextraprof_a_vedesextraDatos(List<vedesextraprof> tabladescuentos)
+        {
+            // Simulación de operación asincrónica (por ejemplo, alguna consulta a la base de datos)
+            await Task.Delay(10); // Simula una pequeña demora
+            if (tabladescuentos == null)
+            {
+                return new List<vedesextraDatos>();
+            }
+
+            return tabladescuentos.Select(remi => new vedesextraDatos
+            {
+                coddesextra = remi.coddesextra,
+                descripcion = "",
+                porcen = remi.porcen,
+                montodoc = remi.montodoc,
+                codcobranza = remi.codcobranza ?? 0, // Si es nulo, asigna un valor predeterminado
+                codcobranza_contado = remi.codcobranza_contado ?? 0, // Si es nulo, asigna un valor predeterminado
+                codanticipo = remi.codanticipo ?? 0 // Si es nulo, asigna un valor predeterminado
+            }).ToList();
+        }
+
+        private itemDataMatriz ConvertirVeproforma1AItemDataMatriz(veproforma1 ver)
+        {
+            if (ver == null)
+            {
+                return null;
+            }
+
+            return new itemDataMatriz
+            {
+                coditem = ver.coditem,
+                descripcion = "", // Asigna un valor adecuado o busca una forma de obtener la descripción si es necesario
+                medida = "", // Asigna un valor adecuado o busca una forma de obtener la medida si es necesario
+                udm = ver.udm,
+                porceniva = (double)(ver.porceniva ?? 0),
+                empaque = null, // Asigna un valor adecuado si es necesario
+                cantidad_pedida = (double)ver.cantidad_pedida, // Asigna un valor adecuado si es necesario
+                cantidad = (double)ver.cantidad,
+                porcen_mercaderia = 0, // Asigna un valor adecuado si es necesario
+                codtarifa = ver.codtarifa,
+                coddescuento = ver.coddescuento,
+                preciolista = (double)ver.preciolista,
+                niveldesc = ver.niveldesc,
+                porcendesc = (double)(ver.preciodesc ?? 0), // Asigna un valor adecuado si es necesario
+                preciodesc = (double)(ver.preciodesc ?? 0),
+                precioneto = (double)ver.precioneto,
+                total = (double)ver.total,
+                cumple = true,
+                cumpleMin = true,
+                cumpleEmp = true,
+                nroitem = 0,
+                porcentaje = 0,
+                monto_descto = 0,
+                subtotal_descto_extra = 0
+            };
+        }
+
+        private async Task<List<verecargosDatos>> Convertirverecargoprof_a_verecargosDatos(List<verecargoprof> tablarecargos)
+        {
+            // Simulación de operación asincrónica (por ejemplo, alguna consulta a la base de datos)
+            await Task.Delay(10); // Simula una pequeña demora
+            if (tablarecargos == null)
+            {
+                return new List<verecargosDatos>();
+            }
+
+            return tablarecargos.Select(remi => new verecargosDatos
+            {
+                codrecargo = remi.codrecargo,
+                descripcion = "",
+                porcen = remi.porcen,
+                monto = remi.monto,
+                moneda = remi.moneda,
+                montodoc = remi.montodoc,
+                codcobranza = remi.codcobranza ?? 0,
+            }).ToList();
+        }
+
+        DatosDocVta objDocVta = new DatosDocVta();
+        private async Task<object?> Llenar_Datos_Del_Documento(DBContext _context, string codempresa, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle)
+        {
+            // Llena los datos de la proforma
+            objDocVta.coddocumento = DVTA.coddocumento;
+            objDocVta.estado_doc_vta = "NUEVO";
+            objDocVta.id = DVTA.id;
+            objDocVta.numeroid = DVTA.numeroid.ToString();
+            objDocVta.fechadoc = Convert.ToDateTime(DVTA.fechadoc);
+            objDocVta.codcliente = DVTA.codcliente;
+            objDocVta.nombcliente = DVTA.nombcliente;
+            objDocVta.nitfactura = DVTA.nitfactura;
+            objDocVta.codcliente_real = DVTA.codcliente_real;
+            objDocVta.nomcliente_real = DVTA.nomcliente_real;
+            objDocVta.codmoneda = DVTA.codmoneda;
+            objDocVta.codtarifadefecto = await validar_Vta.Precio_Unico_Del_Documento(_context, tabladetalle, codempresa);
+            objDocVta.subtotaldoc = (double)DVTA.subtotaldoc;
+            objDocVta.totdesctos_extras = (double)DVTA.totdesctos_extras;
+            objDocVta.totrecargos = (double)DVTA.totrecargos;
+            objDocVta.totaldoc = (double)DVTA.totaldoc;
+            //if (DVTA.tipo_vta == ""1)
+            //{
+            //    objDocVta.tipo_vta = "1";
+            //}
+            //else
+            //{
+            //    objDocVta.tipo_vta = "0";
+            //}
+            // objDocVta.tipo_vta = DVTA.tipo_vta;
+            if (DVTA.tipo_vta == "0")
+            {
+                objDocVta.tipo_vta = "CONTADO";
+            }
+            else
+            {
+                objDocVta.tipo_vta = "CREDITO";
+            }
+
+
+            objDocVta.codalmacen = DVTA.codalmacen.ToString();
+            objDocVta.codvendedor = DVTA.codvendedor.ToString();
+            objDocVta.preciovta = objDocVta.codtarifadefecto.ToString();
+            objDocVta.desctoespecial = DVTA.desctoespecial;
+            objDocVta.preparacion = DVTA.preparacion;
+            if (DVTA.contra_entrega == "SI")
+            {
+                objDocVta.contra_entrega = "SI";
+            }
+            else
+            {
+                objDocVta.contra_entrega = "NO";
+            }
+            objDocVta.estado_contra_entrega = DVTA.estado_contra_entrega;
+
+            objDocVta.desclinea_segun_solicitud = (bool)DVTA.desclinea_segun_solicitud;
+            objDocVta.idsol_nivel = DVTA.idpf_solurgente;
+            objDocVta.nroidsol_nivel = DVTA.nroidsol_nivel.ToString();
+
+            // Modificado en fecha: 18-05-2022
+            if (objDocVta.desclinea_segun_solicitud)
+            {
+                objDocVta.codcliente_real = await ventas.Cliente_Referencia_Solicitud_Descuentos(_context, objDocVta.idsol_nivel, Convert.ToInt32(objDocVta.nroidsol_nivel));
+                objDocVta.nomcliente_real = await cliente.Razonsocial(_context, objDocVta.codcliente_real);
+            }
+            else
+            {
+                objDocVta.codcliente_real = DVTA.codcliente_real;
+                objDocVta.nomcliente_real = await cliente.Razonsocial(_context, objDocVta.codcliente_real);
+            }
+
+            objDocVta.niveles_descuento = DVTA.niveles_descuento;
+
+            // Datos al pie de la proforma
+            objDocVta.transporte = DVTA.transporte;
+            objDocVta.nombre_transporte = DVTA.nombre_transporte;
+            objDocVta.fletepor = DVTA.fletepor;
+            objDocVta.tipoentrega = DVTA.tipoentrega;
+            objDocVta.direccion = DVTA.direccion;
+
+            objDocVta.nroitems = tabladetalle.Count;
+
+            // Datos del complemento mayosita - dimediado
+            objDocVta.idpf_complemento = DVTA.idpf_complemento;
+            objDocVta.nroidpf_complemento = DVTA.nroidpf_complemento;
+            objDocVta.tipo_cliente = DVTA.tipo_cliente;
+            objDocVta.cliente_habilitado = DVTA.cliente_habilitado;
+
+            objDocVta.latitud = DVTA.latitud;
+            objDocVta.longitud = DVTA.longitud;
+            objDocVta.ubicacion = DVTA.ubicacion;
+
+            objDocVta.pago_con_anticipo = DVTA.pago_con_anticipo;
+            objDocVta.vta_cliente_en_oficina = DVTA.vta_cliente_en_oficina;
+
+            // Para facturación mostrador
+            objDocVta.idFC_complementaria = "";
+            objDocVta.nroidFC_complementaria = "0";
+            objDocVta.nrocaja = "";
+            objDocVta.nroautorizacion = "";
+            objDocVta.tipo_caja = "";
+            //sia_DAL.Datos.Instancia.FechaDelServidor.AddDays(10);
+            objDocVta.version_codcontrol = "";
+            objDocVta.nrofactura = "0";
+            objDocVta.nroticket = "";
+            objDocVta.idanticipo = "";
+            objDocVta.noridanticipo = "0";
+            objDocVta.monto_anticipo = 0;
+            objDocVta.idpf_solurgente = "";
+            objDocVta.noridpf_solurgente = "0";
+
+            return objDocVta;
+        }
+
+
+        private async Task<(bool valido, string mensaje)> Validar_Detalle(DBContext _context, string codcliente_real, string usuario, string codempresa, DatosDocVta DVTA, List<veproforma1> veproforma1, List<itemDataMatriz> tabladetalle)
+        {
+            bool bandVep1 = true;
+            string msgValDetalle = "";
+            int indice = 1;
+            foreach (var item in veproforma1)
+            {
+                if (string.IsNullOrWhiteSpace(item.coditem))
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No eligio El Item en la Linea: " + indice;
+                    break;
+                }
+                if (string.IsNullOrWhiteSpace(item.cantidad.ToString()))
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No eligio la cantidad en la Linea: " + indice;
+                    break;
+                }
+                if (string.IsNullOrWhiteSpace(item.cantidad_pedida.ToString()))
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir nulos en Cantidad Pedida en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+                if (string.IsNullOrWhiteSpace(item.codtarifa.ToString()))
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir nulos en Tarifa en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+                if (string.IsNullOrWhiteSpace(item.coddescuento.ToString()))
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir nulos en Descuento en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+                if (string.IsNullOrWhiteSpace(item.udm))
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No eligio la unidad de medida en la Linea: " + indice;
+                    break;
+                }
+                if (item.obs == null)
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No eligio la unidad de Obs en la Linea: " + indice;
+                    break;
+                }
+                if (string.IsNullOrWhiteSpace(item.niveldesc))
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir nulos o vacios en nivel descuento en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+                if (item.porceniva == null || item.porceniva < 0)
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir número menor a 0 en el porcen iva en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+
+                if (item.nroitem == null || item.nroitem < 0)
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir número menor a 0 en el nro item en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+                if (item.codtarifa <= 0)
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir número menor a 0 en la Tarifa en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+                if (item.coddescuento < 0)
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir número menor a 0 en el Descuento en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+                if (item.cantidad < 0)
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir un número menor a 0 en la Cantidad en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+                if (item.cantidad_pedida == null || item.cantidad_pedida <= 0)
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir un número menor o igual que 0 en la Cantidad Pedida en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+                //si la cantidad es mayor a cero validar lo siguiente
+                if (item.cantidad > 0)
+                {
+                    if (item.cantaut == null || item.cantaut <= 0)
+                    {
+                        bandVep1 = false;
+                        msgValDetalle = "No se puede recibir un número menor o igual que 0 en la CantidadA en detalle de pedido Error en linea: " + indice;
+                        break;
+                    }
+                    if (item.total <= 0)
+                    {
+                        bandVep1 = false;
+                        msgValDetalle = "No se puede recibir 0 en el total si la cantidad es distinto de 0. en detalle de pedido Error en linea: " + indice;
+                        break;
+                    }
+                    if (item.totalaut == null || item.totalaut <= 0)
+                    {
+                        bandVep1 = false;
+                        msgValDetalle = "No se puede recibir 0 en el total aut si la cantidad es distinto de 0. en detalle de pedido Error en linea: " + indice;
+                        break;
+                    }
+                }
+                //si la cantidad es 0  validar lo siguiente
+                if (item.cantidad == 0)
+                {
+                    if (item.cantaut == null || item.cantaut > 0)
+                    {
+                        bandVep1 = false;
+                        msgValDetalle = "Si la cantidad es cero no se puede recibir un número mayor que 0 en la CantidadA, en detalle de pedido Error en linea: " + indice;
+                        break;
+                    }
+                    if (item.total > 0)
+                    {
+                        bandVep1 = false;
+                        msgValDetalle = "Si la cantidad es cero no se puede recibir un número mayor que 0 en el total, en detalle de pedido Error en linea: " + indice;
+                        break;
+                    }
+                    if (item.totalaut == null || item.totalaut > 0)
+                    {
+                        bandVep1 = false;
+                        msgValDetalle = "Si la cantidad es cero no se puede recibir un número mayor que 0 en el totalA, en detalle de pedido Error en linea: " + indice;
+                        break;
+                    }
+                }
+                if (item.preciodesc == null || item.preciodesc <= 0)
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir un número menor o igual que 0 en el PrecioD en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+                if (item.precioneto <= 0)
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir un número menor o igual que 0 en el PrecioN en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+                if (item.preciolista <= 0)
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "No se puede recibir un número menor o igual que 0 en el PrecioL en detalle de pedido Error en linea: " + indice;
+                    break;
+                }
+
+                if (!await ventas.ValidarTarifa(_context, codcliente_real, Convert.ToString(item.coditem), Convert.ToInt32(item.codtarifa)))
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "El Item en la Linea " + (indice + 1) + " no se puede vender a ese precio para este cliente.";
+                    break;
+                }
+                if (!await ventas.ValidarTarifa_Descuento(_context, item.coddescuento, Convert.ToInt32(item.codtarifa)))
+                {
+                    bandVep1 = false;
+                    msgValDetalle = "El Item en la Linea " + (indice + 1) + " no se puede vender a ese tipo de precio con ese descuento especial.";
+                    break;
+                }
+
+                indice++;
+            }
+            //verificar que la unidad de medida sea entero o decimal
+            if (bandVep1)
+            {
+                indice = 1;
+                foreach (var row in veproforma1)
+                {
+                    if (await ventas.UnidadSoloEnteros(_context, Convert.ToString(row.udm)))
+                    {
+                        // verificar que la cantidad sea entero
+                        if (Convert.ToDouble(row.cantidad) != Math.Floor(Convert.ToDouble(row.cantidad)))
+                        {
+                            bandVep1 = false;
+                            msgValDetalle = "La cantidad en la Linea " + (indice + 1) + " " + Convert.ToString(row.coditem) + " no puede tener decimales .";
+                            break;
+                        }
+                    }
+                    indice++;
+                }
+            }
+            //Validar items sin peso
+            if (bandVep1)
+            {
+                indice = 1;
+                foreach (var row in veproforma1)
+                {
+                    if (await items.itempeso(_context, row.coditem) <= 0)
+                    {
+                        // verificar que la cantidad sea entero
+                        if (Convert.ToDouble(row.cantidad) != Math.Floor(Convert.ToDouble(row.cantidad)))
+                        {
+                            bandVep1 = false;
+                            msgValDetalle = "La item en la Linea " + (indice + 1) + " " + row.coditem + " no tiene peso(kg) registrado, por favor verifique esta situacion.";
+                            break;
+                        }
+                    }
+                    indice++;
+                }
+            }
+            //Validar items repetidos
+
+            if (bandVep1)
+            {
+                await Llenar_Datos_Del_Documento(_context, codempresa, DVTA, tabladetalle);
+                ResultadoValidacion objres = new ResultadoValidacion();
+                validar_Vta.InicializarResultado(objres);
+                objres = await validar_Vta.Validar_Items_Repetidos(_context, tabladetalle, DVTA, codempresa);
+                if (!objres.resultado)
+                {
+                    bandVep1 = false;
+                    msgValDetalle = objres.observacion + Environment.NewLine + objres.obsdetalle;
+                }
+            }
+
+            // VALIDACION TARIFAS PERMITIDAS POR USUARIO
+            if (bandVep1)
+            {
+                foreach (var row in veproforma1)
+                {
+                    if (!await ventas.UsuarioTarifa_Permitido(_context, usuario, Convert.ToInt32(row.codtarifa)))
+                    {
+                        bandVep1 = false;
+                        msgValDetalle = "Este usuario no esta habilitado para ver ese tipo de Precio";
+                        break;
+                    }
+                }
+            }
+
+
+            return (bandVep1, msgValDetalle);
+        }
+
+        public List<Dtnegativos> dtnegativos = new List<Dtnegativos>();
+        private async Task<(bool bandera, string msg)> Validar_Saldos_Negativos(DBContext _context, string codempresa, string usuario, string codcliente_real, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle)
+        {
+            bool resultado = true;
+            string msg = "";
+
+            if (tabladetalle.Count > 0)
+            {
+                ResultadoValidacion objres = new ResultadoValidacion();
+                validar_Vta.InicializarResultado(objres);
+                (objres, dtnegativos) = await validar_Vta.Validar_Saldos_Negativos_Doc(_context, tabladetalle, DVTA, dtnegativos, codempresa, usuario);
+                if (objres.resultado == false)
+                {
+                    resultado = objres.resultado;
+                    return (resultado, "Hay items que generan saldos negativos, verifique el detalle!!!");
+                }
+            }
+            return (resultado, msg);
         }
 
 
@@ -1184,7 +1938,7 @@ namespace SIAW.Controllers.ventas.modificacion
 
             // mostrar mensaje de credito disponible
             /*
-            
+
             If IsDBNull(reg("contra_entrega")) Then
                 qry = "update veproforma set contra_entrega=0 where id='" & id_pf & "' and numeroid='" & nroid_pf & "'"
                 sia_DAL.Datos.Instancia.EjecutarComando(qry)
@@ -1193,7 +1947,7 @@ namespace SIAW.Controllers.ventas.modificacion
              */
 
             // tipo pago CONTADO
-            if (DVTA.tipo_vta == "CONTADO")
+            if (DVTA.tipo_vta == "0")
             {
                 ////////////////////////////////////////////////////////////////////////////////////////////
                 // se añadio en fecha 15-3-2016
@@ -1228,6 +1982,8 @@ namespace SIAW.Controllers.ventas.modificacion
             return (true, msgsAlert);
 
         }
+
+
 
         private async Task<(bool result, string msgAlert)> Validar_Descuentos_Por_Deposito_Excedente(DBContext _context, string codempresa, List<vedesextraDatos> tabladescuentos, DatosDocVta DVTA)
         {
@@ -1327,31 +2083,6 @@ namespace SIAW.Controllers.ventas.modificacion
 
         private async Task<(bool bandera, string msg)> Validar_Datos_Cabecera(DBContext _context, string codempresa, string codcliente_real, veproforma veproforma)
         {
-            // VALIDACIONES PARA EVITAR NULOS
-            if (veproforma.id == null) { return (false, "No se esta recibiendo el ID del documento, Consulte con el Administrador del sistema."); }
-            if (veproforma.numeroid == null) { return (false, "No se esta recibiendo el número de ID del documento, Consulte con el Administrador del sistema."); }
-            if (veproforma.codalmacen == null) { return (false, "No se esta recibiendo el codigo de Almacen, Consulte con el Administrador del sistema."); }
-            if (veproforma.codvendedor == null) { return (false, "No se esta recibiendo el código de vendedor, Consulte con el Administrador del sistema."); }
-            if (veproforma.preparacion == null) { return (false, "No se esta recibiendo el tipo de preparación, Consulte con el Administrador del sistema."); }
-            if (veproforma.tipopago == null) { return (false, "No se esta recibiendo el tipo de pago, Consulte con el Administrador del sistema."); }
-            if (veproforma.contra_entrega == null) { return (false, "No se esta recibiendo si la venta es contra entrega o no, Consulte con el Administrador del sistema."); }
-            if (veproforma.estado_contra_entrega == null) { return (false, "No se esta recibiendo el estado contra entrega, Consulte con el Administrador del sistema."); }
-            if (veproforma.id == null) { return (false, "No se esta recibiendo el ID del documento, Consulte con el Administrador del sistema."); }
-            if (veproforma.codcliente == null) { return (false, "No se esta recibiendo el codigo de cliente, Consulte con el Administrador del sistema."); }
-            if (veproforma.nomcliente == null) { return (false, "No se esta recibiendo el nombre del cliente, Consulte con el Administrador del sistema."); }
-            if (veproforma.tipo_docid == null) { return (false, "No se esta recibiendo el tipo de documento, Consulte con el Administrador del sistema."); }
-            if (veproforma.nit == null) { return (false, "No se esta recibiendo el NIT/CI del cliente, Consulte con el Administrador del sistema."); }
-            if (veproforma.email == null) { return (false, "No se esta recibiendo el Email del cliente, Consulte con el Administrador del sistema."); }
-            if (veproforma.codmoneda == null) { return (false, "No se esta recibiendo el codigo de moneda, Consulte con el Administrador del sistema."); }
-
-            if (veproforma.pago_contado_anticipado == null) { return (false, "No se esta recibiendo si el pago de realiza de forma anticipada o No, Consulte con el Administrador del sistema."); }
-            if (veproforma.idpf_complemento == null) { return (false, "No se esta recibiendo el ID de proforma complemento, Consulte con el Administrador del sistema."); }
-            if (veproforma.nroidpf_complemento == null) { return (false, "No se esta recibiendo el Número ID de proforma complemento, Consulte con el Administrador del sistema."); }
-            if (veproforma.tipo_complementopf == null) { return (false, "No se esta recibiendo el tipo de proforma complemento, Consulte con el Administrador del sistema."); }
-            if (veproforma.niveles_descuento == null) { return (false, "No se esta recibiendo el nivel de descuento actual del cliente, Consulte con el Administrador del sistema."); }
-
-
-
 
             // POR AHORA VALIDACIONES QUE REQUIERAN CONSULTA A BASE DE DATOS.
             string id = veproforma.id;
@@ -1474,16 +2205,14 @@ namespace SIAW.Controllers.ventas.modificacion
                 End If
             End If
              */
-            return (true, "Error al guardar todos los datos.");
+            var resp = await funciones_SIAT.Validar_NIT_En_El_SIN(_context, codempresa, Convert.ToInt32(veproforma.tipo_docid), veproforma.codalmacen, long.Parse(veproforma.nit), veproforma.usuarioreg);
+            if (resp.resp == false)
+            {
+                return (false, resp.mensaje);
+            }
+
+            return (true, "ok");
         }
-
-
-
-
-
-
-
-
 
 
 
@@ -1500,35 +2229,6 @@ namespace SIAW.Controllers.ventas.modificacion
             var verecargoprof = datosProforma.verecargoprof;
             var veproforma_iva = datosProforma.veproforma_iva;
 
-            ////////////////////   GRABAR DOCUMENTO
-
-            /*
-            ///////////////////////////////////////////////   FALTA VALIDACIONES
-
-
-            If Not Validar_Detalle() Then
-                Return False
-            End If
-
-            If Not Validar_Datos() Then
-                Return False
-            End If
-
-            //************************************************
-            //control implementado en fecha: 09-10-2020
-
-            If Not Me.Validar_Saldos_Negativos(False) Then
-                If MessageBox.Show("La proforma genera saldos negativos, esta seguro de grabar la proforma???", "Validar Negativos", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1) = Windows.Forms.DialogResult.No Then
-                    Return False
-                End If
-            End If
-
-
-
-
-
-
-            */
             //************************************************
 
             // Actualizar cabecera (veproforma)
@@ -1543,7 +2243,7 @@ namespace SIAW.Controllers.ventas.modificacion
 
                 throw;
             }
-            
+
 
 
             // guarda detalle (veproforma1)
@@ -1558,8 +2258,6 @@ namespace SIAW.Controllers.ventas.modificacion
 
             await grabarDetalleProf(_context, codProforma, veproforma1);
 
-
-
             //======================================================================================
             // grabar detalle de validacion
             //======================================================================================
@@ -1570,37 +2268,36 @@ namespace SIAW.Controllers.ventas.modificacion
 
             await grabarValidaciones(_context, codProforma, veproforma_valida);
 
-
-
-
-
             // grabar descto por deposito si hay descuentos
             if (vedesextraprof != null)
             {
-                if (vedesextraprof.Count() > 0)
-                {
-                    await grabardesextra(_context, codProforma, vedesextraprof);
-                }
+                await grabardesextra(_context, codProforma, vedesextraprof);
+                //if (vedesextraprof.Count() > 0)
+                //{
+
+                //}
             }
 
             if (verecargoprof != null)
             {
+                await grabarrecargo(_context, codProforma, verecargoprof);
                 // grabar recargo si hay recargos
-                if (verecargoprof.Count > 0)
-                {
-                    await grabarrecargo(_context, codProforma, verecargoprof);
-                }
+                //if (verecargoprof.Count > 0)
+                //{
+
+                //}
             }
 
             if (veproforma_iva != null)
             {
+                await grabariva(_context, codProforma, veproforma_iva);
                 // grabar iva
-                if (veproforma_iva.Count > 0)
-                {
-                    await grabariva(_context, codProforma, veproforma_iva);
-                }
+                //if (veproforma_iva.Count > 0)
+                //{
+
+                //}
             }
-            
+
 
             //======================================================================================
             //grabar anticipos aplicados
@@ -1714,7 +2411,7 @@ namespace SIAW.Controllers.ventas.modificacion
                         }
                     }
                 }
-                
+
             }
             catch (Exception)
             {
@@ -1760,12 +2457,14 @@ namespace SIAW.Controllers.ventas.modificacion
                     resultado = false;
                 }
             }
-
-
             return ("ok", codProforma, veproforma.numeroid);
-
-
         }
+
+
+
+
+
+
 
 
 

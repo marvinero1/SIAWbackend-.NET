@@ -37,6 +37,7 @@ namespace SIAW.Controllers.ventas.transaccion
         private readonly siaw_funciones.Items items = new siaw_funciones.Items();
         private readonly siaw_funciones.Validar_Vta validar_Vta = new siaw_funciones.Validar_Vta();
         private readonly siaw_funciones.Seguridad seguridad = new siaw_funciones.Seguridad();
+        private readonly siaw_funciones.SIAT siat = new siaw_funciones.SIAT();
 
         private readonly Documento documento = new Documento();
         private readonly Depositos_Cliente depositos_Cliente = new Depositos_Cliente();
@@ -118,6 +119,14 @@ namespace SIAW.Controllers.ventas.transaccion
         [Route("validaTranferencia/{userConn}/{idProforma}/{nroidProforma}")]
         public async Task<object> validaTranferencia(string userConn, string idProforma, int nroidProforma)
         {
+            if (idProforma.Trim().Length == 0)
+            {
+                return BadRequest(new { resp = "El ID de la proforma no puede estar vacio. " });
+            }
+            if (nroidProforma == 0)
+            {
+                return BadRequest(new { resp = "El número ID de la proforma no puede ser 0. " });
+            }
             try
             {
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
@@ -177,6 +186,18 @@ namespace SIAW.Controllers.ventas.transaccion
         [Route("transferirProforma/{userConn}/{idProforma}/{nroidProforma}/{codproforma}")]
         public async Task<object> transferirProforma(string userConn, string idProforma, int nroidProforma, int codproforma)
         {
+            if (idProforma.Trim().Length == 0)
+            {
+                return BadRequest(new { resp = "El ID de la proforma no puede estar vacio. " });
+            }
+            if (nroidProforma == 0)
+            {
+                return BadRequest(new { resp = "El número ID de la proforma no puede ser 0. " });
+            }
+            if (codproforma == 0)
+            {
+                return BadRequest(new { resp = "El número código de la proforma no puede ser 0. " });
+            }
             try
             {
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
@@ -196,14 +217,18 @@ namespace SIAW.Controllers.ventas.transaccion
                     }
 
                     // transferirdoc(trans.codigo_elegido, trans.tipo_documento)
-                    var data = await transferirdatosproforma(_context, codproforma);
+                    var data = await transferirdatosproforma(_context, codproforma, idProforma, nroidProforma);
+                    if (data.msg != "")
+                    {
+                        return BadRequest(new { resp = data.msg });
+                    }
                     return Ok(new
                     {
                         msgAlert = msgAlert,
                         txtid_solurgente,
                         txtnroid_solurgente,
 
-                        data
+                        data.datos
                     });
                 }
             }
@@ -221,12 +246,21 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
-        private async Task<object> transferirdatosproforma(DBContext _context, int codproforma)
+        private async Task<(object? datos, string msg)> transferirdatosproforma(DBContext _context, int codproforma, string idProf, int nroIdProf)
         {
             // obtener cabecera.
             var cabecera = await _context.veproforma
                 .Where(i => i.codigo == codproforma)
                 .FirstOrDefaultAsync();
+            if (cabecera == null)
+            {
+                return (null,"No se encontraron datos con este código de proforma, consulte con el administrador.");
+            }
+            // validacion si coinciden los datos que se reciben con los de la base de datos
+            if (cabecera.id != idProf || cabecera.numeroid != nroIdProf)
+            {
+                return (null, "El id o número id recibidos no corresponden al de la proforma con el código proporcionado, consulte con el administrador.");
+            }
 
             string _codcliente_real = cabecera.codcliente_real;
 
@@ -313,9 +347,8 @@ namespace SIAW.Controllers.ventas.transaccion
                 p => p.coditem,
                 i => i.codigo,
                 (p, i) => new { p, i })
-                .Select(i => new itemDataMatriz
+                .Select(i => new itemDataMatriz   // ajustando el detalle al modelo de matriz que se utiliza
                 {
-                    //codproforma = i.p.codproforma,
                     coditem = i.p.coditem,
                     descripcion = i.i.descripcion,
                     medida = i.i.medida,
@@ -329,18 +362,6 @@ namespace SIAW.Controllers.ventas.transaccion
                     preciodesc = (double)(i.p.preciodesc ?? 0),
                     preciolista = (double)i.p.preciolista,
                     total = (double)i.p.total,
-
-
-
-                    // cantaut = i.p.cantaut,
-                    // totalaut = i.p.totalaut,
-                    // obs = i.p.obs,
-                    // cantidad_pedida = (double)(i.p.cantidad_pedida ?? 0),
-                    // peso = i.p.peso,
-                    // nroitem = i.p.nroitem ?? 0,
-                    // id = i.p.id,
-                    // porcen_mercaderia = 0,
-                    // porcendesc = 0
                 })
                 .OrderBy(i => i.coditem)
                 .ToListAsync();
@@ -384,7 +405,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 recargos = recargos,
                 iva = iva,
                 detalleAnticipos = anticiposProf
-            });
+            },"");
         }
 
 
@@ -399,6 +420,14 @@ namespace SIAW.Controllers.ventas.transaccion
         {
             bool resultado = false;
             // borrar los items con cantidad cero
+
+
+            if (datosRemision.veremision == null) { return BadRequest(new { resp = "Se esta enviando como Nulo la cabecera de NR, consulte con el administrador." }); }
+            if (datosRemision.veremision1 == null) { return BadRequest(new { resp = "Se esta enviando como Nulo el detalle de NR, consulte con el administrador." }); }
+            if (datosRemision.vedesextraremi == null) { return BadRequest(new { resp = "Se esta enviando como Nulo el detalle de descuentos de NR, consulte con el administrador." }); }
+            if (datosRemision.verecargoremi == null) { return BadRequest(new { resp = "Se esta enviando como Nulo el detalle de recargos de NR, consulte con el administrador." }); }
+            if (datosRemision.veremision_iva == null) { return BadRequest(new { resp = "Se esta enviando como Nulo el detalle de IVA de NR, consulte con el administrador." }); }
+
             datosRemision.veremision1.RemoveAll(i => i.cantidad <= 0);
             if (datosRemision.veremision1.Count() <= 0)
             {
@@ -421,6 +450,9 @@ namespace SIAW.Controllers.ventas.transaccion
             if (veremision.nit == null) { return BadRequest(new { resp = "No se esta recibiendo el NIT/CI del cliente, Consulte con el Administrador del sistema." }); }
             if (veremision.email == null) { return BadRequest(new { resp = "No se esta recibiendo el Email del cliente, Consulte con el Administrador del sistema." }); }
             if (veremision.codmoneda == null) { return BadRequest(new { resp = "No se esta recibiendo el codigo de moneda, Consulte con el Administrador del sistema." }); }
+            if (veremision.obs == null || veremision.obs.Trim() == "") { datosRemision.veremision.obs = "---"; }
+
+
 
             string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
             using (var _context = DbContextFactory.Create(userConnectionString))
@@ -611,6 +643,8 @@ namespace SIAW.Controllers.ventas.transaccion
             var verecargoremi = datosRemision.verecargoremi;
             var veremision_iva = datosRemision.veremision_iva;
             var veremision_chequerechazado = datosRemision.veremision_chequerechazado;
+
+
             //CONVERTIR
             //aqui convertir veremision a DatosDocVta
             DatosDocVta DVTA = await ConvertirVeremisionADatosDocVta(veremision);
@@ -708,7 +742,7 @@ namespace SIAW.Controllers.ventas.transaccion
             ////////////////////////////////////////////////////////////////////////////////
             /////VALIDAR CABECERA
             ///////////////////////////////////////////////////////////////////////////////////
-            var validacion_cabecera = await Validar_Datos_Cabecera_Remision(_context, sin_validar, sin_validar_monto_min_desc, sin_validar_monto_total, sin_validar_doc_ant_inv, codempresa, usuario, cod_proforma, id_pf, nroid_pf, codmoneda_pf, DVTA.codcliente_real, DVTA, tabladetalle, tabladescuentos);
+            var validacion_cabecera = await Validar_Datos_Cabecera_Remision(_context, sin_validar, sin_validar_monto_min_desc, sin_validar_monto_total, sin_validar_doc_ant_inv, codempresa, usuario, cod_proforma, id_pf, nroid_pf, codmoneda_pf, DVTA.codcliente_real, DVTA, tabladetalle, tabladescuentos, veremision.email, veremision.tdc);
             if (!validacion_cabecera.bandera)
             {
                 resultado = false;
@@ -716,7 +750,17 @@ namespace SIAW.Controllers.ventas.transaccion
                 msgsAlert.Add(validacion_cabecera.msg);
                 return (false, msgsAlert, dtnegativos, validacion_cabecera.codigo_control);
             }
-        //////////////////////////////////////////////
+            //////////////////////////////////////////////
+            
+            // validar que el subtotal sea igual a la suma de todos los totales de los items, ademas de utilizar el redondeo de 2 decimales.
+
+            var subtotalSuma = veremision1.Sum(i => i.total);
+            subtotalSuma = await siat.Redondeo_Decimales_SIA_2_decimales_SQL(_context, (double)subtotalSuma);
+            if (subtotalSuma != veremision.subtotal)
+            {
+                msgsAlert.Add("La suma del total de items, no coinciden con el subtotal de la nota de remision, consulte con el administrador.");
+                return (false, msgsAlert, dtnegativos, 0);
+            }
 
         // mostrar mensaje de credito disponible
         /*
@@ -888,6 +932,16 @@ namespace SIAW.Controllers.ventas.transaccion
                 {
                     resultado = false;
                     return (false, "No puso el Total en la Linea " + (i + 1) + " Item : " + Convert.ToString(row.coditem) + " .", 0, dtnegativos);
+                }
+                else if(Convert.ToInt32(row.codtarifa) < 0)
+                {
+                    resultado = false;
+                    return (false, "Codigo de tarifa negativo en la Linea " + (i + 1) + " Item : " + Convert.ToString(row.coditem) + " .", 0, dtnegativos);
+                }
+                else if (Convert.ToInt32(row.coddescuento) < 0)
+                {
+                    resultado = false;
+                    return (false, "Codigo de descuento negativo en la Linea " + (i + 1) + " Item : " + Convert.ToString(row.coditem) + " .", 0, dtnegativos);
                 }
                 //
 
@@ -1095,7 +1149,7 @@ namespace SIAW.Controllers.ventas.transaccion
             }
             return (resultado, msgAlert);
         }
-        private async Task<(bool bandera, string msg, int codigo_control)> Validar_Datos_Cabecera_Remision(DBContext _context, bool sin_validar, bool sin_validar_MontoMin_desc, bool sin_validar_monto_total, bool sin_validar_doc_ant_inv, string codempresa, string usuario, int cod_proforma, string id_proforma, int nroid_proforma, string codmoneda_pf, string codcliente_real, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos)
+        private async Task<(bool bandera, string msg, int codigo_control)> Validar_Datos_Cabecera_Remision(DBContext _context, bool sin_validar, bool sin_validar_MontoMin_desc, bool sin_validar_monto_total, bool sin_validar_doc_ant_inv, string codempresa, string usuario, int cod_proforma, string id_proforma, int nroid_proforma, string codmoneda_pf, string codcliente_real, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, List<vedesextraDatos> tabladescuentos, string email, decimal tdc)
         {
             bool resultado = true;
             DataTable lista_complementaria = new DataTable();
@@ -1169,6 +1223,11 @@ namespace SIAW.Controllers.ventas.transaccion
                     resultado = false;
                     return (false, "Ese Cliente no esta habilitado.", 0);
                 }
+                else if (!await cliente.clientehabilitado(_context, DVTA.codcliente_real))
+                {
+                    resultado = false;
+                    return (false, "Ese Cliente Real no esta habilitado.", 0);
+                }
                 else if (DVTA.nombcliente == "")
                 {
                     resultado = false;
@@ -1179,31 +1238,104 @@ namespace SIAW.Controllers.ventas.transaccion
                     resultado = false;
                     return (false, "No puede dejar la casilla de N.I.T. del cliente en blanco.", 0);
                 }
-                else if (DVTA.direccion == "")
+                
+                if (DVTA.direccion == "")
                 {
                     DVTA.direccion = "---";
                 }
-
+                //verificar que haya elegido el tipo de doc de identidad
                 if (resultado)
                 {
-                    var (EsValido, Mensaje) = await ventas.Validar_NIT_Correcto(_context, DVTA.nitfactura, DVTA.tipo_doc_id + 1);
+                    if (Convert.ToInt32(DVTA.tipo_doc_id) < 0)
+                    {
+                        resultado = false;
+                        return (false, "Debe identificar el tipo de documento de identificación del cliente.", 0);
+                    }
+                }
+                if (resultado)
+                {
+                    var (EsValido, Mensaje) = await ventas.Validar_NIT_Correcto(_context, DVTA.nitfactura, DVTA.tipo_doc_id );
                     if (!EsValido)
                     {
                         resultado = false;
                         return (false, "Verifique que el NIT tenga el formato correcto!!! " + Mensaje, 0);
                     }
                 }
-            }
-
-            //verificar que haya elegido el tipo de doc de identidad
-            if (resultado)
-            {
-                if (Convert.ToInt32(DVTA.tipo_doc_id) < 0)
+                if (email.Trim().Length == 0)
                 {
                     resultado = false;
-                    return (false, "Debe identificar el tipo de documento de identificación del cliente.", 0);
+                    return (false, "No se puede dejar la casilla del email en blanco.", 0);
+                }
+                if (DVTA.preparacion == null || DVTA.preparacion.Trim().Length == 0)
+                {
+                    resultado = false;
+                    return (false, "No se puede dejar la casilla de preparación en blanco.", 0);
+                }
+                if (DVTA.codmoneda == null || DVTA.codmoneda.Trim().Length == 0)
+                {
+                    resultado = false;
+                    return (false, "No se puede dejar la casilla del código de moneda en blanco.", 0);
+                }
+                if (DVTA.estado_contra_entrega == null)
+                {
+                    resultado = false;
+                    return (false, "No se puede dejar la casilla de Estado en nulo.", 0);
+                }
+                if (tdc == 0)
+                {
+                    resultado = false;
+                    return (false, "No se puede dejar la casilla de tipo de Cambio en 0.", 0);
+                }
+                if (DVTA.subtotaldoc == null)
+                {
+                    resultado = false;
+                    return (false, "No se puede dejar la casilla del sub total en blanco.", 0);
+                }
+                if (DVTA.subtotaldoc <= 0)
+                {
+                    resultado = false;
+                    return (false, "No se puede dejar la casilla del sub total en 0.", 0);
+                }
+                if (DVTA.totrecargos == null)
+                {
+                    resultado = false;
+                    return (false, "No se puede dejar la casilla del total total de recargos en blanco.", 0);
+                }
+                if (DVTA.totdesctos_extras == null)
+                {
+                    resultado = false;
+                    return (false, "No se puede dejar la casilla del total de descuentos en blanco.", 0);
+                }
+                if (DVTA.totaldoc == null)
+                {
+                    resultado = false;
+                    return (false, "No se puede dejar la casilla del total en blanco.", 0);
+                }
+                if (DVTA.totaldoc <= 0)
+                {
+                    resultado = false;
+                    return (false, "No se puede dejar la casilla del total en 0.", 0);
                 }
             }
+
+            // validar si es una venta al contado con pago anticipado exista los anticipos
+            if (DVTA.tipo_vta == "1" && DVTA.contra_entrega == "SI")
+            {
+                resultado = false;
+                return (false, "No esta permitido realizar ventas CREDITO - CONTRA ENTREGA, verifique esta situación.", 0);
+            }
+            if (DVTA.tipo_vta == "1" && DVTA.estado_contra_entrega.Trim().Length > 0)
+            {
+                resultado = false;
+                return (false, "Una venta a CREDITO con ESTADO CONTRA ENTREGA no es posible, verifique esta situación", 0);
+            }
+            if (DVTA.tipo_vta == "0" && DVTA.contra_entrega == "SI" && DVTA.estado_contra_entrega.Trim().Length == 0)
+            {
+                resultado = false;
+                return (false, "Una venta al CONTADO-CONTRA ENTREGA sin ESTADO CONTRA ENTREGA NO ES POSIBLE, verifique esta situación", 0);
+            }
+
+
             if (!sin_validar)
             {
                 if (DVTA.tipo_vta == "0")
@@ -1223,26 +1355,14 @@ namespace SIAW.Controllers.ventas.transaccion
                     }
                 }
             }
-            if (DVTA.tipo_vta == "0")
+            if (await seguridad.periodo_fechaabierta_context(_context, DVTA.fechadoc, 3))
+            { }
+            else
             {
-                if (await seguridad.periodo_fechaabierta_context(_context, DVTA.fechadoc, 3))
-                { }
-                else
-                {
-                    resultado = false;
-                    return (false, "No puede crear documentos para ese periodo de fechas.", 0);
-                }
+                resultado = false;
+                return (false, "No puede crear documentos para ese periodo de fechas.", 0);
             }
-            //restringir venta CREDITO - CONTRA ENTREGA 
-            //DESDE el 23-10-2049 y desde que se habilitan ventas CONTADO a clientes con codigo y tamb sin nombre que ya se podia desde mas antes
-            if (resultado)
-            {
-                if (DVTA.tipo_vta == "1" && DVTA.contra_entrega == "SI")
-                {
-                    resultado = false;
-                    return (false, "No esta permitido realizar ventas CREDITO - CONTRA ENTREGA, en cambio VENTAS CONTADO si son permitidas.", 0);
-                }
-            }
+            
             //ninguna venta al credito con NIT CERO
             //segun instruccion JRA 23-07-2015
             if (resultado)
@@ -1467,7 +1587,7 @@ namespace SIAW.Controllers.ventas.transaccion
             //Validar que no esta usando cuenta de tiendas para sacar nota de remision de almacen
             if (resultado)
             {
-                if (!await cliente.ExisteCliente(_context, DVTA.codcliente) == true)
+                if (await cliente.ExisteCliente(_context, DVTA.codcliente) == false)
                 {
                     resultado = false;
                     return (false, "La cuenta de usuario actual es para ventas de otra agencia, no puede generar notas de remision de esta agencia con esta cuenta. Por favor cambia a una cuenta de usuario de la agencia actual.", 0);
@@ -1618,7 +1738,7 @@ namespace SIAW.Controllers.ventas.transaccion
             }
             if (resultado)
             {
-                if (!await hardCoded.ValidarDsctosVtaContraEntrega(DVTA.contra_entrega == "SI", tabladescuentos, DVTA.tipo_vta == "0" ? "CONTADO":"CREDITO") == true)
+                if (await hardCoded.ValidarDsctosVtaContraEntrega(DVTA.contra_entrega == "SI", tabladescuentos, DVTA.tipo_vta == "0" ? "CONTADO":"CREDITO") == false)
                 {
                     resultado = false;
                     return (false, "El documento tiene descuentos no permitidos para ventas Contra Entrega.", 0);
@@ -2017,7 +2137,7 @@ namespace SIAW.Controllers.ventas.transaccion
             catch (Exception ex)
             {
                 Console.WriteLine($"Error: {ex.Message}");
-                return (false, "Error Servidor");
+                return (false, "Error Servidor al verificar si los precios son validos.");
             }
         }
 
@@ -2790,7 +2910,7 @@ namespace SIAW.Controllers.ventas.transaccion
             catch (Exception ex)
             {
                 Console.WriteLine($"Error: {ex.Message}");
-                return (false, "Error Servidor", 0);
+                return (false, "Error Servidor al validar Montos minimos para Descuentos Extras.", 0);
             }
         }
 
@@ -2813,13 +2933,12 @@ namespace SIAW.Controllers.ventas.transaccion
                         return (resultado, cadena);
                     }
                 }
-
                 return (resultado, cadena);
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error: {ex.Message}");
-                return (false, "Error Servidor");
+                return (false, "Error en Servidor al validar descuentos Habilitaos para cliente.");
             }
         }
 
@@ -2889,7 +3008,7 @@ namespace SIAW.Controllers.ventas.transaccion
             catch (Exception ex)
             {
                 Console.WriteLine($"Error: {ex.Message}");
-                return (false, "Error Servidor");
+                return (false, "Error Servidor al verificar si los Descuentos son validos.");
             }
         }
 
@@ -3128,29 +3247,36 @@ namespace SIAW.Controllers.ventas.transaccion
 
         private async Task<bool> Validar_Anticipos_Aplicados(DBContext _context, string id, int numeroid, string codempresa, DatosDocVta DVTA)
         {
-            bool resultado = false;
-            //obtener los anticipos aplicados a la proforma 
-            //que se pretende sacar nota de remision
-            var dt_anticipos = await anticipos_vta_contado.Anticipos_Aplicados_a_Proforma(_context, id, numeroid);
-            if (dt_anticipos.Count > 0)
+            try
             {
-                ResultadoValidacion objres = new ResultadoValidacion();
-                objres = await anticipos_vta_contado.Validar_Anticipo_Asignado_2(_context, true, DVTA, dt_anticipos, codempresa);
-                //'Desde 15/01/2024 se cambio esta funcion porque no estaba validando correctamente la transformacion de moneda de los anticipos a aplicarse ya se en $us o BS
-                if (objres.resultado == true)
+                bool resultado = false;
+                //obtener los anticipos aplicados a la proforma 
+                //que se pretende sacar nota de remision
+                var dt_anticipos = await anticipos_vta_contado.Anticipos_Aplicados_a_Proforma(_context, id, numeroid);
+                if (dt_anticipos.Count > 0)
                 {
-                    resultado = true;
+                    ResultadoValidacion objres = new ResultadoValidacion();
+                    objres = await anticipos_vta_contado.Validar_Anticipo_Asignado_2(_context, true, DVTA, dt_anticipos, codempresa);
+                    //'Desde 15/01/2024 se cambio esta funcion porque no estaba validando correctamente la transformacion de moneda de los anticipos a aplicarse ya se en $us o BS
+                    if (objres.resultado == true)
+                    {
+                        resultado = true;
+                    }
+                    else
+                    {
+                        resultado = false;
+                    }
                 }
                 else
                 {
                     resultado = false;
                 }
+                return resultado;
             }
-            else
+            catch (Exception)
             {
-                resultado = false;
+                return false;    // si pasa algo que envie false para mandar alerta y no continue.
             }
-            return resultado;
         }
 
 

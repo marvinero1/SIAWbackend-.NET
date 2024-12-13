@@ -457,7 +457,7 @@ namespace siaw_funciones
                 using (var client = new HttpClient())
                 {
                     client.Timeout = TimeSpan.FromSeconds(5); // Establecer un tiempo de espera
-                    HttpResponseMessage response = await client.GetAsync("http://www.google.com/");
+                    HttpResponseMessage response = await client.GetAsync("https://www.google.com/");
                     return response.IsSuccessStatusCode;
                 }
             }

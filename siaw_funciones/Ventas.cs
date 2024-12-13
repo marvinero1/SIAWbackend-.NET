@@ -494,12 +494,19 @@ namespace siaw_funciones
 
         public async Task<bool> UsuarioTarifa_Permitido(DBContext _context, string usuario, int codtarifa)
         {
-            var resultado = await _context.adusuario_tarifa.Where(i => i.usuario == usuario && i.codtarifa == codtarifa).FirstOrDefaultAsync();
-            if (resultado != null)
+            try
             {
-                return true;
+                var resultado = await _context.adusuario_tarifa.Where(i => i.usuario == usuario && i.codtarifa == codtarifa).FirstOrDefaultAsync();
+                if (resultado != null)
+                {
+                    return true;
+                }
+                return false;
             }
-            return false;
+            catch (Exception)
+            {
+                return false;
+            }
         }
 
         public async Task<bool> Tarifa_Permite_Desctos_Linea(DBContext _context, int codtarifa)
@@ -983,12 +990,19 @@ namespace siaw_funciones
 
         public async Task<bool> Descuento_Extra_Habilitado_Para_Precio(DBContext _context, int coddesextra, int codtarifa)
         {
-            var resultado = await _context.vedesextra_tarifa.Where(i => i.coddesextra == coddesextra && i.codtarifa == codtarifa).FirstOrDefaultAsync();
-            if (resultado != null)
+            try
             {
-                return true;
+                var resultado = await _context.vedesextra_tarifa.Where(i => i.coddesextra == coddesextra && i.codtarifa == codtarifa).FirstOrDefaultAsync();
+                if (resultado != null)
+                {
+                    return true;
+                }
+                return false;
             }
-            return false;
+            catch (Exception)
+            {
+                return false;
+            }
         }
 
         public async Task<string> VersionTarifa(DBContext _context, int codtarifa)
@@ -3348,6 +3362,12 @@ namespace siaw_funciones
             return "";
         }
 
+        public async Task<string> Descuento_Linea_segun_PtoVta_Cliente(DBContext _context, int codptoventa)
+        {
+            var resultado = await _context.vedesitem_ptoventa.Where(i => i.codptoventa == codptoventa).Select(i => i.nivel).FirstOrDefaultAsync();
+            return resultado ?? "";
+        }
+
         public async Task<DateTime> Descuento_Linea_Fecha_Desde(DBContext _context, string nivel)
         {
             DateTime resultado = new DateTime(1900, 1, 1);
@@ -5679,6 +5699,11 @@ namespace siaw_funciones
 
             try
             {
+                resultado = await _context.inudemed
+                            .Where(v => v.Codigo == codudemed)
+                            .Select(v => v.entera )
+                            .FirstOrDefaultAsync() ?? false;
+                /*
                 var entera = await _context.inudemed
                             .Where(v => v.Codigo == codudemed)
                             .Select(v => new { v.entera })
@@ -5697,11 +5722,11 @@ namespace siaw_funciones
                 else
                 {
                     resultado = true;
-                }
+                }*/
             }
             catch (Exception)
             {
-                return true;
+                return false;
             }
             return resultado;
         }
@@ -5711,11 +5736,9 @@ namespace siaw_funciones
             try
             {
                 bool resultado = false;
-                //using (_context)
-                //{
-                int count = _context.vecliente
+                int count = await _context.vecliente
                     .Where(vc => vc.codigo == codcliente && vc.tipoventa == 2 || vc.tipoventa == 0)
-                    .Count();
+                    .CountAsync();
                 resultado = count > 0;
                 return resultado;
             }
@@ -5731,11 +5754,9 @@ namespace siaw_funciones
             try
             {
                 bool resultado = false;
-                //using (_context)
-                //{
-                int count = _context.vecliente
+                int count = await _context.vecliente
                     .Where(vc => vc.codigo == codcliente && vc.tipoventa == 2 || vc.tipoventa == 1)
-                    .Count();
+                    .CountAsync();
                 resultado = count > 0;
                 return resultado;
             }
@@ -5760,7 +5781,7 @@ namespace siaw_funciones
             }
             catch (Exception)
             {
-                return false;
+                return true;
             }
         }
 
@@ -5911,34 +5932,14 @@ namespace siaw_funciones
 
             try
             {
-                //using (_context)
-                ////using (var _context = DbContextFactory.Create(userConnectionString))
-                //{
-                var controla_precios = await _context.vecliente
+                resultado = await _context.vecliente
                                 .Where(v => v.codigo == codcliente)
-                                .Select(v => new { v.codigo, v.controla_precios })
-                                .FirstOrDefaultAsync();
-
-                if (controla_precios != null)
-                {
-                    if (controla_precios.controla_precios.HasValue)
-                    {
-                        resultado = controla_precios.controla_precios.Value;
-                    }
-                    else
-                    {
-                        resultado = false;
-                    }
-                }
-                else
-                {
-                    resultado = true;
-                }
-                //}
+                                .Select(v => v.controla_precios )
+                                .FirstOrDefaultAsync() ?? true;
             }
             catch (Exception)
             {
-                return false;
+                return true;
             }
             return resultado;
         }
@@ -5949,9 +5950,6 @@ namespace siaw_funciones
 
             try
             {
-                //using (_context)
-                ////using (var _context = DbContextFactory.Create(userConnectionString))
-                //{
                 var controla = await _context.initem_controltarifa
                              .CountAsync(t => t.coditem == coditem && t.codtarifa_b == codtarifa_b);
                 if (controla > 0)
@@ -5962,7 +5960,6 @@ namespace siaw_funciones
                 {
                     resultado = false;
                 }
-                //}
             }
             catch (Exception)
             {

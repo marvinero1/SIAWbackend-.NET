@@ -667,6 +667,7 @@ namespace SIAW.Controllers.z_pruebas
             return totales;
         }
 
+
         private async Task<List<itemDataMatriz>> calculoPreciosMatriz(DBContext _context, string codEmpresa, string usuario, string userConnectionString, List<cargadofromMatriz> data, bool calcular_porcentaje)
         {
             List<itemDataMatriz> resultado = new List<itemDataMatriz>();
@@ -730,14 +731,30 @@ namespace SIAW.Controllers.z_pruebas
                 var porcentajedesc = await cliente.porcendesccliente(_context, reg.codcliente, reg.coditem, reg.tarifa, reg.opcion_nivel, false);
 
                 //preciodesc 
-                var preciodesc = await cliente.Preciodesc(_context, reg.codcliente, reg.codalmacen, reg.tarifa, reg.coditem, reg.desc_linea_seg_solicitud, niveldesc, reg.opcion_nivel);
-                preciodesc = await tipocambio.conversion(userConnectionString, reg.codmoneda, monedabase, reg.fecha, (decimal)preciodesc);
+                var (preciodesc, exito1) = await cliente.Preciodesc(_context, reg.codcliente, reg.codalmacen, reg.tarifa, reg.coditem, reg.desc_linea_seg_solicitud, niveldesc, reg.opcion_nivel);
 
-                preciodesc = await cliente.Redondear_5_Decimales(_context, preciodesc);
+                if (exito1)
+                {
+                    preciodesc = await tipocambio.conversion(userConnectionString, reg.codmoneda, monedabase, reg.fecha, (decimal)preciodesc);
+                    preciodesc = await cliente.Redondear_5_Decimales(_context, preciodesc);
+                }
+                else
+                {
+                    return null;
+                }
+
                 //precioneto 
-                var precioneto = await cliente.Preciocondescitem(_context, reg.codcliente, reg.codalmacen, reg.tarifa, reg.coditem, reg.descuento, reg.desc_linea_seg_solicitud, niveldesc, reg.opcion_nivel);
-                precioneto = await tipocambio.conversion(userConnectionString, reg.codmoneda, monedabase, reg.fecha, (decimal)precioneto);
-                precioneto = await cliente.Redondear_5_Decimales(_context, precioneto);
+                var (precioneto, exito2) = await cliente.Preciocondescitem(_context, reg.codcliente, reg.codalmacen, reg.tarifa, reg.coditem, reg.descuento, reg.desc_linea_seg_solicitud, niveldesc, reg.opcion_nivel);
+                if (exito2)
+                {
+                    precioneto = await tipocambio.conversion(userConnectionString, reg.codmoneda, monedabase, reg.fecha, (decimal)precioneto);
+                    precioneto = await cliente.Redondear_5_Decimales(_context, precioneto);
+                }
+                else
+                {
+                    return null;
+                }
+
                 //total
                 var total = reg.cantidad * precioneto;
                 total = await cliente.Redondear_5_Decimales(_context, total);

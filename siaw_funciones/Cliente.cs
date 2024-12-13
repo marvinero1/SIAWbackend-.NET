@@ -220,94 +220,87 @@ namespace siaw_funciones
             }
         }
 
-        public async Task<decimal> Preciodesc(DBContext context, string codcliente, int codalmacen, int codtarifa, string coditem, string desc_linea_seg_solicitud, string desc_linea, string opcion_nivel)
+
+        public async Task<(decimal precio, bool exito)> Preciodesc(DBContext context, string codcliente, int codalmacen, int codtarifa, string coditem, string desc_linea_seg_solicitud, string desc_linea, string opcion_nivel)
         {
             try
             {
-                decimal resultado = 0;
-                decimal preciocdescuento = 0;
-
-                if (codtarifa == 0 || coditem == "" || codcliente.Trim() == "" || codalmacen == 0)
+                if (codtarifa == 0 || string.IsNullOrWhiteSpace(coditem) || string.IsNullOrWhiteSpace(codcliente) || codalmacen == 0)
                 {
-                    preciocdescuento = 0;
+                    return (0, false); // Valores no válidos, retorno inmediato
                 }
-                else
-                {
-                    decimal preciofinal1 = 0;
-                    var preciofinal = new SqlParameter("@preciofinal", SqlDbType.Decimal)
-                    {
-                        Direction = ParameterDirection.Output,
-                        Precision = 18,
-                        Scale = 10
-                    };
-                    await context.Database.ExecuteSqlRawAsync
-                        ("EXEC preciocliente @cliente, @almacen, @tarifa, @item, @nivel_desc_segun_solicitud, @nivel_desc_solicitud, @opcion_nivel_desctos, @preciofinal OUTPUT",
-                            new SqlParameter("@cliente", codcliente),
-                            new SqlParameter("@almacen", codalmacen),
-                            new SqlParameter("@tarifa", codtarifa),
-                            new SqlParameter("@item", coditem),
-                            new SqlParameter("@nivel_desc_segun_solicitud", desc_linea_seg_solicitud),
-                            new SqlParameter("@nivel_desc_solicitud", desc_linea),
-                            new SqlParameter("@opcion_nivel_desctos", opcion_nivel),
-                            preciofinal);
-                    preciofinal1 = (decimal)Convert.ToSingle(preciofinal.Value);
-                    preciocdescuento = preciofinal1;
 
-                }
-                resultado = preciocdescuento;
-                return resultado;
+                var preciofinal = new SqlParameter("@preciofinal", SqlDbType.Decimal)
+                {
+                    Direction = ParameterDirection.Output,
+                    Precision = 18,
+                    Scale = 10
+                };
+
+                await context.Database.ExecuteSqlRawAsync(
+                    "EXEC preciocliente @cliente, @almacen, @tarifa, @item, @nivel_desc_segun_solicitud, @nivel_desc_solicitud, @opcion_nivel_desctos, @preciofinal OUTPUT",
+                    new SqlParameter("@cliente", codcliente),
+                    new SqlParameter("@almacen", codalmacen),
+                    new SqlParameter("@tarifa", codtarifa),
+                    new SqlParameter("@item", coditem),
+                    new SqlParameter("@nivel_desc_segun_solicitud", desc_linea_seg_solicitud),
+                    new SqlParameter("@nivel_desc_solicitud", desc_linea),
+                    new SqlParameter("@opcion_nivel_desctos", opcion_nivel),
+                    preciofinal);
+
+                // Convertir el valor de salida
+                decimal preciofinal1 = (decimal)Convert.ToSingle(preciofinal.Value);
+
+                return (preciofinal1, true); // Retorno exitoso con el precio
             }
             catch (Exception)
             {
-                return 0;
-                //return Problem("Error en el servidor");
+                return (0, false); // En caso de error, retornar 0 y exito = false
             }
         }
 
-        public async Task<decimal> Preciocondescitem(DBContext context, string codcliente, int codalmacen, int codtarifa, string coditem, int coddescuento, string desc_linea_seg_solicitud, string desc_linea, string opcion_nivel)
+
+        public async Task<(decimal precio, bool exito)> Preciocondescitem(DBContext context, string codcliente, int codalmacen, int codtarifa, string coditem, int coddescuento, string desc_linea_seg_solicitud, string desc_linea, string opcion_nivel)
         {
             try
             {
-                decimal resultado = 0;
-                decimal preciocondescitem = 0;
-
-                if (codtarifa == 0 || coditem == "" || codcliente.Trim() == "" || codalmacen == 0)
+                // Validación inicial de parámetros
+                if (codtarifa == 0 || string.IsNullOrWhiteSpace(coditem) || string.IsNullOrWhiteSpace(codcliente) || codalmacen == 0)
                 {
-                    preciocondescitem = 0;
+                    return (0, false); // Parámetros no válidos
                 }
-                else
-                {
-                    decimal preciofinal1 = 0;
-                    var preciofinal = new SqlParameter("@preciofinal", SqlDbType.Decimal)
-                    {
-                        Direction = ParameterDirection.Output,
-                        Precision = 18,
-                        Scale = 10
-                    };
-                    await context.Database.ExecuteSqlRawAsync
-                        ("EXEC preciocondesc @cliente, @almacen, @tarifa, @item,@descuento, @nivel_desc_segun_solicitud, @nivel_desc_solicitud, @opcion_nivel_desctos, @preciofinal OUTPUT",
-                            new SqlParameter("@cliente", codcliente),
-                            new SqlParameter("@almacen", codalmacen),
-                            new SqlParameter("@tarifa", codtarifa),
-                            new SqlParameter("@item", coditem),
-                            new SqlParameter("@descuento", coddescuento),
-                            new SqlParameter("@nivel_desc_segun_solicitud", desc_linea_seg_solicitud),
-                            new SqlParameter("@nivel_desc_solicitud", desc_linea),
-                            new SqlParameter("@opcion_nivel_desctos", opcion_nivel),
-                            preciofinal);
-                    preciofinal1 = (decimal)Convert.ToSingle(preciofinal.Value);
-                    preciocondescitem = preciofinal1;
 
-                }
-                resultado = preciocondescitem;
-                return resultado;
+                var preciofinal = new SqlParameter("@preciofinal", SqlDbType.Decimal)
+                {
+                    Direction = ParameterDirection.Output,
+                    Precision = 18,
+                    Scale = 10
+                };
+
+                // Ejecución de la consulta
+                await context.Database.ExecuteSqlRawAsync(
+                    "EXEC preciocondesc @cliente, @almacen, @tarifa, @item, @descuento, @nivel_desc_segun_solicitud, @nivel_desc_solicitud, @opcion_nivel_desctos, @preciofinal OUTPUT",
+                    new SqlParameter("@cliente", codcliente),
+                    new SqlParameter("@almacen", codalmacen),
+                    new SqlParameter("@tarifa", codtarifa),
+                    new SqlParameter("@item", coditem),
+                    new SqlParameter("@descuento", coddescuento),
+                    new SqlParameter("@nivel_desc_segun_solicitud", desc_linea_seg_solicitud),
+                    new SqlParameter("@nivel_desc_solicitud", desc_linea),
+                    new SqlParameter("@opcion_nivel_desctos", opcion_nivel),
+                    preciofinal);
+
+                // Convertir el valor de salida
+                decimal preciofinal1 = (decimal)Convert.ToSingle(preciofinal.Value);
+
+                return (preciofinal1, true); // Retorno exitoso con el precio calculado
             }
             catch (Exception)
             {
-                return 0;
-                //return Problem("Error en el servidor");
+                return (0, false); // Retorno en caso de error
             }
         }
+
 
         public async Task<decimal> Redondear_5_Decimales(DBContext context, decimal numero)
         {
@@ -1328,8 +1321,16 @@ namespace siaw_funciones
         }
         public async Task<bool> Controla_empaque_cerrado(DBContext _context, string codcliente)
         {
-            var resultado = await _context.vecliente.Where(i => i.codigo == codcliente).Select(i => i.controla_empaque_cerrado).FirstOrDefaultAsync() ?? false;
-            return resultado;
+            try
+            {
+                var resultado = await _context.vecliente.Where(i => i.codigo == codcliente).Select(i => i.controla_empaque_cerrado).FirstOrDefaultAsync() ?? true;
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return true;
+            }
+            
         }
         public async Task<bool> Permite_Descuento_caja_cerrada(DBContext _context, string codcliente)
         {
@@ -1670,6 +1671,41 @@ namespace siaw_funciones
                 .FirstOrDefaultAsync() ?? "---";
             return resultado;
         }
+        public async Task<int> PuntoDeVentaCliente(DBContext _context, string codcliente)
+        {
+            int resultado = 0;
+            try
+            {
+                var ptovta = await _context.vetienda.Where(i => i.codcliente == codcliente && i.central == true).Select(i => i.codptoventa).FirstOrDefaultAsync();
+                resultado = ptovta;
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
+        public async Task<DateTime> FechaApertura(DBContext _context, string codcliente)
+        {
+            DateTime resultado = DateTime.Now;
+            try
+            {
+                var result = await _context.vecliente
+                    .Where(v => v.codigo == codcliente)
+                    .Select(v => v.fapertura)
+                    .FirstOrDefaultAsync();
+
+                if (result.HasValue)
+                {
+                    resultado = result.Value;
+                }
+            }
+            catch (Exception ex)
+            {
+                resultado = DateTime.Now;
+            }
+            return resultado;
+        }
         public async Task<string> PuntoDeVentaCliente_Segun_Direccion(DBContext _context, string codcliente, string direccion)
         {
             //modo 0: ambos 1: provinvcia 2 = pto
@@ -1757,19 +1793,27 @@ namespace siaw_funciones
 
         public async Task<bool> EsClienteNuevo(DBContext _context, string codcliente)
         {
-            var situacion = await _context.vecliente
+            try
+            {
+                var situacion = await _context.vecliente
                 .Where(i => i.codigo == codcliente)
                 .Select(i => i.situacion)
                 .FirstOrDefaultAsync();
-            if (situacion == null)
-            {
+                if (situacion == null)  // en caso de no encontrar configuracion que se tome como cliente nuevo
+                {
+                    return true;
+                }
+                if (situacion != "HABITUAL")
+                {
+                    return true;
+                }
                 return false;
             }
-            if (situacion != "HABITUAL")
+            catch (Exception)
             {
+                // en caso de error que se tome como cliente nuevo
                 return true;
             }
-            return false;
         }
 
         public async Task<int> Codigo_PuntoDeVentaCliente_Segun_Direccion(DBContext _context, string codcliente, string direccion)

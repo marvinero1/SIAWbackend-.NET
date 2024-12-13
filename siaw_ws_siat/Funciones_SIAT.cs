@@ -809,6 +809,39 @@ namespace siaw_ws_siat
             return (resultado, mensaje);
         }
 
+        public async Task<(bool resp, string mensaje)> Validar_NIT_En_El_SIN(DBContext _context, string codempresa, int tipo_doc, int codalmacen, long NIT, string usuario)
+        {
+            bool resultado = true;
+            bool nit_valido = false;
+            string respuesta_SIN = "";
+            bool en_linea = false;
+            bool en_linea_SIN = false;
+            string mensaje = "";
+
+            if (tipo_doc == 5)
+            {
+                respuesta_SIN = await Verificar_NIT_SIN_2024(_context, codalmacen, long.Parse(await empresa.NITempresa(_context, codempresa)), NIT, usuario);
+                if (respuesta_SIN == "VALIDO")
+                {//si es true es NIT activo
+                 //nit_valido = true;
+                    resultado = true;
+                    return (resultado, mensaje);
+                }
+                else if (respuesta_SIN == "ERROR" || respuesta_SIN == "OTRO")
+                {
+                    mensaje = "El Numero de documento ingresado no se puede validar con el servicio de impuestos si es un NIT VALIDO o NO (Respuesta: " + respuesta_SIN + " ), se continuara con las demas validaciones.";
+                    resultado = true;
+                    return (resultado, mensaje);
+                }
+                else if (respuesta_SIN == "INVALIDO")
+                {
+                    mensaje = "Se ha verificado que el numero de identificacion: " + NIT + " no es un N.I.T. registrado y valido en el SIN, por favor verifique esta situacion!!!";
+                    resultado = false;
+                    return (resultado, mensaje);
+                }
+            }
+            return (resultado, mensaje);
+        }
 
         //public async Task<Datos_Pametros_Facturacion_Ag> Obtener_Parametros_Facturacion(DBContext _context, int codalmacen)
         //{

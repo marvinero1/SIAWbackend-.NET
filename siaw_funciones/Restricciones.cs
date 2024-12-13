@@ -466,34 +466,41 @@ namespace siaw_funciones
         }
         public async Task<bool> Validar_Contraentrega_Descuento(DBContext _context, bool ContraEntrega, int coddescuento)
         {
-            bool resultado = true;
-            if (ContraEntrega)
+            try
             {
-                double precioFinal;
-
-                var contra_entrega = new SqlParameter("@contra_entrega", SqlDbType.Int) { Value = 1 };
-                var descuento = new SqlParameter("@coddescuento", SqlDbType.Int) { Value = coddescuento };
-                var result = new SqlParameter("@resultado", SqlDbType.Int) { Direction = ParameterDirection.Output };
-
-                await _context.Database
-                    .ExecuteSqlRawAsync("EXECUTE val_contraentrega @contra_entrega, @coddescuento, @resultado OUTPUT",
-                        contra_entrega,
-                        descuento,
-                        result);
-                if ((int)result.Value > 0)
+                bool resultado = true;
+                if (ContraEntrega)
                 {
-                    resultado = true;
+                    double precioFinal;
+
+                    var contra_entrega = new SqlParameter("@contra_entrega", SqlDbType.Int) { Value = 1 };
+                    var descuento = new SqlParameter("@coddescuento", SqlDbType.Int) { Value = coddescuento };
+                    var result = new SqlParameter("@resultado", SqlDbType.Int) { Direction = ParameterDirection.Output };
+
+                    await _context.Database
+                        .ExecuteSqlRawAsync("EXECUTE val_contraentrega @contra_entrega, @coddescuento, @resultado OUTPUT",
+                            contra_entrega,
+                            descuento,
+                            result);
+                    if ((int)result.Value > 0)
+                    {
+                        resultado = true;
+                    }
+                    else
+                    {
+                        resultado = false;
+                    }
                 }
                 else
                 {
-                    resultado = false;
+                    resultado = true;
                 }
+                return resultado;
             }
-            else
+            catch (Exception)
             {
-                resultado = true;
+                return false;
             }
-            return resultado;
         }
 
         public async Task<bool> Validar_Cliente_Contraentrega(DBContext _context, bool ContraEntrega, string codcliente)
@@ -520,18 +527,25 @@ namespace siaw_funciones
 
         public async Task<bool> ValidarModifDocAntesInventario(DBContext _context, int codalmacen, DateTime fecha)
         {
-            bool resultado = true;
-            DateTime ultimo_inventario = new DateTime();
-            ultimo_inventario = await inventario.FechaUltimoInventarioFisico(_context, codalmacen);
-            if (fecha <= ultimo_inventario)
+            try
             {
-                resultado = false;
+                bool resultado = true;
+                DateTime ultimo_inventario = new DateTime();
+                ultimo_inventario = await inventario.FechaUltimoInventarioFisico(_context, codalmacen);
+                if (fecha <= ultimo_inventario)
+                {
+                    resultado = false;
+                }
+                else
+                {
+                    resultado = true;
+                }
+                return resultado;
             }
-            else
+            catch (Exception)
             {
-                resultado = true;
+                return false;
             }
-            return resultado;
         }
 
     }

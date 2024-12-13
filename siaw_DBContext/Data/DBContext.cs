@@ -1710,6 +1710,8 @@ namespace siaw_DBContext.Data
         public virtual DbSet<vedescliente> vedescliente { get; set; }
         public virtual DbSet<vedescliente2> vedescliente2 { get; set; }
         public virtual DbSet<vedescliente_421> vedescliente_421 { get; set; }
+        public virtual DbSet<vedescliente_lineas_excluidos> vedescliente_lineas_excluidos { get; set; }
+        public virtual DbSet<vedescliente_ptoventa_excluidos> vedescliente_ptoventa_excluidos { get; set; }
         public virtual DbSet<vedescuento> vedescuento { get; set; }
         public virtual DbSet<vedescuento1> vedescuento1 { get; set; }
         public virtual DbSet<vedescuento2> vedescuento2 { get; set; }
@@ -1733,6 +1735,7 @@ namespace siaw_DBContext.Data
         public virtual DbSet<vedesitem_log> vedesitem_log { get; set; }
         public virtual DbSet<vedesitem_log_aut> vedesitem_log_aut { get; set; }
         public virtual DbSet<vedesitem_parametros> vedesitem_parametros { get; set; }
+        public virtual DbSet<vedesitem_ptoventa> vedesitem_ptoventa { get; set; }
         public virtual DbSet<vedesitem_tarifa> vedesitem_tarifa { get; set; }
         public virtual DbSet<vedesnivel> vedesnivel { get; set; }
         public virtual DbSet<vedesnivel_clasificacion> vedesnivel_clasificacion { get; set; }
@@ -60327,6 +60330,20 @@ namespace siaw_DBContext.Data
                     .HasMaxLength(1);
             });
 
+            modelBuilder.Entity<vedescliente_lineas_excluidos>(entity =>
+            {
+                entity.HasNoKey();
+
+                entity.Property(e => e.codlinea)
+                    .IsRequired()
+                    .HasMaxLength(5);
+            });
+
+            modelBuilder.Entity<vedescliente_ptoventa_excluidos>(entity =>
+            {
+                entity.HasNoKey();
+            });
+
             modelBuilder.Entity<vedescuento>(entity =>
             {
                 entity.HasKey(e => e.codigo);
@@ -60647,6 +60664,18 @@ namespace siaw_DBContext.Data
                 entity.Property(e => e.desde_fecha).HasColumnType("smalldatetime");
 
                 entity.Property(e => e.hasta_fecha).HasColumnType("smalldatetime");
+            });
+
+            modelBuilder.Entity<vedesitem_ptoventa>(entity =>
+            {
+                entity.HasKey(e => e.codptoventa);
+
+                entity.Property(e => e.codptoventa).ValueGeneratedNever();
+
+                entity.Property(e => e.nivel)
+                    .HasMaxLength(1)
+                    .IsUnicode(false)
+                    .IsFixedLength();
             });
 
             modelBuilder.Entity<vedesitem_tarifa>(entity =>

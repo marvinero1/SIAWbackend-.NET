@@ -126,6 +126,7 @@ namespace siaw_funciones
                 {
                     // Manejo de excepciones (opcional)
                     Console.WriteLine(ex.Message);
+                    return false;
                 }
             }
             else
@@ -151,9 +152,9 @@ namespace siaw_funciones
                 {
                     // Manejo de excepciones (opcional)
                     Console.WriteLine(ex.Message);
+                    return false;
                 }
             }
-
             return resultado;
         }
 

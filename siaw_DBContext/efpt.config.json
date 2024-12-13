@@ -6776,6 +6776,14 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[vedescliente_lineas_excluidos]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[vedescliente_ptoventa_excluidos]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[vedescliente2]",
          "ObjectType": 0
       },
@@ -6869,6 +6877,10 @@
       },
       {
          "Name": "[dbo].[vedesitem_parametros]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[vedesitem_ptoventa]",
          "ObjectType": 0
       },
       {
