@@ -158,6 +158,14 @@ namespace siaw_funciones
             }
                 
         }
+
+        public string FiltrarCadena(string cadena)
+        {
+            string text = cadena;
+            text = text.Replace("\u00b4", "");
+            return text.Replace("\"", "");
+        }
+
         public async Task<int> usuario_es_vendedor(DBContext _context, string usuario)
         {
             try

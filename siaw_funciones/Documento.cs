@@ -58,6 +58,35 @@ namespace siaw_funciones
                 return false;
             }
         }
+        //intipomovimiento
+        public async Task<int> movimientonumeroid(DBContext _context, string id)
+        {
+            try
+            {
+                int num = await _context.intipomovimiento.Where(i => i.id == id).Select(i => i.nroactual).FirstOrDefaultAsync() ?? -1;
+                return num;
+            }
+            catch (Exception)
+            {
+                return -1;
+            }
+        }
+        public async Task<bool> existe_movimiento(DBContext _context, string id, int numeroid)
+        {
+            try
+            {
+                int num = await _context.inmovimiento.Where(i => i.id == id && i.numeroid == numeroid).CountAsync();
+                if (num > 0)
+                {
+                    return true;
+                }
+                return false;
+            }
+            catch (Exception)
+            {
+                return true;
+            }
+        }
 
     }
 }

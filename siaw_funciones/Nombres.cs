@@ -98,7 +98,24 @@ namespace siaw_funciones
             resultado = descripcion;
             return resultado;
         }
-
+        public async Task<string> nombrealmacen(DBContext _context, int codigo)
+        {
+            string resultado;
+            string descripcion = "";
+            var result = await _context.inalmacen
+                    .Where(v => v.codigo == codigo)
+                    .Select(parametro => new
+                    {
+                        parametro.descripcion
+                    })
+                    .FirstOrDefaultAsync();
+            if (result != null)
+            {
+                descripcion = result.descripcion;
+            }
+            resultado = descripcion;
+            return resultado;
+        }
 
         public async Task<string> nombre_persona(string userConnectionString, int codigo)
         {

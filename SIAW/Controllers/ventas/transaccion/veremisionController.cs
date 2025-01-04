@@ -257,7 +257,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 return (null,"No se encontraron datos con este código de proforma, consulte con el administrador.");
             }
             // validacion si coinciden los datos que se reciben con los de la base de datos
-            if (cabecera.id != idProf || cabecera.numeroid != nroIdProf)
+            if (cabecera.id != idProf.ToUpper() || cabecera.numeroid != nroIdProf)
             {
                 return (null, "El id o número id recibidos no corresponden al de la proforma con el código proporcionado, consulte con el administrador.");
             }
@@ -584,6 +584,10 @@ namespace SIAW.Controllers.ventas.transaccion
 
                     // enlazar a la solicitud urgente
                     string msgSolUrg = "";
+                    if (id_solurg.Trim() == "0")
+                    {
+                        id_solurg = "";
+                    }
                     if (id_solurg.Trim() != "" && nroid_solurg > 0)  // si no es sol urgente, Marvin debe mandar id en vacio "" y nroid en 0
                     {
                         try

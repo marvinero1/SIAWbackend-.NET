@@ -159,6 +159,29 @@ namespace siaw_funciones
         }
 
 
+
+        public async Task<bool> NoTomarSaldosACubrir(string coditem)
+        {
+            Boolean resultado = false;
+            switch (coditem.Trim())
+            {
+                case "17JMAB55":
+                    resultado = true;
+                    break;
+                case "17JMAC55":
+                    resultado = true;
+                    break;
+                case "17JMAD55":
+                    resultado = true;
+                    break;
+                case "17JMAE55":
+                    resultado = true;
+                    break;
+            }
+            return resultado;
+        }
+
+
     }
 
 }

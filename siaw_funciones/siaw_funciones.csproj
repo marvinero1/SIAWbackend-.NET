@@ -40,8 +40,4 @@
     <ProjectReference Include="..\siaw_DBContext\siaw_DBContext.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="siat\" />
-  </ItemGroup>
-
 </Project>

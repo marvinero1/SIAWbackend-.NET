@@ -1937,14 +1937,14 @@ namespace siaw_funciones
                 {
                     resultado = result;
                 }
-                else { resultado = "SIN RESTRICCION"; }
+                else { resultado = "ERROR"; }
                 //}
                 return resultado;
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error: {ex.Message}");
-                return "SIN RESTRICCION";
+                return "ERROR";
             }
         }
         public async Task<List<string>> AlinearItemsAsync(DBContext _context, List<string> listaItems)
@@ -7781,6 +7781,36 @@ namespace siaw_funciones
                 return 0;
             }
         }
+
+
+
+
+
+
+
+
+
+
+        public async Task<bool> proforma_es_sol_urgente(DBContext _context, string id, int nroid)
+        {
+            try
+            {
+                var consulta = await _context.veproforma.Where(i => i.id == id && i.numeroid == nroid && i.es_sol_urgente == true).CountAsync();
+                if (consulta > 0)
+                {
+                    return true;
+                }
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error en verificar sol urgente proforma: " + ex.Message);
+                return false;
+            }
+        }
+
+
+
 
 
 

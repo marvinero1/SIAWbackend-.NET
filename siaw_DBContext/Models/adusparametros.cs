@@ -89,5 +89,6 @@ namespace siaw_DBContext.Models
         public bool? ver_columna_empaques { get; set; }
         public bool? ver_boton_anular_sin { get; set; }
         public bool? ver_boton_generar_xml { get; set; }
+        public bool? ver_check_es_para_inventario { get; set; }
     }
 }

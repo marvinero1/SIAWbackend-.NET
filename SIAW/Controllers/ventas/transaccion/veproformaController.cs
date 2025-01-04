@@ -1883,11 +1883,14 @@ namespace SIAW.Controllers.ventas.transaccion
         }
 
 
-
         [HttpPost]
-        [Route("aplicarDescuentoCliente/{userConn}")]
-        public async Task<ActionResult<object>> aplicarDescuentoCliente(string userConn, RequestAddDescNCliente RequestAddDescNCliente)
+        [Route("aplicarDescuentoCliente/{userConn}/{usuario}")]
+        public async Task<ActionResult<object>> aplicarDescuentoCliente(string userConn, string usuario, RequestAddDescNCliente RequestAddDescNCliente)
         {
+            if (string.IsNullOrWhiteSpace(usuario))
+            {
+                return BadRequest(new { resp = "No se recibio el usuario." });
+            }
             if (RequestAddDescNCliente == null)
             {
                 return BadRequest(new { resp = "No se recibio la informacion del cuerpo." });
@@ -2029,58 +2032,66 @@ namespace SIAW.Controllers.ventas.transaccion
                     try
                     {
                         // Paso 1: Obtener los códigos de cliente válidos
-                        var validClientCodes = await _context.vecliente
-                            .Join(
-                                _context.vetienda,
-                                p1 => p1.codigo,
-                                p2 => p2.codcliente,
-                                (p1, p2) => new { Cliente = p1.codigo, tienda = p2 }
-                            )
-                            .Where(x => EF.Functions.IsNumeric(x.Cliente) && x.tienda.central == true)
-                            .Select(x => x.Cliente)
-                            .Distinct()
-                            .ToListAsync();
+                        //var validClientCodes = await _context.vecliente
+                        //    .Join(
+                        //        _context.vetienda,
+                        //        p1 => p1.codigo,
+                        //        p2 => p2.codcliente,
+                        //        (p1, p2) => new { Cliente = p1.codigo, tienda = p2 }
+                        //    )
+                        //    .Where(x => EF.Functions.IsNumeric(x.Cliente) && x.tienda.central == true)
+                        //    .Select(x => x.Cliente)
+                        //    .Distinct()
+                        //    .ToListAsync();
 
-                        // Paso 2: Filtrar los códigos de punto de venta excluidos
-                        var excludedPtoVentaCodes = await _context.vedescliente_ptoventa_excluidos
-                            .Select(e => e.codptoventa)
-                            .ToListAsync();
+                        //// Paso 2: Filtrar los códigos de punto de venta excluidos
+                        //var excludedPtoVentaCodes = await _context.vedescliente_ptoventa_excluidos
+                        //    .Select(e => e.codptoventa)
+                        //    .ToListAsync();
 
-                        var filteredClientCodes = validClientCodes
-                            .Where(cod => !_context.vetienda.Any(p2 => p2.codcliente == cod && excludedPtoVentaCodes.Contains(p2.codptoventa)))
-                            .ToList();
+                        //var filteredClientCodes = validClientCodes
+                        //    .Where(cod => !_context.vetienda.Any(p2 => p2.codcliente == cod && excludedPtoVentaCodes.Contains(p2.codptoventa)))
+                        //    .ToList();
 
-                        // Paso 3: Obtener los códigos de ítems excluidos
-                        var excludedLineCodes = await _context.vedescliente_lineas_excluidos
-                            .Select(le => le.codlinea)
-                            .ToListAsync();
+                        //// Paso 3: Obtener los códigos de ítems excluidos
+                        //var excludedLineCodes = await _context.vedescliente_lineas_excluidos
+                        //    .Select(le => le.codlinea)
+                        //    .ToListAsync();
 
-                        var excludedItemCodes = await _context.initem
-                            .Where(item => excludedLineCodes.Contains(item.codlinea))
-                            .Select(item => item.codigo)
-                            .ToListAsync();
+                        //var excludedItemCodes = await _context.initem
+                        //    .Where(item => excludedLineCodes.Contains(item.codlinea))
+                        //    .Select(item => item.codigo)
+                        //    .ToListAsync();
 
-                        // Paso 4: Filtrar y eliminar los registros de VedEsCliente
-                        var recordsToDelete = await _context.vedescliente
-                            .Where(vc => filteredClientCodes.Contains(vc.cliente) && excludedItemCodes.Contains(vc.coditem))
-                            .ToListAsync();
+                        //// Paso 4: Filtrar y eliminar los registros de VedEsCliente
+                        //var recordsToDelete = await _context.vedescliente
+                        //    .Where(vc => filteredClientCodes.Contains(vc.cliente) && excludedItemCodes.Contains(vc.coditem))
+                        //    .ToListAsync();
 
-                        if (recordsToDelete.Count() != 0)
+                        //if (recordsToDelete.Count() != 0)
+                        //{
+                        //    _context.vedescliente.RemoveRange(recordsToDelete);
+                        //    await _context.SaveChangesAsync();
+                        //}
+                        bool result_eliminar_clientes_excluidos = await cliente.Eliminar_Promocion_Clientes_Excluidos(_context);
+
+                        if (result_eliminar_clientes_excluidos)
                         {
-                            _context.vedescliente.RemoveRange(recordsToDelete);
-                            await _context.SaveChangesAsync();
+                            resultado = true;
                         }
-
-                        resultado = true;
+                        else
+                        {
+                            resultado = false;
+                        }
                     }
                     catch (Exception)
                     {
                         resultado = false;
                     }
 
-
                     if (resultado)
                     {
+                        await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Proforma, codcliente_real, codcliente_real, codcliente_real, this._controllerName, "Se actualizo promocion:" + cmbtipo_desc_nivel, Log.TipoLog.Creacion);
                         return Ok(new { resp = "Los descuentos promocion se han asignado exitosamente al cliente: " + codcliente + " - " + codclientedescripcion + " !!!" });
                     }
                     return BadRequest(new { resp = "Ocurrio un error al asignar los descuentos promocion!!!" });
@@ -2088,11 +2099,10 @@ namespace SIAW.Controllers.ventas.transaccion
             }
             catch (Exception ex)
             {
-                return Problem($"Error en el servidor al asgnar descuento de promocion: {ex.Message}");
+                return Problem($"Error en el servidor al asignar descuento de promocion: {ex.Message}");
                 throw;
             }
         }
-
 
 
         private (bool valido, string mensaje) validarDetalle(List<veproforma1> veproforma1)
@@ -2412,6 +2422,8 @@ namespace SIAW.Controllers.ventas.transaccion
             if (string.IsNullOrWhiteSpace(veproforma.latitud_entrega)) { return BadRequest(new { resp = "No se esta recibiendo la latitud del cliente, Consulte con el Administrador del sistema." }); }
             if (string.IsNullOrWhiteSpace(veproforma.longitud_entrega)) { return BadRequest(new { resp = "No se esta recibiendo la longitud del cliente, Consulte con el Administrador del sistema." }); }
 
+
+
             //validar que si es una venta al contado con pago anticipado exista los anticipos
             if (veproforma.tipopago == 1 && veproforma.contra_entrega == true)
             {
@@ -2433,7 +2445,7 @@ namespace SIAW.Controllers.ventas.transaccion
             {
                 return BadRequest(new { resp = "Una venta al CONTADO-CONTRA ENTREGA sin ESTADO CONTRA ENTREGA NO ES POSIBLE, verifique esta situacion." });
             }
-            if (veproforma.tipopago == 0 && veproforma.contra_entrega == false && veproforma.pago_contado_anticipado == false)
+            if (paraAprobar && veproforma.tipopago == 0 && veproforma.contra_entrega == false && veproforma.pago_contado_anticipado == false)
             {
                 return BadRequest(new { resp = "Una venta al CONTADO QUE NO ES CONTRA ENTREGA SIN PAGO ANTICIPADO NO ES POSIBLE, verifique esta situacion." });
             }
@@ -2441,32 +2453,49 @@ namespace SIAW.Controllers.ventas.transaccion
             {
                 return BadRequest(new { resp = "Una venta al CONTADO-CONTRA ENTREGA con PAGO ANTICIPADO NO ES POSIBLE, verifique esta situacion." });
             }
+
+
+            if (veproforma.estado_contra_entrega == "vacio" || veproforma.estado_contra_entrega == "VACIO")
+            {
+                veproforma.estado_contra_entrega = "";
+            }
+
+
             if (veproforma.tipopago == 0 && veproforma.contra_entrega == false && veproforma.estado_contra_entrega != "")
             {
                 return BadRequest(new { resp = "Una venta al CONTADO con PAGO ANTICIPADO y ESTADO CONTRA ENTREGA NO ES POSIBLE, verifique esta situacion." });
             }
+
+        
             if (veproforma.tipopago == 0 && veproforma.contra_entrega == false && veproforma.pago_contado_anticipado == true)
             {
                 if (datosProforma.dt_anticipo_pf != null)
                 {
-                    if (datosProforma.dt_anticipo_pf.Count() == 0)
+                    if (paraAprobar)
                     {
-                        return BadRequest(new { resp = "No se encontraron anticipos asignados en esta proforma al CONTADO CON PAGO ANTICIPADO, verifique esta situacion en los Anticipos asignados." });
+                        if (datosProforma.dt_anticipo_pf.Count() == 0)
+                        {
+                            return BadRequest(new { resp = "No se encontraron anticipos asignados en esta proforma al CONTADO CON PAGO ANTICIPADO, verifique esta situacion en los Anticipos asignados." });
+                        }
                     }
-                }
-                //validar que los anticipos no esten duplicados
-                if (datosProforma.dt_anticipo_pf.Count() >= 1)
-                {
-                    int duplicados = datosProforma.dt_anticipo_pf
-                        .GroupBy(i => (i.id_anticipo, i.nroid_anticipo))
-                        .Where(g => g.Count() > 1)
-                        .Count();
-                    if (duplicados > 0)
+                    //validar que los anticipos no esten duplicados
+                    if (datosProforma.dt_anticipo_pf.Count() >= 1)
                     {
-                        return BadRequest(new { resp = "Se encontraron anticipos duplicados, verifique esta situacion en los Anticipos asignados." });
+                        int duplicados = datosProforma.dt_anticipo_pf
+                            .GroupBy(i => (i.id_anticipo, i.nroid_anticipo))
+                            .Where(g => g.Count() > 1)
+                            .Count();
+                        if (duplicados > 0)
+                        {
+                            return BadRequest(new { resp = "Se encontraron anticipos duplicados, verifique esta situacion en los Anticipos asignados." });
+                        }
                     }
                 }
             }
+
+
+
+
             if (veproforma.descuentos > 0)
             {
                 if (datosProforma.vedesextraprof.Count == 0)
@@ -3053,7 +3082,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 objres = await validar_Vta.Validar_Items_Repetidos(_context, tabladetalle, DVTA, codempresa);
                 if (!objres.resultado)
                 {
-                    bandVep1 = false;
+                    bandVep1 = true;
                     msgValDetalle = objres.observacion + Environment.NewLine + objres.obsdetalle;
                 }
             }
@@ -5606,6 +5635,19 @@ namespace SIAW.Controllers.ventas.transaccion
                     {
                         return StatusCode(203, new { resp = verificaResp.msg, status = false });
                     }
+
+                    // 2024-12-17 Se añade validacion para que se evite ingresar descuentos que no correspondan a su tipo de venta
+                    string tipo_venta_desc = await ventas.Descuento_Extra_Tipo_Venta(_context, coddesextra);
+                    if (tipo_venta_desc != "SIN RESTRICCION")
+                    {
+                        if (tipo_venta_desc != tipopago)
+                        {
+                            return StatusCode(203, new { resp = "El tipo de venta de la proforma: " + tipopago + " no coincide con el tipo de venta del decuento: " + tipo_venta_desc + " verifique esta situación!!!", status = false });
+                        }
+                    }
+
+
+
                     // validar si el descuento que esta intentando añadir valida 
                     // si el cliente deberia tener linea de credito valida
                     if (await ventas.Descuento_Extra_Valida_Linea_Credito(_context, coddesextra))

@@ -229,5 +229,53 @@ namespace siaw_funciones
 
         }
 
+        public async Task<bool> ConceptoEsUsuarioFinal(DBContext _context, int codigo)
+        {
+            bool flag = false;
+            try
+            {
+                flag = await _context.inconcepto.Where(i => i.codigo == codigo).Select(i => i.usuario_final).FirstOrDefaultAsync()??false;
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error en concepto es usuario final: " + ex.Message);
+                flag = false;
+            }
+            return flag;
+        }
+        public async Task<bool> Concepto_Es_Entrega_Cliente(DBContext _context, int codigo)
+        {
+            bool flag = false;
+            try
+            {
+                flag = await _context.inconcepto.Where(i => i.codigo == codigo).Select(i => i.cliente).FirstOrDefaultAsync() ?? false;
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error en concepto es entrega cliente: " + ex.Message);
+                flag = false;
+            }
+            return flag;
+        }
+        public async Task<bool> concepto_espara_despacho(DBContext _context, int codconcepto)
+        {
+            int consulta = 0;
+            try
+            {
+                consulta = await _context.inconcepto_despacho.Where(i => i.codconcepto == codconcepto).CountAsync();
+                if (consulta > 0)
+                {
+                    return true;
+                }
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error en concepto es entrega cliente: " + ex.Message);
+                return false;
+            }
+        }
     }
 }

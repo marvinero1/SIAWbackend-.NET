@@ -590,6 +590,7 @@ namespace siaw_DBContext.Data
         public virtual DbSet<incarga1> incarga1 { get; set; }
         public virtual DbSet<inconcepto> inconcepto { get; set; }
         public virtual DbSet<inconcepto_conta> inconcepto_conta { get; set; }
+        public virtual DbSet<inconcepto_despacho> inconcepto_despacho { get; set; }
         public virtual DbSet<inctrlstock> inctrlstock { get; set; }
         public virtual DbSet<inempaquetado> inempaquetado { get; set; }
         public virtual DbSet<inempaquetado1> inempaquetado1 { get; set; }
@@ -20606,6 +20607,13 @@ namespace siaw_DBContext.Data
                 entity.Property(e => e.cta_haber_aux)
                     .HasMaxLength(30)
                     .IsUnicode(false);
+            });
+
+            modelBuilder.Entity<inconcepto_despacho>(entity =>
+            {
+                entity.HasKey(e => e.codconcepto);
+
+                entity.Property(e => e.codconcepto).ValueGeneratedNever();
             });
 
             modelBuilder.Entity<inctrlstock>(entity =>

@@ -89,7 +89,7 @@ namespace SIAW.Controllers.inventarios.mantenimiento
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
-                    var query = _context.inconcepto
+                    var result = await _context.inconcepto
                     .OrderBy(i => i.codigo)
                     .Select(i => new
                     {
@@ -97,9 +97,8 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                         i.descripcion,
                         i.factor,
                         i.traspaso
-                    });
+                    }).ToListAsync();
 
-                    var result = query.ToList();
 
                     if (result.Count() == 0)
                     {

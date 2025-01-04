@@ -154,6 +154,39 @@ namespace siaw_funciones
                 return false;
             }
         }
+
+        public async Task<bool> item_usar_en_movimiento(DBContext _context, string codigo)
+        {
+            bool flag = false;
+            try
+            {
+                flag = await _context.initem.Where(i => i.codigo == codigo).Select(i => i.usar_en_movimiento).FirstOrDefaultAsync() ?? false;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error al verificar si item activo: " + ex.Message);
+                flag = false;
+            }
+            return flag;
+        }
+
+        public async Task<bool> iteminactivo(DBContext _context, string codigo)
+        {
+            bool flag = false;
+            try
+            {
+                // si estado cv de un item esta en 4 es que esta inactivo
+                int num = int.Parse(await _context.initem.Where(i => i.codigo == codigo).Select(i => i.estadocv).FirstOrDefaultAsync()??"4");
+                flag = num == 4;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error al verificar si item activo: " + ex.Message);
+                flag = true;
+            }
+            return flag;
+        }
+
         public async Task<bool> existeitem(DBContext _context, string codigo)
         {
             var consulta = await _context.initem
@@ -455,5 +488,40 @@ namespace siaw_funciones
             }
 
         }
+
+        public async Task<bool> es_item_de_control(DBContext _context, string coditem)
+        {
+            try
+            {
+                bool resultado = await _context.initem_ctrlpedido
+                .AnyAsync(item => item.coditem == coditem);
+                return resultado;
+            }
+            catch (Exception ex)
+            {
+                return true;
+            }
+        }
+
+        public async Task<List<string>> EsParteDeConjuntos(DBContext _context, string coditem)
+        {
+            var resultado = new List<string>();
+            try
+            {
+                resultado = await _context.inkit
+                    .Where(inkit => inkit.item == coditem)
+                    .Select(inkit => inkit.codigo)
+                    .Distinct()
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                // Log or handle the exception as needed
+                Console.WriteLine($"Error: {ex.Message}");
+            }
+
+            return resultado;
+        }
+
     }
 }

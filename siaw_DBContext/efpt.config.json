@@ -2288,6 +2288,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[inconcepto_despacho]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[inctrlstock]",
          "ObjectType": 0
       },

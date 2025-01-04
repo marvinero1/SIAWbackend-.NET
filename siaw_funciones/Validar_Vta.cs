@@ -3856,14 +3856,14 @@ namespace siaw_funciones
             public double Cantidad { get; set; }
         }
 
-        public async Task<string> Cadena_Items_Repetidos_Con_Descuentos(DbContext _context, List<itemDataMatriz> tabladetalle, string codempresa)
-        {
-            bool resultado = true;
-            string cadena = "";
-            int cant_veces_repetido = 0;
 
-            int codempaque_permite_item_repetido = 0;
-            codempaque_permite_item_repetido = await configuracion.codempaque_permite_item_repetido((DBContext)_context, codempresa);
+        public async Task<string> Cadena_Items_Repetidos_Con_Descuentos(DBContext _context, List<itemDataMatriz> tabladetalle, string codempresa, string codcliente)
+        {
+            string cadena = "";
+            decimal ttl_cantidad = 0;
+
+            int coddescuento_caja_cerrada = 0;
+            coddescuento_caja_cerrada = await configuracion.coddescuento_caja_cerrada(_context, codempresa);
 
             if (tabladetalle.Count > 0)
             {
@@ -3892,68 +3892,64 @@ namespace siaw_funciones
                 }
 
                 // Filtrar los items que se repiten menos de dos veces
-                tabla = tabla.Where(t => t.Veces >= 2).ToList();
+                //tabla = tabla.Where(t => t.Veces >= 2).ToList();
+                // Eliminar ítems que no tienen repeticiones (menos de 2 veces)
+                tabla.RemoveAll(t => t.Veces < 2);
+                // Validar las condiciones de los ítems repetidos
+                List<string> errores = new List<string>();
 
-                
-
-                if (tabla.Count > 0)
+                foreach (var item in tabla)
                 {
-                    var items_borrar = new List<string>();
-                    bool bandera = true;
+                    var registros = tabladetalle.Where(t => t.coditem == item.Coditem).ToList();
+                    bool tiene301 = registros.Any(r => r.coddescuento == coddescuento_caja_cerrada);
+                    bool tiene0 = registros.Any(r => r.coddescuento == 0);
 
-                    foreach (var t in tabla)
+                    // Verificar la cantidad de repeticiones
+                    if (registros.Count > 2)
                     {
-                        if (t.Coddescuento > 0 && t.Veces <= 2)
+                        errores.Add($"{item.Coditem} {funciones.Rellenar(item.Descripcion, 18, " ", false)} {funciones.Rellenar(item.Medida, 11, " ", false)} {funciones.Rellenar(item.Veces.ToString(), 2, " ")}");
+                        continue;
+                    }
+
+                    // Validar que exista un coddescuento = 301 y otro coddescuento = 0
+                    if (!(tiene301 && tiene0))
+                    {
+                        errores.Add($"{item.Coditem} {funciones.Rellenar(item.Descripcion, 18, " ", false)} {funciones.Rellenar(item.Medida, 11, " ", false)} {funciones.Rellenar(item.Veces.ToString(), 2, " ")}");
+                    }
+
+                    // Validar que ambos registros cumplan con el empaque
+                    ttl_cantidad = 0;
+                    foreach (var registro in registros)
+                    {
+                        ttl_cantidad += (decimal)registro.cantidad;
+                        if (!await ventas.CumpleEmpaqueCerrado(_context, registro.coditem, registro.codtarifa, registro.coddescuento, (decimal)registro.cantidad, codcliente))
                         {
-                            foreach (var item in tabladetalle)
+                            if (!await ventas.CumpleEmpaqueCerrado(_context, registro.coditem, registro.codtarifa, registro.coddescuento, ttl_cantidad, codcliente))
                             {
-                                int codigo_empaque_descuento_especial = await ventas.Codigo_Empaque_Descuento_Especial((DBContext)_context, item.coddescuento);
-                                if (t.Coditem == item.coditem && codempaque_permite_item_repetido == codigo_empaque_descuento_especial)
-                                {
-                                    if (await ventas.Cumple_Empaque_De_DesctoEspecial((DBContext)_context, item.coditem, item.codtarifa, item.coddescuento, (decimal)item.cantidad, ""))
-                                    {
-                                        //double cantidad_otro = 0;
-                                        //cantidad_otro = tabladetalle.FirstOrDefault(x => x.coditem == t.Coditem).cantidad;
-                                        if (bandera)
-                                        {
-                                            var nextItem = tabladetalle.SkipWhile(x => x != item).Skip(1).FirstOrDefault();
-                                            if (nextItem != null && item.cantidad == nextItem.cantidad)
-                                            {
-                                                bandera = false;
-                                            }
-                                            else
-                                            {
-                                                items_borrar.Add(t.Coditem);
-                                                break;
-                                            }
-                                        }
-                                    }
-                                }
+                                errores.Add($"{item.Coditem} {funciones.Rellenar(item.Descripcion, 18, " ", false)} {funciones.Rellenar(item.Medida, 11, " ", false)} {funciones.Rellenar(item.Veces.ToString(), 2, " ")}");
+                                break;
                             }
                         }
                     }
-
-                    // Eliminar items no válidos
-                    tabla = tabla.Where(t => !items_borrar.Contains(t.Coditem)).ToList();
                 }
 
-                if (tabla.Count > 0)
+                // Construir el mensaje final
+                if (errores.Count > 0)
                 {
-                    var sb = new StringBuilder();
-                    sb.AppendLine(" ITEM     DESCRIPCION          MEDIDA      VECES");
-                    sb.AppendLine("------------------------------------------------");
-
-                    foreach (var t in tabla)
-                    {
-                        sb.AppendLine($" {t.Coditem} {funciones.Rellenar(t.Descripcion, 20, " ", false)} {funciones.Rellenar(t.Medida, 11, " ", false)}  {funciones.Rellenar(t.Veces.ToString(), 3, " ")}");
-                    }
-                    sb.AppendLine("------------------------------------------------");
-
-                    cadena = sb.ToString();
+                    cadena = " ITEM     DESCRIPCION          MEDIDA      VECES" + Environment.NewLine;
+                    cadena += "------------------------------------------------" + Environment.NewLine;
+                    cadena += string.Join(Environment.NewLine, errores);
+                    cadena += Environment.NewLine + "------------------------------------------------" + Environment.NewLine;
+                }
+                else
+                {
+                    cadena = "";
                 }
             }
             return cadena;
         }
+
+
         private async Task<bool> Control_Valido_C00067Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<itemDataMatriz> tabladetalle, string codempresa)
         {
             //##VALIDAR EMPAQUES CERRADOS SEGUN LISTA DE PRECIOS
@@ -4762,7 +4758,7 @@ namespace siaw_funciones
                 {
                     //llamar a la funcion que devolvera los items repetidos si es que los hay
                     cadena_repeditos = "";
-                    cadena_repeditos = await Cadena_Items_Repetidos_Con_Descuentos(_context ,tabladetalle, codempresa);
+                    cadena_repeditos = await Cadena_Items_Repetidos_Con_Descuentos(_context ,tabladetalle, codempresa,DVTA.codcliente_real);
                     if ((cadena_repeditos.Trim().Length > 0))
                     {
                         resultado = false;

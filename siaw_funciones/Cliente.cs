@@ -1645,7 +1645,7 @@ namespace siaw_funciones
                 }
                 else
                 {
-                    resultado = true;
+                    resultado = false;
                 }
                 //}
             }
@@ -2703,6 +2703,24 @@ namespace siaw_funciones
 
                 throw;
             }
+        }
+
+        public async Task<bool> Eliminar_Promocion_Clientes_Excluidos(DBContext _context)
+        {
+            bool resultado = true;
+            try
+            {
+                // Ejecutar el procedimiento almacenado usando Entity Framework
+                await _context.Database.ExecuteSqlRawAsync("EXEC sp_EliminarClientesExcluidosPromocion");
+            }
+            catch (Exception ex)
+            {
+                // Manejo de errores
+                Console.WriteLine("Error al ejecutar el procedimiento almacenado: " + ex.Message);
+                resultado = false;
+            }
+
+            return resultado;
         }
 
     }

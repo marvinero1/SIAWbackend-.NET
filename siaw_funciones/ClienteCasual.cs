@@ -14,6 +14,7 @@ namespace siaw_funciones
     {
         Cliente cliente = new Cliente();
         Almacen almacen = new Almacen();
+        Ventas ventas = new Ventas();
         //Clase necesaria para el uso del DBContext del proyecto siaw_Context
         public static class DbContextFactory
         {
@@ -227,7 +228,7 @@ namespace siaw_funciones
             double limite_descto_deposito = await Porcentaje_Limite_Descuento_Deposito(_context, 0);
 
             // obtener datos de cliente
-            vecliente vecliente = await getDataClienteCasual(_context, cliCasual.codSN, cod_cliente, cliCasual.nomcliente_casual, cliCasual.nit_cliente_casual, cliCasual.email_cliente_casual, cliCasual.usuarioreg, cliCasual.celular_cliente_casual, limite_descto_deposito);
+            vecliente vecliente = await getDataClienteCasual(_context, cliCasual.codSN, cod_cliente, cliCasual.nomcliente_casual, cliCasual.nit_cliente_casual, cliCasual.email_cliente_casual, cliCasual.usuarioreg, cliCasual.celular_cliente_casual, limite_descto_deposito, int.Parse(cliCasual.tipo_doc_cliente_casual));
             // obtener datos de tienda
             vetienda vetienda = await getDataClienteCasualTienda(_context, cod_cliente, cliCasual.codalmacen, cliCasual.nomcliente_casual, cliCasual.email_cliente_casual, cliCasual.celular_cliente_casual, vecliente.fechareg, vecliente.horareg, cliCasual.usuarioreg);
             //valida que datos no esten vacios
@@ -279,12 +280,63 @@ namespace siaw_funciones
             }
             if (!await Asignar_Descuentos_Extra_Defecto_Cliente_Nuevo(_context, cod_cliente))
             {
-                return (false,"");
+                return (false, "");
+            }
+            //Desde 12/12/2024 se debe añadir los descuentos de promocion en vedescliente a los nuevos casuales 
+            if (!await Asignar_Descuentos_Promocion_Cliente_Nuevo(_context, cod_cliente))
+            {
+                return (false, "");
             }
 
             return (true, cod_cliente);
         }
 
+
+        public async Task<bool> Asignar_Descuentos_Promocion_Cliente_Nuevo(DBContext _context, string codcliente)
+        {
+            bool resultado = true;
+
+            try
+            {
+                // Obtener el punto de venta del cliente
+                int ptoVtaCliente = await cliente.PuntoDeVentaCliente(_context, codcliente);
+                string nivelPtoVenta = await ventas.Descuento_Linea_segun_PtoVta_Cliente(_context, ptoVtaCliente);
+
+                // Validar si el descuento de línea está habilitado
+                bool descuentoHabilitado = await ventas.Descuento_Linea_Habilitado(_context, nivelPtoVenta);
+
+                if (descuentoHabilitado)
+                {
+                    // Consulta LINQ para obtener los elementos filtrados de vedesitem
+                    var itemsFiltrados = await _context.vedesitem
+                        .Where(v => v.nivel == nivelPtoVenta)
+                        .Select(v => new vedescliente
+                        {
+                            cliente = codcliente,
+                            coditem = v.coditem,
+                            nivel = v.nivel,
+                            estado = 0,
+                            nivel_anterior = "Z",
+                            nivel_actual_copia = "Z"
+                        }).OrderBy(i => i.coditem).ToListAsync();
+                    // Insertar los registros en la tabla vedescliente
+                    if (itemsFiltrados.Count > 0)
+                    {
+                        await _context.vedescliente.AddRangeAsync(itemsFiltrados);
+                        await _context.SaveChangesAsync();
+                    }
+                }
+                // Llamar al procedimiento almacenado para eliminar clientes excluidos
+                await cliente.Eliminar_Promocion_Clientes_Excluidos(_context);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error al asignar descuentos: " + ex.Message);
+                resultado = false;
+            }
+
+            return resultado;
+        }
 
 
         public async Task<bool> Asignar_Descuentos_Extra_Defecto_Cliente_Nuevo(DBContext _context, string codcliente)
@@ -665,7 +717,7 @@ namespace siaw_funciones
 
         
         public async Task<vecliente> getDataClienteCasual(DBContext _context, string codSN, string cod_cliente, string nomcliente_casual, string nit_cliente_casual, string email_cliente_casual, string usuarioreg,
-            string celular_cliente_casual, double limite_descto_deposito)
+            string celular_cliente_casual, double limite_descto_deposito, int tipodoc)
         {
             string fechaDef = "1900-01-01";
             string fechaAc = getFechaActual();
@@ -685,6 +737,7 @@ namespace siaw_funciones
             dt_SN.codigo = cod_cliente;
             dt_SN.razonsocial = nomcliente_casual;
             dt_SN.nit = nit_cliente_casual;
+            dt_SN.tipo_docid = tipodoc;
             dt_SN.credito = 0;
 
             dt_SN.fvenccred = DateTime.Parse(fechaDef);  //enviar fecha

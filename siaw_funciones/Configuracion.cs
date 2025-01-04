@@ -616,6 +616,28 @@ namespace siaw_funciones
                 return "";
             }
         }
+        public async Task<string> usr_idmovimiento(DBContext _context, string usuario)
+        {
+            try
+            {
+                var result = await _context.adusparametros
+                    .Where(parametro => parametro.usuario == usuario)
+                    .Select(i => new
+                    {
+                        i.idmovimiento
+                    })
+                    .FirstOrDefaultAsync();
+                if (result == null)
+                {
+                    return "";
+                }
+                return result.idmovimiento;
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
         public async Task<int> usr_codvendedor(DBContext _context, string usuario)
         {
             try
@@ -1059,7 +1081,18 @@ namespace siaw_funciones
                 return 0;
             }
         }
-
+        public async Task<bool> usr_ver_check_es_para_inventario(DBContext _context, string usuario)
+        {
+            try
+            {
+                bool resultado = await _context.adusparametros.Where(i => i.usuario == usuario).Select(i => i.ver_check_es_para_inventario).FirstOrDefaultAsync() ?? false;
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
     }
 }
  

@@ -426,6 +426,8 @@ namespace SIAW.Controllers.ventas.transaccion
             string codcliente = cabecera.codcliente;
             string codempresa = dataFacturaTienda.codempresa;
             string usuario = dataFacturaTienda.usuario;
+
+
             // ###VALIDAR QUE EL USUARIO DE TIENDA NO FACTURE DE ALMACEN
             foreach (var detalle in tabladetalle)
             {
@@ -472,7 +474,32 @@ namespace SIAW.Controllers.ventas.transaccion
                 else if (Convert.IsDBNull(detalle.preciolista) || detalle.preciolista <= 0)
                 {
                     resultado = false;
-                    return (resultado, "No puso el precio en la línea " + tabladetalle.IndexOf(detalle) + 1 + ", Item: " + detalle.coditem, null);
+                    return (resultado, "No puso el precioL en la línea " + tabladetalle.IndexOf(detalle) + 1 + ", Item: " + detalle.coditem, null);
+                }
+                else if (Convert.IsDBNull(detalle.preciodesc) || detalle.preciodesc <= 0)
+                {
+                    resultado = false;
+                    return (resultado, "No puso el precioL en la línea " + tabladetalle.IndexOf(detalle) + 1 + ", Item: " + detalle.coditem, null);
+                }
+                else if (Convert.IsDBNull(detalle.preciodist) || detalle.preciodist <= 0)
+                {
+                    resultado = false;
+                    return (resultado, "No puso el precioD en la línea " + tabladetalle.IndexOf(detalle) + 1 + ", Item: " + detalle.coditem, null);
+                }
+                else if (Convert.IsDBNull(detalle.precioneto) || detalle.precioneto <= 0)
+                {
+                    resultado = false;
+                    return (resultado, "No puso el precioN en la línea " + tabladetalle.IndexOf(detalle) + 1 + ", Item: " + detalle.coditem, null);
+                }
+                else if (Convert.IsDBNull(detalle.total) || detalle.total <= 0)
+                {
+                    resultado = false;
+                    return (resultado, "No puso el total en la línea " + tabladetalle.IndexOf(detalle) + 1 + ", Item: " + detalle.coditem, null);
+                }
+                else if (Convert.IsDBNull(detalle.totaldist) || detalle.totaldist <= 0)
+                {
+                    resultado = false;
+                    return (resultado, "No puso el totalD en la línea " + tabladetalle.IndexOf(detalle) + 1 + ", Item: " + detalle.coditem, null);
                 }
                 else if (!await ventas.ValidarTarifa(_context, codcliente, detalle.coditem, detalle.codtarifa))
                 {
@@ -488,6 +515,9 @@ namespace SIAW.Controllers.ventas.transaccion
                 detalle.distrecargo = 0;
                 detalle.preciodist = detalle.precioneto;
             }
+
+
+
             //verificar que la unidad de medida sea entero o decimal
             if (resultado)
             {

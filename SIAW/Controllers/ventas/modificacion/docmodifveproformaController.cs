@@ -793,7 +793,7 @@ namespace SIAW.Controllers.ventas.modificacion
             {
                 return BadRequest(new { resp = "Una venta al CONTADO-CONTRA ENTREGA sin ESTADO CONTRA ENTREGA NO ES POSIBLE, verifique esta situacion." });
             }
-            if (veproforma.tipopago == 0 && veproforma.contra_entrega == false && veproforma.pago_contado_anticipado == false)
+            if (paraAprobar && veproforma.tipopago == 0 && veproforma.contra_entrega == false && veproforma.pago_contado_anticipado == false)
             {
                 return BadRequest(new { resp = "Una venta al CONTADO QUE NO ES CONTRA ENTREGA SIN PAGO ANTICIPADO NO ES POSIBLE, verifique esta situacion." });
             }
@@ -805,28 +805,36 @@ namespace SIAW.Controllers.ventas.modificacion
             {
                 return BadRequest(new { resp = "Una venta al CONTADO con PAGO ANTICIPADO y ESTADO CONTRA ENTREGA NO ES POSIBLE, verifique esta situacion." });
             }
+            
+
             if (veproforma.tipopago == 0 && veproforma.contra_entrega == false && veproforma.pago_contado_anticipado == true)
             {
                 if (datosProforma.dt_anticipo_pf != null)
                 {
-                    if (datosProforma.dt_anticipo_pf.Count() == 0)
+                    if (paraAprobar)
                     {
-                        return BadRequest(new { resp = "No se encontraron anticipos asignados en esta proforma al CONTADO CON PAGO ANTICIPADO, verifique esta situacion en los Anticipos asignados." });
+                        if (datosProforma.dt_anticipo_pf.Count() == 0)
+                        {
+                            return BadRequest(new { resp = "No se encontraron anticipos asignados en esta proforma al CONTADO CON PAGO ANTICIPADO, verifique esta situacion en los Anticipos asignados." });
+                        }
                     }
-                }
-                //validar que los anticipos no esten duplicados
-                if (datosProforma.dt_anticipo_pf.Count() >= 1)
-                {
-                    int duplicados = datosProforma.dt_anticipo_pf
-                        .GroupBy(i => (i.id_anticipo, i.nroid_anticipo))
-                        .Where(g => g.Count() > 1)
-                        .Count();
-                    if (duplicados > 0)
+                    //validar que los anticipos no esten duplicados
+                    if (datosProforma.dt_anticipo_pf.Count() >= 1)
                     {
-                        return BadRequest(new { resp = "Se encontraron anticipos duplicados, verifique esta situacion en los Anticipos asignados." });
+                        int duplicados = datosProforma.dt_anticipo_pf
+                            .GroupBy(i => (i.id_anticipo, i.nroid_anticipo))
+                            .Where(g => g.Count() > 1)
+                            .Count();
+                        if (duplicados > 0)
+                        {
+                            return BadRequest(new { resp = "Se encontraron anticipos duplicados, verifique esta situacion en los Anticipos asignados." });
+                        }
                     }
                 }
             }
+
+
+
             if (veproforma.descuentos > 0)
             {
                 if (datosProforma.vedesextraprof.Count == 0)
@@ -877,6 +885,15 @@ namespace SIAW.Controllers.ventas.modificacion
 
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
+                if (await ventas.proforma_aprobada(_context, veproforma.codigo))
+                {
+                    return BadRequest(new { resp = "No se puede grabar la proforma porque ya la aprobaron, verifique esta situación recuperando nuevamente la proforma." });
+                }
+                if (await Ventas.proforma_anulada(_context,veproforma.codigo))
+                {
+                    return BadRequest(new { resp = "No se puede grabar la proforma porque ya la anularon, verifique esta situación recuperando nuevamente la proforma." });
+                }
+
                 DatosDocVta DVTA = await ConvertirVeproformaADatosDocVta(veproforma);
                 DVTA.codcliente_real = codcliente_real;
                 List<itemDataMatriz> tabladetalle = await ConvertirListaVeproforma1AListaItemDataMatriz(veproforma1);
@@ -1063,7 +1080,8 @@ namespace SIAW.Controllers.ventas.modificacion
                     {
                         if (grabar_con_negativos == false)
                         {
-                            return BadRequest(new { resp = "Existen saldos negativos!!!, SI aun asi desea solo GRABAR la Proforma vuelva a Grabarlo." });
+                            return BadRequest(new { resp = "Existen saldos negativos!!!, SI aun asi desea solo GRABAR, valide primero los Negativos y despues Guarde." });
+                            // return BadRequest(new { resp = "Existen saldos negativos!!!, SI aun asi desea solo GRABAR la Proforma vuelva a Grabarlo." });
                         }
                     }
                 }
@@ -1075,6 +1093,15 @@ namespace SIAW.Controllers.ventas.modificacion
                 {
                     try
                     {
+                        if (await ventas.proforma_aprobada(_context, veproforma.codigo))
+                        {
+                            return BadRequest(new { resp = "No se puede grabar la proforma porque ya la aprobaron, verifique esta situación recuperando nuevamente la proforma." });
+                        }
+                        if (await Ventas.proforma_anulada(_context, veproforma.codigo))
+                        {
+                            return BadRequest(new { resp = "No se puede grabar la proforma porque ya la anularon, verifique esta situación recuperando nuevamente la proforma." });
+                        }
+
                         var result = await Grabar_Documento(_context, codProforma, codempresa, datosProforma);
                         if (result.resp != "ok")
                         {
@@ -1820,7 +1847,7 @@ namespace SIAW.Controllers.ventas.modificacion
                 objres = await validar_Vta.Validar_Items_Repetidos(_context, tabladetalle, DVTA, codempresa);
                 if (!objres.resultado)
                 {
-                    bandVep1 = false;
+                    bandVep1 = true;
                     msgValDetalle = objres.observacion + Environment.NewLine + objres.obsdetalle;
                 }
             }
