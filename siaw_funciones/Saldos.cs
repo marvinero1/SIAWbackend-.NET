@@ -2145,6 +2145,8 @@ namespace siaw_funciones
         }
 
 
+
+
         public enum ModoActualizacion
         {
             Crear,

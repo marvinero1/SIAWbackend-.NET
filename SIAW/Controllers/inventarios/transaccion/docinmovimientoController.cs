@@ -31,6 +31,9 @@ namespace SIAW.Controllers.inventarios.transaccion
         private readonly HardCoded hardCoded = new HardCoded();
         private readonly Configuracion configuracion = new Configuracion();
         private readonly Nombres nombres = new Nombres();
+        private readonly Log log = new Log();
+
+        private readonly string _controllerName = "docinmovimientoController";
 
         private readonly UserConnectionManager _userConnectionManager;
         public docinmovimientoController(UserConnectionManager userConnectionManager)
@@ -60,6 +63,8 @@ namespace SIAW.Controllers.inventarios.transaccion
                     bool es_tienda = false;
                     bool ver_ch_es_para_invntario = await configuracion.usr_ver_check_es_para_inventario(_context, usuario);
 
+                    var dataPorConcepto = await actualizarconcepto(_context, "limpiar", 0, codalmacen);
+
                     return Ok(new
                     {
                         codvendedor,
@@ -73,7 +78,9 @@ namespace SIAW.Controllers.inventarios.transaccion
                         obtener_cantidades_aprobadas_de_proformas,
                         es_ag_local,
                         es_tienda,
-                        ver_ch_es_para_invntario
+                        ver_ch_es_para_invntario,
+                        // para habilitar o deshabilitar inputs y botones
+                        dataPorConcepto
                     });
                 }
             }
@@ -87,18 +94,31 @@ namespace SIAW.Controllers.inventarios.transaccion
 
 
         [HttpPost]
-        [Route("grabarDocumento/{userConn}")]
-        public async Task<ActionResult<object>> grabarDocumento(string userConn, List<tablaDetalleNM> tablaDetalle)
+        [Route("grabarDocumento/{userConn}/{codempresa}/{traspaso}")]
+        public async Task<ActionResult<object>> grabarDocumento(string userConn, string codempresa, bool traspaso, requestGabrar dataGrabar)
         {
             try
             {
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
+                    List<tablaDetalleNM> tablaDetalle = dataGrabar.tablaDetalle;
                     // calculartotal.PerformClick()
                     // borrar items con cantidad 0 o menor
                     tablaDetalle = tablaDetalle.Where(i => i.cantidad > 0).ToList();
 
+
+                    var guardarDoc = await guardarNuevoDocumento(_context, codempresa, traspaso, dataGrabar.cabecera, tablaDetalle);
+                    if (guardarDoc.valido == false)
+                    {
+                        return BadRequest(new
+                        {
+                            resp = guardarDoc.msg,
+                            negativos = guardarDoc.dtnegativos,
+                            valido = guardarDoc.valido
+                        });
+                    }
+                    await log.RegistrarEvento(dataGrabar.cabecera.usuarioreg, Log.Entidades.SW_Nota_Movimiento,)
                 }
                 return Ok();
             }
@@ -109,8 +129,9 @@ namespace SIAW.Controllers.inventarios.transaccion
             }
         }
 
-        private async Task<(bool valido, string msg, List<Dtnegativos>? dtnegativos)> guardarNuevoDocumento(DBContext _context, int factor, string codempresa, bool traspaso, inmovimiento inmovimiento, List<tablaDetalleNM> tablaDetalle)
+        private async Task<(bool valido, string msg, List<Dtnegativos>? dtnegativos)> guardarNuevoDocumento(DBContext _context, string codempresa, bool traspaso, inmovimiento inmovimiento, List<tablaDetalleNM> tablaDetalle)
         {
+            int factor = inmovimiento.factor;
             // preparacion de datos 
             inmovimiento.fecha = inmovimiento.fecha.Date;
             inmovimiento.factor = (short)factor;
@@ -201,21 +222,50 @@ namespace SIAW.Controllers.inventarios.transaccion
                             throw;
                         }
 
-                        /*
+                    }
+
+                    /*
                           DESPUES DE GUARDAR DETALLE CABECERA Y NUMERO DE ID
                         '//#######################################
                         '//##RUTINA QUE ACTUALIZA EL SALDO ACTUAL
                         'sia_funciones.Saldos.Instancia.Inmovimiento_ActualizarSaldo(codigo.Text, sia_funciones.Saldos.modo_actualizacion.crear, tabladetalle)
                         ''Desde 23/11/2023 verificar si la actualizacion de saldo es true oi false para registrar un registro de que no se pudo actualizar
                          */
-                        /*
-                        if (await saldos.Inmovimiento_ActualizarSaldo())
-                        {
+                    /*
+                     * 
 
-                        }
-                        */
+                    ACTUALIZAR POR PROCEDIMIENTO ALMACENADO MEJOR
+
+                    if (await saldos.Inmovimiento_ActualizarSaldo())
+                    {
 
                     }
+                    */
+                    // #######################################
+                    // sia_funciones.Inventario.Instancia.actaduanamovimiento(codigo.Text, "crear", fecha.Value.Date)
+
+                    // Pasar a transferido proforma de solicitud urgente
+                    // actualizar proforma a transferida
+                    if (inmovimiento.idproforma_sol != "" && inmovimiento.numeroidproforma_sol != null && inmovimiento.numeroidproforma_sol != 0)
+                    {
+                        if (await ventas.proforma_es_sol_urgente(_context, inmovimiento.idproforma_sol, (int)inmovimiento.numeroidproforma_sol))
+                        {
+                            var datoProf = await _context.veproforma.Where(i => i.id == inmovimiento.idproforma_sol && i.numeroid == inmovimiento.numeroidproforma_sol).FirstOrDefaultAsync();
+                            datoProf.transferida = true;
+                            await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
+                            await log.RegistrarEvento(_context, inmovimiento.usuarioreg, Log.Entidades.SW_Nota_Movimiento, datoProf.codigo.ToString(), inmovimiento.idproforma_sol, inmovimiento.numeroidproforma_sol.ToString(), _controllerName, "Pasar a transferida Proforma", Log.TipoLog.Creacion);
+                            // actualizar revertir stock de proforma
+                            try
+                            {
+                                await ventas.revertirstocksproforma(_context, datoProf.codigo, codempresa);
+                            }
+                            catch (Exception)
+                            {
+
+                            }
+                        }
+                    }
+                    return (true, "", null);
 
                 }
                 return (false, validaCabecera.msg, null);
@@ -557,6 +607,155 @@ namespace SIAW.Controllers.inventarios.transaccion
         }
 
 
+
+
+        [HttpGet]
+        [Route("eligeConcepto/{userConn}/{codConcepto}/{codalmacen}")]
+        public async Task<ActionResult<dataPorConcepto>> eligeConcepto(string userConn, int codConcepto, int codalmacen)
+        {
+            try
+            {
+                /*
+                 
+                codconcepto.Text = sia_compartidos.temporales.Instancia.catalogo1
+                codconceptodescripcion.Text = sia_compartidos.temporales.Instancia.catalogo2
+                Me.Text = "Nota de Movimiento de Mercaderia - " & codconceptodescripcion.Text
+
+                 */
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    dataPorConcepto dataPorConcepto = await actualizarconcepto(_context, "limpiar", codConcepto, codalmacen);
+                    dataPorConcepto.codclienteReadOnly = true;
+                    dataPorConcepto.codpersonadesdeReadOnly = true;
+
+                    /*
+                     
+                    If sia_funciones.Inventario.Instancia.ConceptoEsUsuarioFinal(codconcepto.Text) Then
+                        Me.verificar_concepto_usr_final()
+                    Else
+                        Me.verificar_concepto_entrega_cliente()
+                    End If
+
+                     */
+
+                    if (codConcepto == 10)
+                    {
+                        dataPorConcepto.cargar_proformaEnabled = true;
+                        dataPorConcepto.cvenumeracion1Enabled = true;
+                        dataPorConcepto.id_proforma_solReadOnly = false;
+                        dataPorConcepto.numeroidproforma_solReadOnly = false;
+                    }
+                    else
+                    {
+                        dataPorConcepto.cargar_proformaEnabled = false;
+                        dataPorConcepto.cvenumeracion1Enabled = false;
+                        dataPorConcepto.id_proforma_solReadOnly = true;
+                        dataPorConcepto.numeroidproforma_solReadOnly = true;
+                    }
+                    return dataPorConcepto;
+                }
+            }
+            catch (Exception ex)
+            {
+                return Problem("Error en el servidor al elegir concepto: " + ex.Message);
+                throw;
+            }
+        }
+
+        private async Task<dataPorConcepto> actualizarconcepto(DBContext _context, string opcion, int codconcepto, int codalmacen)
+        {
+            bool codalmdestinoReadOnly, codalmorigenReadOnly, traspaso, fidEnable, fnumeroidEnable , codpersonadesdeReadOnly = new bool();
+            fidEnable = true;
+            fnumeroidEnable = true;
+            traspaso = false;
+
+            int codalmdestinoText = 0, codalmorigenText = 0;
+            int factor = 0;
+            if (codconcepto == 0)
+            {
+                codalmdestinoReadOnly = true;
+                codalmorigenReadOnly = true;
+                codconcepto = 0;
+                if (opcion == "limpiar")
+                {
+                    codalmdestinoText = 0;
+                    codalmorigenText = 0;
+                }
+                factor = 0;
+            }
+            else
+            {
+                var datos = await _context.inconcepto.Where(i => i.codigo == codconcepto).FirstOrDefaultAsync();
+                if (datos == null)
+                {
+                    codalmdestinoReadOnly = true;
+                    codalmorigenReadOnly = true;
+                    codconcepto = 0;
+                    if (opcion == "limpiar")
+                    {
+                        codalmdestinoText = 0;
+                        codalmorigenText = 0;
+                    }
+                    factor = 0;
+                }
+                else
+                {
+                    factor = datos.factor;
+                    traspaso = datos.traspaso;
+                    if (traspaso)
+                    {
+                        switch (factor)
+                        {
+                            case 1:
+                                codalmorigenReadOnly = false;
+                                codalmdestinoReadOnly = true;
+                                codalmorigenText = 0;
+                                codalmdestinoText = codalmacen;
+                                break;
+                            case -1:
+                                codalmorigenReadOnly = true;
+                                codalmdestinoReadOnly = false;
+                                codalmdestinoText = 0;
+                                codalmorigenText = codalmacen;
+                                break;
+                            case 0:
+                                codalmorigenReadOnly = false;
+                                codalmdestinoReadOnly = false;
+                                break;
+                            default:
+                                codalmorigenReadOnly = true;
+                                codalmdestinoReadOnly = true;
+                                break;
+                        }
+
+                    }
+                    else
+                    {
+                        codalmorigenReadOnly = true;
+                        codalmdestinoReadOnly = true;
+                        fidEnable = false;
+                        fnumeroidEnable = false;
+                        codalmorigenText = codalmacen;
+                        codalmdestinoText = codalmacen;
+                        codpersonadesdeReadOnly = true;
+                    }
+                }
+            }
+            return new dataPorConcepto
+            {
+                codalmdestinoReadOnly = codalmdestinoReadOnly,
+                codalmorigenReadOnly = codalmorigenReadOnly,
+                traspaso = traspaso,
+                fidEnable = fidEnable,
+                fnumeroidEnable = fnumeroidEnable,
+                codpersonadesdeReadOnly = codpersonadesdeReadOnly,
+                codalmdestinoText = codalmdestinoText,
+                codalmorigenText = codalmorigenText,
+                factor = factor
+            };
+            
+        }
 
 
 
@@ -1304,5 +1503,27 @@ namespace SIAW.Controllers.inventarios.transaccion
         public List<tablaDetalleNM> tabladetalle { get; set; }
 
     }
+    public class requestGabrar
+    {
+        public inmovimiento cabecera { get; set; }
+        public List<tablaDetalleNM> tablaDetalle { get; set; }
+    }
+    public class dataPorConcepto
+    {
+        public bool codalmdestinoReadOnly { get; set; }
+        public bool codalmorigenReadOnly { get; set; }
+        public bool traspaso {  get; set; } 
+        public bool fidEnable { get; set; }
+        public bool fnumeroidEnable { get; set; }
+        public bool codpersonadesdeReadOnly { get; set; }
+        public int codalmdestinoText {  get; set; }
+        public int codalmorigenText { get; set; }
+        public int factor {  get; set; }
 
+        public bool codclienteReadOnly { get;set; }
+        public bool cargar_proformaEnabled { get; set; } = false;
+        public bool cvenumeracion1Enabled { get; set; } = false;
+        public bool id_proforma_solReadOnly { get; set; } = true;
+        public bool numeroidproforma_solReadOnly { get; set; } = true;
+    }
 }

@@ -6544,6 +6544,7 @@ namespace siaw_funciones
             }
             return objres;
         }
+       
         public async Task<ResultadoValidacion> Validar_Cliente_Tiene_Cuentas_Por_Pagar_En_Mora(DBContext _context, DatosDocVta DVTA, string codempresa)
         {
             string cadena = "";
@@ -6554,12 +6555,23 @@ namespace siaw_funciones
 
             int dias_limite_mora = await configuracion.dias_mora_limite(_context, codempresa);
             //valida solo si es para venta al credito
-            if (DVTA.tipo_vta == "CREDITO" || (await cliente.EsClienteSinNombre(_context, DVTA.codcliente) || await cliente.Es_Cliente_Casual(_context, DVTA.codcliente)) && !await cliente.EsClienteSinNombre(_context, DVTA.codcliente_real))
+            if (DVTA.tipo_vta == "CREDITO")
             {
                 if (await creditos.ClienteEnMora(_context, DVTA.codcliente_real, codempresa))
                 {
                     cadena = "El cliente:" + DVTA.codcliente_real + " tiene cuentas en mora, aun tomando en cuenta sus extensiones, por favor corrija esta situacion antes de grabar para aprobar la proforma(verifique el reporte morosidad por cuotas con extension). El maximo de dias con mora permitido es de: (" + dias_limite_mora + ") dia(s)";
                     cadena_mora = await creditos.Cadena_Notas_De_Remision_En_Mora(_context, DVTA.codcliente_real, codempresa);
+                }
+            }
+            else
+            {
+                if (await cliente.EsClienteSinNombre(_context, DVTA.codcliente) == false)
+                {
+                    if (await creditos.ClienteEnMora(_context, DVTA.codcliente_real, codempresa))
+                    {
+                        cadena = "El cliente:" + DVTA.codcliente_real + " tiene cuentas en mora, aun tomando en cuenta sus extensiones, por favor corrija esta situacion antes de grabar para aprobar la proforma(verifique el reporte morosidad por cuotas con extension). El maximo de dias con mora permitido es de: (" + dias_limite_mora + ") dia(s)";
+                        cadena_mora = await creditos.Cadena_Notas_De_Remision_En_Mora(_context, DVTA.codcliente_real, codempresa);
+                    }
                 }
             }
 
@@ -6574,6 +6586,8 @@ namespace siaw_funciones
             }
             return objres;
         }
+
+
         public async Task<ResultadoValidacion> Validar_Georeferencia_Entrega_Valida(DBContext _context, string latitud, string longitud, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();

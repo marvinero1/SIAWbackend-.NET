@@ -2455,7 +2455,7 @@ namespace SIAW.Controllers.ventas.transaccion
             }
 
 
-            if (veproforma.estado_contra_entrega == "vacio" || veproforma.estado_contra_entrega == "VACIO")
+            if (veproforma.estado_contra_entrega == "vacio" || veproforma.estado_contra_entrega == "VACIO" || veproforma.estado_contra_entrega == null)
             {
                 veproforma.estado_contra_entrega = "";
             }
