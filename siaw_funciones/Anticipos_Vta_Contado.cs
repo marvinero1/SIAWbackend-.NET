@@ -854,10 +854,10 @@ namespace siaw_funciones
             }
             return ttl_dist;
         }
-        public async Task<List<vedetalleanticipo>> Anticipos_MontoRestante_Sin_Deposito(DBContext _context, string codcliente)
+        public async Task<List<vedetalleanticipo>> Anticipos_MontoRestante_Sin_Deposito(DBContext _context, string codcliente, int codvendedor)
         {
             var dt_anticipos = await _context.coanticipo
-                .Where(x => x.codcliente == codcliente && x.anulado == false && x.montorest > 0 && x.deposito_cliente == false)
+                .Where(x => x.codcliente == codcliente && x.codvendedor == codvendedor && x.anulado == false && x.montorest > 0 && x.deposito_cliente == false)
                 .Select(x => new vedetalleanticipo
                 {
                     codigo = x.codigo,

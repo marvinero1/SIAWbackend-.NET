@@ -383,4 +383,271 @@ Public Class impresion
 
     End Function
 
+
+    Public Function imprimir_inmovimiento(ByVal PathAplicacion As String, ByVal tabla As DataTable, ByVal titulo As String, ByVal tiponm As String, ByVal id_concepto As String, ByVal conceptodescripcion As String, ByVal empresa As String, ByVal usuario As String, ByVal nit As String, ByVal codvendedor As String, ByVal codalmacen As String, ByVal codalmacen_origen As String, ByVal codalmacen_destino As String, ByVal fecha As String, ByVal total As String, ByVal pesototal As String, ByVal obs As String, ByVal fecha_impresion As String, ByVal es_argentina As Boolean, ByVal es_ajuste As Boolean, ByVal nomCliente As String) As String
+        'tipo_hoja 0 carta, 1 as sia_12x25
+        Dim resultado As String = ""
+        Dim cantidadxcosto As Double = 0
+        Dim total_costo As Double = 0
+        Dim rnd As New Random()
+        Try
+            Dim i, e As Integer
+            '///generar archivo
+            Dim nombarch As String = "p" & rnd.Next(1, 100000) & ".txt"
+            'borrar archivo
+            If System.IO.File.Exists(PathAplicacion & "\temp\" & nombarch) Then
+                System.IO.File.Delete(PathAplicacion & "\temp\" & nombarch)
+            End If
+            'crear archivo y guardar primero el actual y luego los de la lista
+
+            'Dim oFile As System.IO.File
+            Dim oWrite As System.IO.StreamWriter
+            'oWrite = New System.IO.StreamWriter(PathAplicacion & "\temp\" & nombarch, False, System.Text.Encoding.ASCII)
+            oWrite = System.IO.File.CreateText(PathAplicacion & "\temp\" & nombarch)
+
+            Dim fila, hoja As Integer
+            hoja = 0
+            For i = 0 To tabla.Rows.Count - 1
+                fila = i + 1
+                If (fila = 1) Then
+                    '######################
+                    '#  CABECERA DE HOJA  #
+                    '######################
+                    oWrite.WriteLine(empresa)
+                    oWrite.WriteLine(nit)
+                    oWrite.WriteLine(" ")
+                    oWrite.WriteLine(funciones.CentrarCadena(tiponm, 115, " "))
+                    oWrite.WriteLine(funciones.CentrarCadena(titulo, 115, " "))
+                    oWrite.WriteLine(" ")
+                    oWrite.WriteLine("CONCEPTO: " & id_concepto & " " & funciones.Rellenar(conceptodescripcion, 105, " ", False) & " FECHA: " & funciones.Rellenar(fecha, 15, " ", False))
+                    oWrite.WriteLine("ALMACEN: " & funciones.Rellenar(codalmacen, 15, " ", False) & "ORIGEN: " & funciones.Rellenar(codalmacen_origen, 15, " ", False) & " DESTINO: " & funciones.Rellenar(codalmacen_destino, 45, " ", False) & " VENDEDOR: " & funciones.Rellenar(codvendedor, 25, " ", False))
+
+                    If es_argentina Then
+                        If es_ajuste Then
+                            oWrite.WriteLine(" ")
+                            oWrite.WriteLine("---------------------------------------------------------------------------------------------------------------------------------------")
+                            oWrite.WriteLine("  # CODIGO    <------DESCRIPCION-------->  <------MEDIDA------>       CANTIDAD               UD       COSTO       TOTAL")
+                            oWrite.WriteLine("---------------------------------------------------------------------------------------------------------------------------------------")
+                        Else
+                            oWrite.WriteLine(" ")
+                            oWrite.WriteLine("---------------------------------------------------------------------------------------------------------------------------------------")
+                            oWrite.WriteLine("  # CODIGO    <------DESCRIPCION-------->  <------MEDIDA------>       CANTIDAD               UD  ")
+                            oWrite.WriteLine("---------------------------------------------------------------------------------------------------------------------------------------")
+                        End If
+
+                    Else
+                        If es_ajuste Then
+                            oWrite.WriteLine(" ")
+                            oWrite.WriteLine("---------------------------------------------------------------------------------------------------------------------------------------")
+                            oWrite.WriteLine("  # CODIGO    <------DESCRIPCION-------->  <------MEDIDA------>       CANTIDAD               UD       COSTO       TOTAL")
+                            oWrite.WriteLine("---------------------------------------------------------------------------------------------------------------------------------------")
+                        Else
+                            oWrite.WriteLine(" ")
+                            oWrite.WriteLine("---------------------------------------------------------------------------------------------------------------------------------------")
+                            oWrite.WriteLine("  # CODIGO    <------DESCRIPCION-------->  <------MEDIDA------>       CANTIDAD               UD  ")
+                            oWrite.WriteLine("---------------------------------------------------------------------------------------------------------------------------------------")
+                        End If
+                    End If
+
+                    'oWrite.WriteLine("NNN_CCCCCCCCC__DDDDDDDDDDDDDDDDDDDDDDDDDDD__MMMMMMMMMMMMMMMMMMMM__UUU__NNNNNNNNNNNN_______________PP__NNNNNNNNNNNN__NNNNNNNNNNN")
+                    'ElseIf (fila Mod 49 = 0) Then
+                ElseIf (fila = ((hoja * 48) + 48 + 1)) Then
+                    'es pie
+                    '######################
+                    '#  PIE DE HOJA       #
+                    '######################
+                    hoja = hoja + 1
+                    oWrite.WriteLine("---------------------------------------------------------------------------------------------------------------------------------------")
+                    oWrite.WriteLine("Hoja Nro. " & CStr(hoja) & "  (" & usuario & ") " & fecha_impresion)
+                    oWrite.WriteLine(" ")
+                    oWrite.WriteLine(" ") 'recently added
+                    'comienza la nueva hoja
+                    oWrite.WriteLine(" ")
+                    oWrite.WriteLine(" ")
+                    'oWrite.WriteLine(" ") '& Convert.ToChar(27) & "K" & Convert.ToChar(5))
+                    'regresar unos puntos para dejar ista la siguente hoja
+                    '######################
+                    '#  CABECERA DE HOJA  #
+                    '######################
+                    oWrite.WriteLine(" ")
+                    oWrite.WriteLine(" ")
+                    oWrite.WriteLine(" ")
+                    oWrite.WriteLine(funciones.CentrarCadena(tiponm, 115, " "))
+                    oWrite.WriteLine(funciones.CentrarCadena(titulo, 115, " "))
+                    oWrite.WriteLine(" ")
+                    oWrite.WriteLine("CONCEPTO: " & id_concepto & " " & funciones.Rellenar(conceptodescripcion, 105, " ", False) & " FECHA: " & funciones.Rellenar(fecha, 15, " ", False))
+                    oWrite.WriteLine("ALMACEN: " & funciones.Rellenar(codalmacen, 15, " ", False) & "ORIGEN: " & funciones.Rellenar(codalmacen_origen, 15, " ", False) & " DESTINO: " & funciones.Rellenar(codalmacen_destino, 45, " ", False) & " VENDEDOR: " & funciones.Rellenar(codvendedor, 25, " ", False))
+
+                    If es_argentina Then
+                        If es_ajuste Then
+                            oWrite.WriteLine(" ")
+                            oWrite.WriteLine("---------------------------------------------------------------------------------------------------------------------------------------")
+                            oWrite.WriteLine("  # CODIGO    <------DESCRIPCION-------->  <------MEDIDA------>       CANTIDAD               UD       COSTO       TOTAL")
+                            oWrite.WriteLine("---------------------------------------------------------------------------------------------------------------------------------------")
+                        Else
+                            oWrite.WriteLine(" ")
+                            oWrite.WriteLine("---------------------------------------------------------------------------------------------------------------------------------------")
+                            oWrite.WriteLine("  # CODIGO    <------DESCRIPCION-------->  <------MEDIDA------>       CANTIDAD               UD  ")
+                            oWrite.WriteLine("---------------------------------------------------------------------------------------------------------------------------------------")
+                        End If
+
+                    Else
+                        If es_ajuste Then
+                            oWrite.WriteLine(" ")
+                            oWrite.WriteLine("---------------------------------------------------------------------------------------------------------------------------------------")
+                            oWrite.WriteLine("  # CODIGO    <------DESCRIPCION-------->  <------MEDIDA------>       CANTIDAD               UD       COSTO       TOTAL")
+                            oWrite.WriteLine("---------------------------------------------------------------------------------------------------------------------------------------")
+                        Else
+                            oWrite.WriteLine(" ")
+                            oWrite.WriteLine("---------------------------------------------------------------------------------------------------------------------------------------")
+                            oWrite.WriteLine("  # CODIGO    <------DESCRIPCION-------->  <------MEDIDA------>       CANTIDAD               UD  ")
+                            oWrite.WriteLine("---------------------------------------------------------------------------------------------------------------------------------------")
+                        End If
+                    End If
+
+                    'oWrite.WriteLine("NNN_CCCCCCCCC__DDDDDDDDDDDDDDDDDDDDDDDDDDD__MMMMMMMMMMMMMMMMMMMM__UUU__NNNNNNNNNNNN_______________PP__NNNNNNNNNNNN__NNNNNNNNNNN")
+                End If
+                'poner fila detalle
+                If es_argentina Then
+                    If es_ajuste Then
+                        cantidadxcosto = tabla.Rows(i)("cantidad") * CDbl(tabla.Rows(i)("costo")).ToString("###,###,##0.000000")
+                        total_costo = total_costo + cantidadxcosto
+                        oWrite.WriteLine(funciones.Rellenar(fila.ToString(), 3, " ") & " " & funciones.Rellenar(tabla.Rows(i)("coditem"), 9, " ", False) & "  " & funciones.Rellenar(tabla.Rows(i)("descripcion"), 27, " ", False) & "  " & funciones.Rellenar(tabla.Rows(i)("medida"), 20, " ", False) & "  " & funciones.Rellenar(CDbl(tabla.Rows(i)("cantidad")).ToString("###,###,##0.00"), 12, " ", True) & "  " & funciones.Rellenar(tabla.Rows(i)("udm"), 15, " ") & "  " & funciones.Rellenar(CDbl(tabla.Rows(i)("costo")).ToString("###,###,##0.0000"), 10, " ") & "  " & funciones.Rellenar(CDbl(cantidadxcosto).ToString("###,###,##0.00"), 10, " ") & "  ")
+                    Else
+                        oWrite.WriteLine(funciones.Rellenar(fila.ToString(), 3, " ") & " " & funciones.Rellenar(tabla.Rows(i)("coditem"), 9, " ", False) & "  " & funciones.Rellenar(tabla.Rows(i)("descripcion"), 27, " ", False) & "  " & funciones.Rellenar(tabla.Rows(i)("medida"), 20, " ", False) & "  " & funciones.Rellenar(CDbl(tabla.Rows(i)("cantidad")).ToString("###,###,##0.00"), 12, " ", True) & "  " & funciones.Rellenar(tabla.Rows(i)("udm"), 15, " ") & "  ___________    ")
+                    End If
+
+                Else
+                    If es_ajuste Then
+                        cantidadxcosto = tabla.Rows(i)("cantidad") * CDbl(tabla.Rows(i)("costo")).ToString("###,###,##0.000000")
+                        total_costo = total_costo + cantidadxcosto
+                        oWrite.WriteLine(funciones.Rellenar(fila.ToString(), 3, " ") & " " & funciones.Rellenar(tabla.Rows(i)("coditem"), 9, " ", False) & "  " & funciones.Rellenar(tabla.Rows(i)("descripcion"), 27, " ", False) & "  " & funciones.Rellenar(tabla.Rows(i)("medida"), 20, " ", False) & "  " & funciones.Rellenar(CDbl(tabla.Rows(i)("cantidad")).ToString("###,###,##0.00"), 12, " ", True) & "  " & funciones.Rellenar(tabla.Rows(i)("udm"), 15, " ") & "  " & funciones.Rellenar(CDbl(tabla.Rows(i)("costo")).ToString("###,###,##0.0000"), 10, " ") & "  " & funciones.Rellenar(CDbl(cantidadxcosto).ToString("###,###,##0.00"), 10, " ") & "  ")
+                    Else
+                        oWrite.WriteLine(funciones.Rellenar(fila.ToString(), 3, " ") & " " & funciones.Rellenar(tabla.Rows(i)("coditem"), 9, " ", False) & "  " & funciones.Rellenar(tabla.Rows(i)("descripcion"), 27, " ", False) & "  " & funciones.Rellenar(tabla.Rows(i)("medida"), 20, " ", False) & "  " & funciones.Rellenar(CDbl(tabla.Rows(i)("cantidad")).ToString("###,###,##0.00"), 12, " ", True) & "  " & funciones.Rellenar(tabla.Rows(i)("udm"), 15, " ") & "  ___________    ")
+                    End If
+                End If
+
+                If (fila = tabla.Rows.Count) Then
+                    'SI NO CABE EN ESA HOJA AÑADIR ESPACIOS HASTA SIGUIENTE HOJA PIE Y CABECERA DE HOJA Y RECIEN PONER.
+                    If (fila - 1 - (hoja * 48)) > (48 - 14) Then
+                        'no cabe rellenar con espacios y poner en otra hoja
+                        For e = 0 To (48 - (fila - (hoja * 48))) - 1
+                            oWrite.WriteLine(funciones.Rellenar((fila + e + 1).ToString(), 3, " ") & " --------")
+                        Next
+                        '######################
+                        '#  PIE DE HOJA       #
+                        '######################
+                        hoja = hoja + 1
+                        oWrite.WriteLine("---------------------------------------------------------------------------------------------------------------------------------------")
+                        oWrite.WriteLine("Hoja Nro. " & CStr(hoja) & "  (" & usuario & ") " & fecha_impresion)
+                        oWrite.WriteLine(" ")
+                        oWrite.WriteLine(" ")
+                        'comienza la nueva hoja
+                        oWrite.WriteLine(" ")
+                        oWrite.WriteLine(" ") 'recently added
+                        'oWrite.WriteLine(" ") '& Convert.ToChar(27) & "K" & Convert.ToChar(5))
+                        'regresar unos puntos para dejar ista la siguente hoja
+                        '######################
+                        '#  CABECERA DE HOJA  #
+                        '######################
+                        oWrite.WriteLine(" ")
+                        oWrite.WriteLine(" ")
+                        oWrite.WriteLine(" ")
+                        oWrite.WriteLine(funciones.CentrarCadena(tiponm, 115, " "))
+                        oWrite.WriteLine(funciones.CentrarCadena(titulo, 115, " "))
+                        oWrite.WriteLine(" ")
+                        oWrite.WriteLine("CONCEPTO: " & id_concepto & " " & funciones.Rellenar(conceptodescripcion, 105, " ", False) & " FECHA: " & funciones.Rellenar(fecha, 15, " ", False))
+                        oWrite.WriteLine("ALMACEN: " & funciones.Rellenar(codalmacen, 15, " ", False) & "ORIGEN: " & funciones.Rellenar(codalmacen_origen, 15, " ", False) & " DESTINO: " & funciones.Rellenar(codalmacen_destino, 45, " ", False) & " VENDEDOR: " & funciones.Rellenar(codvendedor, 25, " ", False))
+
+                        If es_argentina Then
+                            If es_ajuste Then
+                                oWrite.WriteLine(" ")
+                                oWrite.WriteLine("---------------------------------------------------------------------------------------------------------------------------------------")
+                                oWrite.WriteLine("  # CODIGO    <------DESCRIPCION-------->  <------MEDIDA------>       CANTIDAD               UD       COSTO       TOTAL")
+                                oWrite.WriteLine("---------------------------------------------------------------------------------------------------------------------------------------")
+                            Else
+                                oWrite.WriteLine(" ")
+                                oWrite.WriteLine("---------------------------------------------------------------------------------------------------------------------------------------")
+                                oWrite.WriteLine("  # CODIGO    <------DESCRIPCION-------->  <------MEDIDA------>       CANTIDAD               UD  ")
+                                oWrite.WriteLine("---------------------------------------------------------------------------------------------------------------------------------------")
+                            End If
+
+                        Else
+                            If es_ajuste Then
+                                oWrite.WriteLine(" ")
+                                oWrite.WriteLine("---------------------------------------------------------------------------------------------------------------------------------------")
+                                oWrite.WriteLine("  # CODIGO    <------DESCRIPCION-------->  <------MEDIDA------>       CANTIDAD               UD       COSTO       TOTAL")
+                                oWrite.WriteLine("---------------------------------------------------------------------------------------------------------------------------------------")
+                            Else
+                                oWrite.WriteLine(" ")
+                                oWrite.WriteLine("---------------------------------------------------------------------------------------------------------------------------------------")
+                                oWrite.WriteLine("  # CODIGO    <------DESCRIPCION-------->  <------MEDIDA------>       CANTIDAD               UD  ")
+                                oWrite.WriteLine("---------------------------------------------------------------------------------------------------------------------------------------")
+                            End If
+                        End If
+
+                        'oWrite.WriteLine("NNN_CCCCCCCCC__DDDDDDDDDDDDDDDDDDDDDDDDDDD__MMMMMMMMMMMMMMMMMMMM__UUU__NNNNNNNNNNNN_______________PP__NNNNNNNNNNNN__NNNNNNNNNNN")
+                        'es pie final
+                        '######################
+                        '#  PIE DE HOJA FINAL #
+                        '######################
+                        'oWrite.WriteLine("NNN_CCCCCCCCC__DDDDDDDDDDDDDDDDDDDDDDDDDDD__MMMMMMMMMMMMMMMMMMMM__UUU__NNNNNNNNNNNN_______________PP__NNNNNNNNNNNN__NNNNNNNNNNN")
+                        oWrite.WriteLine("---------------------------------------------------------------------------------------------------------------------------------------")
+                        If es_ajuste Then
+                            oWrite.WriteLine("PESO TOTAL: " & funciones.Rellenar(CDbl(pesototal).ToString("###,##0.00"), 10, " ") & " Kgrs.                         " & funciones.Rellenar(CDbl(total).ToString("###,###,##0.00"), 25, " ") & "  " & funciones.Rellenar(CDbl(total_costo).ToString("###,###,##0.00"), 39, " "))
+                        Else
+                            oWrite.WriteLine("PESO TOTAL: " & funciones.Rellenar(CDbl(pesototal).ToString("###,##0.00"), 10, " ") & " Kgrs.                         " & funciones.Rellenar(CDbl(total).ToString("###,###,##0.00"), 25, " "))
+                        End If
+                        oWrite.WriteLine("OBS: " & funciones.Rellenar(obs, 100, " ", False) & " ")
+                        oWrite.WriteLine(" ")
+                        oWrite.WriteLine(" ")
+                        oWrite.WriteLine(" ")
+                        oWrite.WriteLine("                  ______________________            _____________________          ____________________ ")
+                        oWrite.WriteLine("                      PREPARADOR POR                    REVISADO POR                  RECIBI CONFORME ")
+                        oWrite.WriteLine("                                                                                   " & nomCliente)
+                        oWrite.WriteLine(" ")
+                        oWrite.WriteLine(" ")
+
+                    Else
+                        'si cabe
+                        'es pie final
+                        '######################
+                        '#  PIE DE HOJA FINAL #
+                        '######################
+                        'oWrite.WriteLine("NNN_CCCCCCCCC__DDDDDDDDDDDDDDDDDDDDDDDDDDD__MMMMMMMMMMMMMMMMMMMM__UUU__NNNNNNNNNNNN_______________PP__NNNNNNNNNNNN__NNNNNNNNNNN")
+                        oWrite.WriteLine("---------------------------------------------------------------------------------------------------------------------------------------")
+                        If es_ajuste Then
+                            oWrite.WriteLine("PESO TOTAL: " & funciones.Rellenar(CDbl(pesototal).ToString("###,##0.00"), 10, " ") & " Kgrs.                         " & funciones.Rellenar(CDbl(total).ToString("###,###,##0.00"), 25, " ") & "  " & funciones.Rellenar(CDbl(total_costo).ToString("###,###,##0.00"), 39, " "))
+                        Else
+                            oWrite.WriteLine("PESO TOTAL: " & funciones.Rellenar(CDbl(pesototal).ToString("###,##0.00"), 10, " ") & " Kgrs.                         " & funciones.Rellenar(CDbl(total).ToString("###,###,##0.00"), 25, " "))
+                        End If
+                        oWrite.WriteLine("OBS: " & funciones.Rellenar(obs, 100, " ", False) & " ")
+                        oWrite.WriteLine(" ")
+                        oWrite.WriteLine(" ")
+                        oWrite.WriteLine(" ")
+                        oWrite.WriteLine("                  ______________________            _____________________          ____________________ ")
+                        oWrite.WriteLine("                      PREPARADOR POR                    REVISADO POR                  RECIBI CONFORME ")
+                        oWrite.WriteLine("                                                                                   " & nomCliente)
+                        oWrite.WriteLine(" ")
+                        oWrite.WriteLine(" ")
+                    End If
+                End If
+            Next
+            'oWrite.WriteLine("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345")
+            oWrite.Close()
+            resultado = PathAplicacion & "\temp\" & nombarch
+            'MANDAR IMPRESION
+            ' Me.imprimir_archivo(PathAplicacion & "\temp\", nombarch)
+        Catch ex As Exception
+            resultado = "Error"
+        End Try
+        Return resultado
+    End Function
+
+
+
+
+
+
+
 End Class

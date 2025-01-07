@@ -10,6 +10,7 @@ using System.Runtime.Intrinsics.X86;
 using Microsoft.EntityFrameworkCore.Storage;
 using System.Globalization;
 using Polly;
+using LibSIAVB;
 
 namespace SIAW.Controllers.inventarios.transaccion
 {
@@ -118,7 +119,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                             valido = guardarDoc.valido
                         });
                     }
-                    await log.RegistrarEvento(dataGrabar.cabecera.usuarioreg, Log.Entidades.SW_Nota_Movimiento,)
+                    await log.RegistrarEvento(_context, dataGrabar.cabecera.usuarioreg, Log.Entidades.SW_Nota_Movimiento, guardarDoc.codigoNM.ToString(), dataGrabar.cabecera.id, guardarDoc.numeroID.ToString(), _controllerName, "Grabar", Log.TipoLog.Creacion);
                 }
                 return Ok();
             }
@@ -129,7 +130,7 @@ namespace SIAW.Controllers.inventarios.transaccion
             }
         }
 
-        private async Task<(bool valido, string msg, List<Dtnegativos>? dtnegativos)> guardarNuevoDocumento(DBContext _context, string codempresa, bool traspaso, inmovimiento inmovimiento, List<tablaDetalleNM> tablaDetalle)
+        private async Task<(bool valido, string msg, List<Dtnegativos>? dtnegativos, int codigoNM, int numeroID)> guardarNuevoDocumento(DBContext _context, string codempresa, bool traspaso, inmovimiento inmovimiento, List<tablaDetalleNM> tablaDetalle)
         {
             int factor = inmovimiento.factor;
             // preparacion de datos 
@@ -167,7 +168,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                     }
                     // coloca peso general
                     inmovimiento.peso = inmovimiento1.Sum(i => i.peso);
-
+                    int codNotaMovimiento = 0;
                     using (var dbContexTransaction = _context.Database.BeginTransaction())
                     {
                         try
@@ -175,11 +176,11 @@ namespace SIAW.Controllers.inventarios.transaccion
                             inmovimiento.numeroid = await documento.movimientonumeroid(_context, inmovimiento.id) + 1;
                             if (inmovimiento.numeroid <= 0)
                             {
-                                return (false, "Error al generar numero ID, consulte con el Administrador", null);
+                                return (false, "Error al generar numero ID, consulte con el Administrador", null,0,0);
                             }
                             if (await documento.existe_movimiento(_context,inmovimiento.id, inmovimiento.numeroid))
                             {
-                                return (false, "Ese numero de documento, ya existe, por favor consulte con el administrador del sistema.", null);
+                                return (false, "Ese numero de documento, ya existe, por favor consulte con el administrador del sistema.", null,0,0);
                             }
 
                             // agregar cabecera
@@ -190,9 +191,9 @@ namespace SIAW.Controllers.inventarios.transaccion
                             }
                             catch (Exception ex)
                             {
-                                return (false, "Error al grabar la cabecera de la nota de movimiento: " + ex.Message, null);
+                                return (false, "Error al grabar la cabecera de la nota de movimiento: " + ex.Message, null,0,0);
                             }
-                            int codNotaMovimiento = inmovimiento.codigo;
+                            codNotaMovimiento = inmovimiento.codigo;
 
 
 
@@ -207,9 +208,12 @@ namespace SIAW.Controllers.inventarios.transaccion
                             int validaCantProf = await _context.inmovimiento.Where(i => i.id == inmovimiento.id && i.numeroid == inmovimiento.numeroid).CountAsync();
                             if (validaCantProf > 1)
                             {
-                                return (false, "Se detecto más de un número del mismo documento, por favor consulte con el administrador del sistema.", null);
+                                return (false, "Se detecto más de un número del mismo documento, por favor consulte con el administrador del sistema.", null,0,0);
                             }
 
+                            // guarda detalle (veproforma1)
+                            // actualizar codigoNM para agregar
+                            inmovimiento1 = inmovimiento1.Select(p => { p.codmovimiento = codNotaMovimiento; return p; }).ToList();
                             // guardar detalle
                             _context.inmovimiento1.AddRange(inmovimiento1);
                             await _context.SaveChangesAsync();
@@ -218,7 +222,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                         catch (Exception ex)
                         {
                             dbContexTransaction.Rollback();
-                            return (false,$"Error en el servidor al guardar Proforma: {ex.Message}", null);
+                            return (false,$"Error en el servidor al guardar Proforma: {ex.Message}", null,0,0);
                             throw;
                         }
 
@@ -265,13 +269,13 @@ namespace SIAW.Controllers.inventarios.transaccion
                             }
                         }
                     }
-                    return (true, "", null);
+                    return (true, "", null, codNotaMovimiento, inmovimiento.numeroid);
 
                 }
-                return (false, validaCabecera.msg, null);
+                return (false, validaCabecera.msg, null,0,0);
             }
 
-            return (false, validaDetalle.msg, validaDetalle.dtnegativos);
+            return (false, validaDetalle.msg, validaDetalle.dtnegativos,0,0);
         }
 
 
@@ -1446,6 +1450,109 @@ namespace SIAW.Controllers.inventarios.transaccion
         }
 
 
+
+        // imprimir documento formato matricial
+        // el codigo tarifa debe pedir Marvin por frontEnd antes de venir a esta ruta para imprimir
+        private async Task<(bool resultado, string msg)> mostrardocumento_directo(DBContext _context, string codempresa, int codconcepto, int codtarifa, string usuario, string codconceptodescripcion, veremision cabecera, List<tablaDetalleNM> tablaDetalle) 
+        {
+            //#################################################
+            //mandar impresion
+            impresion imp = new impresion();
+
+            bool es_ajuste = false;
+            string alertaPrecio = "";
+            //parametros
+            string imp_titulo;
+            string imp_tiponm;
+            string imp_id_concepto;
+            string imp_conceptodescripcion;
+            string imp_empresa;
+            string imp_usuario;
+            string imp_nit;
+            string imp_codvendedor;
+            string imp_codalmacen;
+            string imp_codalmacen_origen;
+            string imp_codalmacen_destino;
+            string imp_fecha;
+            string imp_total;
+            string imp_pesototal;
+            string imp_obs;
+            string imp_fecha_impresion;
+            string imp_nomclient;
+
+            // preguntar si es un ajuste para añadir la columna de costo
+            if (await inventario.ConceptoEsAjuste(_context,codconcepto))
+            {
+                // pedir codtarifa
+                es_ajuste = true;
+                if (await ventas.UsuarioTarifa_Permitido(_context,usuario, codtarifa))
+                {
+                    if (codtarifa > 0)
+                    {
+                        foreach (var reg in tablaDetalle)
+                        {
+                            reg.costo = await ventas.preciodelistaitem(_context, codtarifa, reg.coditem);
+                        }
+                    }
+                    else
+                    {
+                        return (false, "El código de tarifa no puede ser menor o igual a 0, consulte con el administrador");
+                    }
+                }
+                else
+                {
+                    alertaPrecio = "Este usuario no esta habilitado para ver ese tipo de Precio";
+                }
+            }
+            else
+            {
+                es_ajuste = false;
+            }
+
+            DateTime fecha_serv = await funciones.FechaDelServidor(_context);
+            imp_fecha_impresion = fecha_serv.Date.ToShortDateString();
+            imp_titulo = cabecera.id + "-" + cabecera.numeroid;
+
+            imp_id_concepto = codconcepto.ToString();
+
+            // busca los datos del concepto
+            var datos = await _context.inconcepto.Where(i => i.codigo == codconcepto).Select(i => new
+            {
+                i.codigo,
+                i.descripcion,
+                i.factor
+            }).FirstOrDefaultAsync();
+
+            if (datos != null)
+            {
+                switch (datos.factor)
+                {
+                    case 1:
+                        // nota de ingreso
+                        imp_tiponm = "NOTA DE INGRESO";
+                        break;
+                    case -1:
+                        // nota de salida
+                        imp_tiponm = "NOTA DE SALIDA";
+                        break;
+                    default:
+                        imp_conceptodescripcion = datos.descripcion;
+                        break;
+                }
+            }
+            else
+            {
+                imp_tiponm = "NOTA DE MOVIMIENTO";
+                imp_conceptodescripcion = codconceptodescripcion;
+            }
+
+            imp_empresa = await nombres.nombreempresa(_context, codempresa);
+            imp_usuario = cabecera.usuarioreg;
+            imp_nit = "N.I.T.: " + await empresa.NITempresa(_context, codempresa);
+            return "";
+        }
+
+
     }
 
 
@@ -1458,6 +1565,7 @@ namespace SIAW.Controllers.inventarios.transaccion
         public string udm { get; set; }
         public string codaduana { get; set; }
         public decimal cantidad { get; set; }
+        public double costo { get; set; }
     }
 
     public class respValidaDecimales

@@ -56,7 +56,7 @@ namespace siaw_funciones
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
                 var infisico = await _context.infisico
-                    .Where(i => i.codinvconsol == codinventario && i.codgrupoper== codgrupo)
+                    .Where(i => i.codinvconsol == codinventario && i.codgrupoper == codgrupo)
                     .FirstOrDefaultAsync();
                 if (infisico != null)
                 {
@@ -135,7 +135,7 @@ namespace siaw_funciones
                 {
                     var ininvconsol1 = await _context.ininvconsol1
                         .Where(i => i.codinvconsol == codinventario && i.coditem == item.coditem)
-                        .FirstOrDefaultAsync() ;
+                        .FirstOrDefaultAsync();
 
                     if (item.cantrevis > 0)
                     {
@@ -234,7 +234,7 @@ namespace siaw_funciones
             bool flag = false;
             try
             {
-                flag = await _context.inconcepto.Where(i => i.codigo == codigo).Select(i => i.usuario_final).FirstOrDefaultAsync()??false;
+                flag = await _context.inconcepto.Where(i => i.codigo == codigo).Select(i => i.usuario_final).FirstOrDefaultAsync() ?? false;
 
             }
             catch (Exception ex)
@@ -276,6 +276,20 @@ namespace siaw_funciones
                 Console.WriteLine("Error en concepto es entrega cliente: " + ex.Message);
                 return false;
             }
+        }
+        public async Task<bool> ConceptoEsAjuste(DBContext _context, int codconcepto)
+        {
+            bool flag = false;
+            try
+            {
+                flag = await _context.inconcepto.Where(i => i.codigo == codconcepto).Select(i => i.traspaso).FirstOrDefaultAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error en concepto es ajuste: " + ex.Message);
+                flag = false;
+            }
+            return flag;
         }
     }
 }

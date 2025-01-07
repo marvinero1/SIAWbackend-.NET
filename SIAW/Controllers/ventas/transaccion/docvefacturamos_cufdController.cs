@@ -68,6 +68,105 @@ namespace SIAW.Controllers.ventas.transaccion
             _userConnectionManager = userConnectionManager;
         }
 
+
+        [HttpGet]
+        [Route("verificaCertificadoDigital/{userConn}/{codalmacen}/{codempresa}")]
+        public async Task<ActionResult<IEnumerable<object>>> verificaCertificadoDigital(string userConn, int codalmacen, string codempresa)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var validacion = await Validar_Ruta_y_clave_Certificado(_context, codalmacen, codempresa);
+                    if (validacion.valido == false)
+                    {
+                        return BadRequest(new
+                        {
+                            valido = validacion.valido,
+                            resp = "No se valido correctamente la ruta y/o clave del certificado digital, por lo tanto no se puede realizar el firmado XML de las facturas, se cerrara esta ventana, Consulte con el area de Sistemas!!!",
+                            msg = validacion.mensaje
+                        });
+                    }
+                    return Ok(new { valido = validacion.valido });
+                }
+
+            }
+            catch (Exception ex)
+            {
+                return Problem($"Error en el servidor al verificar Vertificado Digital: {ex.Message}");
+                throw;
+            }
+        }
+
+
+
+
+        private async Task<(bool valido, string mensaje)> Validar_Ruta_y_clave_Certificado(DBContext _context, int codalmacen, string codempresa)
+        {
+            // obtenemos la ruta del certificado de la base de datos y su clave
+            string ruta_certificado = "";
+            string Clave_Certificado_Digital = "";
+            int _codAmbiente = await adsiat_Parametros_Facturacion.Ambiente(_context, codalmacen);
+            
+            if (_codAmbiente == 1)
+            {
+                // Certificado para producción
+                ruta_certificado = await configuracion.Dircertif_Produccion(_context, codempresa);
+                string cadena_descifrada = seguridad.XorString(await configuracion.Pwd_Certif_Produccion(_context, codempresa), "devstring").Trim();
+                Clave_Certificado_Digital = cadena_descifrada;
+            }
+            else
+            {
+                // Certificado para pruebas
+                ruta_certificado = await configuracion.Dircertif_Pruebas(_context, codempresa);
+                string cadena_descifrada = seguridad.XorString(await configuracion.Pwd_Certif_Pruebas(_context, codempresa), "devstring").Trim();
+                Clave_Certificado_Digital = cadena_descifrada;
+            }
+
+            // validaciones
+
+            if (ruta_certificado.Length == 0)
+            {
+                return (false, "La direccion de la ruta del archivo del certificado digital para la firma del XML no puede ser vacio!!!");
+            }
+            if (ruta_certificado == "0")
+            {
+                return (false, "No existe el dato de la direccion de la ruta del archivo del certificado digital en los parametros de la empresa!!!");
+            }
+            if (ruta_certificado.Length <= 3)
+            {
+                return (false, "La direccion de la ruta del archivo del certificado digital para la firma del XML es incorrecta!!!");
+            }
+
+            string extension = ruta_certificado.Substring(ruta_certificado.Length - 4, 4);
+            if (extension != ".p12")
+            {
+                return (false, "El archivo del certificado digital para la firma del XML es incorrecta, debe ser un archivo con la extension .p12 !!!");
+            }
+
+            if (!System.IO.File.Exists(ruta_certificado))
+            {
+                return (false, "El archivo del certificado digital para la firma del XML no existe en la carpeta definica en los parametros, comuniquese con el area de sistemas!!!");
+            }
+            if (Clave_Certificado_Digital.Length == 0)
+            {
+                return (false, "La clave del archivo del certificado digital para la firma del XML no puede ser vacio!!!");
+            }
+            if (Clave_Certificado_Digital == "0")
+            {
+                return (false, "No existe el dato de la clave del archivo del certificado digital en los parametros de la empresa!!!");
+            }
+            return (true, "");
+        }
+
+
+
+
+
+
+
         /// //////////////////////////////////////////////////////////////////////////// SAMUEL FUNCIONES
         [HttpGet]
         [Route("getInfoCertificadoDigitalTienda/{userConn}/{codalmacen}/{codempresa}")]

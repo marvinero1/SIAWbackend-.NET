@@ -826,7 +826,7 @@ namespace SIAW.Controllers.z_pruebas
             double recargo = respRecargo.total;
 
             //var respDescuento = await verdesextra(_context, codempresa, veproforma.nit, veproforma.codmoneda, cmbtipo_complementopf, veproforma.idpf_complemento, veproforma.nroidpf_complemento ?? 0, subtotal, veproforma.fecha, tabladescuentos, tabla_detalle);
-            var respDescuento = await verdesextra(_context, codempresa, veproforma.nit, veproforma.codmoneda, cmbtipo_complementopf, veproforma.idpf_complemento, veproforma.nroidpf_complemento ?? 0, subtotal, veproforma.fecha, tabladescuentos, tabla_detalle, veproforma.tipopago, (bool)veproforma.contra_entrega, codcliente_real, tabla_anticipos_asignados);
+            var respDescuento = await verdesextra(_context, codempresa, veproforma.nit, veproforma.codmoneda, cmbtipo_complementopf, veproforma.idpf_complemento, veproforma.nroidpf_complemento ?? 0, subtotal, veproforma.fecha, tabladescuentos, tabla_detalle, veproforma.tipopago, (bool)veproforma.contra_entrega, codcliente_real, veproforma.codvendedor, tabla_anticipos_asignados);
             double descuento = respDescuento.respdescuentos;
             tabla_detalle = respDescuento.detalleProf;
 
@@ -898,7 +898,7 @@ namespace SIAW.Controllers.z_pruebas
 
         }
 
-        private async Task<(double respdescuentos, string mensaje, List<tabladescuentos> tabladescuentos, List<itemDataMatriz> detalleProf)> verdesextra(DBContext _context, string codempresa, string nit, string codmoneda, int cmbtipo_complementopf, string idpf_complemento, int nroidpf_complemento, double subtotal, DateTime fecha, List<tabladescuentos> tabladescuentos, List<itemDataMatriz> detalleProf, int tipopago, bool? contraEntrega, string codcliente_real, List<vedetalleanticipoProforma> dt_anticipo_pf)
+        private async Task<(double respdescuentos, string mensaje, List<tabladescuentos> tabladescuentos, List<itemDataMatriz> detalleProf)> verdesextra(DBContext _context, string codempresa, string nit, string codmoneda, int cmbtipo_complementopf, string idpf_complemento, int nroidpf_complemento, double subtotal, DateTime fecha, List<tabladescuentos> tabladescuentos, List<itemDataMatriz> detalleProf, int tipopago, bool? contraEntrega, string codcliente_real, int codvendedor, List<vedetalleanticipoProforma> dt_anticipo_pf)
         {
             string mensaje = "";
             int coddesextra_depositos = await configuracion.emp_coddesextra_x_deposito(_context, codempresa);
@@ -1020,7 +1020,7 @@ namespace SIAW.Controllers.z_pruebas
 
             if (await configuracion.Calculo_Desc_Deposito_Contado(_context, codempresa) == "SUBTOTAL2" && tipopago == 0 && contraEntrega == false)
             {
-                var tablaAnticiposSinDeposito = await anticipos_vta_contado.Anticipos_MontoRestante_Sin_Deposito(_context, codcliente_real);
+                var tablaAnticiposSinDeposito = await anticipos_vta_contado.Anticipos_MontoRestante_Sin_Deposito(_context, codcliente_real, codvendedor);
                 decimal totalAnticiposSinDeposito = 0;
                 decimal montoCambio = 0;
                 string cadenaAnticipos = string.Empty;
