@@ -14,6 +14,9 @@ using siaw_DBContext.Data;
 using Humanizer;
 using System.Globalization;
 using System.Net.Http;
+using Microsoft.Data.SqlClient;
+using siaw_DBContext.Models;
+using System.Drawing;
 
 namespace siaw_funciones
 {
@@ -71,42 +74,76 @@ namespace siaw_funciones
         {
             DateTime resultado = DateTime.Now;
 
+            var connection = _context.Database.GetDbConnection();
+
+            await connection.OpenAsync();
 
             try
             {
-                //using (_context)
-                ////using (var _context = DbContextFactory.Create(userConnectionString))
-                //{
-                //resultado = _context.FechaServidor.FromSqlRaw("SELECT GETDATE() AS fecha").FirstOrDefault()?.Fecha ?? DateTime.Now;
-                var query = await _context.Database.ExecuteSqlRawAsync("SELECT GETDATE() AS fecha");
-                resultado = query > 0 ? DateTime.Now : resultado;
-                //}
+                // Reutilizar la conexión para múltiples comandos
+                using (var command = connection.CreateCommand())
+                {
+                    // Obtener la fecha actual en formato 'yyyy-MM-dd'
+                    command.CommandText = "SELECT FORMAT(GETDATE(), 'yyyy-MM-dd') AS FechaActual";
+                    var result = await command.ExecuteScalarAsync();
+
+                    if (result != null)
+                    {
+                        resultado = (DateTime)result;
+                        Console.WriteLine($"Fecha actual: {resultado}"); // Muestra la fecha en formato yyyy-MM-dd
+                    }
+                }
             }
             catch (Exception ex)
             {
-                // Manejar la excepción según tus necesidades
                 Console.WriteLine($"Error: {ex.Message}");
             }
-
+            finally
+            {
+                // Cerrar la conexión después de su uso
+                await connection.CloseAsync();
+            }
             return resultado.Date;
         }
         public async Task<string> hora_del_servidor_cadena(DBContext _context)
         {
             string resultado = "";
+            var connection = _context.Database.GetDbConnection();
+            await connection.OpenAsync();
+
             try
             {
-                var h = await _context.Database.ExecuteSqlRawAsync("select datepart(hh,getdate())");
-                var m = await _context.Database.ExecuteSqlRawAsync("select datepart(mi,getdate())");
-                resultado = h.ToString("00") + ":" + m.ToString("00");
+                // Reutilizar esta conexión para múltiples comandos
+                using (var command = connection.CreateCommand())
+                {
+                    // Primer comando
+                    command.CommandText = "SELECT DATEPART(HOUR, GETDATE())";
+                    var hourResult = await command.ExecuteScalarAsync();
+                    int hour = Convert.ToInt32(hourResult);
+
+                    // Segundo comando
+                    command.CommandText = "SELECT DATEPART(MINUTE, GETDATE())";
+                    var minuteResult = await command.ExecuteScalarAsync();
+                    int minute = Convert.ToInt32(minuteResult);
+
+                    // Formato final
+                    resultado = $"{hour:D2}:{minute:D2}";
+                    Console.WriteLine(resultado);
+                }
             }
             catch (Exception ex)
             {
-                // Manejar la excepción según tus necesidades
-                resultado = "00:00";
+                Console.WriteLine($"Error: {ex.Message}");
             }
-
+            finally
+            {
+                // Siempre cerrar la conexión cuando termines
+                await connection.CloseAsync();
+            }
             return resultado;
         }
+
+
         public string Rellenar(string cadena, int ancho, string relleno, bool ElRellenoALaIzquierda = true)
         {
             string cadena2 = "";
@@ -786,25 +823,39 @@ namespace siaw_funciones
 
             return await Task.FromResult(_fecha_convertido);
         }
+
         public async Task<DateTime> FechaDelServidor_TimeStamp(DBContext _context)
         {
             DateTime resultado = DateTime.Now;
 
+            var connection = _context.Database.GetDbConnection();
+
+            await connection.OpenAsync();
 
             try
             {
-                //using (_context)
-                ////using (var _context = DbContextFactory.Create(userConnectionString))
-                //{
-                //resultado = _context.FechaServidor.FromSqlRaw("SELECT GETDATE() AS fecha").FirstOrDefault()?.Fecha ?? DateTime.Now;
-                var query = await _context.Database.ExecuteSqlRawAsync("SELECT GETDATE() AS fecha");
-                resultado = query > 0 ? DateTime.Now : resultado;
-                //}
+                // Reutilizar la conexión para múltiples comandos
+                using (var command = connection.CreateCommand())
+                {
+                    // Obtener la fecha actual en formato 'yyyy-MM-dd'
+                    command.CommandText = "SELECT GETDATE() AS FechaActual";
+                    var result = await command.ExecuteScalarAsync();
+
+                    if (result != null)
+                    {
+                        resultado = (DateTime)result;
+                        Console.WriteLine($"Fecha actual: {resultado}"); // Muestra la fecha en formato yyyy-MM-dd
+                    }
+                }
             }
             catch (Exception ex)
             {
-                // Manejar la excepción según tus necesidades
                 Console.WriteLine($"Error: {ex.Message}");
+            }
+            finally
+            {
+                // Cerrar la conexión después de su uso
+                await connection.CloseAsync();
             }
 
             return resultado;

@@ -2144,7 +2144,30 @@ namespace siaw_funciones
             }
         }
 
+        public async Task<bool> Inmovimiento_ActualizarSaldo(DBContext _context, int codigo, ModoActualizacion modo)
+        {
+            try
+            {
+                bool resultado = false;
 
+                var prm_codigo = new SqlParameter("@codigo", SqlDbType.Int) { Value = codigo };
+                var prm_modo = new SqlParameter("@modo_actualizacion", SqlDbType.NVarChar, 30) { Value = modo };
+                var result_sp = new SqlParameter("@Resultado", SqlDbType.Bit) { Direction = ParameterDirection.Output };
+
+                await _context.Database.ExecuteSqlRawAsync(
+                    "EXECUTE Inmovimiento_ActualizarSaldo @codigo, @modo_actualizacion, @Resultado OUTPUT",
+                    prm_codigo, prm_modo, result_sp);
+
+                resultado = (bool)result_sp.Value;
+
+                return resultado;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return false;
+            }
+        }
 
 
         public enum ModoActualizacion

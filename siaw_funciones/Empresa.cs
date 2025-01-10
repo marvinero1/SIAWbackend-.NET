@@ -342,6 +342,20 @@ namespace siaw_funciones
                 .FirstOrDefaultAsync() ?? "";
             return municipio;
         }
+        public async Task<int> HojaReportes(DBContext _context, string codigoempresa)
+        {
+            int num = 0;
+            try
+            {
+                num = _context.adparametros.Where(i => i.codempresa == codigoempresa).Select(i => i.hoja_reportes).FirstOrDefault() ?? 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error en Hoja de Reportes: " + ex.Message);
+                num = 0;
+            }
+            return num;
+        }
 
 
     }

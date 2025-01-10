@@ -23,6 +23,7 @@ namespace siaw_funciones
             }
         }
 
+        private Items items = new Items();
 
         public async Task<bool> existeinv(string userConnectionString, string id, int numeroid)
         {
@@ -290,6 +291,245 @@ namespace siaw_funciones
                 flag = false;
             }
             return flag;
+        }
+        public async Task<bool> Pepsaduana_Existe(DBContext _context, string coditem, string codaduana)
+        {
+            bool resultado = false;
+            try
+            {
+                int consulta = await _context.inpepsaduana.Where(i => i.coditem == coditem && i.codaduana == codaduana).CountAsync();
+                if (consulta > 0)
+                {
+                    resultado = true;
+                }
+                else
+                {
+                    resultado = false;  
+                }
+            }
+            catch (Exception)
+            {
+                resultado = false;
+            }
+            return resultado;
+        }
+        public async Task<bool> Pepsaduana_Disminuir(DBContext _context, string coditem, string codaduana, double cantidad)
+        {
+            try
+            {
+                var datosAduana = await _context.inpepsaduana.Where(i => i.coditem == coditem && i.codaduana == codaduana).FirstOrDefaultAsync();
+                datosAduana.restante = datosAduana.restante - (decimal)cantidad;
+                int cambios = await _context.SaveChangesAsync();
+
+                if (cambios > 0)
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        public async Task<bool> Pepsaduana_Aumentar(DBContext _context, string coditem, string codaduana, double cantidad)
+        {
+            try
+            {
+                var datosAduana = await _context.inpepsaduana.Where(i => i.coditem == coditem && i.codaduana == codaduana).FirstOrDefaultAsync();
+                datosAduana.restante = datosAduana.restante + (decimal)cantidad;
+                int cambios = await _context.SaveChangesAsync();
+
+                if (cambios > 0)
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        public async Task<bool> Pepsaduana_Insertar(DBContext _context, DateTime fecha, string coditem, string codaduana, decimal cantidad, decimal restante)
+        {
+            try
+            {
+                inpepsaduana nuevoRegistro = new inpepsaduana();
+                nuevoRegistro.fecha = fecha.Date;
+                nuevoRegistro.coditem = coditem;
+                nuevoRegistro.codaduana = codaduana;
+                nuevoRegistro.cantidad = cantidad;
+                nuevoRegistro.restante = restante;
+
+                _context.inpepsaduana.Add(nuevoRegistro);
+
+                int cambios = await _context.SaveChangesAsync();
+
+                if (cambios > 0)
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+
+
+        public async Task<bool> actaduanamovimiento(DBContext _context, int codigo, string modo, DateTime fecha)
+        {
+            bool resultado = true;
+            var datos = await _context.inmovimiento.Where(i => i.codigo == codigo).FirstOrDefaultAsync();
+            if (datos == null) 
+            {
+                return false;
+            }
+            int factor = datos.factor;
+            int concepto = datos.codconcepto;
+            int almacen = datos.codalmacen;
+            int almorigen = (int)datos.codalmorigen;
+            int almdestino = (int)datos.codalmdestino;
+
+            // sacar valores pertinentes del concepto si es o no traspaso
+            var datosConcepto = await _context.inconcepto.Where(i => i.codigo == concepto).FirstOrDefaultAsync();
+            if (datosConcepto == null)
+            {
+                return false;
+            }
+            bool traspaso = datosConcepto.traspaso;
+
+            // sacar el detalle del documento en tabla
+            var detalleMovimiento = await _context.inmovimiento1.Where(i => i.codmovimiento == codigo).ToListAsync();
+            foreach (var reg in detalleMovimiento)
+            {
+                ////segun condiciones
+                if (modo == "crear")
+                {
+                    if (factor > 0)  // es de entrada
+                    {
+                        if (await items.itemesconjunto(_context,reg.coditem))
+                        {
+                            var datosKit = await _context.inkit.Where(i => i.codigo == reg.coditem).Select(i => new
+                            {
+                                i.item,
+                                i.cantidad
+                            }).ToListAsync();
+                            foreach (var reg2 in datosKit)
+                            {
+                                if (await Pepsaduana_Existe(_context,reg2.item,reg.codaduana))
+                                {
+                                    await Pepsaduana_Aumentar(_context, reg2.item, reg.codaduana, (double)(reg.cantidad * reg2.cantidad));
+                                }
+                                else
+                                {
+                                    await Pepsaduana_Insertar(_context, fecha, reg2.item, reg.codaduana, reg.cantidad * (decimal)reg2.cantidad, reg.cantidad * (decimal)reg2.cantidad);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            if (await Pepsaduana_Existe(_context,reg.coditem,reg.codaduana))
+                            {
+                                await Pepsaduana_Aumentar(_context, reg.coditem, reg.codaduana, (double)reg.cantidad);
+                            }
+                            else
+                            {
+                                await Pepsaduana_Insertar(_context, fecha, reg.coditem, reg.codaduana, reg.cantidad, reg.cantidad);
+                            }
+                        }
+                    }
+                    else // es de salida
+                    {
+                        if (await items.itemesconjunto(_context, reg.coditem))
+                        {
+                            var datosKit = await _context.inkit.Where(i => i.codigo == reg.coditem).Select(i => new
+                            {
+                                i.item,
+                                i.cantidad
+                            }).ToListAsync();
+                            foreach (var reg2 in datosKit)
+                            {
+                                await Pepsaduana_Disminuir(_context, reg2.item, reg.codaduana, (double)(reg.cantidad * reg2.cantidad));
+                            }
+                        }
+                        else
+                        {
+                            await Pepsaduana_Disminuir(_context, reg.coditem, reg.codaduana, (double)reg.cantidad);
+                        }
+                    }
+                }
+                else  // de modo="eliminar" signos alreves
+                {
+                    if (factor > 0)  // entrada
+                    {
+                        if (await items.itemesconjunto(_context,reg.coditem))
+                        {
+                            var datosKit = await _context.inkit.Where(i => i.codigo == reg.coditem).Select(i => new
+                            {
+                                i.item,
+                                i.cantidad
+                            }).ToListAsync();
+                            foreach (var reg2 in datosKit)
+                            {
+                                await Pepsaduana_Disminuir(_context, reg2.item, reg.codaduana, (double)(reg.cantidad * reg2.cantidad));
+                            }
+                        }
+                        else
+                        {
+                            await Pepsaduana_Disminuir(_context, reg.coditem, reg.codaduana, (double)reg.cantidad);
+                        }
+                    }
+                    else  // de salida
+                    {
+                        if (await items.itemesconjunto(_context, reg.coditem))
+                        {
+                            var datosKit = await _context.inkit.Where(i => i.codigo == reg.coditem).Select(i => new
+                            {
+                                i.item,
+                                i.cantidad
+                            }).ToListAsync();
+                            foreach (var reg2 in datosKit)
+                            {
+                                if (await Pepsaduana_Existe(_context,reg2.item,reg.codaduana))
+                                {
+                                    await Pepsaduana_Aumentar(_context, reg2.item, reg.codaduana, (double)(reg.cantidad * reg2.cantidad));
+                                }
+                                else
+                                {
+                                    await Pepsaduana_Insertar(_context, fecha, reg2.item, reg.codaduana, (decimal)(reg.cantidad * reg2.cantidad), (decimal)(reg.cantidad * reg2.cantidad));
+                                }
+                            }
+                        }
+                        else
+                        {
+                            if (await Pepsaduana_Existe(_context,reg.coditem,reg.codaduana))
+                            {
+                                await Pepsaduana_Aumentar(_context, reg.coditem, reg.codaduana, (double)(reg.cantidad));
+                            }
+                            else
+                            {
+                                await Pepsaduana_Insertar(_context, fecha, reg.coditem, reg.codaduana, reg.cantidad, reg.cantidad);
+                            }
+                        }
+                    }
+                }
+            }
+            return true;
         }
     }
 }

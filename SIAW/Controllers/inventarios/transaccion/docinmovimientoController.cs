@@ -11,6 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage;
 using System.Globalization;
 using Polly;
 using LibSIAVB;
+using System.Data;
+using Polly.Caching;
 
 namespace SIAW.Controllers.inventarios.transaccion
 {
@@ -112,6 +114,15 @@ namespace SIAW.Controllers.inventarios.transaccion
                     var guardarDoc = await guardarNuevoDocumento(_context, codempresa, traspaso, dataGrabar.cabecera, tablaDetalle);
                     if (guardarDoc.valido == false)
                     {
+                        if (guardarDoc.dtnegativos != null)
+                        {
+                            return StatusCode(203, new
+                            {
+                                resp = guardarDoc.msg,
+                                negativos = guardarDoc.dtnegativos,
+                                valido = guardarDoc.valido
+                            });
+                        }
                         return BadRequest(new
                         {
                             resp = guardarDoc.msg,
@@ -121,7 +132,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                     }
                     await log.RegistrarEvento(_context, dataGrabar.cabecera.usuarioreg, Log.Entidades.SW_Nota_Movimiento, guardarDoc.codigoNM.ToString(), dataGrabar.cabecera.id, guardarDoc.numeroID.ToString(), _controllerName, "Grabar", Log.TipoLog.Creacion);
                 }
-                return Ok();
+                return Ok(new {resp = "Nota de Movimiento creada exitosamente."});
             }
             catch (Exception ex)
             {
@@ -136,6 +147,7 @@ namespace SIAW.Controllers.inventarios.transaccion
             // preparacion de datos 
             inmovimiento.fecha = inmovimiento.fecha.Date;
             inmovimiento.factor = (short)factor;
+            var fechaPrueba = await funciones.FechaDelServidor(_context);
             inmovimiento.horareg = await funciones.hora_del_servidor_cadena(_context);
             inmovimiento.fechareg = await funciones.FechaDelServidor(_context);
             inmovimiento.anulada = false;
@@ -235,18 +247,16 @@ namespace SIAW.Controllers.inventarios.transaccion
                         'sia_funciones.Saldos.Instancia.Inmovimiento_ActualizarSaldo(codigo.Text, sia_funciones.Saldos.modo_actualizacion.crear, tabladetalle)
                         ''Desde 23/11/2023 verificar si la actualizacion de saldo es true oi false para registrar un registro de que no se pudo actualizar
                          */
-                    /*
-                     * 
 
-                    ACTUALIZAR POR PROCEDIMIENTO ALMACENADO MEJOR
+                    // ACTUALIZAR POR PROCEDIMIENTO ALMACENADO
 
-                    if (await saldos.Inmovimiento_ActualizarSaldo())
+                    if (await saldos.Inmovimiento_ActualizarSaldo(_context,codNotaMovimiento,Saldos.ModoActualizacion.Crear) == false)
                     {
-
+                        await log.RegistrarEvento(_context, inmovimiento.usuarioreg, Log.Entidades.SW_Nota_Movimiento, codNotaMovimiento.ToString(), inmovimiento.id, inmovimiento.numeroid.ToString(), _controllerName, "No actualizo stock en cantidad de algun item en NM.", Log.TipoLog.Creacion);
                     }
-                    */
                     // #######################################
-                    // sia_funciones.Inventario.Instancia.actaduanamovimiento(codigo.Text, "crear", fecha.Value.Date)
+
+                    await inventario.actaduanamovimiento(_context, codNotaMovimiento, "crear", inmovimiento.fecha);
 
                     // Pasar a transferido proforma de solicitud urgente
                     // actualizar proforma a transferida
@@ -346,7 +356,7 @@ namespace SIAW.Controllers.inventarios.transaccion
             {
                 return (false, "No puede dejar la casilla de ID de Documento de origen en blanco.");
             }
-            if (inmovimiento.fnumeroid == null || inmovimiento.fnumeroid<= 0)
+            if (inmovimiento.fnumeroid == null || inmovimiento.fnumeroid< 0)
             {
                 return (false, "No puede dejar la casilla de Numero de Documento de origen  en blanco.");
             }
@@ -460,13 +470,15 @@ namespace SIAW.Controllers.inventarios.transaccion
             }
 
             */
-            var lista_items = new HashSet<string>(); // Utiliza HashSet para asegurar unicidad
-            var cadena_item = string.Join(", ", tablaDetalle
-                .Where(reg => !lista_items.Contains(reg.coditem) && lista_items.Add(reg.coditem)) // Filtra y agrega únicos
-                .Select(reg => $"'{reg.coditem}'"));
+            var lista_repetidos = tablaDetalle
+                .GroupBy(reg => reg.coditem) // Agrupa por coditem
+                .Where(grupo => grupo.Count() > 1) // Filtra los grupos con más de un elemento
+                .Select(grupo => grupo.Key) // Obtén el coditem repetido
+                .ToList(); // Convierte a lista
 
-            return string.IsNullOrEmpty(cadena_item) ? "" : cadena_item;
+            var cadena_repetidos = string.Join(", ", lista_repetidos); // Convierte la lista a un string separado por comas
 
+            return cadena_repetidos;
         }
 
         private async Task<(bool valido, string msg, List<Dtnegativos>? dtnegativos)> validarDetalle(DBContext _context, int factor, string codempresa, inmovimiento inmovimiento, List<tablaDetalleNM> tablaDetalle)
@@ -645,15 +657,15 @@ namespace SIAW.Controllers.inventarios.transaccion
 
                     if (codConcepto == 10)
                     {
-                        dataPorConcepto.cargar_proformaEnabled = true;
-                        dataPorConcepto.cvenumeracion1Enabled = true;
+                        dataPorConcepto.cargar_proformaEnabled = false;
+                        dataPorConcepto.cvenumeracion1Enabled = false;
                         dataPorConcepto.id_proforma_solReadOnly = false;
                         dataPorConcepto.numeroidproforma_solReadOnly = false;
                     }
                     else
                     {
-                        dataPorConcepto.cargar_proformaEnabled = false;
-                        dataPorConcepto.cvenumeracion1Enabled = false;
+                        dataPorConcepto.cargar_proformaEnabled = true;
+                        dataPorConcepto.cvenumeracion1Enabled = true;
                         dataPorConcepto.id_proforma_solReadOnly = true;
                         dataPorConcepto.numeroidproforma_solReadOnly = true;
                     }
@@ -670,9 +682,11 @@ namespace SIAW.Controllers.inventarios.transaccion
         private async Task<dataPorConcepto> actualizarconcepto(DBContext _context, string opcion, int codconcepto, int codalmacen)
         {
             bool codalmdestinoReadOnly, codalmorigenReadOnly, traspaso, fidEnable, fnumeroidEnable , codpersonadesdeReadOnly = new bool();
-            fidEnable = true;
+            fidEnable = true;  // se cambio a true ya que en el front Angular asi lo requiere al revez, como si fuera read only.
+                                // lo mismo para los botones (variables) que usan Enable. En el SIA esta al revez
             fnumeroidEnable = true;
             traspaso = false;
+            codpersonadesdeReadOnly = true;
 
             int codalmdestinoText = 0, codalmorigenText = 0;
             int factor = 0;
@@ -738,8 +752,8 @@ namespace SIAW.Controllers.inventarios.transaccion
                     {
                         codalmorigenReadOnly = true;
                         codalmdestinoReadOnly = true;
-                        fidEnable = false;
-                        fnumeroidEnable = false;
+                        fidEnable = true;
+                        fnumeroidEnable = true;
                         codalmorigenText = codalmacen;
                         codalmdestinoText = codalmacen;
                         codpersonadesdeReadOnly = true;
@@ -1451,9 +1465,81 @@ namespace SIAW.Controllers.inventarios.transaccion
 
 
 
+
+        [HttpGet]
+        [Route("impresionNotaMovimiento/{userConn}/{codClienteReal}/{codEmpresa}/{codclientedescripcion}/{preparacion}/{codigoNM}")]
+        public async Task<ActionResult<List<object>>> impresionNotaMovimiento(string userConn, int codconcepto, string codEmpresa, string codclientedescripcion, int codtarifa, string usuario, string codconceptodescripcion, double total, int codigoNM)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var codAlm = await _context.inmovimiento.Where(i => i.codigo == codigoNM).Select(i => i.codalmacen).FirstOrDefaultAsync();
+                    System.Drawing.Printing.PrinterSettings config = new System.Drawing.Printing.PrinterSettings();
+
+                    // Asignar el nombre de la impresora
+                    string impresora = await _context.inalmacen.Where(i => i.codigo == codAlm).Select(i => i.impresora_nr).FirstOrDefaultAsync() ?? "";
+                    // string pathFile = await mostrardocumento_directo(_context, codClienteReal, codEmpresa, codclientedescripcion, preparacion, veremision);
+
+                    if (impresora == "")
+                    {
+                        return BadRequest(new { resp = "No se encontró una impresora registrada para este código de almacen, consulte con el administrador." });
+                    }
+                    config.PrinterName = impresora;
+                    if (config.IsValid)
+                    {
+                        // generamos el archivo .txt y regresamos la ruta
+                        
+                        //string pathFile = await mostrardocumento_directo(_context, codEmpresa, codconcepto, codtarifa, usuario, codconceptodescripcion, codclientedescripcion, total, cabecera, tablaDetalle);
+                        
+                        // Configurar e iniciar el trabajo de impresión
+                        // Aquí iría el código para configurar el documento a imprimir y lanzar la impresión
+                        
+                        //bool impremiendo = await RawPrinterHelper.SendFileToPrinterAsync(config.PrinterName, pathFile);
+                        
+                        // bool impremiendo = await RawPrinterHelper.PrintFileAsync(config.PrinterName, pathFile);
+
+                        // luego de mandar a imprimir eliminamos el archivo
+                        /*
+                        if (System.IO.File.Exists(pathFile))
+                        {
+                            System.IO.File.Delete(pathFile);
+                            Console.WriteLine("File deleted successfully.");
+                        }
+                        else
+                        {
+                            Console.WriteLine("File not found.");
+                        }
+                        if (impremiendo)
+                        {
+                            return Ok(new { resp = "Se envió el documento a la impresora: " + impresora });
+                        }
+                        else
+                        {
+                            return BadRequest(new { resp = "No se puedo realizar la impresion, comuniquese con el Administrador de Sistemas." });
+                        }
+                        */
+                    }
+                    else
+                    {
+                        return BadRequest(new { resp = "La impresora no está disponible." });
+                    }
+                }
+                return BadRequest(new { resp = "No se encontro la nota de remision" });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                return Problem("Error en el servidor al imprimir NM: " + ex.Message);
+                throw;
+            }
+        }
+
+
         // imprimir documento formato matricial
         // el codigo tarifa debe pedir Marvin por frontEnd antes de venir a esta ruta para imprimir
-        private async Task<(bool resultado, string msg)> mostrardocumento_directo(DBContext _context, string codempresa, int codconcepto, int codtarifa, string usuario, string codconceptodescripcion, veremision cabecera, List<tablaDetalleNM> tablaDetalle) 
+        private async Task<(bool resultado, string msg)> mostrardocumento_directo(DBContext _context, string codempresa, int codconcepto, int codtarifa, string usuario, string codconceptodescripcion, string codclientedescripcion, double total, inmovimiento cabecera, List<tablaDetalleNM> tablaDetalle) 
         {
             //#################################################
             //mandar impresion
@@ -1463,9 +1549,9 @@ namespace SIAW.Controllers.inventarios.transaccion
             string alertaPrecio = "";
             //parametros
             string imp_titulo;
-            string imp_tiponm;
+            string imp_tiponm = "";
             string imp_id_concepto;
-            string imp_conceptodescripcion;
+            string imp_conceptodescripcion = "";
             string imp_empresa;
             string imp_usuario;
             string imp_nit;
@@ -1549,7 +1635,74 @@ namespace SIAW.Controllers.inventarios.transaccion
             imp_empresa = await nombres.nombreempresa(_context, codempresa);
             imp_usuario = cabecera.usuarioreg;
             imp_nit = "N.I.T.: " + await empresa.NITempresa(_context, codempresa);
-            return "";
+
+            imp_codalmacen = cabecera.codalmacen.ToString();
+            imp_codalmacen_origen = cabecera.codalmorigen.ToString();
+            imp_codalmacen_destino = cabecera.codalmdestino.ToString();
+            imp_fecha = cabecera.fecha.Date.ToShortDateString();
+
+            imp_codvendedor = cabecera.codvendedor + " Prof:" + cabecera.idproforma + "-" + cabecera.numeroidproforma;
+
+            imp_total = total.ToString("####,##0.00000", new CultureInfo("en-US"));
+            imp_pesototal = (cabecera.peso ?? 0).ToString("####,##0.00000", new CultureInfo("en-US"));
+            imp_obs = cabecera.obs;
+
+            if (codconcepto == 104)
+            {
+                string subString = codclientedescripcion.Substring(6); // Índice 6 para empezar desde el 7° carácter
+                imp_nomclient = subString;
+            }
+            else
+            {
+                imp_nomclient = "";
+            }
+
+            // obtener detalle en data Table
+            DataTable dt = obtenerDetalleDataTable(_context, tablaDetalle);
+
+            string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            string outputDirectory = Path.Combine(currentDirectory, "OutputFiles");
+            string ruta = "";
+
+            if (await empresa.HojaReportes(_context,codempresa) == 0)
+            {
+                ruta = imp.imprimir_inmovimiento(outputDirectory, dt, imp_titulo, imp_tiponm, imp_id_concepto, imp_conceptodescripcion, imp_empresa,
+                    imp_usuario, imp_nit, imp_codvendedor, imp_codalmacen, imp_codalmacen_origen, imp_codalmacen_destino, imp_fecha, imp_total, imp_pesototal,
+                    imp_obs, imp_fecha_impresion, false, es_ajuste, imp_nomclient);
+            }
+
+
+
+
+            return (true,ruta);
+        }
+
+        private DataTable obtenerDetalleDataTable(DBContext _context, List<tablaDetalleNM> tablaDetalle)
+        {
+            // convertir a dataTable
+            // Crear un DataTable y definir sus columnas
+            DataTable dataTable = new DataTable();
+            dataTable.Columns.Add("coditem", typeof(string));
+            dataTable.Columns.Add("descripcion", typeof(string));
+            dataTable.Columns.Add("medida", typeof(string));
+            dataTable.Columns.Add("udm", typeof(string));
+            dataTable.Columns.Add("codaduana", typeof(string));
+            dataTable.Columns.Add("cantidad", typeof(decimal));
+            dataTable.Columns.Add("costo", typeof(double));
+
+            foreach (var item in tablaDetalle)
+            {
+                dataTable.Rows.Add(
+                    item.coditem,
+                    item.descripcion,
+                    item.medida,
+                    item.udm,
+                    item.codaduana,
+                    item.cantidad,
+                    item.costo
+                );
+            }
+            return dataTable;
         }
 
 
@@ -1620,17 +1773,17 @@ namespace SIAW.Controllers.inventarios.transaccion
     {
         public bool codalmdestinoReadOnly { get; set; }
         public bool codalmorigenReadOnly { get; set; }
-        public bool traspaso {  get; set; } 
-        public bool fidEnable { get; set; }
-        public bool fnumeroidEnable { get; set; }
-        public bool codpersonadesdeReadOnly { get; set; }
+        public bool traspaso {  get; set; }
+        public bool fidEnable { get; set; } = true;
+        public bool fnumeroidEnable { get; set; } = true;
+        public bool codpersonadesdeReadOnly { get; set; } = true;
         public int codalmdestinoText {  get; set; }
         public int codalmorigenText { get; set; }
         public int factor {  get; set; }
 
-        public bool codclienteReadOnly { get;set; }
-        public bool cargar_proformaEnabled { get; set; } = false;
-        public bool cvenumeracion1Enabled { get; set; } = false;
+        public bool codclienteReadOnly { get; set; } = true;
+        public bool cargar_proformaEnabled { get; set; } = true;
+        public bool cvenumeracion1Enabled { get; set; } = true;
         public bool id_proforma_solReadOnly { get; set; } = true;
         public bool numeroidproforma_solReadOnly { get; set; } = true;
     }
