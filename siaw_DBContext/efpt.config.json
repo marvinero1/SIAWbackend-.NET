@@ -6828,6 +6828,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[vedesextra_extraordinario_cliente]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[vedesextra_item]",
          "ObjectType": 0
       },

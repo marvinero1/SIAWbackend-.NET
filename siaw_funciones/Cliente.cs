@@ -2723,5 +2723,26 @@ namespace siaw_funciones
             return resultado;
         }
 
+
+        public async Task<bool> Cliente_Permite_Descto_Extra_Extraordinario(DBContext _context, int coddesextra, string codcliente)
+        {
+            try
+            {
+                int situacion = await _context.vedesextra_extraordinario_cliente
+                .Where(i => i.codcliente == codcliente && i.coddesextra == coddesextra)
+                .CountAsync();
+                if (situacion > 0)
+                {
+                    return true;
+                }
+                return false;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+
+        }
+
     }
 }

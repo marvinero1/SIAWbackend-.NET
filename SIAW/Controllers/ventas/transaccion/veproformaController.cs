@@ -5744,6 +5744,16 @@ namespace SIAW.Controllers.ventas.transaccion
                              */
                         }
                     }
+                    
+                    //Desde 11/01/2024 Verificar que el descuento no permita añadir si el cliente no esta registrado en la tabla vedesextra_extraordinario_cliente
+                    if (await ventas.Descuento_Extra_Permite_Anadir(_context, coddesextra) == false)
+                    {//Verificar que el cliente este hregistrado en la tabla vedesextra_permite_cliente
+                        if (await cliente.Cliente_Permite_Descto_Extra_Extraordinario(_context, coddesextra, codcliente_real) == false)
+                        {
+                            return StatusCode(203, new { resp = "El descuento: " + coddesextra + " no esta permitido añadirlo porque el cliente no esta registrado para obtener el descuento extraordinario.", status = false });
+                        }
+                    }
+
                     return Ok(new { resp = descuentoCredito, status = true });
                 }
 

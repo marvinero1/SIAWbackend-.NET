@@ -361,7 +361,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                 return (false, "No puede dejar la casilla de Numero de Documento de origen  en blanco.");
             }
 
-            if (await inventario.concepto_espara_despacho(_context,inmovimiento.codconcepto) && inmovimiento.codconcepto == 10 && await almacen.Es_Tienda(_context,inmovimiento.codalmacen))
+            if (await inventario.concepto_espara_despacho(_context,inmovimiento.codconcepto) && inmovimiento.codconcepto == 10 && await almacen.Es_Tienda(_context,(int)inmovimiento.codalmdestino))
             {
                 if (string.IsNullOrWhiteSpace(inmovimiento.idproforma_sol))
                 {
@@ -1491,20 +1491,42 @@ namespace SIAW.Controllers.inventarios.transaccion
                     {
                         // generamos el archivo .txt y regresamos la ruta
                         
-                        //string pathFile = await mostrardocumento_directo(_context, codEmpresa, codconcepto, codtarifa, usuario, codconceptodescripcion, codclientedescripcion, total, cabecera, tablaDetalle);
-                        
+                        inmovimiento cabecera = await _context.inmovimiento.Where(i => i.codigo == codigoNM).FirstOrDefaultAsync();
+
+                        var tablaDetalle = await _context.inmovimiento1.Where(i => i.codmovimiento == codigoNM)
+                            .Join(_context.initem,
+                                m => m.coditem,
+                                i => i.codigo,
+                                (m, i) => new tablaDetalleNM
+                                {
+                                    coditem = m.coditem,
+                                    descripcion = i.descripcion,
+                                    medida = i.medida,
+                                    udm = m.udm,
+                                    codaduana = m.codaduana,
+                                    cantidad = m.cantidad,
+                                    costo = 0
+                                }
+                            )
+                            .OrderBy(i => i.coditem)
+                            .ToListAsync();
+
+                        var pathFile = await mostrardocumento_directo(_context, codEmpresa, codconcepto, codtarifa, usuario, codconceptodescripcion, codclientedescripcion, total, cabecera, tablaDetalle);
+
                         // Configurar e iniciar el trabajo de impresión
                         // Aquí iría el código para configurar el documento a imprimir y lanzar la impresión
-                        
-                        //bool impremiendo = await RawPrinterHelper.SendFileToPrinterAsync(config.PrinterName, pathFile);
+                        if (pathFile.resultado == false)
+                        {
+                            return BadRequest(new { resp = pathFile.msg });
+                        }
+                        bool impremiendo = await RawPrinterHelper.SendFileToPrinterAsync(config.PrinterName, pathFile.msg);
                         
                         // bool impremiendo = await RawPrinterHelper.PrintFileAsync(config.PrinterName, pathFile);
 
                         // luego de mandar a imprimir eliminamos el archivo
-                        /*
-                        if (System.IO.File.Exists(pathFile))
+                        if (System.IO.File.Exists(pathFile.msg))
                         {
-                            System.IO.File.Delete(pathFile);
+                            System.IO.File.Delete(pathFile.msg);
                             Console.WriteLine("File deleted successfully.");
                         }
                         else
@@ -1519,7 +1541,6 @@ namespace SIAW.Controllers.inventarios.transaccion
                         {
                             return BadRequest(new { resp = "No se puedo realizar la impresion, comuniquese con el Administrador de Sistemas." });
                         }
-                        */
                     }
                     else
                     {
@@ -1709,27 +1730,6 @@ namespace SIAW.Controllers.inventarios.transaccion
     }
 
 
-
-    public class tablaDetalleNM
-    {
-        public string coditem { get; set; }
-        public string descripcion { get; set; }
-        public string medida { get; set; }
-        public string udm { get; set; }
-        public string codaduana { get; set; }
-        public decimal cantidad { get; set; }
-        public double costo { get; set; }
-    }
-
-    public class respValidaDecimales
-    {
-        public string cabecera { get; set; }
-        public List<string> detalleObs { get; set; }
-        public string alerta { get; set; }
-        public bool cumple { get; set; }
-    }
-
-
     public class dt_disminuir
     {
         public string coditem_kit { get; set; }
@@ -1763,11 +1763,6 @@ namespace SIAW.Controllers.inventarios.transaccion
     {
         public List<tablaDetalleNM> tabladetalle { get; set; }
 
-    }
-    public class requestGabrar
-    {
-        public inmovimiento cabecera { get; set; }
-        public List<tablaDetalleNM> tablaDetalle { get; set; }
     }
     public class dataPorConcepto
     {

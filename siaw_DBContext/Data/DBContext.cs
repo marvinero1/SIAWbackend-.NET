@@ -1722,6 +1722,7 @@ namespace siaw_DBContext.Data
         public virtual DbSet<vedesextra_condiciones> vedesextra_condiciones { get; set; }
         public virtual DbSet<vedesextra_descuento> vedesextra_descuento { get; set; }
         public virtual DbSet<vedesextra_excluyentes> vedesextra_excluyentes { get; set; }
+        public virtual DbSet<vedesextra_extraordinario_cliente> vedesextra_extraordinario_cliente { get; set; }
         public virtual DbSet<vedesextra_item> vedesextra_item { get; set; }
         public virtual DbSet<vedesextra_modifica_dias> vedesextra_modifica_dias { get; set; }
         public virtual DbSet<vedesextra_orden> vedesextra_orden { get; set; }
@@ -60482,6 +60483,13 @@ namespace siaw_DBContext.Data
             modelBuilder.Entity<vedesextra_excluyentes>(entity =>
             {
                 entity.HasNoKey();
+            });
+
+            modelBuilder.Entity<vedesextra_extraordinario_cliente>(entity =>
+            {
+                entity.Property(e => e.codcliente)
+                    .HasMaxLength(10)
+                    .IsUnicode(false);
             });
 
             modelBuilder.Entity<vedesextra_item>(entity =>

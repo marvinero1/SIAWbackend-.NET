@@ -854,3 +854,7 @@ C:\laragon\www\siawbackend-.net\SIAW\bin\Release\net6.0\zh-Hant\System.ServiceMo
 C:\laragon\www\siawbackend-.net\SIAW\bin\Release\net6.0\runtimes\win\lib\net6.0\System.Security.Cryptography.Pkcs.dll
 C:\laragon\www\siawbackend-.net\SIAW\bin\Release\net6.0\siaw_ws_siat.dll
 C:\laragon\www\siawbackend-.net\SIAW\bin\Release\net6.0\siaw_ws_siat.pdb
+C:\laragon\www\siawbackend-.net\SIAW\bin\Release\net6.0\SIAW.staticwebassets.endpoints.json
+C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\staticwebassets.build.endpoints.json
+C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\staticwebassets\msbuild.SIAW.Microsoft.AspNetCore.StaticWebAssetEndpoints.props
+C:\laragon\www\siawbackend-.net\SIAW\obj\Release\net6.0\staticwebassets.upToDateCheck.txt

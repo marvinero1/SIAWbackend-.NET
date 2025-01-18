@@ -1,11 +1,12 @@
 {
   "Version": 1,
-  "Hash": "hZhODWk5reAXmBFXPg060J/g8UOxLOu2Lb/95BAZlDw=",
+  "Hash": "bG8OpofzUq8kv1/E1uXvbc3snCGvcHgeKnzpYXzPZb4=",
   "Source": "SIAW",
   "BasePath": "_content/SIAW",
   "Mode": "Default",
   "ManifestType": "Publish",
   "ReferencedProjectsConfiguration": [],
   "DiscoveryPatterns": [],
-  "Assets": []
+  "Assets": [],
+  "Endpoints": []
 }

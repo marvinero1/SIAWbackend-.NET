@@ -7784,7 +7784,31 @@ namespace siaw_funciones
 
 
 
-
+        public async Task<bool> Descuento_Extra_Permite_Anadir(DBContext _context, int coddesextra)
+        {
+            try
+            {
+                bool resultado = false;
+                //using (_context)
+                //{
+                var result = await _context.vedesextra
+                    .Where(v => v.codigo == coddesextra)
+                    .Select(v => v.permite_anadir)
+                    .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = (bool)result;
+                }
+                else { resultado = false; }
+                //}
+                return resultado;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return false;
+            }
+        }
 
 
 

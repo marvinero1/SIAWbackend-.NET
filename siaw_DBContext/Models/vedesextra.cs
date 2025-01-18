@@ -31,5 +31,6 @@ namespace siaw_DBContext.Models
         public bool? valida_descuento_linea { get; set; }
         public DateTime? valido_desde { get; set; }
         public DateTime? valido_hasta { get; set; }
+        public bool? permite_anadir { get; set; }
     }
 }
