@@ -66,7 +66,7 @@ namespace SIAW.Controllers.inventarios.modificacion
                     tablaDetalle = tablaDetalle.Where(i => i.cantidad > 0).ToList();
 
 
-                    var guardarDoc = await guardarNuevoDocumento(_context, codempresa, traspaso, dataGrabar.cabecera, tablaDetalle);
+                    var guardarDoc = await editardatos(_context, codempresa, traspaso, dataGrabar.cabecera, tablaDetalle);
                     if (guardarDoc.valido == false)
                     {
                         if (guardarDoc.dtnegativos != null)
@@ -96,7 +96,7 @@ namespace SIAW.Controllers.inventarios.modificacion
             }
         }
 
-        private async Task<(bool valido, string msg, List<Dtnegativos>? dtnegativos, int codigoNM, int numeroID)> guardarNuevoDocumento(DBContext _context, string codempresa, bool traspaso, inmovimiento inmovimiento, List<tablaDetalleNM> tablaDetalle)
+        private async Task<(bool valido, string msg, List<Dtnegativos>? dtnegativos, int codigoNM, int numeroID)> editardatos(DBContext _context, string codempresa, bool traspaso, inmovimiento inmovimiento, List<tablaDetalleNM> tablaDetalle)
         {
             int factor = inmovimiento.factor;
             // preparacion de datos 
@@ -118,15 +118,28 @@ namespace SIAW.Controllers.inventarios.modificacion
                 var validaCabecera = await validardatos(_context, factor, traspaso, inmovimiento);
                 if (validaCabecera.valido)
                 {
-                    // prepara detalle Nota Movimiento
-                    List<inmovimiento1> inmovimiento1 = tablaDetalle.Select(i => new inmovimiento1
+
+
+                    // #######################################
+                    // ##RUTINA QUE ACTUALIZA EL SALDO ACTUAL  (DESCONTAR)
+                    // sia_funciones.Saldos.Instancia.Inmovimiento_ActualizarSaldo(codigo.Text, sia_funciones.Saldos.modo_actualizacion.eliminar, tabladetalle)
+                    await saldos.Inmovimiento_ActualizarSaldo(_context, inmovimiento.codigo, Saldos.ModoActualizacion.Eliminar);
+                    // #######################################
+
+
+                    await inventario.actaduanamovimiento(_context, inmovimiento.codigo, "eliminar", inmovimiento.fecha);
+
+
+                    // prepara detalle Nota Movimiento, ademas no se guardan items con cantidad revisada en 0
+                    List<inmovimiento1> inmovimiento1 = tablaDetalle.Where(i => i.cantidad_revisada != 0).Select(i => new inmovimiento1
                     {
-                        codmovimiento = 0,
+                        codmovimiento = inmovimiento.codigo,
                         coditem = i.coditem,
-                        cantidad = i.cantidad,
+                        cantidad = i.cantidad_revisada,
                         udm = i.udm,
                         codaduana = i.codaduana,
                     }).ToList();
+
                     // coloca pesos
                     foreach (var reg in inmovimiento1)
                     {
@@ -135,53 +148,36 @@ namespace SIAW.Controllers.inventarios.modificacion
                     }
                     // coloca peso general
                     inmovimiento.peso = inmovimiento1.Sum(i => i.peso);
-                    int codNotaMovimiento = 0;
                     using (var dbContexTransaction = _context.Database.BeginTransaction())
                     {
                         try
                         {
-                            inmovimiento.numeroid = await documento.movimientonumeroid(_context, inmovimiento.id) + 1;
-                            if (inmovimiento.numeroid <= 0)
-                            {
-                                return (false, "Error al generar numero ID, consulte con el Administrador", null, 0, 0);
-                            }
-                            if (await documento.existe_movimiento(_context, inmovimiento.id, inmovimiento.numeroid))
-                            {
-                                return (false, "Ese numero de documento, ya existe, por favor consulte con el administrador del sistema.", null, 0, 0);
-                            }
-
-                            // agregar cabecera
+                            // actualiza cabecera
                             try
                             {
-                                _context.inmovimiento.Add(inmovimiento);
+                                _context.Entry(inmovimiento).State = EntityState.Modified;
                                 await _context.SaveChangesAsync();
                             }
                             catch (Exception ex)
                             {
                                 return (false, "Error al grabar la cabecera de la nota de movimiento: " + ex.Message, null, 0, 0);
                             }
-                            codNotaMovimiento = inmovimiento.codigo;
 
 
 
 
-
-                            // actualiza numero id
-                            var numeracion = _context.intipomovimiento.FirstOrDefault(n => n.id == inmovimiento.id);
-                            numeracion.nroactual += 1;
-                            await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
-
-
-                            int validaCantProf = await _context.inmovimiento.Where(i => i.id == inmovimiento.id && i.numeroid == inmovimiento.numeroid).CountAsync();
-                            if (validaCantProf > 1)
-                            {
-                                return (false, "Se detecto más de un número del mismo documento, por favor consulte con el administrador del sistema.", null, 0, 0);
-                            }
 
                             // guarda detalle (veproforma1)
-                            // actualizar codigoNM para agregar
-                            inmovimiento1 = inmovimiento1.Select(p => { p.codmovimiento = codNotaMovimiento; return p; }).ToList();
-                            // guardar detalle
+                            // actualizar codigoNM para agregar por si acaso
+                            inmovimiento1 = inmovimiento1.Select(p => { p.codmovimiento = inmovimiento.codigo; return p; }).ToList();
+
+                            // elimina primero, luego guardar detalle o items nuevos
+                            var detalleNMAnt = await _context.inmovimiento1.Where(i => i.codmovimiento == inmovimiento.codigo).ToListAsync();
+                            if (detalleNMAnt.Count() > 0)
+                            {
+                                _context.inmovimiento1.RemoveRange(detalleNMAnt);
+                                await _context.SaveChangesAsync();
+                            }
                             _context.inmovimiento1.AddRange(inmovimiento1);
                             await _context.SaveChangesAsync();
                             dbContexTransaction.Commit();
@@ -205,36 +201,40 @@ namespace SIAW.Controllers.inventarios.modificacion
 
                     // ACTUALIZAR POR PROCEDIMIENTO ALMACENADO
 
-                    if (await saldos.Inmovimiento_ActualizarSaldo(_context, codNotaMovimiento, Saldos.ModoActualizacion.Crear) == false)
+                    if (await saldos.Inmovimiento_ActualizarSaldo(_context, inmovimiento.codigo, Saldos.ModoActualizacion.Crear) == false)
                     {
-                        await log.RegistrarEvento(_context, inmovimiento.usuarioreg, Log.Entidades.SW_Nota_Movimiento, codNotaMovimiento.ToString(), inmovimiento.id, inmovimiento.numeroid.ToString(), _controllerName, "No actualizo stock en cantidad de algun item en NM.", Log.TipoLog.Creacion);
+                        await log.RegistrarEvento(_context, inmovimiento.usuarioreg, Log.Entidades.SW_Nota_Movimiento, inmovimiento.codigo.ToString(), inmovimiento.id, inmovimiento.numeroid.ToString(), _controllerName, "No actualizo stock en cantidad de algun item en NM.", Log.TipoLog.Creacion);
                     }
                     // #######################################
 
-                    await inventario.actaduanamovimiento(_context, codNotaMovimiento, "crear", inmovimiento.fecha);
+                    await inventario.actaduanamovimiento(_context, inmovimiento.codigo, "crear", inmovimiento.fecha);
 
-                    // Pasar a transferido proforma de solicitud urgente
-                    // actualizar proforma a transferida
-                    if (inmovimiento.idproforma_sol != "" && inmovimiento.numeroidproforma_sol != null && inmovimiento.numeroidproforma_sol != 0)
+                    //Desde 29/09/2024 Registrar el log de items modificados registrando la cantidad del item que era originalmente antes de la modificacion
+                    foreach (var reg in tablaDetalle)
                     {
-                        if (await ventas.proforma_es_sol_urgente(_context, inmovimiento.idproforma_sol, (int)inmovimiento.numeroidproforma_sol))
+                        if (reg.nuevo == "no")
                         {
-                            var datoProf = await _context.veproforma.Where(i => i.id == inmovimiento.idproforma_sol && i.numeroid == inmovimiento.numeroidproforma_sol).FirstOrDefaultAsync();
-                            datoProf.transferida = true;
-                            await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
-                            await log.RegistrarEvento(_context, inmovimiento.usuarioreg, Log.Entidades.SW_Nota_Movimiento, datoProf.codigo.ToString(), inmovimiento.idproforma_sol, inmovimiento.numeroidproforma_sol.ToString(), _controllerName, "Pasar a transferida Proforma", Log.TipoLog.Creacion);
-                            // actualizar revertir stock de proforma
-                            try
+                            // actualiza el item ya existente
+                            if (reg.cantidad_revisada == 0) // se elimino Item
                             {
-                                await ventas.revertirstocksproforma(_context, datoProf.codigo, codempresa);
+                                await log.RegistrarEvento(_context, inmovimiento.usuarioreg, Log.Entidades.SW_Nota_Movimiento, inmovimiento.codigo.ToString(), inmovimiento.id, inmovimiento.numeroid.ToString(), _controllerName, "Item Eliminado: " + reg.coditem + " De: " + Math.Round(reg.cantidad, 2) + " A " + reg.cantidad_revisada, Log.TipoLog.Eliminacion); 
                             }
-                            catch (Exception)
+                            else
                             {
-
+                                await log.RegistrarEvento(_context, inmovimiento.usuarioreg, Log.Entidades.SW_Nota_Movimiento, inmovimiento.codigo.ToString(), inmovimiento.id, inmovimiento.numeroid.ToString(), _controllerName, "Item Modificado: " + reg.coditem + " De: " + Math.Round(reg.cantidad, 2) + " A " + reg.cantidad_revisada, Log.TipoLog.Modificacion);
                             }
                         }
+                        else
+                        {
+                            // inserta añadir el item nuevo
+                            await log.RegistrarEvento(_context, inmovimiento.usuarioreg, Log.Entidades.SW_Nota_Movimiento, inmovimiento.codigo.ToString(), inmovimiento.id, inmovimiento.numeroid.ToString(), _controllerName, "Item Añadido: " + reg.coditem + " De: " + Math.Round(reg.cantidad, 2) + " A " + reg.cantidad_revisada, Log.TipoLog.Modificacion);
+                        }
                     }
-                    return (true, "", null, codNotaMovimiento, inmovimiento.numeroid);
+
+
+
+
+                    return (true, "", null, inmovimiento.codigo, inmovimiento.numeroid);
 
                 }
                 return (false, validaCabecera.msg, null, 0, 0);
@@ -375,6 +375,17 @@ namespace SIAW.Controllers.inventarios.modificacion
                     inmovimiento.fnumeroid = 0;
                 }
             }
+
+            if (inmovimiento.numeroidproforma == null)
+            {
+                inmovimiento.numeroidproforma = 0;
+            }
+            if (inmovimiento.numeroidproforma_sol == null)
+            {
+                inmovimiento.numeroidproforma_sol = 0;
+            }
+
+
             if (traspaso == false)
             {
                 if (inmovimiento.fid == "")
@@ -474,13 +485,18 @@ namespace SIAW.Controllers.inventarios.modificacion
                 {
                     return (false, "No puso la Unidad de Medida en la Linea " + indice + " .", null);
                 }
-                if (reg.cantidad == null)
+                if (reg.cantidad_revisada == null)
                 {
                     return (false, "No puso la cantidad en la Linea " + indice + " .", null);
                 }
-                if (reg.cantidad <= 0)
+                if (reg.cantidad_revisada <= 0)
                 {
-                    return (false, "No puso la cantidad en la Linea " + indice + " .", null);
+                    // si es item nuevo alerta si la cantidad revisada es cero
+                    // si no es nuevo, si se permite cantidad_revisada=0
+                    if (reg.nuevo == "si")
+                    {
+                        return (false, "No puso la cantidad revisada en la Linea " + indice + " .", null);
+                    }
                 }
                 indice++;
             }

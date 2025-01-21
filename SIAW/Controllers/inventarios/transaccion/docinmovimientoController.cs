@@ -130,7 +130,36 @@ namespace SIAW.Controllers.inventarios.transaccion
                             valido = guardarDoc.valido
                         });
                     }
+                    string mensajeConfirmacion = "Se genero la nota de movimiento : " + dataGrabar.cabecera.id + " - " + guardarDoc.numeroID + ". Desea Exportar el documento? ";
                     await log.RegistrarEvento(_context, dataGrabar.cabecera.usuarioreg, Log.Entidades.SW_Nota_Movimiento, guardarDoc.codigoNM.ToString(), dataGrabar.cabecera.id, guardarDoc.numeroID.ToString(), _controllerName, "Grabar", Log.TipoLog.Creacion);
+
+                    List<string> alertas = new List<string>();
+
+                    // Desde 19-06-2023 Al grabar obtener si la proforma del origen de la tienda es una solicitud urgente
+                    // si es asi debe enlazar la nota de movimiento en la solicitud urgente
+                    if (dataGrabar.cabecera.idproforma.Length > 0 && (dataGrabar.cabecera.numeroidproforma != null || dataGrabar.cabecera.numeroidproforma > 0))
+                    {
+                        // verificar si la proforma esta vinculada a una solicitud urgente
+                        var doc_solurgente = await ventas.Solicitud_Urgente_IdNroid_de_Proforma(_context, dataGrabar.cabecera.idproforma, (int)dataGrabar.cabecera.numeroidproforma);
+                        if (doc_solurgente.id.Trim() != "")
+                        {
+                            alertas.Add("La proforma es una solicitud urgente!!!");
+                            var insolUrgente = await _context.insolurgente.Where(i => i.id == doc_solurgente.id && i.numeroid == doc_solurgente.nroId).FirstOrDefaultAsync();
+                            insolUrgente.idnm = dataGrabar.cabecera.id;
+                            insolUrgente.numeroidnm = dataGrabar.cabecera.numeroid;
+                            var cambios = await _context.SaveChangesAsync();
+                            if (cambios>0)
+                            {
+                                await log.RegistrarEvento(_context, dataGrabar.cabecera.usuarioreg, Log.Entidades.SW_Nota_Movimiento, guardarDoc.codigoNM.ToString(), dataGrabar.cabecera.id, guardarDoc.numeroID.ToString(), _controllerName, "Grabar enlace NM: " + dataGrabar.cabecera.id + "-" + guardarDoc.numeroID.ToString() + " con SU: " + doc_solurgente.id + "-" + doc_solurgente.nroId, Log.TipoLog.Creacion);
+                                alertas.Add("La nota de movimiento fue enlazada con la solicitud urgente: " + doc_solurgente.id + "-" + doc_solurgente.nroId);
+                            }
+                        }
+                    }
+
+                    // registrar la nota en despachos si es que es un concepto habilitado para registrar en despachos
+                    await Registrar_Nota_En_Despachos();
+
+
                 }
                 return Ok(new {resp = "Nota de Movimiento creada exitosamente."});
             }
