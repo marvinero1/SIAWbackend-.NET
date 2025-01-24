@@ -531,5 +531,20 @@ namespace siaw_funciones
             }
             return true;
         }
+
+        public async Task<bool> Existe_Nota_De_Movimiento(DBContext _context, string idnmov, int nroidnmov)
+        {
+            var consulta = await _context.inmovimiento.Where(i => i.id == idnmov && i.numeroid == nroidnmov && new[] { 11, 10, 22 }.Contains(i.codconcepto)).CountAsync();
+            bool respuesta = true;
+            if (consulta > 0) {
+                respuesta = true;
+            }
+            else
+            {
+                respuesta = false;
+            }
+            return respuesta;
+        }
+
     }
 }

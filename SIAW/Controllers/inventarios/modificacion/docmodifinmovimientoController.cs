@@ -12,6 +12,7 @@ using System.Globalization;
 using Polly;
 using LibSIAVB;
 using System.Data;
+using SIAW.Controllers.inventarios.transaccion;
 
 namespace SIAW.Controllers.inventarios.modificacion
 {
@@ -29,6 +30,10 @@ namespace SIAW.Controllers.inventarios.modificacion
         private readonly Restricciones restricciones = new Restricciones();
         private readonly Items item = new Items();
         private readonly Ventas ventas = new Ventas();
+        private readonly Nombres nombres = new Nombres();
+        private readonly Personal personal = new Personal();
+        private readonly Cliente cliente = new Cliente();
+
 
         private readonly string _controllerName = "docinmovimientoController";
 
@@ -39,13 +44,383 @@ namespace SIAW.Controllers.inventarios.modificacion
         }
 
 
+        [HttpGet]
+        [Route("getUltiNMId/{userConn}")]
+        public async Task<object> getUltiNMId(string userConn)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var ultimoRegistro = await _context.veproforma
+                            .OrderByDescending(i => i.codigo)
+                            .Select(i => new
+                            {
+                                i.codigo,
+                                i.id,
+                                i.numeroid
+                            }).FirstOrDefaultAsync();
+                    return Ok(ultimoRegistro);
+                }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+        }
+
+        [HttpGet]
+        [Route("obtNMxModif/{userConn}/{codNotMov}/{tienePermisoModifAntUltInv}")]
+        public async Task<object> obtNMxModif(string userConn, int codNotMov, bool tienePermisoModifAntUltInv)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                int codpersonadesde = 0;
+                string codpersonadesdedesc = "";
+                int codalmdestino = 0;
+                string codclientedescripcion = "";
+                string estadodoc = "";
+                string codalmacendescripcion = "";
+                string codalmdestinodescripcion = "";
+                string codalmorigendescripcion = "";
+                string codconceptodescripcion = "";
+
+                int codigo_proforma = 0;
+
+                bool codalmorigenReadOnly = false;
+                bool codalmdestinoReadOnly = false;
+                bool codpersonadesdeReadOnly = false;
+                bool codclienteReadOnly = false;
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var cabecera = await _context.inmovimiento.Where(i => i.codigo == codNotMov).FirstOrDefaultAsync();
+                    if (cabecera.codpersona == null)
+                    {
+                        codpersonadesde = 0;
+                        codpersonadesdedesc = "";
+                    }
+                    else
+                    {
+                        if (cabecera.codpersona == 0)
+                        {
+                            codpersonadesde = (int)cabecera.codpersona;
+                            codpersonadesdedesc = "";
+                        }
+                        else
+                        {
+                            codpersonadesde = (int)cabecera.codpersona;
+                            // buscar_nombre_persona()
+                            var descripcion = await _context.pepersona.Where(i => i.codigo == cabecera.codpersona).Select(i => i.apellido1 + " , " + i.nombre1).FirstOrDefaultAsync();
+                            if (descripcion == null)
+                            {
+                                codpersonadesde = 0;
+                                codalmdestino = 0;
+                            }
+                            else
+                            {
+                                codpersonadesde = (int)cabecera.codpersona;
+                                codpersonadesdedesc = descripcion;
+                                codalmdestino = await personal.codalmacen(_context, codpersonadesde);
+                            }
+                            // verificar_concepto_usr_final_despues_de_mostrar_datos()
+                            if (await inventario.ConceptoEsUsuarioFinal(_context,cabecera.codconcepto))
+                            {
+                                codalmorigenReadOnly = true;
+                                codalmdestinoReadOnly = true;
+                                codpersonadesdeReadOnly = false;
+                            }
+                            else
+                            {
+                                codpersonadesdeReadOnly = true;
+                            }
+                        }
+                    }
+
+                    // codcliente
+                    if (cabecera.codcliente == null)
+                    {
+                        cabecera.codcliente = "0";
+                        codclientedescripcion = "";
+                    }
+                    else
+                    {
+                        if (cabecera.codcliente.Trim() == "0")
+                        {
+                            codclientedescripcion = "";
+                        }
+                        else
+                        {
+                            codclientedescripcion = await cliente.Razonsocial(_context,cabecera.codcliente);
+                            // verificar_concepto_entrega_cliente_despues_de_mostrar_datos
+                            if (await inventario.Concepto_Es_Entrega_Cliente(_context, cabecera.codconcepto))
+                            {
+                                codalmorigenReadOnly = true;
+                                codalmdestinoReadOnly = true;
+                                codclienteReadOnly = false;
+                            }
+                            else
+                            {
+                                codclienteReadOnly = true;
+                            }
+                        }
+                    }
+
+                    if (cabecera.fecha_inicial == null)
+                    {
+                        cabecera.fecha_inicial = cabecera.fecha;
+                    }
+                    if (cabecera.anulada == true)
+                    {
+                        estadodoc = "ANULADA";
+                    }
+                    try
+                    {
+                        codigo_proforma = await ventas.codproforma(_context, cabecera.idproforma_sol, cabecera.numeroidproforma_sol ?? 0);
+                    }
+                    catch (Exception)
+                    {
+                        cabecera.idproforma_sol = "";
+                        cabecera.numeroidproforma_sol = 0;
+                    }
+
+
+                    // habilita solo casillas editables
+
+                    codalmacendescripcion = await nombres.nombrealmacen(_context, cabecera.codalmacen);
+                    codalmdestinodescripcion = await nombres.nombrealmacen(_context, cabecera.codalmdestino ?? 0);
+                    codalmorigendescripcion = await nombres.nombrealmacen(_context, cabecera.codalmorigen ?? 0);
+
+                    // mostrar el campo especial de catalogo
+                    var consultaConcepto = await _context.inconcepto.Where(i => i.codigo == cabecera.codconcepto).Select(i => new
+                    {
+                        i.codigo,
+                        i.descripcion
+                    }).FirstOrDefaultAsync();
+
+                    if (consultaConcepto == null)
+                    {
+                        codconceptodescripcion = "";
+                    }
+                    else
+                    {
+                        codconceptodescripcion = consultaConcepto.descripcion;
+                    }
+
+
+                    var dataPorConcepto = await actualizarconcepto(_context, "", cabecera.codconcepto, cabecera.codalmacen);
+
+                    bool btnGrabarReadOnly = false;
+                    bool btnAnularReadOnly = false;
+                    bool btnHabilitarReadOnly = false;
+                    // mostrar detalle del documento actual
+                    List<tablaDetalleNM> tabladetalle = await mostrardetalle(_context, cabecera.codigo);
+                    if (await seguridad.periodo_fechaabierta_context(_context,cabecera.fecha.Date,2))
+                    {
+                        btnGrabarReadOnly = false;
+                        btnAnularReadOnly = false;
+                    }
+                    else
+                    {
+                        btnGrabarReadOnly = true;
+                        btnAnularReadOnly = true;
+                    }
+
+                    if (await restricciones.ValidarModifDocAntesInventario(_context, cabecera.codalmacen, cabecera.fecha.Date))
+                    {
+                        // verificar si periodo abiero
+                        if (await seguridad.periodo_fechaabierta_context(_context,cabecera.fecha.Date,2))
+                        {
+                            btnGrabarReadOnly = false;
+                            btnAnularReadOnly = false;
+                            btnHabilitarReadOnly = false;
+                        }
+                        else
+                        {
+                            btnGrabarReadOnly = true;
+                            btnAnularReadOnly = true;
+                            btnHabilitarReadOnly = true;
+                        }
+                    }
+                    else
+                    {
+                        btnGrabarReadOnly = true;
+                        btnAnularReadOnly = true;
+                        if (tienePermisoModifAntUltInv)  // si tiene permiso permite habilitar
+                        {
+                            btnGrabarReadOnly = false;
+                            btnAnularReadOnly = false;
+                        }
+                    }
+
+                    bool esTienda = await almacen.Es_Tienda(_context, cabecera.codalmorigen ?? 0);
+
+
+                    return Ok(new
+                    {
+                        codpersonadesde,
+                        codpersonadesdedesc,
+                        codalmdestino,
+                        codclientedescripcion,
+                        estadodoc,
+                        codalmacendescripcion,
+                        codalmdestinodescripcion,
+                        codalmorigendescripcion,
+                        codconceptodescripcion,
+                        codigo_proforma,
+                        codalmorigenReadOnly,
+                        codalmdestinoReadOnly,
+                        codpersonadesdeReadOnly,
+                        codclienteReadOnly,
+                        btnGrabarReadOnly,
+                        btnAnularReadOnly,
+                        btnHabilitarReadOnly,
+                        esTienda,
+                        // ///////////////////////////////////////////////////////////////
+                        cabecera,
+                        tabladetalle,
+
+                    });
+                }
+
+            }
+            catch (Exception ex)
+            {
+                return Problem("Error en el servidor al obtener Datos: " + ex.Message);
+                throw;
+            }
+        }
+
+        private async Task<List<tablaDetalleNM>> mostrardetalle(DBContext _context, int codigo)
+        {
+            List<tablaDetalleNM> tabladetalle = await _context.inmovimiento1
+                .Where(i => i.codmovimiento == codigo)
+                .Join(_context.initem,
+                m => m.coditem,
+                i => i.codigo,
+                (m,i) => new {m,i})
+                .Select(i => new tablaDetalleNM
+                {
+                    coditem = i.m.coditem,
+                    descripcion = i.i.descripcion,
+                    medida = i.i.medida,
+                    udm = i.m.udm,
+                    codaduana = i.m.codaduana,
+                    cantidad = i.m.cantidad,
+                    costo = 0,
+                    cantidad_revisada = i.m.cantidad,
+                    nuevo = "no",
+                }).ToListAsync();
+            return tabladetalle;
+        }
+
+        private async Task<dataPorConcepto> actualizarconcepto(DBContext _context, string opcion, int codconcepto, int codalmacen)
+        {
+            bool codalmdestinoReadOnly, codalmorigenReadOnly, traspaso, fidEnable, fnumeroidEnable, codpersonadesdeReadOnly = new bool();
+            fidEnable = true;  // se cambio a true ya que en el front Angular asi lo requiere al revez, como si fuera read only.
+                               // lo mismo para los botones (variables) que usan Enable. En el SIA esta al revez
+            fnumeroidEnable = true;
+            traspaso = false;
+            codpersonadesdeReadOnly = true;
+
+            int codalmdestinoText = 0, codalmorigenText = 0;
+            int factor = 0;
+            if (codconcepto == 0)
+            {
+                codalmdestinoReadOnly = true;
+                codalmorigenReadOnly = true;
+                codconcepto = 0;
+                if (opcion == "limpiar")
+                {
+                    codalmdestinoText = 0;
+                    codalmorigenText = 0;
+                }
+                factor = 0;
+            }
+            else
+            {
+                var datos = await _context.inconcepto.Where(i => i.codigo == codconcepto).FirstOrDefaultAsync();
+                if (datos == null)
+                {
+                    codalmdestinoReadOnly = true;
+                    codalmorigenReadOnly = true;
+                    codconcepto = 0;
+                    if (opcion == "limpiar")
+                    {
+                        codalmdestinoText = 0;
+                        codalmorigenText = 0;
+                    }
+                    factor = 0;
+                }
+                else
+                {
+                    factor = datos.factor;
+                    traspaso = datos.traspaso;
+                    if (traspaso)
+                    {
+                        switch (factor)
+                        {
+                            case 1:
+                                codalmorigenReadOnly = false;
+                                codalmdestinoReadOnly = true;
+                                codalmorigenText = 0;
+                                codalmdestinoText = codalmacen;
+                                break;
+                            case -1:
+                                codalmorigenReadOnly = true;
+                                codalmdestinoReadOnly = false;
+                                codalmdestinoText = 0;
+                                codalmorigenText = codalmacen;
+                                break;
+                            case 0:
+                                codalmorigenReadOnly = false;
+                                codalmdestinoReadOnly = false;
+                                break;
+                            default:
+                                codalmorigenReadOnly = true;
+                                codalmdestinoReadOnly = true;
+                                break;
+                        }
+
+                    }
+                    else
+                    {
+                        codalmorigenReadOnly = true;
+                        codalmdestinoReadOnly = true;
+                        fidEnable = true;
+                        fnumeroidEnable = true;
+                        codalmorigenText = codalmacen;
+                        codalmdestinoText = codalmacen;
+                        codpersonadesdeReadOnly = true;
+                    }
+                }
+            }
+            return new dataPorConcepto
+            {
+                codalmdestinoReadOnly = codalmdestinoReadOnly,
+                codalmorigenReadOnly = codalmorigenReadOnly,
+                traspaso = traspaso,
+                fidEnable = fidEnable,
+                fnumeroidEnable = fnumeroidEnable,
+                codpersonadesdeReadOnly = codpersonadesdeReadOnly,
+                codalmdestinoText = codalmdestinoText,
+                codalmorigenText = codalmorigenText,
+                factor = factor
+            };
+
+        }
+
+
         [HttpPost]
         [Route("grabarDocumento/{userConn}/{codempresa}/{traspaso}")]
         public async Task<ActionResult<object>> grabarDocumento(string userConn, string codempresa, bool traspaso, requestGabrar dataGrabar)
         {
             try
             {
-
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
@@ -85,9 +460,39 @@ namespace SIAW.Controllers.inventarios.modificacion
                             valido = guardarDoc.valido
                         });
                     }
+                    string mensajeConfirmacion = "Se modifico la nota de movimiento : " + dataGrabar.cabecera.id + " - " + guardarDoc.numeroID + " y se volvera a recuperar en pantalla con la informacion modificada.";
                     await log.RegistrarEvento(_context, dataGrabar.cabecera.usuarioreg, Log.Entidades.SW_Nota_Movimiento, guardarDoc.codigoNM.ToString(), dataGrabar.cabecera.id, guardarDoc.numeroID.ToString(), _controllerName, "Grabar", Log.TipoLog.Creacion);
+
+                    List<string> alertas = new List<string>();
+                    alertas.Add("Desea Exportar el documento? ");
+
+                    // Desde 19-06-2023 Al grabar obtener si la proforma del origen de la tienda es una solicitud urgente
+                    // si es asi debe enlazar la nota de movimiento en la solicitud urgente
+                    if (dataGrabar.cabecera.idproforma.Length > 0 && (dataGrabar.cabecera.numeroidproforma != null || dataGrabar.cabecera.numeroidproforma > 0))
+                    {
+                        // verificar si la proforma esta vinculada a una solicitud urgente
+                        var doc_solurgente = await ventas.Solicitud_Urgente_IdNroid_de_Proforma(_context, dataGrabar.cabecera.idproforma, (int)dataGrabar.cabecera.numeroidproforma);
+                        if (doc_solurgente.id.Trim() != "")
+                        {
+                            alertas.Add("La proforma es una solicitud urgente!!!");
+                            var insolUrgente = await _context.insolurgente.Where(i => i.id == doc_solurgente.id && i.numeroid == doc_solurgente.nroId).FirstOrDefaultAsync();
+                            insolUrgente.idnm = dataGrabar.cabecera.id;
+                            insolUrgente.numeroidnm = dataGrabar.cabecera.numeroid;
+                            var cambios = await _context.SaveChangesAsync();
+                            if (cambios > 0)
+                            {
+                                await log.RegistrarEvento(_context, dataGrabar.cabecera.usuarioreg, Log.Entidades.SW_Nota_Movimiento, guardarDoc.codigoNM.ToString(), dataGrabar.cabecera.id, guardarDoc.numeroID.ToString(), _controllerName, "Grabar enlace NM: " + dataGrabar.cabecera.id + "-" + guardarDoc.numeroID.ToString() + " con SU: " + doc_solurgente.id + "-" + doc_solurgente.nroId, Log.TipoLog.Modificacion);
+                                alertas.Add("La nota de movimiento fue enlazada con la solicitud urgente: " + doc_solurgente.id + "-" + doc_solurgente.nroId);
+                            }
+                        }
+                    }
+                    // registrar la nota en despachos si es que es un concepto habilitado para registrar en despachos
+                    List<string> mensajesDesp = await Registrar_Nota_En_Despachos(_context, dataGrabar.cabecera.codconcepto, dataGrabar.cabecera.id, dataGrabar.cabecera.numeroid, dataGrabar.cabecera.usuarioreg);
+                    alertas.AddRange(mensajesDesp);
+
+                    return Ok(new { resp = mensajeConfirmacion, alertas = alertas });
+
                 }
-                return Ok(new { resp = "Nota de Movimiento creada exitosamente." });
             }
             catch (Exception ex)
             {
@@ -95,6 +500,254 @@ namespace SIAW.Controllers.inventarios.modificacion
                 throw;
             }
         }
+
+        private async Task<List<string>> Registrar_Nota_En_Despachos(DBContext _context, int codconcepto, string id, int numeroid, string usuario)
+        {
+            List<string> alertas = new List<string>();
+            if (await inventario.concepto_espara_despacho(_context, codconcepto))
+            {
+                // alerta insertar en despachos
+                alertas.Add("Se grabara la nota de movimiento : " + id + " - " + numeroid + ". en los despachos. ");
+                // intentar añadir
+                if (await inventario.Existe_Nota_De_Movimiento(_context, id, numeroid))
+                {
+                    if (await nota_en_despachos(_context, id, numeroid))
+                    {
+                        alertas.Add("La nota de movimiento ya esta en despachos, verifique esta situacion !!!");
+                    }
+                    else
+                    {
+                        var resultAddNE = await anadir_nota_entrega(_context, id, numeroid, usuario);
+                        if (resultAddNE.result)
+                        {
+                            alertas.Add("La nota de movimiento fue añadida a la lista de preparados, verifique por favor.");
+                        }
+                        else
+                        {
+                            alertas.Add(resultAddNE.msg);
+                            alertas.Add("Ocurrio un error y la nota de movimiento no se añadio a la lista para despachar. Consulte con el administrador de sistemas.");
+                        }
+                    }
+                }
+                else
+                {
+                    alertas.Add("La nota de movimiento no existe, o no es una nota de entrega por reposicion de stock o nota de entrega por solicitud urgente.");
+                }
+            }
+            return alertas;
+        }
+
+        private async Task<(bool result, string msg)> anadir_nota_entrega(DBContext _context, string idnm, int nroidnmov, string usuario)
+        {
+            // añade una nota de movimiento especifica
+            var tbl_aux = await _context.inmovimiento
+                .Where(p1 => p1.anulada == false && p1.id == idnm && p1.numeroid == nroidnmov)
+                .Select(p1 => new addNMDespachos
+                {
+                    codmovimiento = p1.codigo,
+                    codigo = 0,
+                    preparacion = "NORMAL",
+                    tipoentrega = "NORMAL",
+                    codalmacen = p1.codalmacen,
+                    codvendedor = p1.codvendedor ?? 0,
+                    doc = p1.id + "-" + p1.numeroid.ToString(),
+                    fecha = p1.fecha,
+                    id = p1.id,
+                    numeroid = p1.numeroid,
+                    Codcliente = p1.codalmdestino ?? 0,
+                    nomcliente = "",
+                    odc = "",
+                    frecibido = p1.fecha,
+                    hrecibido = p1.horareg,
+                    hojas = 0.00,
+                    estado = "DESPACHAR",
+                    preparapor = 100,
+                    nombpersona = "",
+                    peso = p1.peso ?? 0,
+                    total = "0",
+                    codmoneda = "",
+                    nroitems = 0,
+                    bolsas = 0.00,
+                    cajas = 0.0,
+                    amarres = 0.0,
+                    bultos = 0.0,
+                    resdespacho = 0,
+                    fterminado = p1.fecha,
+                    hterminado = p1.horareg,
+                    guia = "",
+                    nombtrans = "",
+                    tipotrans = "",
+                    fdespacho = new DateTime(2000 - 01 - 01),
+                    nombchofer = "",
+                    celchofer = "",
+                    nroplaca = "",
+                    monto_flete = "0.0",
+                    hdespacho = "12:00",
+                    tarribo = "",
+                    obs = ""
+                }).ToListAsync();
+
+            foreach (var reg in tbl_aux)
+            {
+                if (await nota_en_despachos(_context, reg.id, reg.numeroid) == false)
+                {
+                    reg.nroitems = await nroitems_nota_mov(_context, reg.id, reg.numeroid);
+                    reg.hojas = 0;
+                    reg.nomcliente = await nombres.nombrealmacen(_context, reg.Codcliente);
+                }
+            }
+            using (var dbContexTransaction = _context.Database.BeginTransaction())
+            {
+                foreach (var reg in tbl_aux)
+                {
+                    // se insertan las nuevas proformas
+                    // pero antes de insertar verifica si la proforma ya existe
+                    try
+                    {
+                        if (await nota_en_despachos(_context, reg.id, reg.numeroid) == false)
+                        {
+                            reg.estado = "PREPARADO";
+                            vedespacho newReg = new vedespacho();
+                            newReg.frefacturacion = new DateTime(1900 - 01 - 01).Date;
+                            newReg.hrefacturacion = "00:00";
+                            newReg.fanulado = new DateTime(1900 - 01 - 01).Date;
+                            newReg.hanulado = "00:00";
+                            newReg.codproforma = reg.codmovimiento;
+
+                            newReg.id = reg.id;
+                            newReg.nroid = reg.numeroid;
+                            newReg.fecha = reg.fecha.Date;
+                            newReg.tipoentrega = reg.tipoentrega;
+                            newReg.preparacion = reg.preparacion;
+
+                            newReg.codcliente = reg.Codcliente.ToString();
+                            newReg.nomcliente = reg.nomcliente;
+                            newReg.total = decimal.Parse(reg.total);
+                            newReg.codmoneda = reg.codmoneda;
+                            newReg.codvendedor = reg.codvendedor;
+
+                            newReg.codalmacen = reg.codalmacen;
+                            newReg.nombchofer = reg.nombchofer;
+                            newReg.celchofer = reg.celchofer;
+                            newReg.nroplaca = reg.nroplaca;
+                            newReg.monto_flete = decimal.Parse(reg.monto_flete);
+
+                            newReg.frecibido = await funciones.FechaDelServidor(_context);
+                            newReg.hrecibido = await funciones.hora_del_servidor_cadena(_context);
+                            newReg.hojas = (decimal)reg.hojas;
+                            newReg.estado = reg.estado;
+                            newReg.preparapor = reg.preparapor;
+
+                            newReg.peso = reg.peso;
+                            newReg.bolsas = (decimal?)reg.bolsas;
+                            newReg.cajas = (decimal?)reg.cajas;
+                            newReg.amarres = (decimal?)reg.amarres;
+                            newReg.bultos = (decimal?)reg.bultos;
+
+                            newReg.resdespacho = reg.resdespacho;
+                            newReg.fterminado = reg.fterminado.Date;
+                            newReg.hterminado = reg.hterminado;
+                            newReg.guia = reg.guia;
+                            newReg.nombtrans = reg.nombtrans;
+
+                            newReg.tipotrans = reg.tipotrans;
+                            newReg.fdespacho = reg.fdespacho.Date;
+                            newReg.hdespacho = reg.hdespacho;
+                            newReg.tarribo = reg.tarribo;
+                            newReg.obs = reg.obs;
+
+                            newReg.horareg = await funciones.hora_del_servidor_cadena(_context);
+                            newReg.fechareg = await funciones.FechaDelServidor(_context);
+                            newReg.usuarioreg = usuario;
+                            newReg.nroitems = reg.nroitems;
+                            try
+                            {
+                                _context.vedespacho.Add(newReg);
+                                await _context.SaveChangesAsync();
+                            }
+                            catch (Exception ex)
+                            {
+                                return (false, "Ha ocurrido un error al insertar la nota de movimiento: " + reg.id + "-" + reg.numeroid + ex.Message);
+                            }
+
+
+                            // actualizar log de estado de pedidos
+                            // inserta en esta tabla cada cambio de estado
+                            try
+                            {
+                                velog_estado_pedido newLogEstPed = await cadena_insertar_log_estado_pedido(_context, reg.id, reg.numeroid, reg.estado, usuario);
+                                _context.velog_estado_pedido.Add(newLogEstPed);
+                                await _context.SaveChangesAsync();
+                            }
+                            catch (Exception ex)
+                            {
+                                return (false, "Ha ocurrido un error al actualizar log_estado_pedidos: " + reg.id + "-" + reg.numeroid + ex.Message);
+                            }
+
+                            dbContexTransaction.Commit();
+                        }
+
+
+
+                    }
+                    catch (Exception ex)
+                    {
+                        dbContexTransaction.Rollback();
+                        return (false, "No se pudo obtener los datos de la proforma. " + ex.Message);
+                    }
+                }
+            }
+            return (true, "");
+        }
+
+        private async Task<int> nroitems_nota_mov(DBContext _context, string id, int nroid)
+        {
+            try
+            {
+                // determina el nro de items en el detalle de una proforma
+                var nroitems = await _context.inmovimiento
+                    .Where(p1 => p1.id == "id" && p1.numeroid == nroid)
+                    .Join(_context.inmovimiento1,
+                          p1 => p1.codigo,
+                          p2 => p2.codmovimiento,
+                          (p1, p2) => p2.coditem)
+                    .CountAsync();
+                return nroitems;
+
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
+
+        private async Task<velog_estado_pedido> cadena_insertar_log_estado_pedido(DBContext _context, string idprof, int nroidprof, string estado, string usuario)
+        {
+            velog_estado_pedido newLogEstPed = new velog_estado_pedido();
+            newLogEstPed.idproforma = idprof;
+            newLogEstPed.nroidproforma = nroidprof;
+            newLogEstPed.estado = estado;
+            newLogEstPed.horareg = await funciones.hora_del_servidor_cadena(_context);
+            newLogEstPed.fechareg = await funciones.FechaDelServidor(_context);
+            newLogEstPed.usuarioreg = usuario;
+            return newLogEstPed;
+        }
+
+        private async Task<bool> nota_en_despachos(DBContext _context, string idnm, int nroidnmov)
+        {
+            var consulta = await _context.vedespacho.Where(i => i.id == idnm && i.nroid == nroidnmov).CountAsync();
+            bool resultado = true;
+            if (consulta > 0)
+            {
+                resultado = true;
+            }
+            else
+            {
+                resultado = false;
+            }
+            return resultado;
+        }
+
 
         private async Task<(bool valido, string msg, List<Dtnegativos>? dtnegativos, int codigoNM, int numeroID)> editardatos(DBContext _context, string codempresa, bool traspaso, inmovimiento inmovimiento, List<tablaDetalleNM> tablaDetalle)
         {
