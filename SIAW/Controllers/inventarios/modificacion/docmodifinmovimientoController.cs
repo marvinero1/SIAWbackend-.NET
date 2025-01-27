@@ -54,7 +54,7 @@ namespace SIAW.Controllers.inventarios.modificacion
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
-                    var ultimoRegistro = await _context.veproforma
+                    var ultimoRegistro = await _context.inmovimiento
                             .OrderByDescending(i => i.codigo)
                             .Select(i => new
                             {

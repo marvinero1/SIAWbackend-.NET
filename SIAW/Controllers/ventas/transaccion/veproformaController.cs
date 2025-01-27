@@ -6857,6 +6857,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 return BadRequest("No se cargo el archivo correctamente.");
             }
             string filePath = "";
+            string pathDescFile = "";
 
             string _targetDirectory = "";
             try
@@ -6881,7 +6882,8 @@ namespace SIAW.Controllers.ventas.transaccion
             try
             {
                 await zUtil.DescomprimirArchivo(_targetDirectory, filePath, primerArchivo);
-                string xmlDecript = await encripVB.DecryptData(Path.Combine(_targetDirectory, primerArchivo));
+                pathDescFile = Path.Combine(_targetDirectory, primerArchivo);
+                string xmlDecript = await encripVB.DecryptData(pathDescFile);
                 //await funciones.DecryptData(Path.Combine(_targetDirectory, primerArchivo), Path.Combine(_targetDirectory, "profor.xml"), key, IV2);
 
                 DataSet dataSet = new DataSet();
@@ -6933,6 +6935,7 @@ namespace SIAW.Controllers.ventas.transaccion
             finally
             {
                 System.IO.File.Delete(filePath);
+                System.IO.File.Delete(pathDescFile);
             }
 
         }

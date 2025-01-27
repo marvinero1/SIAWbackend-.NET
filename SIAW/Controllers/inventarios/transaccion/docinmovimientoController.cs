@@ -13,6 +13,7 @@ using Polly;
 using LibSIAVB;
 using System.Data;
 using Polly.Caching;
+using SIAW.Controllers.ventas.transaccion;
 
 namespace SIAW.Controllers.inventarios.transaccion
 {
@@ -35,6 +36,8 @@ namespace SIAW.Controllers.inventarios.transaccion
         private readonly Configuracion configuracion = new Configuracion();
         private readonly Nombres nombres = new Nombres();
         private readonly Log log = new Log();
+
+        private readonly func_encriptado encripVB = new func_encriptado();
 
         private readonly string _controllerName = "docinmovimientoController";
 
@@ -1742,11 +1745,262 @@ namespace SIAW.Controllers.inventarios.transaccion
 
 
 
-
-        [HttpGet]
-        [Route("impresionNotaMovimiento/{userConn}/{codClienteReal}/{codEmpresa}/{codclientedescripcion}/{preparacion}/{codigoNM}")]
-        public async Task<ActionResult<List<object>>> impresionNotaMovimiento(string userConn, int codconcepto, string codEmpresa, string codclientedescripcion, int codtarifa, string usuario, string codconceptodescripcion, double total, int codigoNM)
+        // IMPORTAR 
+        [HttpPost]
+        [Route("importNMinJson")]
+        public async Task<IActionResult> importProfinJson([FromForm] IFormFile file)
         {
+
+            // Guardar el archivo en una ubicación temporal
+            string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            string outputDirectory = Path.Combine(currentDirectory, "OutputFiles");
+
+            Directory.CreateDirectory(outputDirectory); // Crear el directorio si no existe
+
+
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest("No se cargo el archivo correctamente.");
+            }
+            string filePath = "";
+            string pathDescFile = "";
+
+            string _targetDirectory = "";
+            try
+            {
+                _targetDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "OutputFiles");
+                // Combina el directorio de destino con el nombre del archivo
+                filePath = Path.Combine(_targetDirectory, file.FileName);
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
+                }
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+            ziputil zUtil = new ziputil();
+
+            string primerArchivo = zUtil.ObtenerPrimerArchivoEnZip(filePath);
+            ///descomprimir
+            try
+            {
+                await zUtil.DescomprimirArchivo(_targetDirectory, filePath, primerArchivo);
+                pathDescFile = Path.Combine(_targetDirectory, primerArchivo);
+                string xmlDecript = await encripVB.DecryptData(pathDescFile);
+                //await funciones.DecryptData(Path.Combine(_targetDirectory, primerArchivo), Path.Combine(_targetDirectory, "profor.xml"), key, IV2);
+
+                DataSet dataSet = new DataSet();
+
+                using (StringReader stringReader = new StringReader(xmlDecript))
+                {
+                    dataSet.ReadXml(stringReader);
+                }
+
+                Console.WriteLine("XML convertido a DataSet exitosamente.");
+
+                // Suponiendo que tienes un DataSet llamado dataSet y quieres convertirlo a un diccionario de tablas:
+                Dictionary<string, DataTable> datosConvertidos = dataSet.ToDictionary();
+
+                // Accede a una tabla específica por su nombre
+                DataTable cabeceraTabla = datosConvertidos["cabecera"];
+                DataTable detalleTabla = datosConvertidos["detalle"];
+
+                List<Dictionary<string, object>> cabeceraList = DataTableToListConverter.ConvertToList(cabeceraTabla);
+                List<Dictionary<string, object>> detalleList = DataTableToListConverter.ConvertToList(detalleTabla);
+                return Ok(new
+                {
+                    cabeceraList,
+                    detalleList
+                });
+            }
+            catch (Exception ex)
+            {
+                return Problem("Error en el servidor al importar proforma en JSON: " + ex.Message);
+                throw;
+            }
+            finally
+            {
+                System.IO.File.Delete(filePath);
+                System.IO.File.Delete(pathDescFile);
+            }
+
+        }
+
+
+
+        // EXPORTAR ZIP
+        [HttpGet]
+        [Route("exportNM/{userConn}/{codNM}")]
+        public async Task<IActionResult> exportProforma(string userConn, int codNM)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var result = await cargariedataset(_context, codNM);
+                    if (result.resp) 
+                    {
+                        string stringDataXml = ConvertDataSetToXml(result.iedataset);
+                        string id = result.id;
+                        int numeroid = result.numeroid;
+
+                        var resp_dataEncriptada = await exportar_encriptado(stringDataXml, id, numeroid);
+                        if (resp_dataEncriptada.resp)
+                        {
+                            string zipFilePath = resp_dataEncriptada.filePath;
+
+                            if (System.IO.File.Exists(zipFilePath))
+                            {
+                                byte[] fileBytes = System.IO.File.ReadAllBytes(zipFilePath);
+                                string fileName = Path.GetFileName(zipFilePath);
+                                try
+                                {
+                                    // Devuelve el archivo ZIP para descargar
+                                    return File(fileBytes, "application/zip", fileName);
+                                }
+                                catch (Exception)
+                                {
+                                    return Problem("Error en el servidor");
+                                    throw;
+                                }
+                                finally
+                                {
+                                    System.IO.File.Delete(zipFilePath);
+                                }
+
+                            }
+                            else
+                            {
+                                return NotFound("El archivo ZIP no se encontró.");
+                            }
+                        }
+                        //return Ok(stringDataXml);
+                    }
+                    return Ok(result.resp);
+                }
+            }
+            catch (Exception ex)
+            {
+                return Problem("Error en el servidor al exportar proforma ZIP: " + ex.Message);
+                throw;
+            }
+        }
+
+
+        private async Task<(bool resp, DataSet iedataset, string id, int numeroid)> cargariedataset(DBContext _context, int codNM)
+        {
+            DataSet iedataset = new DataSet();
+
+            try
+            {
+                iedataset.Clear();
+                iedataset.Reset();
+
+                // cargar cabecera
+                var dataNM = await _context.inmovimiento.Where(i => i.codigo == codNM).ToListAsync();
+                if (dataNM.Any())
+                {
+                    DataTable cabeceraTable = dataNM.ToDataTable();
+                    cabeceraTable.TableName = "cabecera";
+                    iedataset.Tables.Add(cabeceraTable);
+                    iedataset.Tables["cabecera"].Columns.Add("documento", typeof(string));
+                    iedataset.Tables["cabecera"].Rows[0]["documento"] = "NOTA";
+
+                }
+                string id = dataNM[0].id;
+                int numeroid = dataNM[0].numeroid;
+                /*
+                // Añadir campo identificador
+                iedataset.Tables["cabecera"].Columns.Add("documento", typeof(string));
+                iedataset.Tables["cabecera"].Rows[0]["documento"] = "PROFORMA";
+
+                */
+
+                // Cargar detalle usando LINQ y Entity Framework
+                var dataDetalle = await _context.inmovimiento1
+                    .Where(p => p.codmovimiento == codNM)
+                    .Join(_context.initem,
+                          p => p.coditem,
+                          i => i.codigo,
+                          (p, i) => new
+                          {
+                              p.coditem,
+                              i.descripcion,
+                              i.medida,
+                              p.cantidad,
+                              p.udm,
+                              p.codaduana,
+                          })
+                    .OrderBy(p => p.coditem)
+                    .ToListAsync();
+                
+                DataTable detalleTable = dataDetalle.ToDataTable();   // convertir a dataTable
+                detalleTable.TableName = "detalle";
+                iedataset.Tables.Add(detalleTable);
+                
+                return (true, iedataset, id, numeroid);
+            }
+            catch (Exception)
+            {
+                return (false, iedataset, "", 0);
+            }
+        }
+        private string ConvertDataSetToXml(DataSet iedataset)
+        {
+            using (StringWriter sw = new StringWriter())
+            {
+                iedataset.WriteXml(sw, XmlWriteMode.WriteSchema);
+                return sw.ToString();
+            }
+        }
+
+        private async Task<(bool resp, string filePath)> exportar_encriptado(string xmlText, string id, int numeroid)
+        {
+            ziputil zUtil = new ziputil();
+            try
+            {
+                string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
+                string outputDirectory = Path.Combine(currentDirectory, "OutputFiles");
+
+                Directory.CreateDirectory(outputDirectory); // Crear el directorio si no existe
+                string outName = Path.Combine(outputDirectory, id + "-" + numeroid + ".enc");
+
+                string[] archivo = new string[1];
+                archivo[0] = outName;
+
+                //await funciones.EncryptData(xmlText, outName, key, IV2);
+                await encripVB.EncryptData(xmlText, outName);
+
+                await zUtil.Comprimir(archivo, outName.Substring(0, outName.Length - 4) + ".zip", false);
+
+
+                return (true, outName.Substring(0, outName.Length - 4) + ".zip");
+            }
+            catch (Exception)
+            {
+                return (false, "");
+            }
+        }
+
+
+
+
+
+        [HttpPost]
+        [Route("impresionNotaMovimiento/{userConn}")]
+        public async Task<ActionResult<List<object>>> impresionNotaMovimiento(string userConn, requestImprimir requestImprimir)
+        {
+            int codigoNM = requestImprimir.codigoNM;
+            string codEmpresa = requestImprimir.codEmpresa;
+            int codtarifa = requestImprimir.codtarifa;
+            string usuario = requestImprimir.usuario;
+            string codconceptodescripcion = requestImprimir.codconceptodescripcion;
+            string codclientedescripcion = requestImprimir.codclientedescripcion;
+            double total = requestImprimir.total;
             try
             {
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
@@ -1788,6 +2042,9 @@ namespace SIAW.Controllers.inventarios.transaccion
                             .OrderBy(i => i.coditem)
                             .ToListAsync();
 
+                        //*/////////////////
+                        int codconcepto = cabecera.codconcepto;
+
                         var pathFile = await mostrardocumento_directo(_context, codEmpresa, codconcepto, codtarifa, usuario, codconceptodescripcion, codclientedescripcion, total, cabecera, tablaDetalle);
 
                         // Configurar e iniciar el trabajo de impresión
@@ -1824,7 +2081,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                         return BadRequest(new { resp = "La impresora no está disponible." });
                     }
                 }
-                return BadRequest(new { resp = "No se encontro la nota de remision" });
+                return BadRequest(new { resp = "No se encontro la nota de movimiento" });
             }
             catch (Exception ex)
             {
@@ -2041,5 +2298,16 @@ namespace SIAW.Controllers.inventarios.transaccion
         public List<tablaDetalleNM> tabladetalle { get; set; }
 
     }
-    
+
+
+    public class requestImprimir
+    {
+        public string codEmpresa {  get; set; }
+        public string codclientedescripcion { get; set; }
+        public int codtarifa {  get; set; }
+        public string usuario { get; set; }
+        public string codconceptodescripcion { get; set; }
+        public double total {  get; set; }
+        public int codigoNM {  get; set; }
+    }
 }
