@@ -36,6 +36,8 @@ namespace SIAW.Controllers.inventarios.transaccion
         private readonly Configuracion configuracion = new Configuracion();
         private readonly Nombres nombres = new Nombres();
         private readonly Log log = new Log();
+        private readonly Empresa empresa1 = new Empresa();
+        private readonly Cliente cliente = new Cliente();
 
         private readonly func_encriptado encripVB = new func_encriptado();
 
@@ -100,8 +102,8 @@ namespace SIAW.Controllers.inventarios.transaccion
 
 
         [HttpPost]
-        [Route("grabarDocumento/{userConn}/{codempresa}/{traspaso}")]
-        public async Task<ActionResult<object>> grabarDocumento(string userConn, string codempresa, bool traspaso, requestGabrar dataGrabar)
+        [Route("grabarDocumento/{userConn}/{codempresa}/{traspaso}/{tienePermisoModifAntUltInv}")]
+        public async Task<ActionResult<object>> grabarDocumento(string userConn, string codempresa, bool traspaso, bool tienePermisoModifAntUltInv, requestGabrar dataGrabar)
         {
             try
             {
@@ -113,6 +115,23 @@ namespace SIAW.Controllers.inventarios.transaccion
                     // borrar items con cantidad 0 o menor
                     tablaDetalle = tablaDetalle.Where(i => i.cantidad > 0).ToList();
 
+                    if (await restricciones.ValidarModifDocAntesInventario(_context, dataGrabar.cabecera.codalmacen, dataGrabar.cabecera.fecha) == false)
+                    {
+                        if (tienePermisoModifAntUltInv == false)
+                        {
+                            return StatusCode(203, new
+                            {
+                                valido = false,
+                                resp = "No puede modificar datos anteriores al ultimo inventario, Para eso necesita una autorizacion especial.",
+                                servicio = 48,
+                                descServicio = "MODIFICACION ANTERIOR A INVENTARIO",
+                                datosDoc = dataGrabar.cabecera.id + "-" + dataGrabar.cabecera.numeroid + ": " + dataGrabar.cabecera.id + "-" + dataGrabar.cabecera.numeroid,
+                                datoA = dataGrabar.cabecera.id,
+                                datoB = dataGrabar.cabecera.numeroid
+                            });
+                        }
+                        
+                    }
 
                     var guardarDoc = await guardarNuevoDocumento(_context, codempresa, traspaso, dataGrabar.cabecera, tablaDetalle);
                     if (guardarDoc.valido == false)
@@ -670,11 +689,6 @@ namespace SIAW.Controllers.inventarios.transaccion
                 return (false, "No puede crear documentos para ese periodo de fechas.");
             }
 
-            if (await restricciones.ValidarModifDocAntesInventario(_context,inmovimiento.codalmacen, inmovimiento.fecha) == false)
-            {
-                return (false, "No puede modificar datos anteriores al ultimo inventario, Para eso necesita una autorizacion especial.");
-            }
-
 
             // SE NECESITA PERMISO ESPECIAL      // consultar sobre esto quiza no deberia
             // siempre y cuando se haya devuelto false,
@@ -835,7 +849,7 @@ namespace SIAW.Controllers.inventarios.transaccion
              */
 
             // llama a la funcion que valida si hay cantidades decimales
-            respValidaDecimales validaDecimales = validar_cantidades_decimales(tablaDetalle);
+            respValidaDecimales validaDecimales = validar_cantidades_decimales(tablaDetalle, true);
             if (validaDecimales.cumple == false)
             {
                 // VALIDAR CANTIDADES
@@ -949,7 +963,9 @@ namespace SIAW.Controllers.inventarios.transaccion
                         dataPorConcepto.id_proforma_solReadOnly = true;
                         dataPorConcepto.numeroidproforma_solReadOnly = true;
                     }
-                    return dataPorConcepto;
+
+                    dataPorConcepto.conceptoEsAjuste = await inventario.ConceptoEsAjuste(_context, codConcepto);
+                    return Ok(dataPorConcepto);
                 }
             }
             catch (Exception ex)
@@ -1114,8 +1130,8 @@ namespace SIAW.Controllers.inventarios.transaccion
 
 
         [HttpPost]
-        [Route("getValidaCantDecimal/{userConn}")]
-        public async Task<ActionResult<bool>> getValidaCantDecimal(string userConn, List<tablaDetalleNM> tablaDetalle)
+        [Route("getValidaCantDecimal/{userConn}/{nuevaNM}")]
+        public async Task<ActionResult<bool>> getValidaCantDecimal(string userConn, bool nuevaNM, List<tablaDetalleNM> tablaDetalle)
         {
             try
             {
@@ -1127,7 +1143,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                 {
                     return BadRequest(new { resp = "Existen codigos de item o unidades de medida que se estan recibiendo vacio o nulo, consulte con el administrador." });
                 }
-                respValidaDecimales resultado = validar_cantidades_decimales(tablaDetalle);
+                respValidaDecimales resultado = validar_cantidades_decimales(tablaDetalle, nuevaNM);
                 return Ok(new
                 {
                     resultado.cabecera,
@@ -1144,7 +1160,7 @@ namespace SIAW.Controllers.inventarios.transaccion
 
         }
 
-        private respValidaDecimales validar_cantidades_decimales(List<tablaDetalleNM> tablaDetalle)
+        private respValidaDecimales validar_cantidades_decimales(List<tablaDetalleNM> tablaDetalle, bool nuevaNM)
         {
             // Crear una instancia de CultureInfo basada en la cultura actual
             CultureInfo culture = (CultureInfo)CultureInfo.CurrentCulture.Clone();
@@ -1159,7 +1175,15 @@ namespace SIAW.Controllers.inventarios.transaccion
             {
                 bool esDecimal = false;
                 ////////////////////////////
-                string valorCadena = reg.cantidad.ToString(culture);
+                string valorCadena = "";
+                if (nuevaNM)
+                {
+                    valorCadena = reg.cantidad.ToString(culture);
+                }
+                else
+                {
+                    valorCadena = reg.cantidad_revisada.ToString(culture);
+                }
                 string[] partes = valorCadena.Split('.');
 
                 if (partes.Length > 1)
@@ -1175,7 +1199,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                 {
                     if (esDecimal)
                     {
-                        string obs = "Item: " + reg.coditem + " = " + reg.cantidad + " (PZ)";
+                        string obs = "Item: " + reg.coditem + " = " + valorCadena + " (PZ)";
                         observacionesDecimales.Add(obs);
 
                         cadena_items_decimales = cadena_items_decimales + reg.coditem + " | ";
@@ -1206,8 +1230,8 @@ namespace SIAW.Controllers.inventarios.transaccion
 
         //Boton Totalizar
         [HttpPost]
-        [Route("Totalizar/{userConn}")]
-        public async Task<object> Totalizar(string userConn, requestTotalizar requestTotalizar)
+        [Route("Totalizar/{userConn}/{nuevaNM}")]
+        public async Task<object> Totalizar(string userConn, requestTotalizar requestTotalizar, bool nuevaNM)
         {
             decimal totalcant = 0;
             string total = "";
@@ -1226,9 +1250,19 @@ namespace SIAW.Controllers.inventarios.transaccion
 
                     if (tabladetalle.Count > 0)
                     {
+                        /*
                         foreach (var detalle in tabladetalle)
                         {
                             totalcant = totalcant + detalle.cantidad;
+                        }
+                        */
+                        if (nuevaNM)
+                        {
+                            totalcant = tabladetalle.Sum(i => i.cantidad);
+                        }
+                        else
+                        {
+                            totalcant = tabladetalle.Sum(i => i.cantidad_revisada);
                         }
                     }
                     total = totalcant.ToString(culture);
@@ -1829,7 +1863,38 @@ namespace SIAW.Controllers.inventarios.transaccion
 
         }
 
+        [HttpPost]
+        [Route("getDescMedDetalle/{userConn}")]
+        public async Task<IActionResult> getDescMedDetalle(string userConn, List<tablaDetalleNM> tablaDetalle)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    // Obtener los datos de initem solo una vez
+                    var itemsDict = await _context.initem
+                        .Where(i => tablaDetalle.Select(td => td.coditem).Contains(i.codigo))
+                        .ToDictionaryAsync(i => i.codigo, i => new { i.descripcion, i.medida });
 
+                    // Asignar los valores en tablaDetalle
+                    foreach (var reg in tablaDetalle)
+                    {
+                        if (itemsDict.TryGetValue(reg.coditem, out var datos))
+                        {
+                            reg.descripcion = datos.descripcion;
+                            reg.medida = datos.medida;
+                        }
+                    }
+                    return Ok(tablaDetalle);
+                }
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+        }
 
         // EXPORTAR ZIP
         [HttpGet]
@@ -1987,6 +2052,162 @@ namespace SIAW.Controllers.inventarios.transaccion
         }
 
 
+        [HttpGet]
+        [Route("getDataImpNM/{userConn}/{codNM}/{codempresa}/{usua}/{codtarifa}")]
+        public async Task<ActionResult<List<object>>> getDataImpNM(string userConn, int codNM, string codempresa, string usua, int codtarifa)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    string empresa = "";
+                    string titulo = "";
+                    string usuario = "";
+                    string nit = "";
+                    string rcodconcepto = "";
+                    string rcodconceptodescripcion = "";
+                    // string rcorrelativo = "";
+                    string rfecha = "";
+                    string rcodalmacen = "";
+                    string rcodvendedor = "";
+                    string rcodalmorigen = "";
+                    string rcodalmdestino = "";
+                    string robs = "";
+                    string rctiponm = "";
+                    string rpesototal = "";
+                    string rnomcliente = "";
+
+                    // obtener los datos de cabecera
+                    var cabecera = await _context.inmovimiento.Where(i => i.codigo == codNM).FirstOrDefaultAsync();
+                    if (cabecera == null)
+                    {
+                        return BadRequest(new { resp = "No se encontraron datos con el codigo proporcionado, consulte con el Administrador." });
+                    }
+
+                    // busca los datos del concepto
+                    var tbl = await _context.inconcepto.Where(i => i.codigo == cabecera.codconcepto).Select(i => new
+                    {
+                        i.codigo,
+                        i.descripcion,
+                        i.factor
+                    }).FirstOrDefaultAsync();
+                    if (tbl != null)
+                    {
+                        if (tbl.factor == 1)
+                        {
+                            // nota de ingreso
+                            rctiponm = "NOTA DE INGRESO";
+                        }
+                        else if(tbl.factor == -1)
+                        {
+                            // nota de salida
+                            rctiponm = "NOTA DE SALIDA";
+                        }
+                        rcodconceptodescripcion = tbl.descripcion;
+                    }
+                    else
+                    {
+                        rctiponm = "NOTA DE MOVIMIENTO";
+                        // rcodconceptodescripcion.Text = Chr(34) & codconceptodescripcion.Text & Chr(34)
+                    }
+                    titulo = cabecera.id + "-" + cabecera.numeroid;
+                    empresa = await nombres.nombreempresa(_context, codempresa);
+                    usuario = usua;
+                    nit = "N.I.T.: " + await empresa1.NITempresa(_context, codempresa);
+                    rcodconcepto = cabecera.codconcepto.ToString();
+                    // rcorrelativo.Text = Chr(34) & CInt(correlativo.Text).ToString("00000000") & Chr(34)
+                    rfecha = cabecera.fecha.ToShortDateString();
+                    rcodalmacen = cabecera.codalmacen.ToString();
+                    rcodvendedor = cabecera.codvendedor + " Prof:" + cabecera.idproforma + "-" + cabecera.numeroidproforma;
+                    rcodalmorigen = cabecera.codalmorigen.ToString();
+                    rcodalmdestino = cabecera.codalmdestino.ToString();
+                    robs = cabecera.obs;
+                    rpesototal = (cabecera.peso ?? 0).ToString("####,##0.000", new CultureInfo("en-US"));
+
+                    // si es la entrega a un cliente 
+                    if (cabecera.codconcepto == 104)
+                    {
+                        rnomcliente = await cliente.Razonsocial(_context, cabecera.codcliente);
+                    }
+
+                    ////////////////////////////////////////
+                    //// Fin de pasar valores a las variables
+                    ////////////////////////////////////////
+                    var tablaDetalle = await _context.inmovimiento1.Where(i => i.codmovimiento == codNM)
+                            .Join(_context.initem,
+                                m => m.coditem,
+                                i => i.codigo,
+                                (m, i) => new tablaDetalleNM
+                                {
+                                    coditem = m.coditem,
+                                    descripcion = i.descripcion,
+                                    medida = i.medida,
+                                    udm = m.udm,
+                                    cantidad = m.cantidad,
+                                    costo = 0
+                                }
+                            )
+                            .OrderBy(i => i.coditem)
+                            .ToListAsync();
+
+
+                    string alerta = "";
+
+                    // preguntar si es un ajuste para añadir la columna de costo
+                    if (await inventario.ConceptoEsAjuste(_context, cabecera.codconcepto))
+                    {
+                        // pedir codtarifa
+                        if (await ventas.UsuarioTarifa_Permitido(_context, usuario, codtarifa))
+                        {
+                            if (codtarifa > 0)
+                            {
+                                foreach (var reg in tablaDetalle)
+                                {
+                                    reg.costo = await ventas.preciodelistaitem(_context, codtarifa, reg.coditem);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            alerta = "Este usuario no esta habilitado para ver ese tipo de Precio";
+                        }
+                    }
+
+                    return Ok(new
+                    {
+                        alerta,
+
+                        empresa,
+                        titulo,
+                        usuario,
+                        nit,
+                        rcodconcepto,
+                        rcodconceptodescripcion,
+                        rfecha,
+                        rcodalmacen,
+                        rcodvendedor,
+                        rcodalmorigen,
+                        rcodalmdestino,
+                        robs,
+                        rctiponm,
+                        rpesototal,
+                        rnomcliente,
+
+                        tablaDetalle
+
+                    });
+
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                return Problem("Error en el servidor al obtener datos para imprimir por vista previa NM: " + ex.Message);
+                throw;
+            }
+        }
 
 
 
@@ -2231,7 +2452,7 @@ namespace SIAW.Controllers.inventarios.transaccion
 
             return (true,ruta);
         }
-
+         
         private DataTable obtenerDetalleDataTable(DBContext _context, List<tablaDetalleNM> tablaDetalle)
         {
             // convertir a dataTable

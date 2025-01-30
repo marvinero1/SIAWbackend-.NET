@@ -283,7 +283,7 @@ namespace siaw_funciones
             bool flag = false;
             try
             {
-                flag = await _context.inconcepto.Where(i => i.codigo == codconcepto).Select(i => i.traspaso).FirstOrDefaultAsync();
+                flag = !await _context.inconcepto.Where(i => i.codigo == codconcepto).Select(i => i.traspaso).FirstOrDefaultAsync();
             }
             catch (Exception ex)
             {

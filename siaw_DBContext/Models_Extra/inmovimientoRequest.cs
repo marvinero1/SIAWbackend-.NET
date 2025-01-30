@@ -99,6 +99,8 @@ namespace siaw_DBContext.Models_Extra
         public bool cvenumeracion1Enabled { get; set; } = true;
         public bool id_proforma_solReadOnly { get; set; } = true;
         public bool numeroidproforma_solReadOnly { get; set; } = true;
+
+        public bool conceptoEsAjuste {  get; set; }
     }
 
 }

@@ -73,8 +73,57 @@ namespace SIAW.Controllers.inventarios.modificacion
         }
 
         [HttpGet]
-        [Route("obtNMxModif/{userConn}/{codNotMov}/{tienePermisoModifAntUltInv}")]
-        public async Task<object> obtNMxModif(string userConn, int codNotMov, bool tienePermisoModifAntUltInv)
+        [Route("permModifNMAntInventario/{userConn}/{idNotMov}/{nroIdNotMov}")]
+        public async Task<object> permModifNMAntInventario(string userConn, string idNotMov, int nroIdNotMov)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var cabecera = await _context.inmovimiento.Where(i => i.id == idNotMov && i.numeroid == nroIdNotMov)
+                        .Select(i => new
+                        {
+                            i.codigo,
+                            i.id,
+                            i.numeroid,
+                            i.fecha,
+                            i.codalmacen
+                        })
+                        .FirstOrDefaultAsync();
+
+                    if (cabecera == null)
+                    {
+                        return BadRequest(new { resp = "No se encontró el número de documento proporcionado, consulte con el Administrador" });
+                    }
+
+                    if (await restricciones.ValidarModifDocAntesInventario(_context, cabecera.codalmacen, cabecera.fecha.Date) == false)
+                    {
+                        return StatusCode(203, new
+                        {
+                            valido = false,
+                            resp = "Esta nota es anterior a el ultimo inventario fisico, para poder modifiarla. Necesita autorizacion especial. Necesita usted modificar esta nota ?",
+                            servicio = 48,
+                            descServicio = "MODIFICACION ANTERIOR A INVENTARIO",
+                            datosDoc = cabecera.id + "-" + cabecera.numeroid + ": " + cabecera.id + "-" + cabecera.numeroid,
+                            datoA = cabecera.id,
+                            datoB = cabecera.numeroid
+                        });
+                    }
+                    return StatusCode(203, new { valido = true});
+                }
+            }
+            catch (Exception ex)
+            {
+                return Problem("Error en el servidor al verificar si NM es antes de Inv.: " + ex.Message);
+                throw;
+            }
+        }
+
+
+        [HttpGet]
+        [Route("obtNMxModif/{userConn}/{idNotMov}/{nroIdNotMov}/{tienePermisoModifAntUltInv}")]
+        public async Task<object> obtNMxModif(string userConn, string idNotMov, int nroIdNotMov, bool tienePermisoModifAntUltInv)
         {
             try
             {
@@ -96,9 +145,61 @@ namespace SIAW.Controllers.inventarios.modificacion
                 bool codpersonadesdeReadOnly = false;
                 bool codclienteReadOnly = false;
 
+                bool btnGrabarReadOnly = false;
+                bool btnAnularReadOnly = false;
+                bool btnHabilitarReadOnly = false;
+
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
-                    var cabecera = await _context.inmovimiento.Where(i => i.codigo == codNotMov).FirstOrDefaultAsync();
+                    var cabecera = await _context.inmovimiento.Where(i => i.id == idNotMov && i.numeroid == nroIdNotMov).FirstOrDefaultAsync();
+
+                    if (cabecera == null)
+                    {
+                        return BadRequest(new { resp = "No se encontró el número de documento proporcionado, consulte con el Administrador" });
+                    }
+
+                    // mostrar detalle del documento actual
+                    List<tablaDetalleNM> tabladetalle = await mostrardetalle(_context, cabecera.codigo);
+                    if (await seguridad.periodo_fechaabierta_context(_context, cabecera.fecha.Date, 2))
+                    {
+                        btnGrabarReadOnly = false;
+                        btnAnularReadOnly = false;
+                    }
+                    else
+                    {
+                        btnGrabarReadOnly = true;
+                        btnAnularReadOnly = true;
+                    }
+
+
+                    if (await restricciones.ValidarModifDocAntesInventario(_context, cabecera.codalmacen, cabecera.fecha.Date))
+                    {
+                        // verificar si periodo abiero
+                        if (await seguridad.periodo_fechaabierta_context(_context, cabecera.fecha.Date, 2))
+                        {
+                            btnGrabarReadOnly = false;
+                            btnAnularReadOnly = false;
+                            btnHabilitarReadOnly = false;
+                        }
+                        else
+                        {
+                            btnGrabarReadOnly = true;
+                            btnAnularReadOnly = true;
+                            btnHabilitarReadOnly = true;
+                        }
+                    }
+                    else
+                    {
+                        btnGrabarReadOnly = true;
+                        btnAnularReadOnly = true;
+                        if (tienePermisoModifAntUltInv)  // si tiene permiso permite habilitar
+                        {
+                            btnGrabarReadOnly = false;
+                            btnAnularReadOnly = false;
+                        }
+                    }
+
+
                     if (cabecera.codpersona == null)
                     {
                         codpersonadesde = 0;
@@ -214,48 +315,9 @@ namespace SIAW.Controllers.inventarios.modificacion
 
                     var dataPorConcepto = await actualizarconcepto(_context, "", cabecera.codconcepto, cabecera.codalmacen);
 
-                    bool btnGrabarReadOnly = false;
-                    bool btnAnularReadOnly = false;
-                    bool btnHabilitarReadOnly = false;
-                    // mostrar detalle del documento actual
-                    List<tablaDetalleNM> tabladetalle = await mostrardetalle(_context, cabecera.codigo);
-                    if (await seguridad.periodo_fechaabierta_context(_context,cabecera.fecha.Date,2))
-                    {
-                        btnGrabarReadOnly = false;
-                        btnAnularReadOnly = false;
-                    }
-                    else
-                    {
-                        btnGrabarReadOnly = true;
-                        btnAnularReadOnly = true;
-                    }
-
-                    if (await restricciones.ValidarModifDocAntesInventario(_context, cabecera.codalmacen, cabecera.fecha.Date))
-                    {
-                        // verificar si periodo abiero
-                        if (await seguridad.periodo_fechaabierta_context(_context,cabecera.fecha.Date,2))
-                        {
-                            btnGrabarReadOnly = false;
-                            btnAnularReadOnly = false;
-                            btnHabilitarReadOnly = false;
-                        }
-                        else
-                        {
-                            btnGrabarReadOnly = true;
-                            btnAnularReadOnly = true;
-                            btnHabilitarReadOnly = true;
-                        }
-                    }
-                    else
-                    {
-                        btnGrabarReadOnly = true;
-                        btnAnularReadOnly = true;
-                        if (tienePermisoModifAntUltInv)  // si tiene permiso permite habilitar
-                        {
-                            btnGrabarReadOnly = false;
-                            btnAnularReadOnly = false;
-                        }
-                    }
+                    
+                    
+                    
 
                     bool esTienda = await almacen.Es_Tienda(_context, cabecera.codalmorigen ?? 0);
 
@@ -416,8 +478,8 @@ namespace SIAW.Controllers.inventarios.modificacion
 
 
         [HttpPost]
-        [Route("grabarDocumento/{userConn}/{codempresa}/{traspaso}")]
-        public async Task<ActionResult<object>> grabarDocumento(string userConn, string codempresa, bool traspaso, requestGabrar dataGrabar)
+        [Route("grabarDocumento/{userConn}/{codempresa}/{traspaso}/{tienePermisoModifAntUltInv}")]
+        public async Task<ActionResult<object>> grabarDocumento(string userConn, string codempresa, bool traspaso, bool tienePermisoModifAntUltInv, requestGabrar dataGrabar)
         {
             try
             {
@@ -439,6 +501,25 @@ namespace SIAW.Controllers.inventarios.modificacion
                     // calculartotal.PerformClick()
                     // borrar items con cantidad 0 o menor
                     tablaDetalle = tablaDetalle.Where(i => i.cantidad > 0).ToList();
+
+
+                    if (await restricciones.ValidarModifDocAntesInventario(_context, dataGrabar.cabecera.codalmacen, dataGrabar.cabecera.fecha) == false)
+                    {
+                        if (tienePermisoModifAntUltInv == false)
+                        {
+                            return StatusCode(203, new
+                            {
+                                valido = false,
+                                resp = "No puede modificar datos anteriores al ultimo inventario, Para eso necesita una autorizacion especial.",
+                                servicio = 48,
+                                descServicio = "MODIFICACION ANTERIOR A INVENTARIO",
+                                datosDoc = dataGrabar.cabecera.id + "-" + dataGrabar.cabecera.numeroid + ": " + dataGrabar.cabecera.id + "-" + dataGrabar.cabecera.numeroid,
+                                datoA = dataGrabar.cabecera.id,
+                                datoB = dataGrabar.cabecera.numeroid
+                            });
+                        }
+
+                    }
 
 
                     var guardarDoc = await editardatos(_context, codempresa, traspaso, dataGrabar.cabecera, tablaDetalle);
@@ -817,9 +898,6 @@ namespace SIAW.Controllers.inventarios.modificacion
                             }
 
 
-
-
-
                             // guarda detalle (veproforma1)
                             // actualizar codigoNM para agregar por si acaso
                             inmovimiento1 = inmovimiento1.Select(p => { p.codmovimiento = inmovimiento.codigo; return p; }).ToList();
@@ -883,9 +961,6 @@ namespace SIAW.Controllers.inventarios.modificacion
                             await log.RegistrarEvento(_context, inmovimiento.usuarioreg, Log.Entidades.SW_Nota_Movimiento, inmovimiento.codigo.ToString(), inmovimiento.id, inmovimiento.numeroid.ToString(), _controllerName, "Item Añadido: " + reg.coditem + " De: " + Math.Round(reg.cantidad, 2) + " A " + reg.cantidad_revisada, Log.TipoLog.Modificacion);
                         }
                     }
-
-
-
 
                     return (true, "", null, inmovimiento.codigo, inmovimiento.numeroid);
 
@@ -998,19 +1073,6 @@ namespace SIAW.Controllers.inventarios.modificacion
                 return (false, "No puede crear documentos para ese periodo de fechas.");
             }
 
-            if (await restricciones.ValidarModifDocAntesInventario(_context, inmovimiento.codalmacen, inmovimiento.fecha) == false)
-            {
-                return (false, "No puede modificar datos anteriores al ultimo inventario, Para eso necesita una autorizacion especial.");
-            }
-
-
-            // SE NECESITA PERMISO ESPECIAL      // consultar sobre esto quiza no deberia
-            // siempre y cuando se haya devuelto false,
-            /*
-             
-            Dim control As New sia_compartidos.prgcontrasena("48", id.Text & "-" & numeroid.Text & ": " & id.Text & "-" & numeroid.Text, id.Text, numeroid.Text)
-                
-             */
             return (true, "");
         }
         private inmovimiento quitarEspacios(int factor, bool traspaso, inmovimiento inmovimiento)
@@ -1207,7 +1269,7 @@ namespace SIAW.Controllers.inventarios.modificacion
             {
                 bool esDecimal = false;
                 ////////////////////////////
-                string valorCadena = reg.cantidad.ToString(culture);
+                string valorCadena = reg.cantidad_revisada.ToString(culture);
                 string[] partes = valorCadena.Split('.');
 
                 if (partes.Length > 1)
@@ -1223,7 +1285,7 @@ namespace SIAW.Controllers.inventarios.modificacion
                 {
                     if (esDecimal)
                     {
-                        string obs = "Item: " + reg.coditem + " = " + reg.cantidad + " (PZ)";
+                        string obs = "Item: " + reg.coditem + " = " + reg.cantidad_revisada + " (PZ)";
                         observacionesDecimales.Add(obs);
 
                         cadena_items_decimales = cadena_items_decimales + reg.coditem + " | ";

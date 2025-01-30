@@ -4243,7 +4243,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     (r, i) => new
                     {
                         coditem = r.coditem,
-                        descipcion = i.descripcorta,
+                        descipcion = i.descripcion,
                         medida = i.medida,
                         udm = r.udm,
                         porceniva = r.porceniva ?? 0,
