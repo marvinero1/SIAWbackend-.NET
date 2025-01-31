@@ -33,7 +33,7 @@ namespace SIAW.Controllers.inventarios.modificacion
         private readonly Nombres nombres = new Nombres();
         private readonly Personal personal = new Personal();
         private readonly Cliente cliente = new Cliente();
-
+        private readonly Empresa empresa = new Empresa();
 
         private readonly string _controllerName = "docinmovimientoController";
 
@@ -478,8 +478,8 @@ namespace SIAW.Controllers.inventarios.modificacion
 
 
         [HttpPost]
-        [Route("grabarDocumento/{userConn}/{codempresa}/{traspaso}/{tienePermisoModifAntUltInv}")]
-        public async Task<ActionResult<object>> grabarDocumento(string userConn, string codempresa, bool traspaso, bool tienePermisoModifAntUltInv, requestGabrar dataGrabar)
+        [Route("grabarDocumento/{userConn}/{codempresa}/{traspaso}")]
+        public async Task<ActionResult<object>> grabarDocumento(string userConn, string codempresa, bool traspaso, requestGabrar dataGrabar)
         {
             try
             {
@@ -500,9 +500,9 @@ namespace SIAW.Controllers.inventarios.modificacion
                     List<tablaDetalleNM> tablaDetalle = dataGrabar.tablaDetalle;
                     // calculartotal.PerformClick()
                     // borrar items con cantidad 0 o menor
-                    tablaDetalle = tablaDetalle.Where(i => i.cantidad > 0).ToList();
+                    tablaDetalle = tablaDetalle.Where(i => i.nuevo == "si" && i.cantidad_revisada > 0).ToList();
 
-
+                    /*
                     if (await restricciones.ValidarModifDocAntesInventario(_context, dataGrabar.cabecera.codalmacen, dataGrabar.cabecera.fecha) == false)
                     {
                         if (tienePermisoModifAntUltInv == false)
@@ -520,7 +520,7 @@ namespace SIAW.Controllers.inventarios.modificacion
                         }
 
                     }
-
+                    */
 
                     var guardarDoc = await editardatos(_context, codempresa, traspaso, dataGrabar.cabecera, tablaDetalle);
                     if (guardarDoc.valido == false)
@@ -1334,7 +1334,7 @@ namespace SIAW.Controllers.inventarios.modificacion
                     descripcion = i.descripcion,
                     medida = i.medida,
                     udm = i.udm,
-                    cantidad = (double)i.cantidad,
+                    cantidad = (double)i.cantidad_revisada,
                 }).ToList();
                 dtnegativos = await saldos.ValidarNegativosDocVenta(_context, detalleItemDataMatriz, inmovimiento.codalmacen, inmovimiento.idproforma_sol, inmovimiento.numeroidproforma_sol ?? 0, msgs, negs, codempresa, inmovimiento.usuarioreg);
                 // debemos devolver estos negativos
@@ -1364,12 +1364,169 @@ namespace SIAW.Controllers.inventarios.modificacion
         }
 
 
+
+        //[Authorize]
+        [HttpPut]
+        [Route("anularNotaMovimiento/{userConn}/{codMovimiento}/{usuario}/{codempresa}")]
+        public async Task<object> anularNotaMovimiento(string userConn, int codMovimiento, string usuario, string codempresa)
+        {
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+            DateTime fecha_anulacion = DateTime.Now;
+            int codproforma = 0;
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var NotaModificar = await _context.inmovimiento.Where(i => i.codigo == codMovimiento).FirstOrDefaultAsync();
+                if (NotaModificar == null)
+                {
+                    return NotFound(new { resp = "No existe una Nota de Movimiento con ese código" });
+                }
+                if (NotaModificar.anulada == true)
+                {
+                    return BadRequest(new { resp = "Esta Nota de Movimiento ya esta Anulada." });
+                }
+                try
+                {
+                    fecha_anulacion = await funciones.FechaDelServidor(_context);
+                    NotaModificar.fechareg = fecha_anulacion;
+                    NotaModificar.anulada = true;
+
+                    _context.Entry(NotaModificar).State = EntityState.Modified;
+                    await _context.SaveChangesAsync();
+
+                    if (await saldos.Inmovimiento_ActualizarSaldo(_context, NotaModificar.codigo, Saldos.ModoActualizacion.Eliminar) == false)
+                    {
+                        await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Movimiento, NotaModificar.codigo.ToString(), NotaModificar.id, NotaModificar.numeroid.ToString(), _controllerName, "No actualizo stock en cantidad de algun item en NM.", Log.TipoLog.Creacion);
+                    }
+                    await inventario.actaduanamovimiento(_context, NotaModificar.codigo, "eliminar", NotaModificar.fecha);
+
+                    bool esTienda = await almacen.Es_Tienda(_context, await empresa.CodAlmacen_context(_context, codempresa));
+
+                    if (esTienda == false)
+                    {
+                        if (NotaModificar.idproforma_sol != "" || NotaModificar.numeroidproforma_sol > 0)
+                        {
+                            if (await ventas.proforma_es_sol_urgente(_context, NotaModificar.idproforma_sol, NotaModificar.numeroidproforma_sol ?? 0))
+                            {
+                                var PFModificar = await _context.veproforma.Where(pf => pf.id == NotaModificar.idproforma_sol && pf.numeroid == NotaModificar.numeroidproforma_sol).FirstOrDefaultAsync();
+                                if (PFModificar == null)
+                                {
+                                    return NotFound(new { resp = "No existe la proforma como solicitud urgente." });
+                                }
+                                else
+                                {
+                                    PFModificar.transferida = false;
+                                    _context.Entry(PFModificar).State = EntityState.Modified;
+                                    await _context.SaveChangesAsync();
+                                    await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Movimiento, PFModificar.codigo.ToString(), NotaModificar.idproforma_sol, NotaModificar.numeroidproforma_sol.ToString(), this._controllerName, "Pasar a NO transferida Proforma", Log.TipoLog.Edicion);
+                                    //actualizar aplicar stock de proforma
+                                    codproforma = await ventas.codproforma(_context, NotaModificar.idproforma_sol, NotaModificar.numeroidproforma_sol ?? 0);
+                                    if (await ventas.aplicarstocksproforma(_context, codproforma, codempresa) == false)
+                                    {
+                                        await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Movimiento, codproforma.ToString(), NotaModificar.idproforma_sol, NotaModificar.numeroidproforma_sol.ToString(), this._controllerName, "No actualizo stock al sumar cantidad de reserva en PF.", Log.TipoLog.Creacion);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Movimiento, codMovimiento.ToString(), NotaModificar.id, NotaModificar.numeroid.ToString(), this._controllerName, "Grabar", Log.TipoLog.Anulacion);
+                    return Ok(new { resp = "Se Anulo la Nota de Movimiento con exito. " });
+                }
+                catch (Exception)
+                {
+                    return BadRequest(new { resp = "No se pudo anular la Nota de Movimiento." });
+                }
+
+            }
+        }
+
+
+
+        //[Authorize]
+        [HttpPut]
+        [Route("habilitarNotaMovimiento/{userConn}/{codMovimiento}/{usuario}/{codempresa}")]
+        public async Task<object> habilitarNotaMovimiento(string userConn, int codMovimiento, string usuario, string codempresa)
+        {
+            // Obtener el contexto de base de datos correspondiente al usuario
+            string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+            DateTime fecha_habilitacion = DateTime.Now;
+            int codproforma = 0;
+            using (var _context = DbContextFactory.Create(userConnectionString))
+            {
+                var NotaModificar = await _context.inmovimiento.Where(i => i.codigo == codMovimiento).FirstOrDefaultAsync();
+                if (NotaModificar == null)
+                {
+                    return NotFound(new { resp = "No existe una Nota de Movimiento con ese código" });
+                }
+                if (NotaModificar.anulada == false)
+                {
+                    return BadRequest(new { resp = "Esta Nota de Movimiento ya esta Habilitada." });
+                }
+                try
+                {
+                    fecha_habilitacion = await funciones.FechaDelServidor(_context);
+                    NotaModificar.fechareg = fecha_habilitacion;
+                    NotaModificar.anulada = false;
+
+                    _context.Entry(NotaModificar).State = EntityState.Modified;
+                    await _context.SaveChangesAsync();
+
+                    if (await saldos.Inmovimiento_ActualizarSaldo(_context, NotaModificar.codigo, Saldos.ModoActualizacion.Crear) == false)
+                    {
+                        await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Movimiento, NotaModificar.codigo.ToString(), NotaModificar.id, NotaModificar.numeroid.ToString(), _controllerName, "No actualizo stock en cantidad de algun item en NM.", Log.TipoLog.Creacion);
+                    }
+                    await inventario.actaduanamovimiento(_context, NotaModificar.codigo, "crear", NotaModificar.fecha);
+
+                    await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Nota_Movimiento, codMovimiento.ToString(), NotaModificar.id, NotaModificar.numeroid.ToString(), this._controllerName, "Grabar", Log.TipoLog.Habilitacion);
+                    return Ok(new { resp = "Se Habilito la Nota de Movimiento con exito. " });
+                }
+                catch (Exception)
+                {
+                    return BadRequest(new { resp = "No se pudo habilitar la Nota de Movimiento." });
+                }
+
+            }
+        }
+
+        [HttpGet]
+        [Route("hayRepetidos/{userConn}")]
+        public async Task<object> hayRepetidos(string userConn, requestItemsRepetidos requestDetalle)
+        {
+            try
+            {
+                bool resultado = false;
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    List<tablaDetalleNM> detalle = requestDetalle.tablaDetalle;
+
+                    string item_repetidos = hay_item_duplicados(detalle);
+
+                    if (item_repetidos.Trim().Length > 0)
+                    {
+                        return BadRequest(new { resp = "Los siguientes items estan repetidos: " + item_repetidos });
+                    }
+                    else { return Ok("No hay repetidos!!!"); }
+                }
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor, no se pudo validar items repetidos.");
+                throw;
+            }
+        }
+
+
+    }
+
+
+    public class requestItemsRepetidos
+    {
+        public List<tablaDetalleNM> tablaDetalle { get; set; }
     }
 
 
 
-
-   
-    
 
 }

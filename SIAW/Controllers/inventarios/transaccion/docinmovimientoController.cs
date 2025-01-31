@@ -100,10 +100,41 @@ namespace SIAW.Controllers.inventarios.transaccion
         }
 
 
+        [HttpGet]
+        [Route("permGrabarAntInventario/{userConn}/{codalmacen}/{fecha}/{id}/{numeroid}")]
+        public async Task<object> permModifNMAntInventario(string userConn, int codalmacen, DateTime fecha, string id, int numeroid)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    if (await restricciones.ValidarModifDocAntesInventario(_context, codalmacen, fecha.Date) == false)
+                    {
+                        return StatusCode(203, new
+                        {
+                            valido = false,
+                            resp = "No puede modificar datos anteriores al ultimo inventario, Para eso necesita una autorizacion especial.",
+                            servicio = 48,
+                            descServicio = "MODIFICACION ANTERIOR A INVENTARIO",
+                            datosDoc = id + "-" + numeroid + ": " + id + "-" + numeroid,
+                            datoA = id,
+                            datoB = numeroid
+                        });
+                    }
+                    return Ok(new { valido = true });
+                }
+            }
+            catch (Exception ex)
+            {
+                return Problem("Error en el servidor al verificar si NM es antes de Inv.: " + ex.Message);
+                throw;
+            }
+        }
 
         [HttpPost]
-        [Route("grabarDocumento/{userConn}/{codempresa}/{traspaso}/{tienePermisoModifAntUltInv}")]
-        public async Task<ActionResult<object>> grabarDocumento(string userConn, string codempresa, bool traspaso, bool tienePermisoModifAntUltInv, requestGabrar dataGrabar)
+        [Route("grabarDocumento/{userConn}/{codempresa}/{traspaso}")]
+        public async Task<ActionResult<object>> grabarDocumento(string userConn, string codempresa, bool traspaso, requestGabrar dataGrabar)
         {
             try
             {
@@ -114,7 +145,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                     // calculartotal.PerformClick()
                     // borrar items con cantidad 0 o menor
                     tablaDetalle = tablaDetalle.Where(i => i.cantidad > 0).ToList();
-
+                    /*
                     if (await restricciones.ValidarModifDocAntesInventario(_context, dataGrabar.cabecera.codalmacen, dataGrabar.cabecera.fecha) == false)
                     {
                         if (tienePermisoModifAntUltInv == false)
@@ -132,7 +163,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                         }
                         
                     }
-
+                    */
                     var guardarDoc = await guardarNuevoDocumento(_context, codempresa, traspaso, dataGrabar.cabecera, tablaDetalle);
                     if (guardarDoc.valido == false)
                     {
@@ -182,7 +213,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                     List<string>mensajesDesp = await Registrar_Nota_En_Despachos(_context,dataGrabar.cabecera.codconcepto, dataGrabar.cabecera.id, dataGrabar.cabecera.numeroid, dataGrabar.cabecera.usuarioreg);
                     alertas.AddRange(mensajesDesp);
 
-                    return Ok(new { resp = mensajeConfirmacion, alertas = alertas });
+                    return Ok(new { resp = mensajeConfirmacion, alertas = alertas, guardarDoc.codigoNM });
                 }
             }
             catch (Exception ex)
@@ -1382,7 +1413,7 @@ namespace SIAW.Controllers.inventarios.transaccion
             List<dt_disminuir> dt_disminuir = new List<dt_disminuir>();
             if (!string.IsNullOrWhiteSpace(codalmorigen.ToString()) && !string.IsNullOrWhiteSpace(codalmdestino.ToString()) && !string.IsNullOrWhiteSpace(codconcepto.ToString()))
             {
-
+                string miudm = "";
                 double saldo;
                 dt_disminuir.Clear();
                 int cantidad_disminuir = 0;
@@ -1418,6 +1449,19 @@ namespace SIAW.Controllers.inventarios.transaccion
 
                     cantidad_disminuir = 0;
                     cantidad_cjto = Convert.ToInt32(row.cantidad);
+
+
+                    miudm = row.udm.ToString().ToUpper();
+                    if (miudm == "KG")
+                    {
+                        saldo = Math.Round(saldo, 2);
+                    }
+                    else
+                    {
+                        saldo = Math.Round(saldo, 0);
+                    }
+
+
                     ////////////////////////////////////////////////////////
                     //SI LA CANTIDAD ES MAYOR AL SALDO (disminuir la cantidad pedida)
                     ////////////////////////////////////////////////////////
@@ -1464,7 +1508,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                         ///////////////////////////////////////////////////////////////////////
                         //SI LA CANTIDAD PEDIDA ES MEEEEENNNNOOORRRR  AL SALDO DISPONIBLE
                         ///////////////////////////////////////////////////////////////////////
-                        string miudm = row.udm.ToString().ToUpper();
+                        miudm = row.udm.ToString().ToUpper();
 
                         if (miudm == "KG")
                         {

@@ -357,6 +357,13 @@ namespace siaw_funciones
             return num;
         }
 
-
+        public async Task<int> CodAlmacen_context(DBContext _context, string codigoempresa)
+        {
+            int codalmacen = (int)await _context.adempresa
+                .Where(i => i.codigo == codigoempresa)
+                .Select(i => i.codalmacen)
+                .FirstOrDefaultAsync();
+            return codalmacen;
+        }
     }
 }
