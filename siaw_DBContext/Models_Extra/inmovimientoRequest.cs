@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace siaw_DBContext.Models_Extra
 {
 
-    public class requestGabrar
+    public class requestGabrarNM
     {
         public inmovimiento cabecera { get; set; }
         public List<tablaDetalleNM> tablaDetalle { get; set; }
@@ -23,6 +23,7 @@ namespace siaw_DBContext.Models_Extra
         public string codaduana { get; set; }
         public decimal cantidad { get; set; }
         public double costo { get; set; }
+        public double total { get; set; } = 0;
 
         public decimal cantidad_revisada { get; set; } = 0;
         public string nuevo { get; set; } = "si";

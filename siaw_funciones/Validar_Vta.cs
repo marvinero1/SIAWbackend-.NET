@@ -3795,7 +3795,7 @@ namespace siaw_funciones
                                 codigo_empaque_descuento_especial = await ventas.Codigo_Empaque_Descuento_Especial(_context, detalle.coddescuento);
                                 if (tbl["coditem"].ToString() == detalle.coditem && codempaque_permite_item_repetido == codigo_empaque_descuento_especial)
                                 {
-                                    if (await ventas.Cumple_Empaque_De_DesctoEspecial(_context, detalle.coditem, detalle.codtarifa, detalle.coddescuento, (decimal)detalle.cantidad, ""))
+                                    if (await ventas.Cumple_Empaque_De_DesctoEspecial(_context, detalle.coditem, detalle.codtarifa, detalle.coddescuento, (decimal)detalle.cantidad, "", codempresa))
                                     {
                                         if (bandera == true)
                                         {
@@ -6447,7 +6447,7 @@ namespace siaw_funciones
 
             if (tabladetalle.Count > 0)
             {
-               var resp = await Validar_Resaltar_Empaques_Caja_Cerrada_DesctoEspecial_detalle(_context, tabladetalle,Convert.ToInt32(DVTA.codalmacen), false, DVTA.codcliente_real);
+               var resp = await Validar_Resaltar_Empaques_Caja_Cerrada_DesctoEspecial_detalle(_context, tabladetalle,Convert.ToInt32(DVTA.codalmacen), false, DVTA.codcliente_real, codempresa);
                 cadena = resp.cadena;
                 resultado = cadena.Length == 0;
             }
@@ -9185,14 +9185,14 @@ namespace siaw_funciones
 
             return (resultado, tabladetalle);
         }
-        public async Task<(string cadena, List<itemDataMatriz> tabladetalle)> Validar_Resaltar_Empaques_Caja_Cerrada_DesctoEspecial_detalle(DBContext _context, List<itemDataMatriz> tabladetalle, int codalmacen, bool quitar_descuento, string codcliente)
+        public async Task<(string cadena, List<itemDataMatriz> tabladetalle)> Validar_Resaltar_Empaques_Caja_Cerrada_DesctoEspecial_detalle(DBContext _context, List<itemDataMatriz> tabladetalle, int codalmacen, bool quitar_descuento, string codcliente, string codempresa)
         {
             bool resultado = true;
             string cadena = "";
 
             foreach (var detalle in tabladetalle)
             {//validar el empaque del precio
-                if (await ventas.Cumple_Empaque_De_DesctoEspecial(_context, detalle.coditem, detalle.codtarifa, detalle.coddescuento, (decimal)detalle.cantidad, codcliente))
+                if (await ventas.Cumple_Empaque_De_DesctoEspecial(_context, detalle.coditem, detalle.codtarifa, detalle.coddescuento, (decimal)detalle.cantidad, codcliente, codempresa))
                 {
                     detalle.cumple = true;
                 }
@@ -9225,13 +9225,13 @@ namespace siaw_funciones
 
             return (cadena, tabladetalle);
         }
-        public async Task<(bool result, List<itemDataMatriz> tabladetalle)> Validar_Resaltar_Empaques_Caja_Cerrada_DesctoEspecial(DBContext _context, List<itemDataMatriz> tabladetalle, int codalmacen, bool quitar_descuento, string codcliente)
+        public async Task<(bool result, List<itemDataMatriz> tabladetalle)> Validar_Resaltar_Empaques_Caja_Cerrada_DesctoEspecial(DBContext _context, List<itemDataMatriz> tabladetalle, int codalmacen, bool quitar_descuento, string codcliente, string codempresa)
         {
             bool resultado = true;
 
             foreach (var detalle in tabladetalle)
             {//validar el empaque del precio
-                if (await ventas.Cumple_Empaque_De_DesctoEspecial(_context, detalle.coditem, detalle.codtarifa, detalle.coddescuento, (decimal)detalle.cantidad, codcliente))
+                if (await ventas.Cumple_Empaque_De_DesctoEspecial(_context, detalle.coditem, detalle.codtarifa, detalle.coddescuento, (decimal)detalle.cantidad, codcliente, codempresa))
                 {
                     detalle.cumple = true;
                 }
@@ -9276,7 +9276,7 @@ namespace siaw_funciones
                 cantidad = 0;
                 empaque_caja_cerrada = await ventas.Empaque(_context, await ventas.Codigo_Empaque_Descuento_Especial(_context, coddescuento), detalle.coditem);
                 //validar el empaque del descto especial
-                if (await ventas.Cumple_Empaque_De_DesctoEspecial(_context, detalle.coditem, detalle.codtarifa, coddescuento, (decimal)detalle.cantidad, ""))
+                if (await ventas.Cumple_Empaque_De_DesctoEspecial(_context, detalle.coditem, detalle.codtarifa, coddescuento, (decimal)detalle.cantidad, "", codempresa))
                 {
                     detalle.cumple = true;
                     itemDataSugerencia nuevoItem = new itemDataSugerencia();

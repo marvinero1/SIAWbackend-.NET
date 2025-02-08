@@ -134,7 +134,7 @@ namespace SIAW.Controllers.inventarios.transaccion
 
         [HttpPost]
         [Route("grabarDocumento/{userConn}/{codempresa}/{traspaso}")]
-        public async Task<ActionResult<object>> grabarDocumento(string userConn, string codempresa, bool traspaso, requestGabrar dataGrabar)
+        public async Task<ActionResult<object>> grabarDocumento(string userConn, string codempresa, bool traspaso, requestGabrarNM dataGrabar)
         {
             try
             {
@@ -1313,8 +1313,8 @@ namespace SIAW.Controllers.inventarios.transaccion
 
         // boton Validar Saldos
         [HttpPost]
-        [Route("ValidarSaldos/{userConn}")]
-        public async Task<ActionResult<List<object>>> ValidarSaldos(string userConn, requestValidaSaldos requestValidaSaldos)
+        [Route("ValidarSaldos/{userConn}/{nuevaNM}")]
+        public async Task<ActionResult<List<object>>> ValidarSaldos(string userConn, bool nuevaNM, requestValidaSaldos requestValidaSaldos)
         {
             try
             {
@@ -1328,7 +1328,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                     string usuario = requestValidaSaldos.usuario;
                     List<tablaDetalleNM> tabladetalle = requestValidaSaldos.tabladetalle;
 
-                    var result = await Revisar_ValidarSaldos(_context, codempresa, usuario, codalmorigen, codalmdestino, codconcepto, tabladetalle);
+                    var result = await Revisar_ValidarSaldos(_context, codempresa, usuario, codalmorigen, codalmdestino, codconcepto, nuevaNM, tabladetalle);
                     return Ok(new
                     {
                         cumple = result.resultado,
@@ -1344,7 +1344,7 @@ namespace SIAW.Controllers.inventarios.transaccion
             }
         }
 
-        private async Task<(bool resultado, string alerta, string observacion, List<dt_disminuir> dt_disminuir, List<tablaDetalleNM> tabladetalle)> Revisar_ValidarSaldos(DBContext _context, string codempresa, string usuario, int codalmorigen, int codalmdestino, int codconcepto, List<tablaDetalleNM> tablaDetalle)
+        private async Task<(bool resultado, string alerta, string observacion, List<dt_disminuir> dt_disminuir, List<tablaDetalleNM> tabladetalle)> Revisar_ValidarSaldos(DBContext _context, string codempresa, string usuario, int codalmorigen, int codalmdestino, int codconcepto, bool nuevaNM, List<tablaDetalleNM> tablaDetalle)
         {
             bool resultado = true;
             string msg_obs_revision_saldos_kg = "";
@@ -1364,19 +1364,39 @@ namespace SIAW.Controllers.inventarios.transaccion
                 {
                     if (reg.coditem == reg1.coditem)
                     {
-                        decimal cantidad = Convert.ToDecimal(reg.cantidad);
-                        if (cantidad <= 0)
+                        if (nuevaNM)
                         {
-                            reg.cantidad = 0;
+                            decimal cantidad = Convert.ToDecimal(reg.cantidad);
+                            if (cantidad <= 0)
+                            {
+                                reg.cantidad = 0;
+                            }
+                            else if (cantidad > reg1.cantidad)
+                            {
+                                reg.cantidad = cantidad - reg1.cantidad;
+                            }
+                            else if (cantidad <= reg1.cantidad)
+                            {
+                                reg.cantidad = 0;
+                            }
                         }
-                        else if (cantidad > reg1.cantidad)
+                        else
                         {
-                            reg.cantidad = cantidad - reg1.cantidad;
+                            decimal cantidad = Convert.ToDecimal(reg.cantidad_revisada);
+                            if (cantidad <= 0)
+                            {
+                                reg.cantidad_revisada = 0;
+                            }
+                            else if (cantidad > reg1.cantidad)
+                            {
+                                reg.cantidad_revisada = cantidad - reg1.cantidad;
+                            }
+                            else if (cantidad <= reg1.cantidad)
+                            {
+                                reg.cantidad_revisada = 0;
+                            }
                         }
-                        else if (cantidad <= reg1.cantidad)
-                        {
-                            reg.cantidad = 0;
-                        }
+                        
                     }
                 }
             }
@@ -1943,7 +1963,7 @@ namespace SIAW.Controllers.inventarios.transaccion
         // EXPORTAR ZIP
         [HttpGet]
         [Route("exportNM/{userConn}/{codNM}")]
-        public async Task<IActionResult> exportProforma(string userConn, int codNM)
+        public async Task<IActionResult> exportNM(string userConn, int codNM)
         {
             try
             {
@@ -1994,7 +2014,7 @@ namespace SIAW.Controllers.inventarios.transaccion
             }
             catch (Exception ex)
             {
-                return Problem("Error en el servidor al exportar proforma ZIP: " + ex.Message);
+                return Problem("Error en el servidor al exportar Nota Movimiento ZIP: " + ex.Message);
                 throw;
             }
         }
@@ -2121,6 +2141,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                     string rctiponm = "";
                     string rpesototal = "";
                     string rnomcliente = "";
+                    string rtotal = "";
 
                     // obtener los datos de cabecera
                     var cabecera = await _context.inmovimiento.Where(i => i.codigo == codNM).FirstOrDefaultAsync();
@@ -2206,10 +2227,16 @@ namespace SIAW.Controllers.inventarios.transaccion
                         {
                             if (codtarifa > 0)
                             {
+                                double totalAux = 0;
                                 foreach (var reg in tablaDetalle)
                                 {
                                     reg.costo = await ventas.preciodelistaitem(_context, codtarifa, reg.coditem);
+                                    reg.total = (double)reg.cantidad * reg.costo;
+                                    reg.costo = Math.Round(reg.costo, 4);
+                                    reg.total = Math.Round(reg.total, 2);
+                                    totalAux = totalAux + reg.total;
                                 }
+                                rtotal = totalAux.ToString("####,##0.000", new CultureInfo("en-US"));
                             }
                         }
                         else
@@ -2237,6 +2264,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                         rctiponm,
                         rpesototal,
                         rnomcliente,
+                        rtotal,
 
                         tablaDetalle
 
@@ -2490,10 +2518,6 @@ namespace SIAW.Controllers.inventarios.transaccion
                     imp_usuario, imp_nit, imp_codvendedor, imp_codalmacen, imp_codalmacen_origen, imp_codalmacen_destino, imp_fecha, imp_total, imp_pesototal,
                     imp_obs, imp_fecha_impresion, false, es_ajuste, imp_nomclient);
             }
-
-
-
-
             return (true,ruta);
         }
          

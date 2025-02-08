@@ -866,7 +866,7 @@ namespace siaw_funciones
                       d => d.coddesextra,
                       e => e.codigo,
                       (d, e) => new { D = d, E = e })
-                .Where(de => de.D.codremision == codigo && de.E.prontopago == true)
+                .Where(de => de.D.codremision == codigo && de.E.prontopago == true && de.E.tipo_venta == "CREDITO")
                 .Select(de => de.D.codremision)
                 .ToListAsync();
 
@@ -2945,7 +2945,7 @@ namespace siaw_funciones
             }
         }
 
-        public async Task<bool> Cumple_Empaque_De_DesctoEspecial(DBContext _context, string coditem, int codtarifa, int coddescuento, decimal cantidad, string codcliente)
+        public async Task<bool> Cumple_Empaque_De_DesctoEspecial(DBContext _context, string coditem, int codtarifa, int coddescuento, decimal cantidad, string codcliente, string codempresa)
         {
             bool resultado = false;
             try
@@ -2956,6 +2956,9 @@ namespace siaw_funciones
                     bool es_cliente_final = await cliente.EsClienteFinal(_context, codcliente);
                     bool cliente_final_controla_empaque_cerrado = await cliente.Controla_empaque_cerrado(_context, codcliente);
                     bool cliente_final_permite_desc_caja_cerrado = await cliente.Permite_Descuento_caja_cerrada(_context, codcliente);
+                    int coddescuento_caja_cerrada = await configuracion.coddescuento_caja_cerrada(_context, codempresa);
+
+
                     decimal empaque_precio_alternativo, empaque_descuento, empaque_mayor, mod_final;
 
                     //si es cliente final y no controla empaque segun el archivo de clientes finales entonces no tiene empaque de precio
@@ -2992,7 +2995,17 @@ namespace siaw_funciones
                     else { empaque_descuento = (decimal)cant_emp; }
                     empaque_mayor = empaque_descuento;
                     //verificar empaque cerrado del empaque mayor
-                    resultado = CantidadCumpleEmpaque(_context, cantidad, empaque_descuento, empaque_descuento, await Tarifa_PermiteEmpaquesMixtos(_context, codtarifa));
+
+                    if (empaque_descuento == 0 && coddescuento == coddescuento_caja_cerrada)
+                    {
+                        // No cumple para optar por el descuento
+                        resultado = false;
+                    }
+                    else
+                    {
+                        resultado = CantidadCumpleEmpaque(_context, cantidad, empaque_descuento, empaque_descuento, await Tarifa_PermiteEmpaquesMixtos(_context, codtarifa));
+                    }
+                    
                     // Dsd 06-12-2022
                     //  si el resultado es false que valide con el empaque dimediado como alternativo pero solo si el empaque alternativo NO ES el de DESCUENTO CAJA CERRADA(38)
                     // Es to por instruccion de CVA, Sra Marlen ya que al asignar el descuento de linea 302 a precio 2, hay item como ser el 03EAGE08 tiene los siguets empaques:

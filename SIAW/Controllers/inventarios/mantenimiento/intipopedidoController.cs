@@ -77,6 +77,44 @@ namespace SIAW.Controllers.inventarios.mantenimiento
             }
         }
 
+        // GET: api/catalogo
+        [HttpGet]
+        [Route("catalogo/{userConn}")]
+        public async Task<ActionResult<IEnumerable<intipopedido>>> Getinconcepto_catalogo(string userConn)
+        {
+            try
+            {
+                // Obtener el contexto de base de datos correspondiente al usuario
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var result = await _context.intipopedido
+                    .OrderBy(i => i.id)
+                    .Select(i => new
+                    {
+                        i.id,
+                        i.descripcion
+                    }).ToListAsync();
+
+
+                    if (result.Count() == 0)
+                    {
+                        return BadRequest(new { resp = "Entidad intipopedido es null." });
+                    }
+                    return Ok(result);
+                }
+
+            }
+            catch (Exception)
+            {
+                return Problem("Error en el servidor");
+                throw;
+            }
+        }
+
+
+
         // PUT: api/intipopedido/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [Authorize]

@@ -1375,6 +1375,49 @@ namespace siaw_funciones
                 return 0;
             }
         }
+
+        public async Task<decimal> SaldoItem(DBContext _context, int codalmacen, string coditem)
+        {
+            try
+            {
+                bool kit = await _context.initem.Where(i => i.codigo == coditem).Select(i => i.kit).FirstOrDefaultAsync();
+                decimal cantidad = 0;
+
+                if (kit)
+                {
+                    var dt = await _context.instoactual
+                        .Where(i=> i.codalmacen == codalmacen)
+                        .Join(_context.inkit,
+                        s => s.coditem,
+                        k => k.item,
+                        (s,k) => new {s,k})
+                        .Where(sk => sk.k.codigo == coditem)
+                        .Select(i => new
+                        {
+                            coditem = i.s.coditem,
+                            total = i.s.cantidad/i.k.cantidad,
+                        })
+                        .OrderByDescending(i => i.total)
+                        .ToListAsync();
+
+                    cantidad = dt[0].total ?? 0;
+                }
+                else
+                {
+                    // si no es kit tomar directo de stock actual
+                    cantidad = await _context.instoactual.Where(i => i.coditem == coditem && i.codalmacen == codalmacen).Select(i => i.cantidad).FirstOrDefaultAsync() ?? 0;
+                }
+                return cantidad;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+
+        }
+
+
+
         public async Task<List<Dtnegativos>> ValidarNegativosDocVenta_paraProbar(DBContext _context, List<itemDataMatriz> tabladetalle, int codalmacen, string idproforma, int numeroidproforma, List<string> mensajes, List<string> negativos, string cod_empresa, string usrreg)
         {
             bool controlarStockSeguridad = await empresa.ControlarStockSeguridad_context(_context, cod_empresa);

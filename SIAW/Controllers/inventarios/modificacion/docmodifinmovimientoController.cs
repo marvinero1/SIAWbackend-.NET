@@ -479,7 +479,7 @@ namespace SIAW.Controllers.inventarios.modificacion
 
         [HttpPost]
         [Route("grabarDocumento/{userConn}/{codempresa}/{traspaso}")]
-        public async Task<ActionResult<object>> grabarDocumento(string userConn, string codempresa, bool traspaso, requestGabrar dataGrabar)
+        public async Task<ActionResult<object>> grabarDocumento(string userConn, string codempresa, bool traspaso, requestGabrarNM dataGrabar)
         {
             try
             {
@@ -1488,7 +1488,7 @@ namespace SIAW.Controllers.inventarios.modificacion
             }
         }
 
-        [HttpGet]
+        [HttpPost]
         [Route("hayRepetidos/{userConn}")]
         public async Task<object> hayRepetidos(string userConn, requestItemsRepetidos requestDetalle)
         {
@@ -1507,7 +1507,7 @@ namespace SIAW.Controllers.inventarios.modificacion
                     {
                         return BadRequest(new { resp = "Los siguientes items estan repetidos: " + item_repetidos });
                     }
-                    else { return Ok("No hay repetidos!!!"); }
+                    else { return Ok(new {resp = "No hay repetidos!!!" }); }
                 }
             }
             catch (Exception)

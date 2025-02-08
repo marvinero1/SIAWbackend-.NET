@@ -65,7 +65,7 @@ namespace siaw_funciones
                 return "";
             }
             var ad_conexion_vpn = await _context.ad_conexion_vpn
-                .Where(a => a.agencia == agencia.ToString())
+                .Where(a => a.agencia == "AG" + agencia.ToString())
                 .Select(a => new
                 {
                     agencia = a.agencia,

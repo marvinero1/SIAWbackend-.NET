@@ -652,7 +652,7 @@ namespace SIAW.Controllers.z_pruebas
 
 
 
-            var resultado = await calculoPreciosMatriz(_context, codempresa, usuario, userConnectionString, data, false);
+            var resultado = await calculoPreciosMatriz(_context, codempresa, usuario, userConnectionString, data, false, codempresa);
 
 
             // var totales = await RECALCULARPRECIOS(_context, false, codempresa, cmbtipo_complementopf, codcliente_real, resultado, verecargoprof, veproforma, vedesextraprof);
@@ -668,7 +668,7 @@ namespace SIAW.Controllers.z_pruebas
         }
 
 
-        private async Task<List<itemDataMatriz>> calculoPreciosMatriz(DBContext _context, string codEmpresa, string usuario, string userConnectionString, List<cargadofromMatriz> data, bool calcular_porcentaje)
+        private async Task<List<itemDataMatriz>> calculoPreciosMatriz(DBContext _context, string codEmpresa, string usuario, string userConnectionString, List<cargadofromMatriz> data, bool calcular_porcentaje, string codempresa)
         {
             List<itemDataMatriz> resultado = new List<itemDataMatriz>();
             string monedabase = "";
@@ -714,7 +714,7 @@ namespace SIAW.Controllers.z_pruebas
                 // descuento asignar asutomaticamente dependiendo de cantidad
                 _descuento_precio = await ventas.Codigo_Descuento_Especial_Precio(_context, reg.tarifa);
                 // pregunta si la cantidad ingresada cumple o no el empaque para descuento
-                if (await ventas.Cumple_Empaque_De_DesctoEspecial(_context, reg.coditem, reg.tarifa, _descuento_precio, reg.cantidad, reg.codcliente))
+                if (await ventas.Cumple_Empaque_De_DesctoEspecial(_context, reg.coditem, reg.tarifa, _descuento_precio, reg.cantidad, reg.codcliente, codempresa))
                 {
                     // si cumple
                     reg.descuento = _descuento_precio;

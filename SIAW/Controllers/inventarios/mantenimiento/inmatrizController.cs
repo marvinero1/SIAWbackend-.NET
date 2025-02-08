@@ -122,7 +122,8 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                             porcen_maximo = porcen_maximo_text,
                             empaqueminimo = empaqueminimo.ToString("####,##0.000", new CultureInfo("en-US")),
                             pesominimo = pesominimo.ToString("####,##0.000", new CultureInfo("en-US")),
-                            penalizadoText = penalizadoText
+                            penalizadoText = penalizadoText,
+                            usaMovimiento = i.usar_en_movimiento 
                         })
                         .FirstOrDefaultAsync();
 

@@ -1423,7 +1423,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     // descuento asignar asutomaticamente dependiendo de cantidad
                     var _descuento_precio = await ventas.Codigo_Descuento_Especial_Precio(_context, tarifa);
                     // pregunta si la cantidad ingresada cumple o no el empaque para descuento
-                    if (await ventas.Cumple_Empaque_De_DesctoEspecial(_context, coditem, tarifa, _descuento_precio, cantidad, codcliente))
+                    if (await ventas.Cumple_Empaque_De_DesctoEspecial(_context, coditem, tarifa, _descuento_precio, cantidad, codcliente, codempresa))
                     {
                         // si cumple
                         descuento = _descuento_precio;
@@ -1547,7 +1547,7 @@ namespace SIAW.Controllers.ventas.transaccion
                         }
                     }*/
 
-                    var resultado = await calculoPreciosMatriz(_context, codempresa, usuario, userConnectionString, data, true);
+                    var resultado = await calculoPreciosMatriz(_context, codempresa, usuario, userConnectionString, data, true, codempresa);
 
                     if (resultado == null)
                     {
@@ -1717,7 +1717,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
-        private async Task<List<itemDataMatriz>> calculoPreciosMatriz(DBContext _context, string codEmpresa, string usuario, string userConnectionString, List<cargadofromMatriz> data, bool calcular_porcentaje)
+        private async Task<List<itemDataMatriz>> calculoPreciosMatriz(DBContext _context, string codEmpresa, string usuario, string userConnectionString, List<cargadofromMatriz> data, bool calcular_porcentaje, string codempresa)
         {
             List<itemDataMatriz> resultado = new List<itemDataMatriz>();
             string monedabase = "";
@@ -1769,7 +1769,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 // descuento asignar asutomaticamente dependiendo de cantidad
                 _descuento_precio = await ventas.Codigo_Descuento_Especial_Precio(_context, reg.tarifa);
                 // pregunta si la cantidad ingresada cumple o no el empaque para descuento
-                if (await ventas.Cumple_Empaque_De_DesctoEspecial(_context, reg.coditem, reg.tarifa, _descuento_precio, reg.cantidad, reg.codcliente))
+                if (await ventas.Cumple_Empaque_De_DesctoEspecial(_context, reg.coditem, reg.tarifa, _descuento_precio, reg.cantidad, reg.codcliente, codempresa))
                 {
                     // si cumple
                     // Desde 19/11/2024 Valida que si es cliente competencia validar en la configuracion de su grupo si debe acceder a permite_descto_linea (301), permite_descto_volumen (302), permite_descto_proveedor(303)
@@ -4343,7 +4343,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
-                var resultado = await calculoPreciosMatriz(_context, codempresa, usuario, userConnectionString, data, false);
+                var resultado = await calculoPreciosMatriz(_context, codempresa, usuario, userConnectionString, data, false, codempresa);
                 if (resultado == null)
                 {
                     return BadRequest(new { resp = "No se encontro informacion con los datos proporcionados." });
@@ -5460,7 +5460,7 @@ namespace SIAW.Controllers.ventas.transaccion
             using (var _context = DbContextFactory.Create(userConnectionString))
             {
 
-                var resultado = await calculoPreciosMatriz(_context, codempresa, usuario, userConnectionString, data, false);
+                var resultado = await calculoPreciosMatriz(_context, codempresa, usuario, userConnectionString, data, false, codempresa);
                 if (resultado == null)
                 {
                     return BadRequest(new { resp = "No se encontro informacion con los datos proporcionados." });
@@ -6238,7 +6238,7 @@ namespace SIAW.Controllers.ventas.transaccion
                             nroitem = i.nroitem
                         }).ToList();
 
-                    var tablaDetalleExtra = await calculoPreciosMatriz(_context, codempresa, usuario, userConnectionString, data,false);
+                    var tablaDetalleExtra = await calculoPreciosMatriz(_context, codempresa, usuario, userConnectionString, data,false, codempresa);
 
                     if (tablaDetalleExtra == null)
                     {
@@ -6405,7 +6405,7 @@ namespace SIAW.Controllers.ventas.transaccion
             if (tabladetalle.Count() > 0)
             {
                 bool quitar_descuento = true;
-                var resultados = await validar_Vta.Validar_Resaltar_Empaques_Caja_Cerrada_DesctoEspecial(_context, tabladetalle, codalmacen, quitar_descuento, codcliente_real);
+                var resultados = await validar_Vta.Validar_Resaltar_Empaques_Caja_Cerrada_DesctoEspecial(_context, tabladetalle, codalmacen, quitar_descuento, codcliente_real, codempresa);
                 var data = resultados.tabladetalle
                         .Select(i => new cargadofromMatriz
                         {
@@ -6423,7 +6423,7 @@ namespace SIAW.Controllers.ventas.transaccion
                             cumpleMin = i.cumpleMin
                         }).ToList();
 
-                var tablaDetalleNew = await calculoPreciosMatriz(_context, codempresa, usuario, userConnectionString, data, false);
+                var tablaDetalleNew = await calculoPreciosMatriz(_context, codempresa, usuario, userConnectionString, data, false, codempresa);
                 return (resultados.result, tablaDetalleNew);
             }
             return (false, tabladetalle);
