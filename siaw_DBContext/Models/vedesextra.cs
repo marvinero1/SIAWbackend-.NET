@@ -32,5 +32,6 @@ namespace siaw_DBContext.Models
         public DateTime? valido_desde { get; set; }
         public DateTime? valido_hasta { get; set; }
         public bool? permite_anadir { get; set; }
+        public bool? es_por_importe { get; set; }
     }
 }

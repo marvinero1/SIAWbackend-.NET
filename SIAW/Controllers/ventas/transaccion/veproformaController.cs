@@ -5613,14 +5613,16 @@ namespace SIAW.Controllers.ventas.transaccion
 
         // GET: api/vedesextra/5
         [HttpPost]
-        [Route("validaAddDescExtraProf/{userConn}/{coddesextra}/{codigodescripcion}/{codcliente}/{codcliente_real}/{codempresa}/{tipopago}/{contra_entrega}")]
-        public async Task<ActionResult<object>> validaAddDescExtraProf(string userConn, int coddesextra, string codigodescripcion, string codcliente, string codcliente_real, string codempresa, string tipopago, bool contra_entrega, List<vedesextraprof> vedesextraprof)
+        [Route("validaAddDescExtraProf/{userConn}/{coddesextra}/{codigodescripcion}/{codcliente}/{codcliente_real}/{codempresa}/{tipopago}/{contra_entrega}/{codtarifa}")]
+        public async Task<ActionResult<object>> validaAddDescExtraProf(string userConn, int coddesextra, string codigodescripcion, string codcliente, string codcliente_real, string codempresa, string tipopago, bool contra_entrega, int codtarifa, List<vedesextraprof> vedesextraprof)
         {
             try
             {
                 // Obtener el contexto de base de datos correspondiente al usuario
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
                 string descuentoCredito = "";
+                int pto_vta_cliente = 0;
+                int coddesextra_ptoventa = 0;
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
                     // Verificar si el descuento esta habilitado
@@ -5642,11 +5644,9 @@ namespace SIAW.Controllers.ventas.transaccion
                     {
                         if (tipo_venta_desc != tipopago)
                         {
-                            return StatusCode(203, new { resp = "El tipo de venta de la proforma: " + tipopago + " no coincide con el tipo de venta del decuento: " + tipo_venta_desc + " verifique esta situación!!!", status = false });
+                            return StatusCode(203, new { resp = "El tipo de venta de la proforma: " + tipopago + " no coincide con el tipo de venta del descuento: " + tipo_venta_desc + " verifique esta situación!!!", status = false });
                         }
                     }
-
-
 
                     // validar si el descuento que esta intentando añadir valida 
                     // si el cliente deberia tener linea de credito valida
@@ -5744,7 +5744,7 @@ namespace SIAW.Controllers.ventas.transaccion
                              */
                         }
                     }
-                    
+
                     //Desde 11/01/2024 Verificar que el descuento no permita añadir si el cliente no esta registrado en la tabla vedesextra_extraordinario_cliente
                     if (await ventas.Descuento_Extra_Permite_Anadir(_context, coddesextra) == false)
                     {//Verificar que el cliente este hregistrado en la tabla vedesextra_permite_cliente
@@ -5754,6 +5754,23 @@ namespace SIAW.Controllers.ventas.transaccion
                         }
                     }
 
+                    //Desde 10/02/2025 Verificar que el descuento si es por importe, que valide que este asignando correctamente segun el pto de venta del cliente
+                    if (await ventas.Descuento_Extra_Es_por_Importe(_context, coddesextra) == true)
+                    {//Verificar que el descuento extra a añadir es el que le pertenece segun su pto de venta del cliente de la direccion de la proforma
+                        pto_vta_cliente = await cliente.PuntoDeVentaCliente(_context, codcliente_real);
+                        coddesextra_ptoventa = await ventas.Descuento_Extra_Por_Importe_segun_PtoVta_Cliente(_context, pto_vta_cliente, true, codtarifa);
+                        if (coddesextra_ptoventa == 0)
+                        {
+                            return StatusCode(203, new { resp = "El Punto de Venta del cliente " + codcliente_real + " no está habilitado para aplicar este Descuento Extra por Importe debido a su tipo de precio en la proforma.", status = false });
+                        }
+                        else
+                        {
+                            if (coddesextra_ptoventa != coddesextra)
+                            {
+                                return StatusCode(203, new { resp = "El descuento" + coddesextra + " no se puede añadir porque el Punto de Venta del cliente no está habilitado para este Descuento Extra por Importe.", status = false });
+                            }
+                        }
+                    }
                     return Ok(new { resp = descuentoCredito, status = true });
                 }
 
@@ -5764,7 +5781,6 @@ namespace SIAW.Controllers.ventas.transaccion
                 throw;
             }
         }
-
 
 
         private async Task<(bool val, string msg)> hay_descuentos_excluyentes(DBContext _context, int coddesextra, List<vedesextraprof> vedesextraprof)

@@ -20,6 +20,7 @@ namespace siaw_DBContext.Data
         Task<int> descrippiezaAsync(string codigo, OutputParameter<string> pieza, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default);
         Task<int> dm_actualizar_venta_mensual_facturas_parametrosAsync(int? mes_actual, int? anio_actual, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default);
         Task<List<GetCnDistribucionResult>> GetCnDistribucionAsync(string p_codcuenta, int? p_centrocosto, int? p_mes, int? p_anio, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default);
+        Task<int> Inmovimiento_ActualizarSaldoAsync(int? codigo, string modo_actualizacion, OutputParameter<bool?> Resultado, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default);
         Task<List<Liquidar_Ventas_DMResult>> Liquidar_Ventas_DMAsync(int? anio, int? mes, OutputParameter<decimal?> resultado, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default);
         Task<List<Liquidar_Ventas_DM_CasualesResult>> Liquidar_Ventas_DM_CasualesAsync(int? anio, int? mes, OutputParameter<decimal?> resultado, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default);
         Task<List<Liquidar_Ventas_DM_Casuales_peso_documentoResult>> Liquidar_Ventas_DM_Casuales_peso_documentoAsync(int? anio, int? mes, OutputParameter<decimal?> resultado, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default);
@@ -35,6 +36,7 @@ namespace siaw_DBContext.Data
         Task<int> reserva_proformasAsync(string codigo, int? codalmacen, OutputParameter<double?> cantidad, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default);
         Task<List<SIA00001_ConversionMonedaResult>> SIA00001_ConversionMonedaAsync(DateTime? p_fecha, string p_monDesde, string p_monHasta, decimal? p_monto, OutputParameter<decimal?> v_resultado, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default);
         Task<List<SIA00002_TipoCambioResult>> SIA00002_TipoCambioAsync(string p_monBase, string p_moneda, DateTime? p_fecha, OutputParameter<decimal?> v_resultado, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default);
+        Task<List<SP_Actualizar_Stock_AlmacenResult>> SP_Actualizar_Stock_AlmacenAsync(int? CodAlmacen, DateTime? AFecha, OutputParameter<bool?> Resultado, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default);
         Task<List<sp_deslgozarcjtos349Result>> sp_deslgozarcjtos349Async(OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default);
         Task<List<sp_deslgozarcjtos353Result>> sp_deslgozarcjtos353Async(OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default);
         Task<List<sp_deslgozarcjtos400Result>> sp_deslgozarcjtos400Async(OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default);

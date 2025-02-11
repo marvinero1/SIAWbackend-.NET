@@ -7846,7 +7846,71 @@ namespace siaw_funciones
             }
         }
 
+        public async Task<bool> Descuento_Extra_Es_por_Importe(DBContext _context, int coddesextra)
+        {
+            try
+            {
+                bool resultado = false;
+                //using (_context)
+                //{
+                var result = await _context.vedesextra
+                    .Where(v => v.codigo == coddesextra)
+                    .Select(v => v.es_por_importe)
+                    .FirstOrDefaultAsync();
+                if (result != null)
+                {
+                    resultado = (bool)result;
+                }
+                else { resultado = false; }
+                //}
+                return resultado;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return false;
+            }
+        }
 
+        public async Task<int> Descuento_Extra_Por_Importe_segun_PtoVta_Cliente(DBContext _context, int codptoventa, bool es_para_la_proforma, int pivot)
+        {
+            try
+            {
+                int resultado = 0;
+                //using (_context)
+                //{
+                if (es_para_la_proforma)
+                {
+                    var result = await _context.vedesextra_por_importe_ptoventa
+                    .Where(v => v.codptoventa == codptoventa && v.codtarifa == pivot)
+                    .Select(v => v.coddesextra)
+                    .FirstOrDefaultAsync();
+                    if (result != null)
+                    {
+                        resultado = (int)result;
+                    }
+                    else { resultado = 0; }
+                }
+                else
+                {
+                    var result = await _context.vedesextra_por_importe_ptoventa
+                    .Where(v => v.codptoventa == codptoventa && v.coddesextra == pivot)
+                    .Select(v => v.coddesextra)
+                    .FirstOrDefaultAsync();
+                    if (result != null)
+                    {
+                        resultado = (int)result;
+                    }
+                    else { resultado = 0; }
+                }
+                return resultado;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return 0;
+            }
+        }
 
 
 

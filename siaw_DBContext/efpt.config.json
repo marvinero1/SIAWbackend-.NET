@@ -6844,6 +6844,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[vedesextra_por_importe_ptoventa]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[vedesextra_tarifa]",
          "ObjectType": 0
       },
@@ -7604,6 +7608,10 @@
          "ObjectType": 1
       },
       {
+         "Name": "[dbo].[Inmovimiento_ActualizarSaldo]",
+         "ObjectType": 1
+      },
+      {
          "Name": "[dbo].[Liquidar_Ventas_DM_Casuales_peso_documento]",
          "ObjectType": 1
       },
@@ -7661,6 +7669,10 @@
       },
       {
          "Name": "[dbo].[SIA00002_TipoCambio]",
+         "ObjectType": 1
+      },
+      {
+         "Name": "[dbo].[SP_Actualizar_Stock_Almacen]",
          "ObjectType": 1
       },
       {

@@ -43,6 +43,7 @@ namespace siaw_DBContext.Data
             modelBuilder.Entity<PesoProfResult>().HasNoKey().ToView(null);
             modelBuilder.Entity<SIA00001_ConversionMonedaResult>().HasNoKey().ToView(null);
             modelBuilder.Entity<SIA00002_TipoCambioResult>().HasNoKey().ToView(null);
+            modelBuilder.Entity<SP_Actualizar_Stock_AlmacenResult>().HasNoKey().ToView(null);
             modelBuilder.Entity<sp_deslgozarcjtos349Result>().HasNoKey().ToView(null);
             modelBuilder.Entity<sp_deslgozarcjtos353Result>().HasNoKey().ToView(null);
             modelBuilder.Entity<sp_deslgozarcjtos400Result>().HasNoKey().ToView(null);
@@ -351,6 +352,48 @@ namespace siaw_DBContext.Data
             };
             var _ = await _context.SqlQueryAsync<GetCnDistribucionResult>("EXEC @returnValue = [dbo].[GetCnDistribucion] @p_codcuenta, @p_centrocosto, @p_mes, @p_anio", sqlParameters, cancellationToken);
 
+            returnValue?.SetValue(parameterreturnValue.Value);
+
+            return _;
+        }
+
+        public virtual async Task<int> Inmovimiento_ActualizarSaldoAsync(int? codigo, string modo_actualizacion, OutputParameter<bool?> Resultado, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default)
+        {
+            var parameterResultado = new SqlParameter
+            {
+                ParameterName = "Resultado",
+                Direction = System.Data.ParameterDirection.InputOutput,
+                Value = Resultado?._value ?? Convert.DBNull,
+                SqlDbType = System.Data.SqlDbType.Bit,
+            };
+            var parameterreturnValue = new SqlParameter
+            {
+                ParameterName = "returnValue",
+                Direction = System.Data.ParameterDirection.Output,
+                SqlDbType = System.Data.SqlDbType.Int,
+            };
+
+            var sqlParameters = new []
+            {
+                new SqlParameter
+                {
+                    ParameterName = "codigo",
+                    Value = codigo ?? Convert.DBNull,
+                    SqlDbType = System.Data.SqlDbType.Int,
+                },
+                new SqlParameter
+                {
+                    ParameterName = "modo_actualizacion",
+                    Size = 100,
+                    Value = modo_actualizacion ?? Convert.DBNull,
+                    SqlDbType = System.Data.SqlDbType.NVarChar,
+                },
+                parameterResultado,
+                parameterreturnValue,
+            };
+            var _ = await _context.Database.ExecuteSqlRawAsync("EXEC @returnValue = [dbo].[Inmovimiento_ActualizarSaldo] @codigo, @modo_actualizacion, @Resultado OUTPUT", sqlParameters, cancellationToken);
+
+            Resultado.SetValue(parameterResultado.Value);
             returnValue?.SetValue(parameterreturnValue.Value);
 
             return _;
@@ -1106,6 +1149,47 @@ namespace siaw_DBContext.Data
             var _ = await _context.SqlQueryAsync<SIA00002_TipoCambioResult>("EXEC @returnValue = [dbo].[SIA00002_TipoCambio] @v_resultado OUTPUT, @p_monBase, @p_moneda, @p_fecha", sqlParameters, cancellationToken);
 
             v_resultado.SetValue(parameterv_resultado.Value);
+            returnValue?.SetValue(parameterreturnValue.Value);
+
+            return _;
+        }
+
+        public virtual async Task<List<SP_Actualizar_Stock_AlmacenResult>> SP_Actualizar_Stock_AlmacenAsync(int? CodAlmacen, DateTime? AFecha, OutputParameter<bool?> Resultado, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default)
+        {
+            var parameterResultado = new SqlParameter
+            {
+                ParameterName = "Resultado",
+                Direction = System.Data.ParameterDirection.InputOutput,
+                Value = Resultado?._value ?? Convert.DBNull,
+                SqlDbType = System.Data.SqlDbType.Bit,
+            };
+            var parameterreturnValue = new SqlParameter
+            {
+                ParameterName = "returnValue",
+                Direction = System.Data.ParameterDirection.Output,
+                SqlDbType = System.Data.SqlDbType.Int,
+            };
+
+            var sqlParameters = new []
+            {
+                new SqlParameter
+                {
+                    ParameterName = "CodAlmacen",
+                    Value = CodAlmacen ?? Convert.DBNull,
+                    SqlDbType = System.Data.SqlDbType.Int,
+                },
+                new SqlParameter
+                {
+                    ParameterName = "AFecha",
+                    Value = AFecha ?? Convert.DBNull,
+                    SqlDbType = System.Data.SqlDbType.Date,
+                },
+                parameterResultado,
+                parameterreturnValue,
+            };
+            var _ = await _context.SqlQueryAsync<SP_Actualizar_Stock_AlmacenResult>("EXEC @returnValue = [dbo].[SP_Actualizar_Stock_Almacen] @CodAlmacen, @AFecha, @Resultado OUTPUT", sqlParameters, cancellationToken);
+
+            Resultado.SetValue(parameterResultado.Value);
             returnValue?.SetValue(parameterreturnValue.Value);
 
             return _;

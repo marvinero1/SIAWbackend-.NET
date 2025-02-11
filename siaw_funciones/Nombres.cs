@@ -465,7 +465,24 @@ namespace siaw_funciones
             resultado = descripcion.Trim();
             return resultado;
         }
-
+        public async Task<string> nombreproveedor(DBContext _context, int codProveedor)
+        {
+            string resultado;
+            string descripcion = "";
+            var result = await _context.cpproveedor
+                .Where(v => v.codigo == codProveedor)
+                .Select(parametro => new
+                {
+                    parametro.razonsocial
+                })
+                .FirstOrDefaultAsync();
+            if (result != null)
+            {
+                descripcion = result.razonsocial;
+            }
+            resultado = descripcion.Trim();
+            return resultado;
+        }
 
     }
 }

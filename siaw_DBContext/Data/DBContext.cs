@@ -1726,6 +1726,7 @@ namespace siaw_DBContext.Data
         public virtual DbSet<vedesextra_item> vedesextra_item { get; set; }
         public virtual DbSet<vedesextra_modifica_dias> vedesextra_modifica_dias { get; set; }
         public virtual DbSet<vedesextra_orden> vedesextra_orden { get; set; }
+        public virtual DbSet<vedesextra_por_importe_ptoventa> vedesextra_por_importe_ptoventa { get; set; }
         public virtual DbSet<vedesextra_tarifa> vedesextra_tarifa { get; set; }
         public virtual DbSet<vedesextracoti> vedesextracoti { get; set; }
         public virtual DbSet<vedesextradevo> vedesextradevo { get; set; }
@@ -60511,6 +60512,12 @@ namespace siaw_DBContext.Data
             modelBuilder.Entity<vedesextra_orden>(entity =>
             {
                 entity.HasNoKey();
+            });
+
+            modelBuilder.Entity<vedesextra_por_importe_ptoventa>(entity =>
+            {
+                entity.HasKey(e => new { e.codptoventa, e.coddesextra })
+                    .HasName("PK_vedesextra_por_importe_ptoventa_1");
             });
 
             modelBuilder.Entity<vedesextra_tarifa>(entity =>

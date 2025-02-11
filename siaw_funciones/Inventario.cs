@@ -545,6 +545,35 @@ namespace siaw_funciones
             }
             return respuesta;
         }
-
+        public async Task<decimal> itemstockmax_origen_destino(DBContext _context, int codalmacen, int codalmacen_pedido, string coditem)
+        {
+            decimal num = 0;
+            try
+            {
+                num = await _context.instockalm
+                    .Where(i => i.codalmacen == codalmacen && i.codalmpedido == codalmacen_pedido && i.item == coditem)
+                    .Select(i => i.smax).FirstOrDefaultAsync() ?? 0;
+            }
+            catch (Exception)
+            {
+                num = 0;
+            }
+            return num;
+        }
+        public async Task<decimal> itemstockmin_origen_destino(DBContext _context,  int codalmacen, int codalmacen_pedido, string coditem)
+        {
+            decimal num = 0;
+            try
+            {
+                num = await _context.instockalm
+                    .Where(i => i.codalmacen == codalmacen && i.codalmpedido == codalmacen_pedido && i.item == coditem)
+                    .Select(i => i.smin).FirstOrDefaultAsync() ?? 0;
+            }
+            catch (Exception)
+            {
+                num = 0;
+            }
+            return num;
+        }
     }
 }

@@ -27,6 +27,7 @@ namespace SIAW.Controllers.inventarios.transaccion
         private readonly Items items = new Items();
         private readonly Empresa empresa = new Empresa();
         private readonly empaquesFunciones empaque_func = new empaquesFunciones();
+        private readonly Log log = new Log();
 
         private readonly func_encriptado encripVB = new func_encriptado();
 
@@ -96,6 +97,9 @@ namespace SIAW.Controllers.inventarios.transaccion
                     {
                         return BadRequest(new { docGrabado.valido, resp = docGrabado.msg });
                     }
+
+                    await log.RegistrarEvento(_context, cabecera.usuarioreg, Log.Entidades.SW_Pedido, docGrabado.codigoPedido.ToString(), cabecera.id, docGrabado.numeroID.ToString(), _controllerName, "Crear Pedido", Log.TipoLog.Creacion);
+
                     return Ok(new
                     {
                         docGrabado.valido,
