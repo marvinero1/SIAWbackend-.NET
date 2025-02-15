@@ -28,6 +28,8 @@ namespace SIAW.Controllers.inventarios.transaccion
         private readonly Empresa empresa = new Empresa();
         private readonly empaquesFunciones empaque_func = new empaquesFunciones();
         private readonly Log log = new Log();
+        private readonly Funciones funciones = new Funciones();
+        private readonly Ventas ventas = new Ventas();
 
         private readonly func_encriptado encripVB = new func_encriptado();
 
@@ -245,7 +247,7 @@ namespace SIAW.Controllers.inventarios.transaccion
 
 
         [HttpGet]
-        [Route("getSaldoStock/{userConn}/{coditem}/{usuario}/{codalmacen}")]
+        [Route("getSaldoStock/{userConn}/{coditem}/{usuario}/{codalmacen}/{codempresa}")]
         public async Task<ActionResult<object>> getSaldoStock(string userConn, string coditem, string usuario, int codalmacen, string codempresa)
         {
             try
@@ -301,10 +303,10 @@ namespace SIAW.Controllers.inventarios.transaccion
 
                         if (Es_Ag_Local == true || Obtengo_Saldos_Otras_Ags_Localmente == true)
                         {
-                            saldo1 = listaAlmacenes.codalmsald1.ToString() + " : " + (await saldos.SaldoItem(_context, listaAlmacenes.codalmsald1 ?? 0, coditem)).ToString("####,##0.000", new CultureInfo("en-US"));
-                            saldo2 = listaAlmacenes.codalmsald2.ToString() + " : " + (await saldos.SaldoItem(_context, listaAlmacenes.codalmsald2 ?? 0, coditem)).ToString("####,##0.000", new CultureInfo("en-US"));
-                            saldo3 = listaAlmacenes.codalmsald3.ToString() + " : " + (await saldos.SaldoItem(_context, listaAlmacenes.codalmsald3 ?? 0, coditem)).ToString("####,##0.000", new CultureInfo("en-US"));
-                            saldo4 = listaAlmacenes.codalmsald4.ToString() + " : " + (await saldos.SaldoItem(_context, listaAlmacenes.codalmsald4 ?? 0, coditem)).ToString("####,##0.000", new CultureInfo("en-US"));
+                            saldo1 = listaAlmacenes.codalmsald1.ToString() + " : " + (await saldos.SaldoItem(_context, listaAlmacenes.codalmsald1 ?? 0, coditem)).ToString("####,##0.00", new CultureInfo("en-US"));
+                            saldo2 = listaAlmacenes.codalmsald2.ToString() + " : " + (await saldos.SaldoItem(_context, listaAlmacenes.codalmsald2 ?? 0, coditem)).ToString("####,##0.00", new CultureInfo("en-US"));
+                            saldo3 = listaAlmacenes.codalmsald3.ToString() + " : " + (await saldos.SaldoItem(_context, listaAlmacenes.codalmsald3 ?? 0, coditem)).ToString("####,##0.00", new CultureInfo("en-US"));
+                            saldo4 = listaAlmacenes.codalmsald4.ToString() + " : " + (await saldos.SaldoItem(_context, listaAlmacenes.codalmsald4 ?? 0, coditem)).ToString("####,##0.00", new CultureInfo("en-US"));
                         }
                         else
                         {
@@ -756,6 +758,748 @@ namespace SIAW.Controllers.inventarios.transaccion
         }
 
 
+
+
+
+
+        // generar pedido automatico
+        private async Task<(bool valido, string msg, int codigo, string ID, int numeroID)> GenerarPedidoAut(DBContext _context, string codempresa, string usuario, requestGenerarPedido datosPedido)
+        {
+            int codPedido = 0;
+            int numero = 0;
+            string id = datosPedido.id;
+            int codalmacen = datosPedido.codalmacen;
+            int codalmacendestino = datosPedido.codalmacen2;
+            bool todos = datosPedido.todos;
+            bool grupos = datosPedido.grupos;
+            string gruposdesde = datosPedido.grupodesde;
+            string gruposhasta = datosPedido.grupohasta;
+            bool lineas = datosPedido.lineas;
+            string lineasdesde = datosPedido.lineadesde;
+            string lineashasta = datosPedido.lineahasta;
+            bool items1 = datosPedido.items;
+            string itemsdesde = datosPedido.itemdesde;
+            string itemshasta = datosPedido.itemhasta;
+
+
+            using (var dbContexTransaction = _context.Database.BeginTransaction())
+            {
+                try
+                {
+                    bool proforma_reserva = await configuracion.emp_proforma_reserva(_context, codempresa);
+                    bool resultado = true;
+                    bool pedidodecancelar = false;
+
+                    //actualizarUI("Buscando Items con bajo stock");
+
+                    //proceso que puede tardar su tiempo
+                    //'aqui se saca primero las diferencias para sacar el pedido
+                    //'PRIMERO SACAR DIFERENCIAS A PEDIR en tablapedido
+                    // Obtener los items con bajo stock usando LINQ
+                    List<ItemBajoStock> itemsBajoStock;
+                    //if (proforma_reserva)
+                    //{
+                    if (todos)
+                    {
+                        itemsBajoStock = await ObtenerItemsBajoStock(_context, proforma_reserva, codalmacen, codalmacendestino, "todos", "", "");
+                    }
+                    else if (grupos)
+                    {
+                        itemsBajoStock = await ObtenerItemsBajoStock(_context, proforma_reserva, codalmacen, codalmacendestino, "grupos", gruposdesde, gruposhasta);
+                    }
+                    else if (lineas)
+                    {
+                        itemsBajoStock = await ObtenerItemsBajoStock(_context, proforma_reserva, codalmacen, codalmacendestino, "lineas", lineasdesde, lineashasta);
+                    }
+                    else if (items1)
+                    {
+                        itemsBajoStock = await ObtenerItemsBajoStock(_context, proforma_reserva, codalmacen, codalmacendestino, "items", itemsdesde, itemshasta);
+                    }
+                    else
+                    {
+                        itemsBajoStock = await ObtenerItemsBajoStock(_context, proforma_reserva, codalmacen, codalmacendestino, "todos", "", "");
+                    }
+
+                    // 🔹 Aplicar reglas de empaques (`inalmacen_automatico`)
+                    var reglasEmpaque = _context.inalmacen_automatico
+                        .Where(a => a.codalmacen == codalmacen)
+                        .OrderBy(a => a.nro)
+                        .ToList();
+
+                    foreach (var item in itemsBajoStock)
+                    {
+                        foreach (var regla in reglasEmpaque)
+                        {
+                            //Primero validar por el campo codempaque = 37 EMP CAJA CERRADA FABRICA
+                            double empaque = await ventas.Empaque(_context, (int)regla.codempaque, item.item);
+                            if (empaque <= 0) continue;
+
+                            double porcentaje = (double)(regla.porcen / 100);
+                            double empaquesCerrados = item.apedir >= empaque ? Math.Floor(item.apedir / empaque) : 0;
+                            double apedir = item.apedir - (empaquesCerrados * empaque);
+
+                            switch (regla.tipo)
+                            {
+                                case 0: // MENOR
+                                    if (apedir < empaque * porcentaje)
+                                        item.apedir = (empaquesCerrados + 1) * empaque;
+                                    break;
+                                case 1: // MENOR O IGUAL
+                                    if (apedir <= empaque * porcentaje)
+                                        item.apedir = (empaquesCerrados + 1) * empaque;
+                                    break;
+                                case 2: // MAYOR O IGUAL
+                                    if (apedir >= empaque * porcentaje && apedir <= empaque)
+                                        item.apedir = (empaquesCerrados + 1) * empaque;
+                                    break;
+                                case 3: // MAYOR
+                                    if (apedir > empaque * porcentaje && apedir <= empaque)
+                                        item.apedir = (empaquesCerrados + 1) * empaque;
+                                    break;
+                            }
+
+                            //Luego validar por el campo codempaque = 36 EMP DIMEDIADOS
+                            empaque = await ventas.Empaque(_context, (int)regla.codempaque_dimediado, item.item);
+                            if (empaque <= 0) continue;
+
+                            porcentaje = (double)(regla.porcen_dimediado / 100);
+                            empaquesCerrados = item.apedir >= empaque ? Math.Floor(item.apedir / empaque) : 0;
+                            apedir = item.apedir - (empaquesCerrados * empaque);
+
+                            switch (regla.tipo)
+                            {
+                                case 0: // MENOR
+                                    if (apedir < empaque * porcentaje)
+                                        item.apedir = (empaquesCerrados + 1) * empaque;
+                                    break;
+                                case 1: // MENOR O IGUAL
+                                    if (apedir <= empaque * porcentaje)
+                                        item.apedir = (empaquesCerrados + 1) * empaque;
+                                    break;
+                                case 2: // MAYOR O IGUAL
+                                    if (apedir >= empaque * porcentaje && apedir <= empaque)
+                                        item.apedir = (empaquesCerrados + 1) * empaque;
+                                    break;
+                                case 3: // MAYOR
+                                    if (apedir > empaque * porcentaje && apedir <= empaque)
+                                        item.apedir = (empaquesCerrados + 1) * empaque;
+                                    break;
+                            }
+                        }
+                    }
+                    //FIN DE USAR CONTROLES INALMACEN_AUTOMATICO
+
+                    //A LAS GRAMPAS CONTROLAR QUE ENVIE POR LO MENOS LA CANTIDAD DE TUERCAS REQUERIDAS
+                    // 🔹 Ajustar cantidades de tuercas (`inkit`)
+                    var aumentar = new List<(string item, double cantidad, int codalmpedido)>();
+
+                    foreach (var item in itemsBajoStock)
+                    {
+                        if (string.Compare(item.item, "26IGBM14") >= 0 && string.Compare(item.item, "28IGDM63") <= 0)
+                        {
+                            var tuercas = _context.inkit
+                                .Where(k => k.codigo == item.item && k.item != item.item)
+                                .Select(k => new { k.item, k.cantidad })
+                                .ToList();
+
+                            foreach (var tuerca in tuercas)
+                            {
+                                var existente = aumentar.FirstOrDefault(a => a.item == tuerca.item);
+                                if (existente.item != null)
+                                {
+                                    aumentar = aumentar
+                                        .Select(a => a.item == tuerca.item
+                                            ? (a.item, a.cantidad + ((double)tuerca.cantidad * item.apedir), a.codalmpedido)
+                                            : a)
+                                        .ToList();
+                                }
+                                else
+                                {
+                                    aumentar.Add((tuerca.item, (double)tuerca.cantidad * item.apedir, item.codalmpedido));
+                                }
+                            }
+                        }
+                    }
+
+                    // 🔹 Agregar tuercas al pedido si es necesario
+                    foreach (var extra in aumentar)
+                    {
+                        var existente = itemsBajoStock.FirstOrDefault(i => i.item == extra.item);
+                        if (existente != null)
+                        {
+                            existente.apedir = Math.Max(existente.apedir, extra.cantidad);
+                        }
+                        else
+                        {
+                            itemsBajoStock.Add(new ItemBajoStock
+                            {
+                                item = extra.item,
+                                apedir = extra.cantidad,
+                                codalmpedido = extra.codalmpedido,
+                                udm = "PZ"
+                            });
+                        }
+                    }
+
+                    //actualizarUI("Creando Notas de Pedido");
+
+                    // 🔹 Insertar en `inpedido` (Cabecera del pedido)
+
+                    numero = await documento.pedidonumeroid(_context, id);
+                    var nuevoPedido = new inpedido
+                    {
+                        id = id,
+                        numeroid = numero + 1,
+                        codalmacen = codalmacen,
+                        codalmdestino = codalmacendestino,
+                        fecha = DateTime.Now,
+                        obs = "PEDIDO AUTOMÁTICO DE FECHA " + DateTime.Now.ToShortDateString(),
+                        horareg = DateTime.Now.ToString("HH:mm"),
+                        fechareg = DateTime.Today,
+                        anulado = false,
+                        usuarioreg = usuario
+                    };
+
+                    _context.inpedido.Add(nuevoPedido);
+                    _context.SaveChanges();
+
+                    codPedido = nuevoPedido.codigo;
+
+                    // 🔹 Insertar detalles en `inpedido1`
+                    var detallesPedido = itemsBajoStock
+                        .Where(x => x.apedir > 0)
+                        .Select(x => new inpedido1
+                        {
+                            codpedido = codPedido,
+                            coditem = x.item,
+                            cantidad = (decimal)x.apedir,
+                            udm = x.udm,
+                            codproveedor = 0
+                        })
+                        .ToList();
+
+                    _context.inpedido1.AddRange(detallesPedido);
+                    _context.SaveChanges();
+
+                    // 🔹 Actualizar `intipopedido`
+                    var tipoPedido = _context.intipopedido.FirstOrDefault(t => t.id == id);
+                    if (tipoPedido != null)
+                    {
+                        tipoPedido.nroactual += 1;
+                        _context.SaveChanges();
+                    }
+
+                    dbContexTransaction.Commit();
+                    //actualizarUI("Terminado");
+                }
+                catch (Exception ex)
+                {
+                    dbContexTransaction.Rollback();
+                    return (false, $"Error en el servidor al guardar Pedido: {ex.Message}", 0, "", 0);
+                    throw;
+                }
+            }
+            return (true, "", codPedido, id, numero);
+        }
+
+        [HttpPost]
+        [Route("GenerarPedidoAutomatico/{userConn}/{codempresa}/{usuario}")]
+        public async Task<ActionResult<object>> GenerarPedidoAutomatico(string userConn, string codempresa, string usuario, requestGenerarPedido datosPedido)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    datosPedido.id = datosPedido.id.Trim();
+                    datosPedido.lineadesde = datosPedido.lineadesde.Trim();
+                    datosPedido.lineahasta = datosPedido.lineahasta.Trim();
+                    datosPedido.itemdesde = datosPedido.itemdesde.Trim();
+                    datosPedido.itemhasta = datosPedido.itemhasta.Trim();
+
+                    var Valido = await validarGenerarPedido(_context, datosPedido);
+                    if (Valido.valido == false)
+                    {
+                        return BadRequest(new { Valido.valido, resp = Valido.msg });
+                    }
+                    //actualizar sotcks
+                    var registros = _context.instoactual.Where(x => x.proformas == null).ToList();
+
+                    foreach (var registro in registros)
+                    {
+                        registro.proformas = 0;
+                    }
+                    _context.SaveChanges();
+
+                    // valida cabecera
+                    var Negativos = await ValidarNegativos(_context, datosPedido.codalmacen);
+                    if (Negativos.valido == false)
+                    {
+                        return BadRequest(new { Negativos.valido, resp = Negativos.msg });
+                    }
+                    //definir que proceso debe llamar al terminar el proceso principal
+
+                    // manda a grabar
+                    var Generado = await GenerarPedidoAut(_context, codempresa, usuario, datosPedido);
+                    if (Generado.valido == false)
+                    {
+                        return BadRequest(new { Generado.valido, resp = Generado.msg });
+                    }
+                    await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Pedido, Generado.codigo.ToString(), Generado.ID, Generado.numeroID.ToString(), this._controllerName, "Se Genero y Grabo el Pedido Automatico", Log.TipoLog.Creacion);
+                    return Ok(new
+                    {
+                        Generado.valido,
+                        resp = "Se genero el pedido " + Generado.ID + " - " + Generado.numeroID + " con exito."
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                return Problem("Error en el servidor al Generar Pedido: " + ex.Message);
+                throw;
+            }
+        }
+
+        private async Task<(bool valido, string msg)> validarGenerarPedido(DBContext _context, requestGenerarPedido datosPedido)
+        {
+            if (datosPedido.codalmacen <= 0)
+            {
+                return (false, "Debe poner el codigo del Almacen del cual desea generar el pedido automatico.");
+            }
+            if (datosPedido.codalmacen2 <= 0)
+            {
+                return (false, "Debe poner el codigo del Almacen al cual desea hacer el pedido.");
+            }
+            if (string.IsNullOrWhiteSpace(datosPedido.id))
+            {
+                return (false, "Debe poner el id del pedido automatico.");
+            }
+
+            if (datosPedido.grupos == true)
+            {
+                if (string.IsNullOrWhiteSpace(datosPedido.grupodesde))
+                {
+                    return (false, "Debe poner el codigo del Grupo desde el cual desea realizar el pedido.");
+                }
+                if (string.IsNullOrWhiteSpace(datosPedido.grupohasta))
+                {
+                    return (false, "Debe poner el codigo del Grupo hasta el cual desea realizar el pedido.");
+                }
+            }
+            if (datosPedido.lineas == true)
+            {
+                if (string.IsNullOrWhiteSpace(datosPedido.lineadesde))
+                {
+                    return (false, "Debe poner el codigo de Linea desde el cual desea realizar el pedido.");
+                }
+                if (string.IsNullOrWhiteSpace(datosPedido.lineahasta))
+                {
+                    return (false, "Debe poner el codigo de Linea hasta el cual desea realizar el pedido.");
+                }
+            }
+            if (datosPedido.items == true)
+            {
+                if (string.IsNullOrWhiteSpace(datosPedido.itemdesde))
+                {
+                    return (false, "Debe poner el codigo del Item desde el cual desea realizar el pedido.");
+                }
+                if (string.IsNullOrWhiteSpace(datosPedido.itemhasta))
+                {
+                    return (false, "Debe poner el codigo del Item hasta el cual desea realizar el pedido.");
+                }
+            }
+            return (true, "");
+        }
+
+        private async Task<(bool valido, string msg)> ValidarNegativos(DBContext _context, int codalmacen)
+        {
+            bool resultado = false;
+            var itemsNegativos = _context.initem
+            .Where(i => i.tipo == "MERCADERIA" && i.usar_en_movimiento == true)
+            .Join(
+                _context.instoactual.Where(s => s.codalmacen == codalmacen && (s.cantidad - s.proformas) < 0),
+                i => i.codigo,
+                s => s.coditem,
+                (i, s) => new
+                {
+                    i.codigo,
+                    i.descripcion,
+                    i.medida,
+                    cantidad = s.cantidad ?? 0,
+                    proformas = s.proformas ?? 0
+                }
+            )
+            .OrderBy(i => i.codigo)
+            .ToList();
+
+            if (itemsNegativos.Any())
+            {
+                var lista = new List<string>
+        {
+            "Estos items tienen saldo negativo, por favor corrijalos antes de generar el pedido:",
+            "",
+            funciones.Rellenar("CODIGO", 10, " ", false) + " " +
+            funciones.Rellenar("DESCRIPCION", 30, " ", false) + " " +
+            funciones.Rellenar("MEDIDA", 15, " ", false) + " " +
+            funciones.Rellenar("CANTIDAD", 12, " ", true) + " " +
+            funciones.Rellenar("PROFORMAS", 12, " ", true),
+            "---------- ------------------------------ --------------- ------------ ------------"
+        };
+
+                foreach (var item in itemsNegativos)
+                {
+                    if (Math.Abs((decimal)(item.cantidad - (decimal)item.proformas)) >= 1)
+                    {
+                        resultado = false;
+                        string cantidadTexto = item.cantidad.ToString("#,##0.00", CultureInfo.InvariantCulture);
+                        string proformasTexto = item.proformas.ToString("#,##0.00", CultureInfo.InvariantCulture);
+                        lista.Add(
+                            funciones.Rellenar(item.codigo, 10, " ", false) + " " +
+                            funciones.Rellenar(item.descripcion, 30, " ", false) + " " +
+                            funciones.Rellenar(item.medida, 15, " ", false) + " " +
+                            funciones.Rellenar(cantidadTexto, 12, " ", true) + " " +
+                            funciones.Rellenar(proformasTexto, 12, " ", true)
+                        );
+                    }
+                }
+
+                lista.Add("---------- ------------------------------ --------------- ------------ ------------");
+
+                if (!resultado)
+                {
+                    return (false, "Items Negativos" + Environment.NewLine + lista);
+                }
+            }
+            return (true, "");
+
+        }
+
+        
+        private async Task<List<ItemBajoStock>> ObtenerItemsBajoStock(DBContext _context, bool proforma_reserva, int codalmacen, int codalmacen2, string opcion, string filtro_desde, string filtro_hasta)
+        {
+            List<ItemBajoStock> itemsBajoStock = new List<ItemBajoStock>();
+
+            if (proforma_reserva)
+            {
+                if (opcion == "todos")
+                {
+                    itemsBajoStock = await _context.instockalm
+                    .Join(_context.instoactual,
+                        a => new { a.item, a.codalmacen },
+                        s => new { item = s.coditem, s.codalmacen },
+                        (a, s) => new { a, s })
+                    .Where(x => x.a.codalmpedido == codalmacen2 &&
+                                x.s.codalmacen == codalmacen &&
+                                x.a.smax > 0 &&
+                                ((x.a.smax - ((x.s.cantidad ?? 0) - (x.s.proformas ?? 0))) > 0) &&
+                                (((x.s.cantidad ?? 0) - (x.s.proformas ?? 0)) <= x.a.ptopedido))
+                    .Select(x => new ItemBajoStock
+                    {
+                        item = x.a.item,
+                        apedir = (double)(x.a.smax - ((x.s.cantidad ?? 0) - (x.s.proformas ?? 0))),
+                        codalmpedido = x.a.codalmpedido,
+                        udm = x.s.udm
+                    })
+                    .ToListAsync();
+
+                    // Aplicar filtro si es necesario
+                    itemsBajoStock = (await Task.WhenAll(itemsBajoStock
+                        .Select(async item => new
+                        {
+                            item,
+                            activo = await items.item_usar_en_movimiento(_context, item.item)
+                        })))
+                        .Where(x => x.activo)
+                        .Select(x => x.item)
+                        .ToList();
+
+                    return itemsBajoStock;
+                }
+                if (opcion == "grupos")
+                {
+                    itemsBajoStock = await _context.instockalm
+                    .Join(_context.instoactual,
+                        a => new { a.item, a.codalmacen },
+                        s => new { item = s.coditem, s.codalmacen },
+                        (a, s) => new { a, s })
+                    .Join(_context.initem,
+                      x => x.a.item,
+                      i => i.codigo,
+                      (x, i) => new { x.a, x.s, i })
+                    .Join(_context.inlinea,
+                          x => x.i.codlinea,
+                          l => l.codigo,
+                          (x, l) => new { x.a, x.s, l })
+                    .Where(x => x.a.codalmpedido == codalmacen2 &&
+                                x.l.codgrupomer >= Convert.ToInt32(filtro_desde) &&
+                                x.l.codgrupomer <= Convert.ToInt32(filtro_hasta) &&
+                                x.s.codalmacen == codalmacen &&
+                                x.a.smax > 0 &&
+                                ((x.a.smax - ((x.s.cantidad ?? 0) - (x.s.proformas ?? 0))) > 0) &&
+                                (((x.s.cantidad ?? 0) - (x.s.proformas ?? 0)) <= x.a.ptopedido))
+                    .Select(x => new ItemBajoStock
+                    {
+                        item = x.a.item,
+                        apedir = (double)(x.a.smax - ((x.s.cantidad ?? 0) - (x.s.proformas ?? 0))),
+                        codalmpedido = x.a.codalmpedido,
+                        udm = x.s.udm
+                    })
+                    .ToListAsync();
+
+                    // Aplicar filtro si es necesario
+                    itemsBajoStock = (await Task.WhenAll(itemsBajoStock
+                        .Select(async item => new
+                        {
+                            item,
+                            activo = await items.item_usar_en_movimiento(_context, item.item)
+                        })))
+                        .Where(x => x.activo)
+                        .Select(x => x.item)
+                        .ToList();
+
+                    return itemsBajoStock;
+                }
+                if (opcion == "lineas")
+                {
+                    itemsBajoStock = await _context.instockalm
+                    .Join(_context.instoactual,
+                        a => new { a.item, a.codalmacen },
+                        s => new { item = s.coditem, s.codalmacen },
+                        (a, s) => new { a, s })
+                    .Join(_context.initem,
+                      x => x.a.item,
+                      i => i.codigo,
+                      (x, i) => new { x.a, x.s, i })
+                    .Where(x => x.a.codalmpedido == codalmacen2 &&
+                                string.Compare(x.i.codlinea, filtro_desde) >= 0 &&
+                                string.Compare(x.i.codlinea, filtro_hasta) <= 0 &&
+                                x.s.codalmacen == codalmacen &&
+                                x.a.smax > 0 &&
+                                ((x.a.smax - ((x.s.cantidad ?? 0) - (x.s.proformas ?? 0))) > 0) &&
+                                (((x.s.cantidad ?? 0) - (x.s.proformas ?? 0)) <= x.a.ptopedido))
+                    .Select(x => new ItemBajoStock
+                    {
+                        item = x.a.item,
+                        apedir = (double)(x.a.smax - ((x.s.cantidad ?? 0) - (x.s.proformas ?? 0))),
+                        codalmpedido = x.a.codalmpedido,
+                        udm = x.s.udm
+                    })
+                    .ToListAsync();
+
+                    // Aplicar filtro si es necesario
+                    itemsBajoStock = (await Task.WhenAll(itemsBajoStock
+                        .Select(async item => new
+                        {
+                            item,
+                            activo = await items.item_usar_en_movimiento(_context, item.item)
+                        })))
+                        .Where(x => x.activo)
+                        .Select(x => x.item)
+                        .ToList();
+
+                    return itemsBajoStock;
+                }
+                if (opcion == "items")
+                {
+                    itemsBajoStock = await _context.instockalm
+                    .Join(_context.instoactual,
+                        a => new { a.item, a.codalmacen },
+                        s => new { item = s.coditem, s.codalmacen },
+                        (a, s) => new { a, s })
+                    .Where(x => x.a.codalmpedido == codalmacen2 &&
+                                string.Compare(x.a.item, filtro_desde) >= 0 &&
+                                string.Compare(x.a.item, filtro_hasta) <= 0 &&
+                                x.s.codalmacen == codalmacen &&
+                                x.a.smax > 0 &&
+                                ((x.a.smax - ((x.s.cantidad ?? 0) - (x.s.proformas ?? 0))) > 0) &&
+                                (((x.s.cantidad ?? 0) - (x.s.proformas ?? 0)) <= x.a.ptopedido))
+                    .Select(x => new ItemBajoStock
+                    {
+                        item = x.a.item,
+                        apedir = (double)(x.a.smax - ((x.s.cantidad ?? 0) - (x.s.proformas ?? 0))),
+                        codalmpedido = x.a.codalmpedido,
+                        udm = x.s.udm
+                    })
+                    .ToListAsync();
+
+                    // Aplicar filtro si es necesario
+                    itemsBajoStock = (await Task.WhenAll(itemsBajoStock
+                        .Select(async item => new
+                        {
+                            item,
+                            activo = await items.item_usar_en_movimiento(_context, item.item)
+                        })))
+                        .Where(x => x.activo)
+                        .Select(x => x.item)
+                        .ToList();
+
+                    return itemsBajoStock;
+                }
+
+            }
+            else//QUE NO TOMA EN CUENTA PROFORMAS
+            {
+                if (opcion == "todos")
+                {
+                    itemsBajoStock = await _context.instockalm
+                    .Join(_context.instoactual,
+                        a => new { a.item, a.codalmacen },
+                        s => new { item = s.coditem, s.codalmacen },
+                        (a, s) => new { a, s })
+                    .Where(x => x.a.codalmpedido == codalmacen2 &&
+                                x.s.codalmacen == codalmacen &&
+                                x.a.smax > 0 &&
+                                (x.a.smax - (x.s.cantidad ?? 0) > 0) &&
+                                ((x.s.cantidad ?? 0) <= x.a.ptopedido))
+                    .Select(x => new ItemBajoStock
+                    {
+                        item = x.a.item,
+                        apedir = (double)(x.a.smax - x.s.cantidad ?? 0),
+                        codalmpedido = x.a.codalmpedido,
+                        udm = x.s.udm
+                    })
+                    .ToListAsync();
+
+                    // Aplicar filtro si es necesario
+                    itemsBajoStock = (await Task.WhenAll(itemsBajoStock
+                        .Select(async item => new
+                        {
+                            item,
+                            activo = await items.item_usar_en_movimiento(_context, item.item)
+                        })))
+                        .Where(x => x.activo)
+                        .Select(x => x.item)
+                        .ToList();
+
+                    return itemsBajoStock;
+                }
+                if (opcion == "grupos")
+                {
+                    itemsBajoStock = await _context.instockalm
+                    .Join(_context.instoactual,
+                        a => new { a.item, a.codalmacen },
+                        s => new { item = s.coditem, s.codalmacen },
+                        (a, s) => new { a, s })
+                    .Join(_context.initem,
+                      x => x.a.item,
+                      i => i.codigo,
+                      (x, i) => new { x.a, x.s, i })
+                    .Join(_context.inlinea,
+                          x => x.i.codlinea,
+                          l => l.codigo,
+                          (x, l) => new { x.a, x.s, l })
+                    .Where(x => x.a.codalmpedido == codalmacen2 &&
+                                x.l.codgrupomer >= Convert.ToInt32(filtro_desde) &&
+                                x.l.codgrupomer <= Convert.ToInt32(filtro_hasta) &&
+                                x.s.codalmacen == codalmacen &&
+                                x.a.smax > 0 &&
+                                (x.a.smax - (x.s.cantidad ?? 0) > 0) &&
+                                ((x.s.cantidad ?? 0) <= x.a.ptopedido))
+                    .Select(x => new ItemBajoStock
+                    {
+                        item = x.a.item,
+                        apedir = (double)(x.a.smax - x.s.cantidad ?? 0),
+                        codalmpedido = x.a.codalmpedido,
+                        udm = x.s.udm
+                    })
+                    .ToListAsync();
+
+                    // Aplicar filtro si es necesario
+                    itemsBajoStock = (await Task.WhenAll(itemsBajoStock
+                        .Select(async item => new
+                        {
+                            item,
+                            activo = await items.item_usar_en_movimiento(_context, item.item)
+                        })))
+                        .Where(x => x.activo)
+                        .Select(x => x.item)
+                        .ToList();
+
+                    return itemsBajoStock;
+                }
+                if (opcion == "lineas")
+                {
+                    itemsBajoStock = await _context.instockalm
+                    .Join(_context.instoactual,
+                        a => new { a.item, a.codalmacen },
+                        s => new { item = s.coditem, s.codalmacen },
+                        (a, s) => new { a, s })
+                    .Join(_context.initem,
+                      x => x.a.item,
+                      i => i.codigo,
+                      (x, i) => new { x.a, x.s, i })
+                    .Where(x => x.a.codalmpedido == codalmacen2 &&
+                                string.Compare(x.i.codlinea, filtro_desde) >= 0 &&
+                                string.Compare(x.i.codlinea, filtro_hasta) <= 0 &&
+                                x.s.codalmacen == codalmacen &&
+                                x.a.smax > 0 &&
+                                (x.a.smax - (x.s.cantidad ?? 0) > 0) &&
+                                ((x.s.cantidad ?? 0) <= x.a.ptopedido))
+                    .Select(x => new ItemBajoStock
+                    {
+                        item = x.a.item,
+                        apedir = (double)(x.a.smax - x.s.cantidad ?? 0),
+                        codalmpedido = x.a.codalmpedido,
+                        udm = x.s.udm
+                    })
+                    .ToListAsync();
+
+                    // Aplicar filtro si es necesario
+                    itemsBajoStock = (await Task.WhenAll(itemsBajoStock
+                        .Select(async item => new
+                        {
+                            item,
+                            activo = await items.item_usar_en_movimiento(_context, item.item)
+                        })))
+                        .Where(x => x.activo)
+                        .Select(x => x.item)
+                        .ToList();
+
+                    return itemsBajoStock;
+                }
+                if (opcion == "items")
+                {
+                    itemsBajoStock = await _context.instockalm
+                    .Join(_context.instoactual,
+                        a => new { a.item, a.codalmacen },
+                        s => new { item = s.coditem, s.codalmacen },
+                        (a, s) => new { a, s })
+                    .Where(x => x.a.codalmpedido == codalmacen2 &&
+                                string.Compare(x.a.item, filtro_desde) >= 0 &&
+                                string.Compare(x.a.item, filtro_hasta) <= 0 &&
+                                x.s.codalmacen == codalmacen &&
+                                x.a.smax > 0 &&
+                                (x.a.smax - (x.s.cantidad ?? 0) > 0) &&
+                                ((x.s.cantidad ?? 0) <= x.a.ptopedido))
+                    .Select(x => new ItemBajoStock
+                    {
+                        item = x.a.item,
+                        apedir = (double)(x.a.smax - x.s.cantidad ?? 0),
+                        codalmpedido = x.a.codalmpedido,
+                        udm = x.s.udm
+                    })
+                    .ToListAsync();
+
+                    // Aplicar filtro si es necesario
+                    itemsBajoStock = (await Task.WhenAll(itemsBajoStock
+                        .Select(async item => new
+                        {
+                            item,
+                            activo = await items.item_usar_en_movimiento(_context, item.item)
+                        })))
+                        .Where(x => x.activo)
+                        .Select(x => x.item)
+                        .ToList();
+
+                    return itemsBajoStock;
+                }
+            }
+            return itemsBajoStock;
+        }
+
+        
+
+
     }
 
     public class requestGabrarPedido
@@ -772,5 +1516,30 @@ namespace SIAW.Controllers.inventarios.transaccion
         public decimal cantidad { get; set; }
         public string udm { get; set; }
         public int? codproveedor { get; set; }
+    }
+
+    public class ItemBajoStock
+    {
+        public string item { get; set; }       // Código del ítem
+        public double apedir { get; set; }    // Cantidad a pedir
+        public int codalmpedido { get; set; }  // Código del almacén destino
+        public string udm { get; set; }        // Unidad de medida
+    }
+
+    public class requestGenerarPedido
+    {
+        public int codalmacen { get; set; }
+        public int codalmacen2 { get; set; }
+        public string id { get; set; }
+        public bool todos { get; set; }
+        public bool grupos { get; set; }
+        public bool lineas { get; set; }
+        public bool items { get; set; }
+        public string grupodesde { get; set; }
+        public string grupohasta { get; set; }
+        public string lineadesde { get; set; }
+        public string lineahasta { get; set; }
+        public string itemdesde { get; set; }
+        public string itemhasta { get; set; }
     }
 }

@@ -20436,6 +20436,8 @@ namespace siaw_DBContext.Data
                 entity.HasNoKey();
 
                 entity.Property(e => e.porcen).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.porcen_dimediado).HasColumnType("decimal(18, 2)");
             });
 
             modelBuilder.Entity<inalmacen_conta>(entity =>

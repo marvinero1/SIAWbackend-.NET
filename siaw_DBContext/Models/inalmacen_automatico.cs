@@ -12,5 +12,7 @@ namespace siaw_DBContext.Models
         public short? tipo { get; set; }
         public decimal? porcen { get; set; }
         public int? codempaque { get; set; }
+        public int? codempaque_dimediado { get; set; }
+        public decimal? porcen_dimediado { get; set; }
     }
 }

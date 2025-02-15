@@ -13,6 +13,7 @@ namespace siaw_funciones
     public class Almacen
     {
         //Clase necesaria para el uso del DBContext del proyecto siaw_Context
+        private readonly TipoCambio tipoCambio = new TipoCambio();
         public static class DbContextFactory
         {
             public static DBContext Create(string connectionString)
@@ -115,5 +116,45 @@ namespace siaw_funciones
                 return "";
             }
         }
+
+        public async Task<double> MontoMinimoAlmacen(DBContext _context, int codalmacen, int codtarifa, bool suarea, string codmoneda)
+        {
+            try
+            {
+                var consulta = await _context.insolurgente_parametros
+                    .Where(i => i.codalmacen == codalmacen && i.codtarifa == codtarifa && i.suarea == suarea)
+                    .Select(i => new
+                    {
+                        i.monto,
+                        i.codmoneda
+                    }).FirstOrDefaultAsync();
+                if (consulta != null)
+                {
+                    double resultado = (double)await tipoCambio._conversion(_context, codmoneda, consulta.codmoneda, DateTime.Now.Date, (decimal)consulta.monto);
+                    return resultado;
+                }
+                return 0;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
+        public async Task<double> PesoMinimoAlmacen(DBContext _context, int codalmacen, int codtarifa, bool suarea)
+        {
+            try
+            {
+                double resultado = (double)(await _context.insolurgente_parametros
+                    .Where(i => i.codalmacen == codalmacen && i.codtarifa == codtarifa && i.suarea == suarea)
+                    .Select(i => i.peso)
+                    .FirstOrDefaultAsync() ?? 0);
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
+
     }
 }
