@@ -12,5 +12,6 @@ namespace siaw_DBContext.Models
         public decimal cantidad { get; set; }
         public string udm { get; set; }
         public int? codproveedor { get; set; }
+        public int codigo { get; set; }
     }
 }

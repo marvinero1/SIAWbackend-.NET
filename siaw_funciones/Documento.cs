@@ -25,6 +25,23 @@ namespace siaw_funciones
             }
         }
 
+        public async Task<bool> existe_proforma(DBContext _context, string id, int numeroid)
+        {
+            try
+            {
+                int result = await _context.veproforma.Where(i => i.id == id && i.numeroid == numeroid).CountAsync();
+                if (result > 0)
+                {
+                    return true;
+                }
+                return false;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
         public async Task<bool> existe_notaremision(DBContext _context, string id, int numeroid)
         {
             try

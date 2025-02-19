@@ -7871,6 +7871,32 @@ namespace siaw_funciones
                 return false;
             }
         }
+        public async Task<int> ProformaPrimeraTarifa(DBContext _context, int codproforma)
+        {
+            try
+            {
+                int resultado = await _context.veproforma1.Where(i => i.codproforma == codproforma)
+                    .OrderBy(i => i.codtarifa).Select(i => i.codtarifa).FirstOrDefaultAsync();
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
+        public async Task<bool> Reservar_Para_Tiendas_En_Sol_Urgentes(DBContext _context, int codtarifa)
+        {
+            try
+            {
+                bool resultado = await _context.intarifa.Where(i => i.codigo == codtarifa)
+                    .Select(i => i.reserva_stock_urg).FirstOrDefaultAsync() ?? false;
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
 
         public async Task<int> Descuento_Extra_Por_Importe_segun_PtoVta_Cliente(DBContext _context, int codptoventa, bool es_para_la_proforma, int pivot)
         {

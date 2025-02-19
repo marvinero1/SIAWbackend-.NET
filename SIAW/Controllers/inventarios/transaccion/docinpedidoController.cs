@@ -67,8 +67,8 @@ namespace SIAW.Controllers.inventarios.transaccion
 
 
         [HttpPost]
-        [Route("grabarDocumento/{userConn}/{codempresa}/{traspaso}")]
-        public async Task<ActionResult<object>> grabarDocumento(string userConn, string codempresa, bool traspaso, requestGabrarPedido dataGrabar)
+        [Route("grabarDocumento/{userConn}/{codempresa}")]
+        public async Task<ActionResult<object>> grabarDocumento(string userConn, string codempresa, requestGabrarPedido dataGrabar)
         {
             try
             {
@@ -835,26 +835,65 @@ namespace SIAW.Controllers.inventarios.transaccion
                             if (empaque <= 0) continue;
 
                             double porcentaje = (double)(regla.porcen / 100);
-                            double empaquesCerrados = item.apedir >= empaque ? Math.Floor(item.apedir / empaque) : 0;
+                            double empaquesCerrados = item.apedir > empaque ? Math.Floor(item.apedir / empaque) : 0;
                             double apedir = item.apedir - (empaquesCerrados * empaque);
 
                             switch (regla.tipo)
                             {
                                 case 0: // MENOR
                                     if (apedir < empaque * porcentaje)
-                                        item.apedir = (empaquesCerrados + 1) * empaque;
+                                    {
+                                        apedir = empaque;
+                                        apedir = apedir + (empaquesCerrados * empaque);
+                                        item.apedir = apedir;
+                                        continue;
+                                    }
                                     break;
                                 case 1: // MENOR O IGUAL
                                     if (apedir <= empaque * porcentaje)
-                                        item.apedir = (empaquesCerrados + 1) * empaque;
+                                    {
+                                        apedir = empaque;
+                                        apedir = apedir + (empaquesCerrados * empaque);
+                                        item.apedir = apedir;
+                                        continue;
+                                    }
+                                    else
+                                    {
+                                        item.apedir = apedir;
+                                    }
                                     break;
                                 case 2: // MAYOR O IGUAL
                                     if (apedir >= empaque * porcentaje && apedir <= empaque)
-                                        item.apedir = (empaquesCerrados + 1) * empaque;
+                                    {
+                                        apedir = empaque;
+                                        apedir = apedir + (empaquesCerrados * empaque);
+                                        item.apedir = apedir;
+                                        continue;
+                                    }
+                                    else if (apedir <= (empaque * porcentaje) && empaquesCerrados > 0)
+                                    {
+                                        apedir = empaque;
+                                        apedir = apedir + (empaquesCerrados * empaque);
+                                        item.apedir = apedir;
+                                        continue;
+                                    }
+                                    else
+                                    {
+                                        item.apedir = apedir + (empaquesCerrados * empaque);
+                                    }
                                     break;
                                 case 3: // MAYOR
                                     if (apedir > empaque * porcentaje && apedir <= empaque)
-                                        item.apedir = (empaquesCerrados + 1) * empaque;
+                                    {
+                                        apedir = empaque;
+                                        apedir = apedir + (empaquesCerrados * empaque);
+                                        item.apedir = apedir;
+                                        continue;
+                                    }
+                                    else
+                                    {
+                                        item.apedir = apedir + (empaquesCerrados * empaque);
+                                    }
                                     break;
                             }
 
@@ -863,26 +902,65 @@ namespace SIAW.Controllers.inventarios.transaccion
                             if (empaque <= 0) continue;
 
                             porcentaje = (double)(regla.porcen_dimediado / 100);
-                            empaquesCerrados = item.apedir >= empaque ? Math.Floor(item.apedir / empaque) : 0;
+                            empaquesCerrados = item.apedir > empaque ? Math.Floor(item.apedir / empaque) : 0;
                             apedir = item.apedir - (empaquesCerrados * empaque);
 
                             switch (regla.tipo)
                             {
                                 case 0: // MENOR
                                     if (apedir < empaque * porcentaje)
-                                        item.apedir = (empaquesCerrados + 1) * empaque;
+                                    {
+                                        apedir = empaque;
+                                        apedir = apedir + (empaquesCerrados * empaque);
+                                        item.apedir = apedir;
+                                        continue;
+                                    }
                                     break;
                                 case 1: // MENOR O IGUAL
                                     if (apedir <= empaque * porcentaje)
-                                        item.apedir = (empaquesCerrados + 1) * empaque;
+                                    {
+                                        apedir = empaque;
+                                        apedir = apedir + (empaquesCerrados * empaque);
+                                        item.apedir = apedir;
+                                        continue;
+                                    }
+                                    else
+                                    {
+                                        item.apedir = apedir;
+                                    }
                                     break;
                                 case 2: // MAYOR O IGUAL
                                     if (apedir >= empaque * porcentaje && apedir <= empaque)
-                                        item.apedir = (empaquesCerrados + 1) * empaque;
+                                    {
+                                        apedir = empaque;
+                                        apedir = apedir + (empaquesCerrados * empaque);
+                                        item.apedir = apedir;
+                                        continue;
+                                    }
+                                    else if (apedir <= (empaque * porcentaje) && empaquesCerrados > 0)
+                                    {
+                                        apedir = empaque;
+                                        apedir = apedir + (empaquesCerrados * empaque);
+                                        item.apedir = apedir;
+                                        continue;
+                                    }
+                                    else
+                                    {
+                                        item.apedir = apedir + (empaquesCerrados * empaque);
+                                    }
                                     break;
                                 case 3: // MAYOR
                                     if (apedir > empaque * porcentaje && apedir <= empaque)
-                                        item.apedir = (empaquesCerrados + 1) * empaque;
+                                    {
+                                        apedir = empaque;
+                                        apedir = apedir + (empaquesCerrados * empaque);
+                                        item.apedir = apedir;
+                                        continue;
+                                    }
+                                    else
+                                    {
+                                        item.apedir = apedir + (empaquesCerrados * empaque);
+                                    }
                                     break;
                             }
                         }
@@ -897,10 +975,25 @@ namespace SIAW.Controllers.inventarios.transaccion
                     {
                         if (string.Compare(item.item, "26IGBM14") >= 0 && string.Compare(item.item, "28IGDM63") <= 0)
                         {
-                            var tuercas = _context.inkit
-                                .Where(k => k.codigo == item.item && k.item != item.item)
-                                .Select(k => new { k.item, k.cantidad })
-                                .ToList();
+                            //var tuercas = _context.inkit
+                            //    .Where(k => k.codigo == item.item && k.item != item.item)
+                            //    .Select(k => new { k.item, k.cantidad })
+                            //    .ToList();
+
+                            var codigoSubquery = await _context.inkit
+                                .Where(k => k.item == item.item)
+                                .Select(k => k.codigo)
+                                .ToListAsync(); // Se obtiene la lista de códigos
+
+                            var tuercas = await _context.inkit
+                               .Where(k => codigoSubquery.Contains(k.codigo) && k.item != item.item)
+                               .Select(k => new
+                               {
+                                   k.item,
+                                   k.cantidad
+                               })
+                                .ToListAsync();
+
 
                             foreach (var tuerca in tuercas)
                             {
@@ -952,7 +1045,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                         numeroid = numero + 1,
                         codalmacen = codalmacen,
                         codalmdestino = codalmacendestino,
-                        fecha = DateTime.Now,
+                        fecha = DateTime.Today,
                         obs = "PEDIDO AUTOMÁTICO DE FECHA " + DateTime.Now.ToShortDateString(),
                         horareg = DateTime.Now.ToString("HH:mm"),
                         fechareg = DateTime.Today,
@@ -999,8 +1092,10 @@ namespace SIAW.Controllers.inventarios.transaccion
                     throw;
                 }
             }
-            return (true, "", codPedido, id, numero);
+            return (true, "", codPedido, id, numero + 1);
         }
+
+
 
         [HttpPost]
         [Route("GenerarPedidoAutomatico/{userConn}/{codempresa}/{usuario}")]
@@ -1016,6 +1111,23 @@ namespace SIAW.Controllers.inventarios.transaccion
                     datosPedido.lineahasta = datosPedido.lineahasta.Trim();
                     datosPedido.itemdesde = datosPedido.itemdesde.Trim();
                     datosPedido.itemhasta = datosPedido.itemhasta.Trim();
+
+                    if (string.IsNullOrWhiteSpace(userConn))
+                    {
+                        return (false, "No se recibio la variable de la cadena de conexion.");
+                    }
+                    if (string.IsNullOrWhiteSpace(usuario))
+                    {
+                        return (false, "No se recibio la variable usuario.");
+                    }
+                    if (string.IsNullOrWhiteSpace(codempresa))
+                    {
+                        return (false, "No se recibio la variable Empresa.");
+                    }
+                    if (datosPedido == null)
+                    {
+                        return (false, "No se recibio el Request de la solicitud.");
+                    }
 
                     var Valido = await validarGenerarPedido(_context, datosPedido);
                     if (Valido.valido == false)
@@ -1060,8 +1172,10 @@ namespace SIAW.Controllers.inventarios.transaccion
             }
         }
 
+
         private async Task<(bool valido, string msg)> validarGenerarPedido(DBContext _context, requestGenerarPedido datosPedido)
         {
+
             if (datosPedido.codalmacen <= 0)
             {
                 return (false, "Debe poner el codigo del Almacen del cual desea generar el pedido automatico.");
@@ -1110,6 +1224,7 @@ namespace SIAW.Controllers.inventarios.transaccion
             }
             return (true, "");
         }
+
 
         private async Task<(bool valido, string msg)> ValidarNegativos(DBContext _context, int codalmacen)
         {
@@ -1174,7 +1289,7 @@ namespace SIAW.Controllers.inventarios.transaccion
 
         }
 
-        
+
         private async Task<List<ItemBajoStock>> ObtenerItemsBajoStock(DBContext _context, bool proforma_reserva, int codalmacen, int codalmacen2, string opcion, string filtro_desde, string filtro_hasta)
         {
             List<ItemBajoStock> itemsBajoStock = new List<ItemBajoStock>();
@@ -1198,21 +1313,17 @@ namespace SIAW.Controllers.inventarios.transaccion
                         item = x.a.item,
                         apedir = (double)(x.a.smax - ((x.s.cantidad ?? 0) - (x.s.proformas ?? 0))),
                         codalmpedido = x.a.codalmpedido,
-                        udm = x.s.udm
+                        udm = x.s.udm,
+                        activo = false
                     })
                     .ToListAsync();
 
+                    foreach (var reg in itemsBajoStock)
+                    {
+                        reg.activo = await items.item_usar_en_movimiento(_context, reg.item);
+                    }
                     // Aplicar filtro si es necesario
-                    itemsBajoStock = (await Task.WhenAll(itemsBajoStock
-                        .Select(async item => new
-                        {
-                            item,
-                            activo = await items.item_usar_en_movimiento(_context, item.item)
-                        })))
-                        .Where(x => x.activo)
-                        .Select(x => x.item)
-                        .ToList();
-
+                    itemsBajoStock = itemsBajoStock.Where(x => x.activo).ToList();
                     return itemsBajoStock;
                 }
                 if (opcion == "grupos")
@@ -1242,22 +1353,19 @@ namespace SIAW.Controllers.inventarios.transaccion
                         item = x.a.item,
                         apedir = (double)(x.a.smax - ((x.s.cantidad ?? 0) - (x.s.proformas ?? 0))),
                         codalmpedido = x.a.codalmpedido,
-                        udm = x.s.udm
+                        udm = x.s.udm,
+                        activo = false
                     })
                     .ToListAsync();
 
+                    foreach (var reg in itemsBajoStock)
+                    {
+                        reg.activo = await items.item_usar_en_movimiento(_context, reg.item);
+                    }
                     // Aplicar filtro si es necesario
-                    itemsBajoStock = (await Task.WhenAll(itemsBajoStock
-                        .Select(async item => new
-                        {
-                            item,
-                            activo = await items.item_usar_en_movimiento(_context, item.item)
-                        })))
-                        .Where(x => x.activo)
-                        .Select(x => x.item)
-                        .ToList();
-
+                    itemsBajoStock = itemsBajoStock.Where(x => x.activo).ToList();
                     return itemsBajoStock;
+
                 }
                 if (opcion == "lineas")
                 {
@@ -1282,21 +1390,17 @@ namespace SIAW.Controllers.inventarios.transaccion
                         item = x.a.item,
                         apedir = (double)(x.a.smax - ((x.s.cantidad ?? 0) - (x.s.proformas ?? 0))),
                         codalmpedido = x.a.codalmpedido,
-                        udm = x.s.udm
+                        udm = x.s.udm,
+                        activo = false
                     })
                     .ToListAsync();
 
+                    foreach (var reg in itemsBajoStock)
+                    {
+                        reg.activo = await items.item_usar_en_movimiento(_context, reg.item);
+                    }
                     // Aplicar filtro si es necesario
-                    itemsBajoStock = (await Task.WhenAll(itemsBajoStock
-                        .Select(async item => new
-                        {
-                            item,
-                            activo = await items.item_usar_en_movimiento(_context, item.item)
-                        })))
-                        .Where(x => x.activo)
-                        .Select(x => x.item)
-                        .ToList();
-
+                    itemsBajoStock = itemsBajoStock.Where(x => x.activo).ToList();
                     return itemsBajoStock;
                 }
                 if (opcion == "items")
@@ -1318,21 +1422,17 @@ namespace SIAW.Controllers.inventarios.transaccion
                         item = x.a.item,
                         apedir = (double)(x.a.smax - ((x.s.cantidad ?? 0) - (x.s.proformas ?? 0))),
                         codalmpedido = x.a.codalmpedido,
-                        udm = x.s.udm
+                        udm = x.s.udm,
+                        activo = false
                     })
                     .ToListAsync();
 
+                    foreach (var reg in itemsBajoStock)
+                    {
+                        reg.activo = await items.item_usar_en_movimiento(_context, reg.item);
+                    }
                     // Aplicar filtro si es necesario
-                    itemsBajoStock = (await Task.WhenAll(itemsBajoStock
-                        .Select(async item => new
-                        {
-                            item,
-                            activo = await items.item_usar_en_movimiento(_context, item.item)
-                        })))
-                        .Where(x => x.activo)
-                        .Select(x => x.item)
-                        .ToList();
-
+                    itemsBajoStock = itemsBajoStock.Where(x => x.activo).ToList();
                     return itemsBajoStock;
                 }
 
@@ -1360,17 +1460,12 @@ namespace SIAW.Controllers.inventarios.transaccion
                     })
                     .ToListAsync();
 
+                    foreach (var reg in itemsBajoStock)
+                    {
+                        reg.activo = await items.item_usar_en_movimiento(_context, reg.item);
+                    }
                     // Aplicar filtro si es necesario
-                    itemsBajoStock = (await Task.WhenAll(itemsBajoStock
-                        .Select(async item => new
-                        {
-                            item,
-                            activo = await items.item_usar_en_movimiento(_context, item.item)
-                        })))
-                        .Where(x => x.activo)
-                        .Select(x => x.item)
-                        .ToList();
-
+                    itemsBajoStock = itemsBajoStock.Where(x => x.activo).ToList();
                     return itemsBajoStock;
                 }
                 if (opcion == "grupos")
@@ -1404,17 +1499,12 @@ namespace SIAW.Controllers.inventarios.transaccion
                     })
                     .ToListAsync();
 
+                    foreach (var reg in itemsBajoStock)
+                    {
+                        reg.activo = await items.item_usar_en_movimiento(_context, reg.item);
+                    }
                     // Aplicar filtro si es necesario
-                    itemsBajoStock = (await Task.WhenAll(itemsBajoStock
-                        .Select(async item => new
-                        {
-                            item,
-                            activo = await items.item_usar_en_movimiento(_context, item.item)
-                        })))
-                        .Where(x => x.activo)
-                        .Select(x => x.item)
-                        .ToList();
-
+                    itemsBajoStock = itemsBajoStock.Where(x => x.activo).ToList();
                     return itemsBajoStock;
                 }
                 if (opcion == "lineas")
@@ -1444,17 +1534,12 @@ namespace SIAW.Controllers.inventarios.transaccion
                     })
                     .ToListAsync();
 
+                    foreach (var reg in itemsBajoStock)
+                    {
+                        reg.activo = await items.item_usar_en_movimiento(_context, reg.item);
+                    }
                     // Aplicar filtro si es necesario
-                    itemsBajoStock = (await Task.WhenAll(itemsBajoStock
-                        .Select(async item => new
-                        {
-                            item,
-                            activo = await items.item_usar_en_movimiento(_context, item.item)
-                        })))
-                        .Where(x => x.activo)
-                        .Select(x => x.item)
-                        .ToList();
-
+                    itemsBajoStock = itemsBajoStock.Where(x => x.activo).ToList();
                     return itemsBajoStock;
                 }
                 if (opcion == "items")
@@ -1480,24 +1565,17 @@ namespace SIAW.Controllers.inventarios.transaccion
                     })
                     .ToListAsync();
 
+                    foreach (var reg in itemsBajoStock)
+                    {
+                        reg.activo = await items.item_usar_en_movimiento(_context, reg.item);
+                    }
                     // Aplicar filtro si es necesario
-                    itemsBajoStock = (await Task.WhenAll(itemsBajoStock
-                        .Select(async item => new
-                        {
-                            item,
-                            activo = await items.item_usar_en_movimiento(_context, item.item)
-                        })))
-                        .Where(x => x.activo)
-                        .Select(x => x.item)
-                        .ToList();
-
+                    itemsBajoStock = itemsBajoStock.Where(x => x.activo).ToList();
                     return itemsBajoStock;
                 }
             }
             return itemsBajoStock;
         }
-
-        
 
 
     }
@@ -1524,6 +1602,7 @@ namespace SIAW.Controllers.inventarios.transaccion
         public double apedir { get; set; }    // Cantidad a pedir
         public int codalmpedido { get; set; }  // Código del almacén destino
         public string udm { get; set; }        // Unidad de medida
+        public bool activo { get; set; }
     }
 
     public class requestGenerarPedido

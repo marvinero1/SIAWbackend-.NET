@@ -47,4 +47,16 @@ namespace siaw_DBContext.Models_Extra
         public string horareg { get; set; }
         public string codvendedor { get; set; }
     }
+
+    public class RequestProformaMayor50000
+    {
+        public string id { get; set; }
+        public int numeroid { get; set; }
+        public string tipopago { get; set; }
+        public bool contra_entrega { get; set; }
+        public string codmoneda { get; set; }
+        public DateTime fecha { get; set; }
+        public decimal total { get; set; }
+        public int cantidad_anticipos { get; set; }
+    }
 }

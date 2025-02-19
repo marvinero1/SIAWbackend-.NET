@@ -1939,7 +1939,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                     // Obtener los datos de initem solo una vez
                     var itemsDict = await _context.initem
                         .Where(i => tablaDetalle.Select(td => td.coditem).Contains(i.codigo))
-                        .ToDictionaryAsync(i => i.codigo, i => new { i.descripcion, i.medida });
+                        .ToDictionaryAsync(i => i.codigo, i => new { i.descripcion, i.medida, i.unidad });
 
                     // Asignar los valores en tablaDetalle
                     foreach (var reg in tablaDetalle)
@@ -1948,6 +1948,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                         {
                             reg.descripcion = datos.descripcion;
                             reg.medida = datos.medida;
+                            reg.udm = datos.unidad;
                         }
                     }
                     return Ok(tablaDetalle);

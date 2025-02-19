@@ -30,7 +30,8 @@
                     bool BANDERA5 = context.Request.Path.Value.Contains("/enviarFacturaEmail");
                     bool BANDERA6 = context.Request.Path.Value.Contains("/grabarFacturaTienda");
                     bool BANDERA7 = context.Request.Path.Value.Contains("/importNMinJson");
-                    if (!context.Request.Path.Value.Contains("/refreshToken") && !BANDERA && !BANDERA2 && !BANDERA3 && !BANDERA4 && !BANDERA5 && !BANDERA6 && !BANDERA7)
+                    bool BANDERA8 = context.Request.Path.Value.Contains("/importPedidoinJson");
+                    if (!context.Request.Path.Value.Contains("/refreshToken") && !BANDERA && !BANDERA2 && !BANDERA3 && !BANDERA4 && !BANDERA5 && !BANDERA6 && !BANDERA7 && !BANDERA8)
                     {
                         using (var reader = new StreamReader(context.Request.Body))
                         {

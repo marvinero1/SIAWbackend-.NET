@@ -94,7 +94,8 @@ namespace SIAW.Controllers.inventarios.mantenimiento
                     .Select(i => new
                     {
                         i.id,
-                        i.descripcion
+                        i.descripcion,
+                        i.nroactual
                     }).ToListAsync();
 
 

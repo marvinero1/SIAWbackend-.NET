@@ -145,7 +145,8 @@ namespace SIAW.Controllers.ventas.mantenimiento
                     .Select(i => new
                     {
                         i.id,
-                        i.descripcion
+                        i.descripcion,
+                        i.nroactual,
                     });
 
                     var result = query.ToList();

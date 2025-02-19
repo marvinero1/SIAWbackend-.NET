@@ -156,5 +156,23 @@ namespace siaw_funciones
             }
         }
 
+        public async Task<List<int>> Almacenes_del_Area(DBContext _context, int codarea)
+        {
+            List<int> resultado = new List<int>();
+            try
+            {
+                resultado = await _context.inalmacen
+                .Where(i => i.tienda==false && i.codarea == codarea)
+                .OrderByDescending(i => i.codigo)
+                .Select(i => i.codigo)
+                .ToListAsync();
+                return resultado;
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+
     }
 }

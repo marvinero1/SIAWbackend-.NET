@@ -219,8 +219,8 @@ namespace SIAW.Controllers.inventarios.modificacion
 
 
         [HttpPost]
-        [Route("grabarDocumento/{userConn}/{codempresa}/{traspaso}")]
-        public async Task<ActionResult<object>> grabarDocumento(string userConn, string codempresa, bool traspaso, requestGabrarPedido dataGrabar)
+        [Route("grabarDocumento/{userConn}/{codempresa}")]
+        public async Task<ActionResult<object>> grabarDocumento(string userConn, string codempresa, requestGabrarPedido dataGrabar)
         {
             try
             {

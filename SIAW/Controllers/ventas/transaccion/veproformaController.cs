@@ -7988,6 +7988,91 @@ namespace SIAW.Controllers.ventas.transaccion
             }
         }
 
+        //[Authorize]
+        [HttpPost]
+        [QueueFilter(1)] // Limitar a 1 solicitud concurrente
+        [Route("ValidarParaAprobarMayor50000/{userConn}/{codempresa}/{usuario}")]
+        public async Task<object> ValidarParaAprobarMayor50000(string userConn, string codempresa, string usuario, RequestProformaMayor50000 datosProforma)
+        {
+            //Desde 12 / 02 / 2025 se debe controlar que si la proforma es una venta al CONTADO CON ANTICIPO y si el monto de la proforma es igual o mayor a 50000 Bs debe controlar lo siguientes:
+            // 1.- El/los anticipo(s) enlazado(s) deben ser anticipos enlazados a un deposito (VALIDA AL ASIGNAR UN ANTICIPO EN LA PROFORMA)
+            // 2.- El monto a pagar con anticipos deben ser iguales al monto del total de la proforma, no puede haber diferencias de centavos. (VALIDA EN EL CONTROL 64 Y TAMBIEN AL ASIGNAR ANTICIPOS)
+            // 3.- Si se paga con mas de 1 anticipo debe pedir clave por el servicio 158-PAGOS PARCIALES A VENTAS MAYORES O IGUALES A 50,0000
+            if (string.IsNullOrWhiteSpace(datosProforma.id))
+            {
+                return BadRequest(new { resp = "No se recibio el ID de la proforma, consulte con el administrador del sistema." });
+            }
+            if (datosProforma.numeroid <= 0)
+            {
+                return BadRequest(new { resp = "El NumeroID de la proforma no puede ser cero (0), consulte con el administrador del sistema." });
+            }
+            if (string.IsNullOrWhiteSpace(datosProforma.tipopago))
+            {
+                return BadRequest(new { resp = "No se recibio el Tipo de Pago de la proforma, consulte con el administrador del sistema." });
+            }
+            if (string.IsNullOrWhiteSpace(datosProforma.codmoneda))
+            {
+                return BadRequest(new { resp = "No se recibio la Moneda de la proforma, consulte con el administrador del sistema." });
+            }
+            if (datosProforma.total <= 0)
+            {
+                return BadRequest(new { resp = "El total de la proforma no puede ser cero (0), consulte con el administrador del sistema." });
+            }
+            if (datosProforma.tipopago == "CONTADO" && datosProforma.contra_entrega == false)
+            {
+                if (datosProforma.cantidad_anticipos <= 0)
+                {
+                    return BadRequest(new { resp = "La cantidad de anticipos asignados a la proforma no puede ser cero (0), consulte con el administrador del sistema." });
+                }
+            }
+
+            string id = datosProforma.id;
+            int numeroid = datosProforma.numeroid;
+            string tipopago = datosProforma.tipopago;
+            bool contra_entrega = datosProforma.contra_entrega;
+            string codmoneda = datosProforma.codmoneda;
+            DateTime fecha = datosProforma.fecha;
+            decimal total = datosProforma.total;
+            int cant_anticipos = datosProforma.cantidad_anticipos;
+            string mensaje = "";
+            bool pedir_clave = false;
+            int cod_servicio = 0;
+            string datoA = "";
+            string datoB = "";
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+
+                    if (tipopago == "CONTADO" && contra_entrega == false)
+                    {
+                        double monto_control = 0;
+                        decimal monto_ttl_convertido = 0;
+                        monto_control = await configuracion.emp_monto_rnd100011(_context, codempresa);
+                        monto_ttl_convertido = await tipocambio._conversion(_context, await Empresa.monedabase(_context, codempresa), codmoneda, fecha, total);
+                        monto_ttl_convertido = Math.Round(monto_ttl_convertido, 2);
+                        if ((double)monto_ttl_convertido >= monto_control)
+                        {//si la aplicacion de anticipos es mas de uno significa que se hicieron pagos parciales para pagar toda la proforma
+                            if (cant_anticipos > 1)
+                            {//pedir clave servicio 158 - pagos parciales a ventas mayores o iguales a 50000
+                                pedir_clave = true;
+                                cod_servicio = 158;
+                                datoA = id;
+                                datoB = numeroid.ToString();
+                                mensaje = "Como esta venta al CONTADO con ANTICIPO es mayor a " + monto_control + " (Bs) y esta realizando pagos parciales con mas de 1 anticipo, Necesita autorizacion especial.";
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return Problem($"Error en el servidor al validar proforma mayor a 50000: {ex.Message}");
+                throw;
+            }
+            return Ok(new { pedir_clave = pedir_clave, respuesta = mensaje, cod_servicio = cod_servicio, datoA = datoA, datoB = datoB });
+        }
 
     }
 
@@ -8166,4 +8251,6 @@ namespace SIAW.Controllers.ventas.transaccion
         public string codcliente_real { get; set; }
         public string codclientedescripcion { get; set; }
     }
+
+
 }

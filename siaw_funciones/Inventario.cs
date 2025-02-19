@@ -24,6 +24,7 @@ namespace siaw_funciones
         }
 
         private Items items = new Items();
+        private TipoCambio tipoCambio = new TipoCambio();
 
         public async Task<bool> existeinv(string userConnectionString, string id, int numeroid)
         {
@@ -575,5 +576,32 @@ namespace siaw_funciones
             }
             return num;
         }
+        public async Task<decimal> MinimoAlmacen(DBContext _context, int codalmacen, string codmoneda, DateTime fecha)
+        {
+            decimal resultado = 0;
+            try
+            {
+                var datos_min = await _context.inalmacen.Where(i => i.codigo == codalmacen).Select(i => new
+                {
+                    i.min_solurgente,
+                    i.codmoneda_min_solurgente
+                }).FirstOrDefaultAsync();
+
+                if (datos_min.codmoneda_min_solurgente == codmoneda)
+                {
+                    resultado = (decimal)datos_min.min_solurgente;
+                }
+                else
+                {
+                    resultado = await tipoCambio._conversion(_context, codmoneda, datos_min.codmoneda_min_solurgente, fecha, (decimal)datos_min.min_solurgente);
+                }
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
+
     }
 }

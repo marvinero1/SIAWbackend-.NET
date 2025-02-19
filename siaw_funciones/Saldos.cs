@@ -36,6 +36,49 @@ namespace siaw_funciones
         private Items items = new Items();
         private Log log = new Log();
         private Almacen almacen = new Almacen();
+
+        
+        public async Task<decimal> saldoitem_crtlstock(DBContext _context, string miempresa, string codigo, int codalmacen, bool ctrlSeguridad, string usuario, bool ctlrStockACubrir = true)
+        {
+            decimal resultado = 0;
+            bool obtener_saldos_otras_ags_localmente = await Obtener_Saldos_Otras_Agencias_Localmente_context(_context, miempresa);
+            bool obtener_cantidades_aprobadas_de_proformas = await Obtener_Cantidades_Aprobadas_De_Proformas(_context, miempresa);
+            bool Es_Ag_Local = true;
+            bool Es_Tienda = false;
+            int AlmacenLocalEmpresa = await empresa.AlmacenLocalEmpresa_context(_context, miempresa);
+            if (AlmacenLocalEmpresa == codalmacen)
+            {
+                Es_Ag_Local = true;
+            }
+            else
+            {
+                Es_Ag_Local = false;
+            }
+
+            if (await almacen.Es_Tienda(_context,codalmacen))
+            {
+                Es_Tienda = true;
+            }
+            else
+            {
+                Es_Tienda = false;
+            }
+            var dt = await SaldoItem_Crtlstock_Tabla_Para_Ventas_Sam(_context, codigo, codalmacen, Es_Tienda, ctrlSeguridad, "", 0, ctlrStockACubrir, miempresa, usuario, obtener_saldos_otras_ags_localmente, obtener_cantidades_aprobadas_de_proformas, AlmacenLocalEmpresa);
+            if (ctlrStockACubrir)
+            {
+                resultado = dt.detalleSaldos.Sum(i => i.cantidad_ag_local_incluye_cubrir);
+            }
+            else
+            {
+                resultado = dt.detalleSaldos.Sum(i => i.cantidad_ag_local);
+            }
+            if (resultado < 0)
+            {
+                resultado = 0;
+            }
+            return resultado;
+        }
+
         public async Task<decimal> SaldoItem_CrtlStock_Para_Ventas(string userConnectionString, string agencia, int codalmacen, string coditem, string codempresa, string usuario)
         {
             //List<sldosItemCompleto> saldos;
@@ -2136,6 +2179,23 @@ namespace siaw_funciones
             }
         }
 
+        public async Task<decimal> stockminimo_item(DBContext _context, int codalmacen, string coditem)
+        {
+            if (coditem.Trim() == "" || codalmacen <= 0)
+            {
+                return 0;
+            }
+            // ver si es kit
+            try
+            {
+                decimal cantidad = await _context.instockalm.Where(i => i.item == coditem && i.codalmacen == codalmacen).Select(i => i.smin).FirstOrDefaultAsync() ?? 0;
+                return cantidad;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
 
         public async Task<bool> Veremision_ActualizarSaldo(DBContext _context, int codigo, ModoActualizacion modo)
         {

@@ -21579,7 +21579,7 @@ namespace siaw_DBContext.Data
 
             modelBuilder.Entity<inpedido1>(entity =>
             {
-                entity.HasNoKey();
+                entity.HasKey(e => e.codigo);
 
                 entity.Property(e => e.cantidad).HasColumnType("decimal(20, 6)");
 
