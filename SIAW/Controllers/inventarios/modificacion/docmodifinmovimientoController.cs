@@ -1518,6 +1518,139 @@ namespace SIAW.Controllers.inventarios.modificacion
         }
 
 
+        // boton Validar Saldos
+        [HttpPost]
+        [Route("ValidarSaldos/{userConn}/{nuevaNM}")]
+        public async Task<ActionResult<List<object>>> ValidarSaldos(string userConn, bool nuevaNM, requestValidaSaldos requestValidaSaldos)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    string codempresa = requestValidaSaldos.codempresa;
+                    int codalmorigen = requestValidaSaldos.codalmorigen;
+                    int codalmdestino = requestValidaSaldos.codalmdestino;
+                    int codconcepto = requestValidaSaldos.codconcepto;
+                    string usuario = requestValidaSaldos.usuario;
+                    List<tablaDetalleNM> tabladetalle = requestValidaSaldos.tabladetalle;
+
+                    var result = await Revisar_ValidarSaldos(_context, codempresa, usuario, codalmorigen, codalmdestino, codconcepto, nuevaNM, tabladetalle);
+                    return Ok(new
+                    {
+                        cumple = result.resultado,
+                        alerta = result.alerta,
+                        tabladetalle = result.tabladetalle
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                return Problem("Error en el servidor al validar saldos de los items en la nota de movimiento. " + ex.Message);
+                throw;
+            }
+        }
+
+        private async Task<(bool resultado, string alerta, string observacion, List<tablaDetalleNM> tabladetalle)> Revisar_ValidarSaldos(DBContext _context, string codempresa, string usuario, int codalmorigen, int codalmdestino, int codconcepto, bool nuevaNM, List<tablaDetalleNM> tablaDetalle)
+        {
+            bool resultado = true;
+            string obs = "";
+            string msg_obs_revision_saldos_pz = "";
+            string alerta = "";
+            List<dt_disminuir> dt_disminuir = new List<dt_disminuir>();
+
+            var revisar_saldos_result = await revisar_saldos(_context, codempresa, usuario, codalmorigen, codalmdestino, codconcepto, tablaDetalle);
+            obs = revisar_saldos_result.obs;
+            return (resultado, alerta, obs, revisar_saldos_result.tabladetalle);
+        }
+
+
+        private async Task<(bool resultado, string alerta, string obs, List<tablaDetalleNM> tabladetalle)> revisar_saldos(DBContext _context, string codempresa, string usuario, int codalmorigen, int codalmdestino, int codconcepto, List<tablaDetalleNM> tabladetalle)
+        {
+            bool resultado = true;
+            string alerta = "";
+            string obs = "";
+            string txtentero1 = "";
+            string txtdecimal1 = "";
+            List<dt_disminuir> dt_disminuir = new List<dt_disminuir>();
+            if (!string.IsNullOrWhiteSpace(codalmorigen.ToString()) && !string.IsNullOrWhiteSpace(codalmdestino.ToString()) && !string.IsNullOrWhiteSpace(codconcepto.ToString()))
+            {
+                string miudm = "";
+                double saldo;
+                dt_disminuir.Clear();
+                int cantidad_disminuir = 0;
+                int cantidad_cjto = 0;
+                string cadena_saldo = "";
+                string[] vector_saldo = new string[2];
+                string cadena_cantidad = "";
+                string[] vector_cantidad = new string[2];
+                double mi_cantidad = 0;
+
+                bool Es_Ag_Local = await empresa.AlmacenLocalEmpresa(_context, codempresa) == codalmorigen;
+                bool Es_Tienda = await almacen.Es_Tienda(_context, codalmorigen);
+
+                bool obtener_saldos_otras_ags_localmente = await saldos.Obtener_Saldos_Otras_Agencias_Localmente_context(_context, codempresa);
+                bool obtener_cantidades_aprobadas_de_proformas = await saldos.Obtener_Cantidades_Aprobadas_De_Proformas(_context, codempresa);
+                bool controlarStockSeguridad = await empresa.ControlarStockSeguridad_context(_context, codempresa);
+                int AlmacenLocalEmpresa = await empresa.AlmacenLocalEmpresa_context(_context, codempresa);
+                string coditem = "";
+                double cantidad = 0;
+                double cantidad_revisada = 0;
+                double diferencia = 0;
+                bool genera_negativo = false;
+                obs = "-----------------------------------------------" + Environment.NewLine;
+                obs += "--VALIDAR SALDOS DISPONIBLES" + Environment.NewLine;
+                obs += "-----------------------------------------------" + Environment.NewLine;
+
+                foreach (var row in tabladetalle)
+                {
+                    coditem = row.coditem;
+                    cantidad = Convert.ToDouble(row.cantidad);
+                    cantidad_revisada = Convert.ToDouble(row.cantidad_revisada);
+                    //calcular cuas es la diferencia
+                    diferencia = cantidad_revisada - cantidad;
+                    row.diferencia = (decimal)diferencia;
+                    //solo validar las cantidades que se estan aumentando para hacer salir
+                    if (diferencia > 0)
+                    {//no se reserva para tiendas pues noe s venta, pero si reservar proformas autorizadas
+                        var resultadoSaldos = await saldos.SaldoItem_CrtlStock_Para_Ventas_Sam(_context, coditem, codalmorigen, Es_Tienda, controlarStockSeguridad, "---", 0, true, codempresa, usuario, obtener_saldos_otras_ags_localmente, obtener_cantidades_aprobadas_de_proformas, AlmacenLocalEmpresa);
+                        saldo = (double)resultadoSaldos.cantidad_ag_local_incluye_cubrir;
+                        cadena_saldo = saldo.ToString();
+                        vector_saldo = cadena_saldo.Split('.');
+                        saldo = Math.Truncate(saldo);
+                        //solo verifica si la diferencia o lo que esta aumentando alcanza
+                        if (diferencia > saldo)
+                        {
+                            if (saldo < 0)
+                            {
+                                saldo = 0;
+                            }
+                            row.cantidad_revisada = row.cantidad + Convert.ToDecimal(saldo);
+                            row.diferencia = Convert.ToDecimal(saldo);
+                            genera_negativo = true;
+                            obs += Environment.NewLine + "La cantidad del item: " + row.coditem + " se a modificado a: " + row.cantidad_revisada;
+                        }
+                    }
+
+                    if (genera_negativo)
+                    {
+                        alerta = "Se han encontrado cantidades que generan saldos negativos, los mismos se corrijieron!!!";
+                        resultado = false;
+                        return (resultado, alerta, obs, tabladetalle);
+                    }
+
+                }
+                alerta = "";
+                resultado = true;
+                return (resultado, alerta, obs, tabladetalle);
+            }
+            else
+            {
+                alerta = "Debe indicar el almacen de origen, destino y el concepto de la nota de movimiento.";
+                resultado = false;
+                return (resultado, alerta, obs, tabladetalle);
+            }
+        }
     }
 
 

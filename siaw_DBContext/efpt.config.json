@@ -6704,6 +6704,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[vecliente_urgente]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[vecliente_ya_compro]",
          "ObjectType": 0
       },

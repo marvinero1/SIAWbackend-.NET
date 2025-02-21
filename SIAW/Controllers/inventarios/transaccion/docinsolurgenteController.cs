@@ -1,9 +1,12 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using siaw_DBContext.Data;
 using siaw_DBContext.Models;
 using siaw_DBContext.Models_Extra;
 using siaw_funciones;
+using System.Web.Http.Results;
 
 namespace SIAW.Controllers.inventarios.transaccion
 {
@@ -26,6 +29,10 @@ namespace SIAW.Controllers.inventarios.transaccion
         private readonly Saldos saldos = new Saldos();
         private readonly Restricciones restricciones = new Restricciones();
         private readonly HardCoded hardCoded = new HardCoded();
+        private readonly empaquesFunciones empaque_func = new empaquesFunciones();
+        private readonly TipoCambio tipoCambio = new TipoCambio();
+        private readonly Funciones funciones = new Funciones();
+        private readonly Log log = new Log();
 
 
         private readonly UserConnectionManager _userConnectionManager;
@@ -64,7 +71,8 @@ namespace SIAW.Controllers.inventarios.transaccion
         }
 
         [HttpPost]
-        [Route("grabarDocumento/{userConn}/{valida_aceptaSolUrg}")]
+        [QueueFilter(1)] // Limitar a 1 solicitud concurrente
+        [Route("grabarDocumento/{userConn}/{codempresa}/{valida_aceptaSolUrg}/{checkEspecial}/{solUrgcubreSaldoValido}/{solUrgVtaMaxValido}")]
         public async Task<ActionResult<object>> grabarDocumento(string userConn, string codempresa, bool valida_aceptaSolUrg, bool checkEspecial, bool solUrgcubreSaldoValido, bool solUrgVtaMaxValido, requestGabrarSolUrgente dataGrabar)
         {
             insolurgente cabecera = dataGrabar.cabecera;
@@ -91,8 +99,19 @@ namespace SIAW.Controllers.inventarios.transaccion
             {
                 cabecera.codtarifa = 0;
             }
+
+
+            List<string> alertas = new List<string>();
+            bool grabar_pf_sol_urgente_destino = false;
+            string conexion = "";
+            string nit = "";
+            int codprofGrbd = 0;
+            int codSolUrgente = 0;
+            int nroIdSolUrgente = 0;
+
             try
             {
+                
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
@@ -175,10 +194,136 @@ namespace SIAW.Controllers.inventarios.transaccion
                         });
                     }
 
+                    // calcular total
+                    cabecera.total = (decimal)detalle.Sum(i => i.total);
+
+                    // calcular peso
+                    double auxPeso = 0;
+                    foreach (var reg in detalle)
+                    {
+                        auxPeso = auxPeso + (await items.itempeso(_context, reg.coditem) * (double)reg.cantidad);
+                    }
+                    cabecera.peso_pedido = (decimal?)auxPeso;
+
+                    var docGrabado = await guardarNuevoDocumento(_context, cabecera, detalle);
+                    if (docGrabado.valido == false)
+                    {
+                        alertas.Add("No se pudo generar la solicitud.");
+                        return BadRequest(new { valido = docGrabado.valido, resp = docGrabado.msg, alertas });
+                    }
+                    alertas.Add("Se genero la solicitud " + cabecera.id + " - " + docGrabado.numeroID + " con exito.");
+                    // grabar la solicitud en proforma en almacen destino 15 - 10 - 2020
+                    // preguntar si se puede grabar proforma de sol urgente en almacen destino
+                    grabar_pf_sol_urgente_destino = await saldos.Grabar_Proforma_SolUrgente_en_Destino(_context, codempresa);
+                    codSolUrgente = docGrabado.codigoSolUrg;
+                    nroIdSolUrgente = docGrabado.numeroID;
+                    if (grabar_pf_sol_urgente_destino)
+                    {
+                        // grabar la solicitud en proforma en almacen destino 15-10-2020
+                        conexion = empaque_func.Getad_conexion_vpnFromDatabase(userConnectionString, "AG" + cabecera.codalmdestino.ToString());
+                        nit = await cliente.NIT(_context, cabecera.codcliente);
+                    }
 
 
-                    return Ok();
+
+                    
                 }
+
+                // grabar la solicitud en proforma en almacen destino 15-10-2020
+                string id_proforma = "";
+                int numeroIdGrbd = 0;
+                bool seGraboProf = true;
+                if (grabar_pf_sol_urgente_destino)
+                {
+                    using (var _context = DbContextFactory.Create(conexion))
+                    {
+                        if (conexion == null)
+                        {
+                            return BadRequest(new { resp = "No se pudo obtener la cadena de conexión" });
+                        }
+
+                        var grabarProf = await GrabarProformaParaAprobarEnAlmacen(_context, nit, codempresa, cabecera, detalle);
+                        if (grabarProf.valido == false)
+                        {
+                            seGraboProf = false;
+                            alertas.Add(grabarProf.msg);
+                            alertas.Add("No se pudo Grabar la Proforma con Exito en Almacen");
+                        }
+                        codprofGrbd = grabarProf.newProf.codigo;
+                        numeroIdGrbd = grabarProf.newProf.numeroid;
+                        id_proforma = grabarProf.newProf.id;
+
+                        await log.RegistrarEvento(_context, cabecera.usuarioreg, Log.Entidades.SW_Proforma, codprofGrbd.ToString(), grabarProf.newProf.id, numeroIdGrbd.ToString(), _controllerName, "Grabar Para Aprobar", Log.TipoLog.Creacion);
+
+                        // GRabar Etiqueta
+                        try
+                        {
+                            string telefono = await cliente.TelefonoPrincipal(_context, grabarProf.newProf.codcliente);
+                            string celular = await cliente.CelularPrincipal(_context, grabarProf.newProf.codcliente);
+                            string ciudad = await cliente.UbicacionCliente(_context,grabarProf.newProf.codcliente);
+
+                            var lat_long = await cliente.latitud_longitud_cliente(_context, grabarProf.newProf.codcliente);
+                            string latitud = lat_long.latitud;
+                            string longitud = lat_long.longitud;
+
+                            veetiqueta_proforma profEtiq = new veetiqueta_proforma();
+
+                            profEtiq.id = grabarProf.newProf.id;
+                            profEtiq.numeroid = grabarProf.newProf.numeroid;
+                            profEtiq.codcliente = grabarProf.newProf.codcliente;
+                            profEtiq.linea1 = grabarProf.newProf.nomcliente;
+                            profEtiq.linea2 = "";
+
+                            profEtiq.representante = grabarProf.newProf.direccion;
+                            profEtiq.telefono = telefono;
+                            profEtiq.ciudad = ciudad;
+                            profEtiq.celular = celular;
+                            profEtiq.latitud_entrega = latitud;
+
+                            profEtiq.longitud_entrega = longitud;
+
+
+                            // primero eliminar si es que hay una etiqueta registrada 
+                            var antEtiqProf = await _context.veetiqueta_proforma
+                                .Where(i => i.id == grabarProf.newProf.id && i.numeroid == grabarProf.newProf.numeroid).FirstOrDefaultAsync();
+                            if (antEtiqProf != null)
+                            {
+                                _context.veetiqueta_proforma.Remove(antEtiqProf);
+                                await _context.SaveChangesAsync();
+                            }
+                            _context.veetiqueta_proforma.Add(profEtiq);
+                            await _context.SaveChangesAsync();
+
+
+                            //            ' %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                            //            '//realizar la reserva de la mercaderia
+                            await ventas.aplicarstocksproforma(_context, codprofGrbd, codempresa);
+                            //            ' %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                        }
+                        catch (Exception)
+                        {
+                            throw;
+                        }
+                    }
+
+                    // ACTUALIZAR codigo de proforma de almacen grabada en la solicitud urgente
+                    if (seGraboProf)
+                    {
+                        using (var _context = DbContextFactory.Create(userConnectionString))
+                        {
+                            insolurgente datos = await _context.insolurgente.Where(i => i.codigo == codSolUrgente).FirstOrDefaultAsync();
+                            datos.codproforma_almacen = codprofGrbd;
+                            await _context.SaveChangesAsync();
+
+                            await log.RegistrarEvento(_context, cabecera.usuarioreg, Log.Entidades.SW_Ventana, "", cabecera.id, nroIdSolUrgente.ToString(), _controllerName, "Grabar", Log.TipoLog.Creacion);
+                            alertas.Add("Se grabo la Proforma " + id_proforma + "-" + numeroIdGrbd + " para aprobar con Exito en Almacen: " + cabecera.codalmdestino);
+                        }
+                    }
+                }
+                return Ok(new
+                {
+                    alertas = alertas,
+                });
             }
             catch (Exception ex)
             {
@@ -968,6 +1113,347 @@ namespace SIAW.Controllers.inventarios.transaccion
             return (alerta, true, null, null);
         }
 
+
+        private async Task<(bool valido, string msg, int codigoSolUrg, int numeroID)> guardarNuevoDocumento(DBContext _context, insolurgente insolurgente, List<insolurgente1> insolurgente1)
+        {
+            int codSolUrg = 0;
+            using (var dbContexTransaction = _context.Database.BeginTransaction())
+            {
+                try
+                {
+                    insolurgente.numeroid = await documento.solurgentenumeroid(_context, insolurgente.id) + 1;
+                    if (insolurgente.numeroid <= 0)
+                    {
+                        return (false, "Error al generar numero ID, consulte con el Administrador", 0, 0);
+                    }
+                    if (await documento.existe_solurgente(_context, insolurgente.id, insolurgente.numeroid))
+                    {
+                        return (false, "Ese numero de documento, ya existe, por favor consulte con el administrador del sistema.", 0, 0);
+                    }
+
+                    // agregar cabecera
+                    try
+                    {
+                        _context.insolurgente.Add(insolurgente);
+                        await _context.SaveChangesAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        return (false, "Error al grabar la cabecera del Pedido: " + ex.Message, 0, 0);
+                    }
+                    codSolUrg = insolurgente.codigo;
+
+                    // actualiza numero id
+                    var numeracion = _context.intiposolurgente.FirstOrDefault(n => n.id == insolurgente.id);
+                    numeracion.nroactual += 1;
+                    await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
+
+
+                    int validaCantProf = await _context.insolurgente.Where(i => i.id == insolurgente.id && i.numeroid == insolurgente.numeroid).CountAsync();
+                    if (validaCantProf > 1)
+                    {
+                        return (false, "Se detecto más de un número del mismo documento, por favor consulte con el administrador del sistema.", 0, 0);
+                    }
+
+                    // guarda detalle (veproforma1)
+                    // actualizar codigoNM para agregar
+                    insolurgente1 = insolurgente1.Select(p => { p.codsolurgente = codSolUrg; return p; }).ToList();
+                    // guardar detalle
+                    _context.insolurgente1.AddRange(insolurgente1);
+                    await _context.SaveChangesAsync();
+                    dbContexTransaction.Commit();
+                }
+                catch (Exception ex)
+                {
+                    dbContexTransaction.Rollback();
+                    return (false, $"Error en el servidor al guardar Pedido: {ex.Message}", 0, 0);
+                    throw;
+                }
+            }
+            return (true, "", codSolUrg, insolurgente.numeroid);
+        }
+
+
+
+        // GRABADO EN ALMACEN DESTINO
+        private async Task<(bool valido, string msg, veproforma? newProf)> GrabarProformaParaAprobarEnAlmacen(DBContext _context, string nit, string codempresa, insolurgente cabecera, List<insolurgente1> detalle)
+        {
+            int codProforma = 0;
+
+            // obtener codcliente sin nombre id y numeroid actual de proforma
+            string codcliente_sin_nombre = await _context.vecliente_urgente.Where(i => i.codalmacen == cabecera.codalmacen).Select(i => i.codcliente).FirstOrDefaultAsync();
+            string nomcliente = cabecera.nomcliente;
+
+            string direccion = await almacen.direccionalmacen(_context, cabecera.codalmacen);
+            direccion = direccion + " (" + await cliente.PuntoDeVentaCliente_Segun_Direccion(_context,codcliente_sin_nombre, direccion) + ")";
+
+
+            // estos dos datos por vpn segun codalmacendestino
+            string id_proforma = await _context.venumeracion.Where(i => i.codalmacen == cabecera.codalmacen).Select(i => i.id).FirstOrDefaultAsync();
+            int idnroactual = await _context.venumeracion.Where(i => i.id == id_proforma).Select(i => i.nroactual).FirstOrDefaultAsync();
+            idnroactual = idnroactual + 1;
+            decimal tdc = await tipoCambio._tipocambio(_context, await Empresa.monedabase(_context, codempresa), cabecera.codmoneda, cabecera.fecha);
+            string obs_proforma = "SOLICITUD URGENTE: " + cabecera.id + "-" + cabecera.numeroid + " de AG: " + cabecera.codalmacen;
+
+            // fin de obtener id actual
+
+            // datos iniciales
+            string hora_inicial = await funciones.hora_del_servidor_cadena(_context);
+            DateTime fecha_inicial = await funciones.FechaDelServidor(_context);
+            fecha_inicial = fecha_inicial.Date;
+
+            bool contra_entrega = true; // como es tienda, toda la vida va a ser contado contraentrega.
+            bool para_aprobar = true;
+            bool aprobada = true;
+            bool venta_cliente_oficina = false;
+
+            string estado_contra_entrega = "";
+            if (contra_entrega)
+            {
+                estado_contra_entrega = "POR CANCELAR";
+            }
+
+            string flete_por = cabecera.flete.Length >= 20 ? cabecera.flete.Substring(0, 20) : cabecera.flete;
+
+            // PREPARAMOS CABECERA
+            veproforma newRegistro = new veproforma();
+            newRegistro.idpf_complemento = "";
+            newRegistro.nroidpf_complemento = 0;
+            newRegistro.complemento_ci = "";
+            newRegistro.tipo_venta = 0;
+            newRegistro.niveles_descuento = "ACTUAL";
+
+            newRegistro.ubicacion = "LOCAL";
+            newRegistro.usuarioaut = cabecera.usuarioreg;
+            newRegistro.fechaaut = fecha_inicial;
+            newRegistro.horaaut = hora_inicial;
+            newRegistro.hora = hora_inicial;
+
+            newRegistro.latitud_entrega = "0";
+            newRegistro.longitud_entrega = "0";
+            newRegistro.estado_contra_entrega = estado_contra_entrega;
+            newRegistro.venta_cliente_oficina = venta_cliente_oficina;
+            newRegistro.codcliente_real = codcliente_sin_nombre;
+
+            newRegistro.pago_contado_anticipado = false;
+            newRegistro.idanticipo = "";
+            newRegistro.numeroidanticipo = 0;
+            newRegistro.monto_anticipo = 0;
+            newRegistro.contra_entrega = contra_entrega;
+
+            newRegistro.confirmada = true;
+            newRegistro.hora_confirmada = hora_inicial;
+            newRegistro.fecha_confirmada = fecha_inicial;
+            newRegistro.hora_inicial = hora_inicial;
+            newRegistro.fecha_inicial = fecha_inicial;
+
+            newRegistro.impresa = false;
+            newRegistro.etiqueta_impresa = false;
+            newRegistro.tipoentrega = "ENTREGAR";
+            newRegistro.preparacion = "URGENTE";
+            newRegistro.id = id_proforma;
+
+            newRegistro.numeroid = idnroactual;
+            newRegistro.codalmacen = cabecera.codalmdestino;
+            newRegistro.codcliente = codcliente_sin_nombre;
+            newRegistro.nomcliente = nomcliente;
+            newRegistro.nit = nit;
+
+            newRegistro.codvendedor = cabecera.codvendedor;
+            newRegistro.codmoneda = cabecera.codmoneda;
+            newRegistro.fecha = cabecera.fecha.Date;
+            newRegistro.tdc = tdc;
+            newRegistro.paraaprobar = para_aprobar;
+
+            newRegistro.aprobada = aprobada;
+            newRegistro.transferida = false;
+            newRegistro.tipopago = cabecera.tipopago;
+            newRegistro.subtotal = cabecera.total;
+            newRegistro.descuentos = 0;
+
+            newRegistro.recargos = 0;
+            newRegistro.total = cabecera.total;
+            newRegistro.anulada = false;
+            newRegistro.transporte = cabecera.transporte;
+            newRegistro.fletepor = flete_por;
+
+            newRegistro.direccion = direccion;
+            newRegistro.codcomplementaria = 0;
+            newRegistro.obs = obs_proforma;
+            newRegistro.horareg = hora_inicial;
+            newRegistro.fechareg = fecha_inicial;
+
+            newRegistro.usuarioreg = cabecera.usuarioreg;
+            newRegistro.iva = 0;
+            newRegistro.odc = nomcliente;
+            newRegistro.nombre_transporte = cabecera.transporte;
+            newRegistro.desclinea_segun_solicitud = false;
+
+            newRegistro.idsoldesctos = "";
+            newRegistro.nroidsoldesctos = 0;
+            newRegistro.es_sol_urgente = true;
+            newRegistro.tipo_docid = 5;
+            newRegistro.email = "-";
+
+            newRegistro.tipo_complementopf = 0;
+
+            // alistar detalle proforma
+            int nro_item = 1;
+            List<veproforma1> detalleProf = detalle.Select(i => new veproforma1
+            {
+                nroitem = nro_item ++,
+                porceniva = 0,
+                codproforma = 0,
+                coditem = i.coditem,
+                cantidad_pedida = i.cantidad_pedido,
+
+                cantidad = (decimal)i.cantidad,
+                udm = i.udm,
+                preciolista = (decimal)i.precio,
+                niveldesc = "X",
+                preciodesc = i.precio,
+
+                precioneto = (decimal)i.precio,
+                codtarifa = cabecera.codtarifa,
+                coddescuento = 0,
+                total = (decimal)i.total,
+                cantaut = i.cantidad,
+
+                totalaut = i.total,
+                obs = ""
+            }).ToList();
+
+
+            // prepara Peso de items de detalle 
+            detalleProf = await ventas.Actualizar_Peso_Detalle_Proforma(_context, detalleProf);
+            // colocaar el Peso en la proforma
+            newRegistro.peso = detalleProf.Sum(i => i.peso);
+
+            // usar transacciones
+            using (var dbContexTransaction = _context.Database.BeginTransaction())
+            {
+                try
+                {
+                    newRegistro.numeroid = await _context.venumeracion.Where(n => n.id == id_proforma).Select(i => i.nroactual).FirstOrDefaultAsync() + 1;
+                    // agregar cabecera
+                    try
+                    {
+                        _context.veproforma.Add(newRegistro);
+                        await _context.SaveChangesAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        return (false, "Error al grabar la cabecera de la proforma: " + ex.Message, null);
+                    }
+                    codProforma = newRegistro.codigo;
+
+                    // actualiza numero id
+                    var numeracion = await _context.venumeracion.FirstOrDefaultAsync(n => n.id == id_proforma);
+                    numeracion.nroactual += 1;
+                    await _context.SaveChangesAsync(); // Guarda los cambios en la base de datos
+
+
+                    int validaCantProf = await _context.veproforma.Where(i => i.id == id_proforma && i.numeroid == newRegistro.numeroid).CountAsync();
+                    if (validaCantProf > 1)
+                    {
+                        return (false, "Se detecto más de un número del mismo documento, por favor consulte con el administrador del sistema.", null);
+                    }
+
+                    // guarda detalle (veproforma1)
+                    // actualizar codigoProf para agregar
+                    detalleProf = detalleProf.Select(p => { p.codproforma = codProforma; return p; }).ToList();
+                    // guardar detalle
+                    _context.veproforma1.AddRange(detalleProf);
+                    await _context.SaveChangesAsync();
+                    dbContexTransaction.Commit();
+                }
+                catch (Exception ex)
+                {
+                    dbContexTransaction.Rollback();
+                    return (false, $"Error en el servidor al guardar Proforma: {ex.Message}", null);
+                    throw;
+                }
+            }
+            return (true, "", newRegistro);
+        }
+
+        //[Authorize]
+        [HttpPost]
+        [Route("recalcularDetalle/{userConn}")]
+        public async Task<object> recalcularDetalle(string userConn, string codempresa, int codtarifa, int codalmacen, string usuario, List<detalleRequest> detalleRequest)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    foreach (var reg in detalleRequest)
+                    {
+                        reg.descripcion = await items.itemdescripcion(_context, reg.coditem);
+                        reg.medida = await items.itemmedida(_context, reg.coditem);
+                        if (await empresa.ControlarStockSeguridad_context(_context,codempresa))
+                        {
+                            if (await ventas.Reservar_Para_Tiendas_En_Sol_Urgentes(_context, codtarifa))
+                            {
+                                reg.saldoag = await saldos.saldoitem_crtlstock(_context, codempresa, reg.coditem, codalmacen, true, usuario);
+                            }
+                            else
+                            {
+                                reg.saldoag = await saldos.saldoitem_crtlstock(_context, codempresa, reg.coditem, codalmacen, false, usuario);
+                            }
+                        }
+                        else
+                        {
+                            reg.saldoag = await saldos.saldoitem_crtlstock(_context, codempresa, reg.coditem, codalmacen, false, usuario);
+                        }
+                    }
+
+                    return Ok(new { detalle = detalleRequest });
+                }
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Error en el servidor al calcular Detalle: {ex.Message}");
+                throw;
+            }
+
+        }
+
+        [HttpPost]
+        [Route("recalcularDetalle/{userConn}")]
+        public async Task<object> recalcularDetalle(string userConn, string codempresa, int codalmDestino, string usuario, List<insolurgente1> insolurgente1)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var resultado = await Validar_Saldos_Negativos_Doc(_context, true, codalmDestino, codempresa, usuario, insolurgente1);
+                    if (resultado.valido == false)
+                    {
+                        return BadRequest(new
+                        {
+                            valido = false,
+                            resultado.msg,
+                            resultado.negativos
+                        });
+                    }
+                    return Ok(new
+                    {
+                        valido = true,
+                        resultado.msg,
+                        resultado.negativos
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Error en el servidor al validar Negativos: {ex.Message}");
+                throw;
+            }
+        }
+
+
     }
 
 
@@ -978,10 +1464,12 @@ namespace SIAW.Controllers.inventarios.transaccion
     }
 
 
-    public class detalle_ValMaxVta
+    public class detalleRequest
     {
         public int? codsolurgente { get; set; }
         public string coditem { get; set; }
+        public string descripcion { get; set; }
+        public string medida { get; set; }
         public decimal? cantidad { get; set; }
         public decimal? saldoag { get; set; }
         public decimal? stockmax { get; set; }
@@ -992,9 +1480,6 @@ namespace SIAW.Controllers.inventarios.transaccion
         public decimal? pedtotal { get; set; }
         public decimal? saldoarea { get; set; }
         public decimal? cantidad_pedido { get; set; }
-        public int codtarifa { get; set; }
-        public double cantidad_pf_anterior { get; set; }
-        public double cantidad_pf_total {  get; set; }
     }
 
 }

@@ -2197,6 +2197,20 @@ namespace siaw_funciones
             }
         }
 
+        public async Task<bool> Grabar_Proforma_SolUrgente_en_Destino(DBContext _context, string codempresa)
+        {
+            try
+            {
+                bool resultado = await _context.adparametros.Where(i => i.codempresa == codempresa).Select(i => i.grabar_proforma_solurgente_en_destino).FirstOrDefaultAsync() ?? false;
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+
         public async Task<bool> Veremision_ActualizarSaldo(DBContext _context, int codigo, ModoActualizacion modo)
         {
             try

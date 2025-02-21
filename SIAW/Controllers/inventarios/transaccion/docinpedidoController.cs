@@ -1222,6 +1222,10 @@ namespace SIAW.Controllers.inventarios.transaccion
                     return (false, "Debe poner el codigo del Item hasta el cual desea realizar el pedido.");
                 }
             }
+            if (!(datosPedido.grupos || datosPedido.lineas || datosPedido.items))
+            {
+                return (false, "Debe seleccionar al menos un tipo de pedido: Todos, Grupos, Líneas o Items.");
+            }
             return (true, "");
         }
 

@@ -133,8 +133,34 @@ namespace siaw_funciones
                 return true;
             }
         }
-
-
+        public async Task<int> solurgentenumeroid(DBContext _context, string id)
+        {
+            try
+            {
+                int num = await _context.intiposolurgente.Where(i => i.id == id).Select(i => i.nroactual).FirstOrDefaultAsync();
+                return num;
+            }
+            catch (Exception)
+            {
+                return -1;
+            }
+        }
+        public async Task<bool> existe_solurgente(DBContext _context, string id, int numeroid)
+        {
+            try
+            {
+                int num = await _context.insolurgente.Where(i => i.id == id && i.numeroid == numeroid).CountAsync();
+                if (num > 0)
+                {
+                    return true;
+                }
+                return false;
+            }
+            catch (Exception)
+            {
+                return true;
+            }
+        }
 
     }
 }

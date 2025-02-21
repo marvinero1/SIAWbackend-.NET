@@ -1692,6 +1692,7 @@ namespace siaw_DBContext.Data
         public virtual DbSet<vecliente_imagenes> vecliente_imagenes { get; set; }
         public virtual DbSet<vecliente_sinnombre> vecliente_sinnombre { get; set; }
         public virtual DbSet<vecliente_traslado> vecliente_traslado { get; set; }
+        public virtual DbSet<vecliente_urgente> vecliente_urgente { get; set; }
         public virtual DbSet<vecliente_ya_compro> vecliente_ya_compro { get; set; }
         public virtual DbSet<veclientegrupo> veclientegrupo { get; set; }
         public virtual DbSet<veclienteprecio> veclienteprecio { get; set; }
@@ -59971,6 +59972,13 @@ namespace siaw_DBContext.Data
                 entity.Property(e => e.codigo).ValueGeneratedOnAdd();
 
                 entity.Property(e => e.saldo).HasColumnType("decimal(18, 2)");
+            });
+
+            modelBuilder.Entity<vecliente_urgente>(entity =>
+            {
+                entity.HasNoKey();
+
+                entity.Property(e => e.codcliente).HasMaxLength(10);
             });
 
             modelBuilder.Entity<vecliente_ya_compro>(entity =>
