@@ -2197,6 +2197,55 @@ namespace siaw_funciones
             }
         }
 
+        ///////////////////////////////////////////////////////////////////////////////
+        // funcion que muestra devuelve el stock maximo de un item en un almacen 
+        ///////////////////////////////////////////////////////////////////////////////
+        public async Task<decimal> stockmaximo_item(DBContext _context, int codalmacen, string coditem)
+        {
+            decimal resultado = 0;
+
+            if (coditem.Trim() == "" || codalmacen <= 0)
+            {
+                return 0;
+            }
+            if (await items.itemesconjunto(_context, coditem))
+            {
+                var dt_partes = await _context.inkit.Where(i => i.codigo == coditem).Select(i => new
+                {
+                    i.item,
+                    i.cantidad
+                }).ToListAsync();
+                foreach (var reg in dt_partes)
+                {
+                    // var sm_parte = await _context.instockalm.Where(i => i.item == coditem && i.codalmacen == codalmacen).Select(i => i.smax).FirstOrDefaultAsync() ?? 0;
+                    decimal sm_parte = await stockmaximo_item(_context, codalmacen, reg.item);
+                    if (reg.cantidad > 0)
+                    {
+                        sm_parte = sm_parte/(decimal)reg.cantidad;
+                    }
+                    if (sm_parte > resultado)
+                    {
+                        resultado = sm_parte;
+                    }
+                }
+            }
+            else
+            {
+                try
+                {
+                    resultado = await _context.instockalm.Where(i => i.item == coditem && i.codalmacen == codalmacen).Select(i => i.smax).FirstOrDefaultAsync() ?? 0;
+                }
+                catch (Exception)
+                {
+                    resultado = 0;
+                }
+            }
+            return resultado;
+        }
+
+
+
+
         public async Task<bool> Grabar_Proforma_SolUrgente_en_Destino(DBContext _context, string codempresa)
         {
             try

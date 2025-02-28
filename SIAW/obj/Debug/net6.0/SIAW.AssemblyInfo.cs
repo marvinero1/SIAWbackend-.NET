@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SIAW")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b532a9d41bbf3f59d5dd1c3638d72d1f50c2a32f")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+aaee5890e13d345a17b1f78dcac0e2bddb2545a2")]
 [assembly: System.Reflection.AssemblyProductAttribute("SIAW")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SIAW")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

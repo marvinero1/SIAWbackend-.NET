@@ -18,6 +18,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Data;
 using Newtonsoft.Json.Linq;
 using NuGet.Common;
+using siaw_funciones;
 
 namespace SIAW.Controllers
 {
@@ -68,8 +69,8 @@ namespace SIAW.Controllers
                 validTokens.Remove(validaUserConn);
                 _userConnectionManager.RemoveUserConnection(userConn);
             }
-
-            using (var _context = DbContextFactory.Create(connectionString))
+            string cadenaCon = EncryptionHelper.DecryptString(login.conDatDesc);
+            using (var _context = DbContextFactory.Create(cadenaCon))
             {
                 encriptacion encript = new encriptacion();
                 if (login == null)

@@ -701,7 +701,7 @@ namespace siaw_funciones
                 case "00064":
                     //VALIDAR ANTICIPOS ASIGNADOS EN VENTA AL CONTADO
                     // Control_Valido_C00064(regcontrol, DVTA, dt_anticipo_pf);
-                    _ = await Control_Valido_C00064Async(_context, regcontrol, DVTA, dt_anticipo_pf, codempresa);
+                    _ = await Control_Valido_C00064Async(_context, regcontrol, DVTA, dt_anticipo_pf, codempresa, usuario);
                     break;
                 case "00065":
                     //VALIDAR MONTO VENTA CLIENTE FINAL
@@ -2081,11 +2081,11 @@ namespace siaw_funciones
             }
             return true;
         }
-        private async Task<bool> Control_Valido_C00064Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedetalleanticipoProforma> tablaanticipos, string codempresa)
+        private async Task<bool> Control_Valido_C00064Async(DBContext _context, Controles regcontrol, DatosDocVta DVTA, List<vedetalleanticipoProforma> tablaanticipos, string codempresa, string usuario)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             InicializarResultado(objres);
-            objres = await Validar_Anticipos_Asignados_A_Proforma(_context, DVTA, tablaanticipos, codempresa);
+            objres = await Validar_Anticipos_Asignados_A_Proforma(_context,usuario, DVTA, tablaanticipos, codempresa);
             if (objres.resultado == false)
             {
                 regcontrol.Valido = "NO";
@@ -2266,12 +2266,12 @@ namespace siaw_funciones
             }
             return objres;
         }
-        public async Task<ResultadoValidacion> Validar_Anticipos_Asignados_A_Proforma(DBContext _context, DatosDocVta DVTA, List<vedetalleanticipoProforma> dt_anticipo_pf, string codempresa)
+        public async Task<ResultadoValidacion> Validar_Anticipos_Asignados_A_Proforma(DBContext _context, string usuario, DatosDocVta DVTA, List<vedetalleanticipoProforma> dt_anticipo_pf, string codempresa)
         {
             ResultadoValidacion objres = new ResultadoValidacion();
             InicializarResultado(objres);
 
-            objres =await  anticipos_vta_contado.Validar_Anticipo_Asignado_2(_context, true, DVTA, dt_anticipo_pf, codempresa);
+            objres =await  anticipos_vta_contado.Validar_Anticipo_Asignado_2(_context, true, DVTA, dt_anticipo_pf, codempresa, usuario);
 
             return objres;
         }

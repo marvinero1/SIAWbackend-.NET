@@ -19,5 +19,6 @@ namespace siaw_DBContext.Models
         public decimal? pedtotal { get; set; }
         public decimal? saldoarea { get; set; }
         public decimal? cantidad_pedido { get; set; }
+        public int codigo { get; set; }
     }
 }

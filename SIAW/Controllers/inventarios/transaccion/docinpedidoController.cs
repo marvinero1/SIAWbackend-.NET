@@ -503,7 +503,7 @@ namespace SIAW.Controllers.inventarios.transaccion
             }
             catch (Exception ex)
             {
-                return Problem("Error en el servidor al importar proforma en JSON: " + ex.Message);
+                return Problem("Error en el servidor al importar Pedido en JSON: " + ex.Message);
                 throw;
             }
             finally
@@ -735,7 +735,7 @@ namespace SIAW.Controllers.inventarios.transaccion
 
                     return Ok(new
                     {
-                        empresa,
+                        rempresa,
                         titulo,
                         usuario,
                         nit,
@@ -1222,7 +1222,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                     return (false, "Debe poner el codigo del Item hasta el cual desea realizar el pedido.");
                 }
             }
-            if (!(datosPedido.grupos || datosPedido.lineas || datosPedido.items))
+            if (!datosPedido.todos && !(datosPedido.grupos || datosPedido.lineas || datosPedido.items))
             {
                 return (false, "Debe seleccionar al menos un tipo de pedido: Todos, Grupos, Líneas o Items.");
             }
@@ -1286,7 +1286,7 @@ namespace SIAW.Controllers.inventarios.transaccion
 
                 if (!resultado)
                 {
-                    return (false, "Items Negativos" + Environment.NewLine + lista);
+                    return (false, "Items Negativos" + Environment.NewLine + string.Join(Environment.NewLine, lista));
                 }
             }
             return (true, "");

@@ -460,7 +460,7 @@ namespace SIAW.Controllers.ventas.modificacion
                     await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Proforma, codProforma.ToString(), veproformaModif.id, veproformaModif.numeroid.ToString(), this._controllerName, "Anular", Log.TipoLog.Anulacion);
                     await despachos.eliminar_prof_de_despachos(_context, veproformaModif.id, veproformaModif.numeroid);
                     // Desde 03/04/2024 al anular una proforma se debe actualizar los saldos de los anticipos que tuviera enlazada la proforma
-                    await Actualizar_saldos_anticipos(_context, codempresa, requestAnularProf.dt_anticipo_pf, requestAnularProf.dt_anticipo_pf_inicial);
+                    await Actualizar_saldos_anticipos(_context, codempresa,usuario, requestAnularProf.dt_anticipo_pf, requestAnularProf.dt_anticipo_pf_inicial);
                     return Ok(new { resp = "Se Anulo la Proforma con exito. " });  
                 }
                 return BadRequest(new { resp = "No se pudo Anular esta Proforma." });  
@@ -1196,7 +1196,7 @@ namespace SIAW.Controllers.ventas.modificacion
                             string mensajeAprobacion = "";
                             List<vedesextraDatos> tabladescuentos = await Convertirvedesextraprof_a_vedesextraDatos(datosProforma.vedesextraprof);
                             List<verecargosDatos> tablarecargos = await Convertirverecargoprof_a_verecargosDatos(datosProforma.verecargoprof);
-                            var resultValApro = await Validar_Aprobar_Proforma(_context, veproforma.id, result.numeroId, result.codprof, codempresa, tabladescuentos, DVTA, tablarecargos);
+                            var resultValApro = await Validar_Aprobar_Proforma(_context, veproforma.id, result.numeroId, result.codprof, codempresa,datosProforma.veproforma.usuarioreg, tabladescuentos, DVTA, tablarecargos);
 
                             msgAlerts.AddRange(resultValApro.msgsAlert);
 
@@ -1891,7 +1891,7 @@ namespace SIAW.Controllers.ventas.modificacion
         }
 
 
-        private async Task<(bool resp, List<string> msgsAlert)> Validar_Aprobar_Proforma(DBContext _context, string id_pf, int nroid_pf, int cod_proforma, string codempresa, List<vedesextraDatos> tabladescuentos, DatosDocVta DVTA, List<verecargosDatos> tablarecargos)
+        private async Task<(bool resp, List<string> msgsAlert)> Validar_Aprobar_Proforma(DBContext _context, string id_pf, int nroid_pf, int cod_proforma, string codempresa, string usuario, List<vedesextraDatos> tabladescuentos, DatosDocVta DVTA, List<verecargosDatos> tablarecargos)
         {
             bool resultado = true;
             List<string> msgsAlert = new List<string>();
@@ -1986,7 +1986,7 @@ namespace SIAW.Controllers.ventas.modificacion
                 if (dt_anticipos.Count > 0)
                 {
                     ResultadoValidacion objres = new ResultadoValidacion();
-                    objres = await anticipos_vta_contado.Validar_Anticipo_Asignado_2(_context, true, DVTA, dt_anticipos, codempresa);
+                    objres = await anticipos_vta_contado.Validar_Anticipo_Asignado_2(_context, true, DVTA, dt_anticipos, codempresa, usuario);
                     if (objres.resultado)
                     {
                         // Desde 15/01/2024 se cambio esta funcion porque no estaba validando correctamente la transformacion de moneda de los anticipos a aplicarse ya se en $us o BS
@@ -2479,7 +2479,7 @@ namespace SIAW.Controllers.ventas.modificacion
             if (resultado)
             {
                 // Desde 03/04/2024 al anular una proforma se debe actualizar los saldos de los anticipos que tuviera enlazada la proforma
-                if (!await Actualizar_saldos_anticipos(_context, codempresa, dt_anticipo_pf, dt_anticipo_pf_inicial))
+                if (!await Actualizar_saldos_anticipos(_context, codempresa,veproforma.usuarioreg, dt_anticipo_pf, dt_anticipo_pf_inicial))
                 {
                     resultado = false;
                 }
@@ -2575,7 +2575,7 @@ namespace SIAW.Controllers.ventas.modificacion
             await _context.SaveChangesAsync();
         }
 
-        private async Task<bool> Actualizar_saldos_anticipos(DBContext _context, string codempresa, List<tabla_veproformaAnticipo>? dt_anticipo_pf, List<tabla_veproformaAnticipo>? dt_anticipo_pf_inicial)
+        private async Task<bool> Actualizar_saldos_anticipos(DBContext _context, string codempresa, string usuario, List<tabla_veproformaAnticipo>? dt_anticipo_pf, List<tabla_veproformaAnticipo>? dt_anticipo_pf_inicial)
         {
             //======================================================================================
             // actualizar saldo restante de anticipos aplicados
@@ -2584,7 +2584,7 @@ namespace SIAW.Controllers.ventas.modificacion
             foreach (var reg in dt_anticipo_pf)
             {
                 // añadir detalle al documento
-                if (!await anticipos_vta_contado.ActualizarMontoRestAnticipo(_context, reg.id_anticipo, reg.nroid_anticipo, reg.codproforma ?? 0, reg.codanticipo ?? 0, reg.monto, codempresa))
+                if (!await anticipos_vta_contado.ActualizarMontoRestAnticipo(_context, reg.id_anticipo, reg.nroid_anticipo, reg.codproforma ?? 0, reg.codanticipo ?? 0, reg.monto, codempresa, usuario, this._controllerName))
                 {
                     resultado = false;
                 }
@@ -2598,7 +2598,7 @@ namespace SIAW.Controllers.ventas.modificacion
                 foreach (var reg in dt_anticipo_pf_inicial)
                 {
                     // añadir detalle al documento
-                    if (!await anticipos_vta_contado.ActualizarMontoRestAnticipo(_context, reg.id_anticipo, reg.nroid_anticipo, 0, reg.codanticipo ?? 0, 0, codempresa))
+                    if (!await anticipos_vta_contado.ActualizarMontoRestAnticipo(_context, reg.id_anticipo, reg.nroid_anticipo, 0, reg.codanticipo ?? 0, 0, codempresa, usuario, this._controllerName))
                     {
                         resultado = false;
                     }

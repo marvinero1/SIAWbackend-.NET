@@ -2744,5 +2744,46 @@ namespace siaw_funciones
 
         }
 
+        public async Task<string> RubroConDescripcion(DBContext _context, string codcliente)
+        {
+            try
+            {
+                string resultado = await _context.vecliente
+                    .Join(_context.verubro,
+                          c => c.codrubro,
+                          r => r.codigo,
+                          (c, r) => new { c, r })
+                    .Where(joined => joined.c.codigo == codcliente)
+                    .Select(joined => joined.c.codrubro.ToString() + " " + joined.r.descripcion)
+                    .FirstOrDefaultAsync() ?? "";
+                return resultado;
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
+        public async Task<string> Opcion_Niveles_Descuento_Proforma(DBContext _context, int codproforma)
+        {
+            string resultado = "ACTUAL";
+            var dt = await _context.veproforma.Where(i => i.codigo == codproforma).Select(i => i.niveles_descuento).FirstOrDefaultAsync();
+            if (dt != null)
+            {
+                if (dt.Trim().Length == 0)
+                {
+                    resultado = "ACTUAL";
+                }
+                else
+                {
+                    resultado = dt;
+                }
+            }
+            else
+            {
+                resultado = "ACTUAL";
+            }
+            return resultado;
+        }
+
     }
 }

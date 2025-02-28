@@ -1782,7 +1782,7 @@ namespace SIAW.Controllers.ventas.transaccion
                     {
                         //SI ES CONTADO - PERO NO CONTRA ENTREGA SE HA TENIDO QUE PAGAR CON ANTICIPOS
                         //A CONTINUACION SE REVISARA ESO
-                        if (!await Validar_Anticipos_Aplicados(_context, id_proforma, nroid_proforma, codempresa, DVTA))
+                        if (!await Validar_Anticipos_Aplicados(_context, id_proforma, nroid_proforma, codempresa, usuario, DVTA))
                         {
                             resultado = false;
                             return (false, "La proforma es venta al Contado y no se pago con anticipo, por lo cual no se puede emitir la nota de remision. De lo contratio modifique la proforma como venta: Contado - Contra Entrega para luego pagar con cobranza contra entrega.", 0);
@@ -3249,7 +3249,7 @@ namespace SIAW.Controllers.ventas.transaccion
             };
         }
 
-        private async Task<bool> Validar_Anticipos_Aplicados(DBContext _context, string id, int numeroid, string codempresa, DatosDocVta DVTA)
+        private async Task<bool> Validar_Anticipos_Aplicados(DBContext _context, string id, int numeroid, string codempresa, string usuario, DatosDocVta DVTA)
         {
             try
             {
@@ -3260,7 +3260,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 if (dt_anticipos.Count > 0)
                 {
                     ResultadoValidacion objres = new ResultadoValidacion();
-                    objres = await anticipos_vta_contado.Validar_Anticipo_Asignado_2(_context, true, DVTA, dt_anticipos, codempresa);
+                    objres = await anticipos_vta_contado.Validar_Anticipo_Asignado_2(_context, true, DVTA, dt_anticipos, codempresa, usuario);
                     //'Desde 15/01/2024 se cambio esta funcion porque no estaba validando correctamente la transformacion de moneda de los anticipos a aplicarse ya se en $us o BS
                     if (objres.resultado == true)
                     {

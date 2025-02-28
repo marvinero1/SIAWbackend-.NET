@@ -76,10 +76,14 @@ namespace siaw_funciones
 
             var connection = _context.Database.GetDbConnection();
 
-            await connection.OpenAsync();
+            // await connection.OpenAsync();
 
             try
             {
+                if (connection.State != System.Data.ConnectionState.Open)
+                {
+                    await connection.OpenAsync();
+                }
                 // Reutilizar la conexión para múltiples comandos
                 using (var command = connection.CreateCommand())
                 {
@@ -98,21 +102,26 @@ namespace siaw_funciones
             {
                 Console.WriteLine($"Error: {ex.Message}");
             }
+            /*
             finally
             {
                 // Cerrar la conexión después de su uso
                 await connection.CloseAsync();
             }
+            */
             return resultado.Date;
         }
         public async Task<string> hora_del_servidor_cadena(DBContext _context)
         {
             string resultado = "";
             var connection = _context.Database.GetDbConnection();
-            await connection.OpenAsync();
 
             try
             {
+                if (connection.State != System.Data.ConnectionState.Open)
+                {
+                    await connection.OpenAsync();
+                }
                 // Reutilizar esta conexión para múltiples comandos
                 using (var command = connection.CreateCommand())
                 {
@@ -135,11 +144,13 @@ namespace siaw_funciones
             {
                 Console.WriteLine($"Error: {ex.Message}");
             }
+            /*
             finally
             {
                 // Siempre cerrar la conexión cuando termines
                 await connection.CloseAsync();
             }
+            */
             return resultado;
         }
 

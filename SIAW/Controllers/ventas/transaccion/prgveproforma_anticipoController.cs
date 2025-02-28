@@ -21,6 +21,9 @@ namespace SIAW.Controllers.ventas.transaccion
         private readonly Anticipos_Vta_Contado anticipos_vta_contado = new Anticipos_Vta_Contado();
         private readonly Empresa empresa = new Empresa();
         private readonly Configuracion configuracion = new Configuracion();
+
+        private readonly string _controllerName = "prgveproforma_anticipoController";
+
         public prgveproforma_anticipoController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;
@@ -322,8 +325,8 @@ namespace SIAW.Controllers.ventas.transaccion
         /// PESTAÑA NRO 2
         //[Authorize]
         [HttpPut]
-        [Route("btnrefrescar_Anticipos/{userConn}/{codcliente}/{fdesde}/{fhasta}/{nit}/{codclienteReal}/{codigoempresa}")]
-        public async Task<ActionResult<IEnumerable<tabla_anticipos_pendientes>>> btnrefrescar_Anticipos(string userConn, string codcliente, DateTime fdesde, DateTime fhasta, string nit, string codclienteReal, string codigoempresa)
+        [Route("btnrefrescar_Anticipos/{userConn}/{codcliente}/{fdesde}/{fhasta}/{nit}/{codclienteReal}/{codigoempresa}/{usuario}")]
+        public async Task<ActionResult<IEnumerable<tabla_anticipos_pendientes>>> btnrefrescar_Anticipos(string userConn, string codcliente, DateTime fdesde, DateTime fhasta, string nit, string codclienteReal, string codigoempresa, string usuario)
         {
             try
             {
@@ -332,7 +335,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
-                    var resultados = await refrescatabla_anticipos_pendientesr_anticipos_pendientes(_context, codcliente, fdesde, fhasta, nit, codclienteReal, codigoempresa);
+                    var resultados = await refrescatabla_anticipos_pendientesr_anticipos_pendientes(_context, codcliente, fdesde, fhasta, nit, codclienteReal, codigoempresa,usuario);
                     if (resultados.tabla_anticipos_pendientes == null)
                     {
                         return BadRequest(new { resp = resultados.mensaje });
@@ -346,7 +349,7 @@ namespace SIAW.Controllers.ventas.transaccion
             }
         }
 
-        private async Task<(List<tabla_anticipos_pendientes> ? tabla_anticipos_pendientes, string mensaje)> refrescatabla_anticipos_pendientesr_anticipos_pendientes(DBContext _context, string codcliente, DateTime fdesde, DateTime fhasta, string nit, string codclienteReal, string codigoempresa)
+        private async Task<(List<tabla_anticipos_pendientes> ? tabla_anticipos_pendientes, string mensaje)> refrescatabla_anticipos_pendientesr_anticipos_pendientes(DBContext _context, string codcliente, DateTime fdesde, DateTime fhasta, string nit, string codclienteReal, string codigoempresa, string usuario)
         {
             // List<tabla_veproformaAnticipo> tabla_veproformaAnticipo
             var valida = validar_refrescar(fdesde, fhasta, nit, codclienteReal);
@@ -357,7 +360,7 @@ namespace SIAW.Controllers.ventas.transaccion
             //est primera ves se obtiene los datos para actualizar los saldos de los anticipos
 
             var tabla_veproformaAnticipo = await buscar_anticipos_pendientes(_context, fdesde, fhasta, nit, codcliente);
-            await Actualizar_Restantes(_context, codigoempresa, tabla_veproformaAnticipo);
+            await Actualizar_Restantes(_context, codigoempresa, usuario, tabla_veproformaAnticipo);
 
             //esta segunda vez se obtiene para mostrar los anticipos pendientes con sus saldos restantes correctos
             // tabla_veproformaAnticipo = await buscar_anticipos_pendientes(_context, fdesde, fhasta, nit, codcliente);
@@ -470,11 +473,11 @@ namespace SIAW.Controllers.ventas.transaccion
             return resultado;
         }
 
-        private async Task Actualizar_Restantes(DBContext _context, string codigoempresa, List<tabla_anticipos_pendientes> tabla_anticipos_pendientes)
+        private async Task Actualizar_Restantes(DBContext _context, string codigoempresa, string usuario, List<tabla_anticipos_pendientes> tabla_anticipos_pendientes)
         {
             foreach (var reg in tabla_anticipos_pendientes)
             {
-                await anticipos_vta_contado.ActualizarMontoRestAnticipo(_context, reg.id, reg.numeroid, 0, reg.codanticipo, 0, codigoempresa);
+                await anticipos_vta_contado.ActualizarMontoRestAnticipo(_context, reg.id, reg.numeroid, 0, reg.codanticipo, 0, codigoempresa, usuario, this._controllerName);
             }
         }
 

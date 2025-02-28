@@ -767,7 +767,7 @@ namespace SIAW.Controllers.z_pruebas
 
             if (await configuracion.Calculo_Desc_Deposito_Contado(_context, codempresa) == "SUBTOTAL2" && tipopago == 0 && contraEntrega == false)
             {
-                var tablaAnticiposSinDeposito = await anticipos_vta_contado.Anticipos_MontoRestante_Sin_Deposito(_context, codcliente_real, codvendedor);
+                var tablaAnticiposSinDeposito = await anticipos_vta_contado.Anticipos_MontoRestante_Sin_Deposito(_context, codcliente_real, codvendedor, fecha);
                 decimal totalAnticiposSinDeposito = 0;
                 decimal montoCambio = 0;
                 string cadenaAnticipos = string.Empty;

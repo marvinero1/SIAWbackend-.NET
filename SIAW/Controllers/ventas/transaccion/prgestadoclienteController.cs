@@ -20,6 +20,9 @@ namespace SIAW.Controllers.ventas.transaccion
         private readonly siaw_funciones.Anticipos_Vta_Contado anticipos_Vta_Contado = new Anticipos_Vta_Contado();
         private readonly siaw_funciones.Funciones funciones = new Funciones();
         private readonly UserConnectionManager _userConnectionManager;
+
+        private readonly string _controllerName = "prgestadoclienteController";
+
         public prgestadoclienteController(UserConnectionManager userConnectionManager)
         {
             _userConnectionManager = userConnectionManager;
@@ -141,7 +144,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 }).ToListAsync();
             foreach (var reg in dt_anticipos)
             {
-                await anticipos_Vta_Contado.ActualizarMontoRestAnticipo(_context, reg.id, reg.numeroid, 0, reg.codanticipo, 0, codempresa);
+                await anticipos_Vta_Contado.ActualizarMontoRestAnticipo(_context, reg.id, reg.numeroid, 0, reg.codanticipo, 0, codempresa, usuario, this._controllerName);
             }
             dt_anticipos.Clear();
             dt_anticipos = await _context.coanticipo

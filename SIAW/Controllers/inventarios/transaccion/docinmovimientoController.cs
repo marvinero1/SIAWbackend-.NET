@@ -299,7 +299,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                     guia = "",
                     nombtrans = "",
                     tipotrans = "",
-                    fdespacho = new DateTime(2000-01-01),
+                    fdespacho = new DateTime(2000,01,01),
                     nombchofer = "",
                     celchofer = "",
                     nroplaca = "",
@@ -330,9 +330,9 @@ namespace SIAW.Controllers.inventarios.transaccion
                         {
                             reg.estado = "PREPARADO";
                             vedespacho newReg = new vedespacho();
-                            newReg.frefacturacion = new DateTime(1900-01-01).Date;
+                            newReg.frefacturacion = new DateTime(1900,01,01).Date;
                             newReg.hrefacturacion = "00:00";
-                            newReg.fanulado = new DateTime(1900 - 01 - 01).Date;
+                            newReg.fanulado = new DateTime(1900, 01, 01).Date;
                             newReg.hanulado = "00:00";
                             newReg.codproforma = reg.codmovimiento;
 
@@ -389,6 +389,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                             }
                             catch (Exception ex)
                             {
+                                dbContexTransaction.Rollback();
                                 return (false, "Ha ocurrido un error al insertar la nota de movimiento: " + reg.id + "-" + reg.numeroid + ex.Message);
                             }
 
@@ -403,13 +404,14 @@ namespace SIAW.Controllers.inventarios.transaccion
                             }
                             catch (Exception ex)
                             {
+                                dbContexTransaction.Rollback();
                                 return (false, "Ha ocurrido un error al actualizar log_estado_pedidos: " + reg.id + "-" + reg.numeroid + ex.Message);
                             }
 
-                            dbContexTransaction.Commit();
+                            
                         }
 
-                        
+                        dbContexTransaction.Commit();
 
                     }
                     catch (Exception ex)

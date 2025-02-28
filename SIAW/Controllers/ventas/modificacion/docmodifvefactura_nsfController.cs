@@ -2926,7 +2926,7 @@ namespace SIAW.Controllers.ventas.modificacion
                                     var dt_anticipo_pf = await anticipos_Vta_Contado.Anticipos_Aplicados_a_Proforma(_context, id_pf, nroid_pf);
                                     foreach (var reg in dt_anticipo_pf)
                                     {
-                                        if (await anticipos_Vta_Contado.ActualizarMontoRestAnticipo(_context, reg.id_anticipo, reg.nroid_anticipo, 0, reg.codanticipo, 0, codempresa))
+                                        if (await anticipos_Vta_Contado.ActualizarMontoRestAnticipo(_context, reg.id_anticipo, reg.nroid_anticipo, 0, reg.codanticipo, 0, codempresa, usuario, this._controllerName))
                                         {
                                             mensaje = "Actualizar monto restante anticipo aplicado a factura al anular factura";
                                             await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codfactura.ToString(), reg.id_anticipo, reg.nroid_anticipo.ToString(), _controllerName, mensaje, Log.TipoLog.Edicion);
@@ -3027,7 +3027,7 @@ namespace SIAW.Controllers.ventas.modificacion
                             if (tablacabecera.idanticipo.Length > 0 && tablacabecera.numeroidanticipo > 0 && tablacabecera.monto_anticipo > 0)
                             {
                                 //actualizar el monto restante del anticipo
-                                if (await anticipos_Vta_Contado.ActualizarMontoRestAnticipo(_context, tablacabecera.idanticipo, (int)tablacabecera.numeroidanticipo, 0, 0, 0, codempresa))
+                                if (await anticipos_Vta_Contado.ActualizarMontoRestAnticipo(_context, tablacabecera.idanticipo, (int)tablacabecera.numeroidanticipo, 0, 0, 0, codempresa, usuario, this._controllerName))
                                 {
                                     mensaje = "Actualizar monto restante anticipo aplicado a factura al anular factura";
                                     await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Factura, codfactura.ToString(), tablacabecera.idanticipo, tablacabecera.numeroidanticipo.ToString(), _controllerName, mensaje, Log.TipoLog.Edicion);

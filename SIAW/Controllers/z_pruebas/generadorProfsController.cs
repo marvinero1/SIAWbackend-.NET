@@ -1020,7 +1020,7 @@ namespace SIAW.Controllers.z_pruebas
 
             if (await configuracion.Calculo_Desc_Deposito_Contado(_context, codempresa) == "SUBTOTAL2" && tipopago == 0 && contraEntrega == false)
             {
-                var tablaAnticiposSinDeposito = await anticipos_vta_contado.Anticipos_MontoRestante_Sin_Deposito(_context, codcliente_real, codvendedor);
+                var tablaAnticiposSinDeposito = await anticipos_vta_contado.Anticipos_MontoRestante_Sin_Deposito(_context, codcliente_real, codvendedor, fecha);
                 decimal totalAnticiposSinDeposito = 0;
                 decimal montoCambio = 0;
                 string cadenaAnticipos = string.Empty;
@@ -1471,7 +1471,7 @@ namespace SIAW.Controllers.z_pruebas
 
 
 
-        private async Task<(bool resp, List<string> msgsAlert)> Validar_Aprobar_Proforma(DBContext _context, string id_pf, int nroid_pf, int cod_proforma, string codempresa, List<vedesextraDatos> tabladescuentos, DatosDocVta DVTA, List<verecargosDatos> tablarecargos)
+        private async Task<(bool resp, List<string> msgsAlert)> Validar_Aprobar_Proforma(DBContext _context, string id_pf, int nroid_pf, int cod_proforma, string codempresa, string usuario, List<vedesextraDatos> tabladescuentos, DatosDocVta DVTA, List<verecargosDatos> tablarecargos)
         {
             bool resultado = true;
             List<string> msgsAlert = new List<string>();
@@ -1566,7 +1566,7 @@ namespace SIAW.Controllers.z_pruebas
                 if (dt_anticipos.Count > 0)
                 {
                     ResultadoValidacion objres = new ResultadoValidacion();
-                    objres = await anticipos_vta_contado.Validar_Anticipo_Asignado_2(_context, true, DVTA, dt_anticipos, codempresa);
+                    objres = await anticipos_vta_contado.Validar_Anticipo_Asignado_2(_context, true, DVTA, dt_anticipos, codempresa, usuario);
                     if (objres.resultado)
                     {
                         // Desde 15/01/2024 se cambio esta funcion porque no estaba validando correctamente la transformacion de moneda de los anticipos a aplicarse ya se en $us o BS
@@ -1930,7 +1930,7 @@ namespace SIAW.Controllers.z_pruebas
                 {
                     foreach (var reg in dt_anticipo_pf)
                     {
-                        if (!await anticipos_vta_contado.ActualizarMontoRestAnticipo(_context, reg.id_anticipo, reg.nroid_anticipo, reg.codproforma ?? 0, reg.codanticipo ?? 0, 0, codempresa))
+                        if (!await anticipos_vta_contado.ActualizarMontoRestAnticipo(_context, reg.id_anticipo, reg.nroid_anticipo, reg.codproforma ?? 0, reg.codanticipo ?? 0, 0, codempresa,veproforma.usuarioreg, "generadorProfsController"))
                         //    if (!await anticipos_vta_contado.ActualizarMontoRestAnticipo(_context, reg.id_anticipo, reg.nroid_anticipo, reg.codproforma ?? 0, reg.codanticipo ?? 0, reg.monto, codempresa))
                         {
                             resultado = false;

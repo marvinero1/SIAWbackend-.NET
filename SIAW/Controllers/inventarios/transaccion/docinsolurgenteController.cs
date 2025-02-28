@@ -1,16 +1,19 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using LibSIAVB;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using SIAW.Controllers.ventas.transaccion;
 using siaw_DBContext.Data;
 using siaw_DBContext.Models;
 using siaw_DBContext.Models_Extra;
 using siaw_funciones;
+using System.Data;
 using System.Web.Http.Results;
 
 namespace SIAW.Controllers.inventarios.transaccion
 {
-    [Route("api/[controller]")]
+    [Route("api/inventario/transac/[controller]")]
     [ApiController]
     public class docinsolurgenteController : ControllerBase
     {
@@ -34,6 +37,7 @@ namespace SIAW.Controllers.inventarios.transaccion
         private readonly Funciones funciones = new Funciones();
         private readonly Log log = new Log();
 
+        private readonly func_encriptado encripVB = new func_encriptado();
 
         private readonly UserConnectionManager _userConnectionManager;
         public docinsolurgenteController(UserConnectionManager userConnectionManager)
@@ -71,9 +75,123 @@ namespace SIAW.Controllers.inventarios.transaccion
         }
 
         [HttpPost]
+        [Route("calcularDetalle/{userConn}/{codalmacen}/{codempresa}/{usuario}/{codtarifa}")]
+        public async Task<ActionResult<object>> calcularDetalle(string userConn, int codalmacen, string codempresa, string usuario, int codtarifa, List<detalleRequest> detallaSolUrg)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    foreach (var reg in detallaSolUrg)
+                    {
+                        if (await empresa.ControlarStockSeguridad_context(_context,codempresa))
+                        {
+                            if (await ventas.Reservar_Para_Tiendas_En_Sol_Urgentes(_context,codtarifa))
+                            {
+                                reg.saldoag = await saldos.saldoitem_crtlstock(_context, codempresa, reg.coditem, codalmacen, true, usuario);
+                            }
+                            else
+                            {
+                                reg.saldoag = await saldos.saldoitem_crtlstock(_context, codempresa, reg.coditem, codalmacen, false, usuario);
+                            }
+                        }
+                        else
+                        {
+                            reg.saldoag = await saldos.saldoitem_crtlstock(_context, codempresa, reg.coditem, codalmacen, false, usuario);
+                        }
+                        reg.stockmax = await saldos.stockmaximo_item(_context, codalmacen, reg.coditem);
+                        reg.precio = (decimal?)await ventas.preciodelistaitem(_context, codtarifa, reg.coditem);
+                        reg.total = reg.cantidad * reg.precio;
+                    }
+                    return Ok(new
+                    {
+                        detalle = detallaSolUrg
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                return Problem("Error en el servidor al calcular Detalle de Sol. Urgente: " + ex.Message);
+                throw;
+            }
+        }
+
+        [HttpPost]
+        [Route("calcTotArreglaDesc/{userConn}/{codempresa}")]
+        public async Task<ActionResult<object>> calcTotArreglaDesc(string userConn, string codempresa, requestGabrarSolUrgente dataGrabar)
+        {
+            try
+            {
+                insolurgente cabecera = dataGrabar.cabecera;
+                List<insolurgente1> detalle = dataGrabar.tablaDetalle;
+
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    // antes de validar hace lo siguiente:
+                    var arreglDatos = await ArreglarDescripciones(_context, codempresa, cabecera, detalle);
+                    if (arreglDatos.valido == false)
+                    {
+                        return BadRequest(new
+                        {
+                            valido = false,
+                            resp = arreglDatos.msg
+                        });
+                    }
+                    detalle = arreglDatos.detalle;
+                    // calcular total
+                    cabecera.total = (decimal)detalle.Sum(i => i.total);
+
+                    // calcular peso
+                    double auxPeso1 = 0;
+                    foreach (var reg in detalle)
+                    {
+                        auxPeso1 = auxPeso1 + (await items.itempeso(_context, reg.coditem) * (double)reg.cantidad);
+                    }
+                    cabecera.peso_pedido = (decimal?)auxPeso1;
+
+                    List<detalleRequest> detalleComplet = detalle.Select(i => new detalleRequest{
+                        codsolurgente = i.codsolurgente,
+                        coditem = i.coditem,
+                        descripcion = "",
+                        medida = "",
+                        cantidad = i.cantidad,
+                        saldoag = i.saldoag,
+                        stockmax = i.stockmax,
+                        udm = i.udm,
+                        precio = i.precio,
+                        total = i.total,
+                        saldodest = i.saldodest,
+                        pedtotal = i.pedtotal,
+                        saldoarea = i.saldoarea,
+                        cantidad_pedido = i.cantidad_pedido
+                    }).ToList();
+
+                    foreach (var reg in detalleComplet)
+                    {
+                        reg.descripcion = await items.itemdescripcion(_context, reg.coditem);
+                        reg.medida = await items.itemmedida(_context, reg.coditem);
+                    }
+                    return Ok(new
+                    {
+                        cabecera,
+                        detalleComplet
+                    });
+                }
+
+            }
+            catch (Exception ex)
+            {
+                return Problem("Error en el servidor al calcular Detalle de Sol. Urgente: " + ex.Message);
+                throw;
+            }
+        }
+
+        [HttpPost]
         [QueueFilter(1)] // Limitar a 1 solicitud concurrente
-        [Route("grabarDocumento/{userConn}/{codempresa}/{valida_aceptaSolUrg}/{checkEspecial}/{solUrgcubreSaldoValido}/{solUrgVtaMaxValido}")]
-        public async Task<ActionResult<object>> grabarDocumento(string userConn, string codempresa, bool valida_aceptaSolUrg, bool checkEspecial, bool solUrgcubreSaldoValido, bool solUrgVtaMaxValido, requestGabrarSolUrgente dataGrabar)
+        [Route("grabarDocumento/{userConn}/{codempresa}/{valida_aceptaSolUrg}/{solUrgcubreSaldoValido}/{solUrgVtaMaxValido}")]
+        public async Task<ActionResult<object>> grabarDocumento(string userConn, string codempresa, bool valida_aceptaSolUrg, bool solUrgcubreSaldoValido, bool solUrgVtaMaxValido, requestGabrarSolUrgente dataGrabar)
         {
             insolurgente cabecera = dataGrabar.cabecera;
             List<insolurgente1> detalle = dataGrabar.tablaDetalle;
@@ -115,6 +233,29 @@ namespace SIAW.Controllers.inventarios.transaccion
                 string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
+                    // antes de validar hace lo siguiente:
+                    var arreglDatos = await ArreglarDescripciones(_context, codempresa, cabecera, detalle);
+                    if (arreglDatos.valido == false)
+                    {
+                        return BadRequest(new
+                        {
+                            valido = false,
+                            resp = arreglDatos.msg
+                        });
+                    }
+                    detalle = arreglDatos.detalle;
+                    // calcular total
+                    cabecera.total = (decimal)detalle.Sum(i => i.total);
+
+                    // calcular peso
+                    double auxPeso1 = 0;
+                    foreach (var reg in detalle)
+                    {
+                        auxPeso1 = auxPeso1 + (await items.itempeso(_context, reg.coditem) * (double)reg.cantidad);
+                    }
+                    cabecera.peso_pedido = (decimal?)auxPeso1;
+
+
                     // validacion de datos.
                     var valida1 = await validardatos(_context, cabecera, detalle);
                     if (valida1.valido == false)
@@ -135,7 +276,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                                 flete = cabecera.flete,
                             });
                         }
-                        return BadRequest(new
+                        return StatusCode(203, new
                         {
                             valido = false,
                             resp = "Se encontraron las siguientes validaciones: ",
@@ -144,7 +285,8 @@ namespace SIAW.Controllers.inventarios.transaccion
                         });
                     }
 
-                    var valDetalle1 = await validarDetalle(_context, codempresa, checkEspecial, solUrgcubreSaldoValido, cabecera, detalle);
+                    var valDetalle1 = await validarDetalle(_context, codempresa, (bool)cabecera.especial, solUrgcubreSaldoValido, cabecera, detalle);
+                    detalle = valDetalle1.tablaDetalle;
                     if (valDetalle1.valido == false)
                     {
                         if (valDetalle1.clave != null)
@@ -158,7 +300,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                                 flete = cabecera.flete,
                             });
                         }
-                        return BadRequest(new
+                        return StatusCode(203, new
                         {
                             valido = false,
                             resp = valDetalle1.msg,
@@ -183,7 +325,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                                 maxVenta = valDetalle2.dtnocumplenMaxVta,
                             });
                         }
-                        return BadRequest(new
+                        return StatusCode(203, new
                         {
                             valido = false,
                             resp = valDetalle2.msg,
@@ -220,7 +362,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                     if (grabar_pf_sol_urgente_destino)
                     {
                         // grabar la solicitud en proforma en almacen destino 15-10-2020
-                        conexion = empaque_func.Getad_conexion_vpnFromDatabase(userConnectionString, "AG" + cabecera.codalmdestino.ToString());
+                        conexion = await empaque_func.Getad_conexion_vpnFromDatabase_Sam(_context, cabecera.codalmdestino);
                         nit = await cliente.NIT(_context, cabecera.codcliente);
                     }
 
@@ -323,6 +465,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                 return Ok(new
                 {
                     alertas = alertas,
+                    infracciones,
                 });
             }
             catch (Exception ex)
@@ -334,9 +477,59 @@ namespace SIAW.Controllers.inventarios.transaccion
         }
 
 
+        private async Task<(bool valido, string msg, List<insolurgente1> detalle)> ArreglarDescripciones(DBContext _context, string codempresa, insolurgente cabecera, List<insolurgente1> detalle)
+        {
+            int codproforma = 0;
+            try
+            {
+                codproforma = await ventas.codproforma(_context, cabecera.idproforma, cabecera.numeroidproforma ?? 0);
+            }
+            catch (Exception)
+            {
+                codproforma = 0;
+                return (false, "No ha especificado ninguna proforma, desea continuar?", detalle);
+            }
+            foreach (var reg in detalle)
+            {
+                // ##el precio volver a calcular
+                reg.precio = await tipoCambio._conversion(_context, await Empresa.monedabase(_context, codempresa), await ventas.monedabasetarifa(_context, cabecera.codtarifa), DateTime.Now.Date, (decimal)await ventas.preciocliente(_context, cabecera.codcliente, (await cliente.almacen_de_cliente_Integer(_context, cabecera.codcliente)), cabecera.codtarifa, reg.coditem, "NO", "Z", (await cliente.Opcion_Niveles_Descuento_Proforma(_context, codproforma))));
+                reg.total = reg.cantidad * reg.precio;
+                // ###fin de calcular
+
+                /*
+                    tabladetalle.Rows(i)("descripcion") = sia_funciones.Items.Instancia.itemdescripcion(tabladetalle.Rows(i)("coditem"))
+                    tabladetalle.Rows(i)("medida") = sia_funciones.Items.Instancia.itemmedida(tabladetalle.Rows(i)("coditem"))
+                 */
+
+                try
+                {
+                    if (await empresa.ControlarStockSeguridad_context(_context, codempresa))
+                    {
+                        if (await ventas.Reservar_Para_Tiendas_En_Sol_Urgentes(_context, cabecera.codtarifa))
+                        {
+                            reg.saldoag = await saldos.saldoitem_crtlstock(_context, codempresa, reg.coditem, cabecera.codalmacen, true, cabecera.usuarioreg);
+                        }
+                        else
+                        {
+                            reg.saldoag = await saldos.saldoitem_crtlstock(_context, codempresa, reg.coditem, cabecera.codalmacen, false, cabecera.usuarioreg);
+                        }
+                    }
+                    else
+                    {
+                        reg.saldoag = await saldos.saldoitem_crtlstock(_context, codempresa, reg.coditem, cabecera.codalmacen, false, cabecera.usuarioreg);
+                    }
+                }
+                catch (Exception)
+                {
+
+                }
+            }
+            return (true, "", detalle);
+        }
+
         private async Task<(bool valido, string msg)> validardatos(DBContext _context, insolurgente cabecera, List<insolurgente1> detalle)
         {
-            if (cabecera.numeroidproforma == null || cabecera.numeroidproforma <= 0)
+            if (string.IsNullOrWhiteSpace(cabecera.id))
             {
                 return (false, "No puede dejar el tipo de pedido en blanco.");
             }
@@ -434,7 +627,7 @@ namespace SIAW.Controllers.inventarios.transaccion
             }
             if (cabecera.idproforma.Trim() != "")
             {
-                if (await documento.existe_factura(_context,cabecera.idproforma, cabecera.numeroidproforma ?? 0))
+                if (await documento.existe_proforma(_context,cabecera.idproforma, cabecera.numeroidproforma ?? 0))
                 {
                     // Desde 19/09/2024 Validar que en la factura, proforma y solicitud urgente tengan el mismo codigo de cliente
                     if (await ventas.Cliente_De_Proforma(_context, codProforma) != cabecera.codcliente)
@@ -467,6 +660,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                     string codclientedescripcion = await cliente.Razonsocial(_context, cabecera.codcliente);
                     object clave = new
                     {
+                        identificador = "23E",
                         valido = false,
                         resp = "La agencia puede cubrir el saldo de su solicitud urgente, Para eso necesita una autorizacion especial.",
                         servicio = 23,
@@ -646,7 +840,7 @@ namespace SIAW.Controllers.inventarios.transaccion
         }
 
 
-        private async Task<(bool valido, string msg, object? clave, List<string> alertas)> validarDetalle(DBContext _context, string codempresa, bool checkEspecial, bool solUrgcubreSaldoValido, insolurgente cabecera, List<insolurgente1> tablaDetalle)
+        private async Task<(bool valido, string msg, object? clave, List<string> alertas, List<insolurgente1> tablaDetalle)> validarDetalle(DBContext _context, string codempresa, bool checkEspecial, bool solUrgcubreSaldoValido, insolurgente cabecera, List<insolurgente1> tablaDetalle)
         {
             List<string> alertas = new List<string>();
             int indice = 1;
@@ -654,38 +848,38 @@ namespace SIAW.Controllers.inventarios.transaccion
             {
                 if (string.IsNullOrWhiteSpace(reg.coditem))
                 {
-                    return (false, "No eligio El Item en la Linea " + indice + " .", null, alertas);
+                    return (false, "No eligio El Item en la Linea " + indice + " .", null, alertas, tablaDetalle);
                 }
                 if (reg.coditem.Trim().Length < 1)
                 {
-                    return (false, "No eligio El Item en la Linea " + indice + " .", null, alertas);
+                    return (false, "No eligio El Item en la Linea " + indice + " .", null, alertas, tablaDetalle);
                 }
 
                 if (string.IsNullOrWhiteSpace(reg.udm))
                 {
-                    return (false, "No puso la Unidad de Medida en la Linea " + indice + " .", null, alertas);
+                    return (false, "No puso la Unidad de Medida en la Linea " + indice + " .", null, alertas, tablaDetalle);
                 }
                 if (reg.udm.Trim().Length < 1)
                 {
-                    return (false, "No puso la Unidad de Medida en la Linea " + indice + " .", null, alertas);
+                    return (false, "No puso la Unidad de Medida en la Linea " + indice + " .", null, alertas, tablaDetalle);
                 }
 
                 if (reg.cantidad == null)
                 {
-                    return (false, "No puso la cantidad en la Linea " + indice + " .", null, alertas);
+                    return (false, "No puso la cantidad en la Linea " + indice + " .", null, alertas, tablaDetalle);
                 }
                 if (reg.cantidad <= 0)
                 {
-                    return (false, "La cantidad en la Linea " + indice + " No puede ser menor o igual a 0.", null, alertas);
+                    return (false, "La cantidad en la Linea " + indice + " No puede ser menor o igual a 0.", null, alertas, tablaDetalle);
                 }
 
                 if (reg.cantidad_pedido == null)
                 {
-                    return (false, "No puso la cantidad de pedido total en la Linea " + indice + " .", null, alertas);
+                    return (false, "No puso la cantidad de pedido total en la Linea " + indice + " .", null, alertas, tablaDetalle);
                 }
                 if (reg.cantidad_pedido <= 0)
                 {
-                    return (false, "La cantidad de pedido total en la Linea " + indice + " No puede ser menor o igual a 0.", null, alertas);
+                    return (false, "La cantidad de pedido total en la Linea " + indice + " No puede ser menor o igual a 0.", null, alertas, tablaDetalle);
                 }
                 indice++;
             }
@@ -779,12 +973,12 @@ namespace SIAW.Controllers.inventarios.transaccion
                 }
                 if (pedidoValido.valido == false)
                 {
-                    return (false, pedidoValido.msg, pedidoValido.clave, alertas);
+                    return (false, pedidoValido.msg, pedidoValido.clave, alertas, tablaDetalle);
                 }
                 i++;
             }
 
-            return (true, "",null,alertas);
+            return (true, "",null,alertas, tablaDetalle);
         }
 
         private async Task<(bool valido, string msg, object? clave, List<Dtnegativos>? negativos, List<Dtnocumplen>? dtnocumplenMaxVta)> validarDetalle_2(DBContext _context, string codempresa, bool solUrgVtaMaxValido, insolurgente cabecera, List<insolurgente1> tablaDetalle)
@@ -821,6 +1015,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                         string codclientedescripcion = await cliente.Razonsocial(_context, cabecera.codcliente);
                         object clave = new
                         {
+                            identificador = "23U",
                             valido = false,
                             resp = "La agencia puede cubrir el saldo de su solicitud urgente, Para eso necesita una autorizacion especial.",
                             servicio = 23,
@@ -846,6 +1041,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                         string codclientedescripcion = await cliente.Razonsocial(_context, cabecera.codcliente);
                         object clave = new
                         {
+                            identificador = "23U",
                             valido = false,
                             resp = "La agencia puede cubrir el saldo de su solicitud urgente, Para eso necesita una autorizacion especial.",
                             servicio = 23,
@@ -1001,17 +1197,17 @@ namespace SIAW.Controllers.inventarios.transaccion
                         alerta = "Ningun item del documento genera negativos.";
                         resultado = true;
                     }
-                    else
-                    {
-                        resultado = false;
-                        alerta = "Los items detallados en la pestaña: 'Saldos Negativos' generaran saldos negativos, verifique esta situacion!!!";
-                        return (alerta, resultado, dtnegativos);
-                    }
+                }
+                else
+                {
+                    resultado = false;
+                    alerta = "Los items detallados en la pestaña: 'Saldos Negativos' generaran saldos negativos, verifique esta situacion!!!";
+                    return (alerta, resultado, dtnegativos);
                 }
             }
             return (alerta, resultado, null);
         }
-        private async Task<(string msg, bool valido, List<Dtnocumplen>? dtnocumplenMaxVta, object? clave)> Validar_Max_Vta(DBContext _context, string id, int numeroid, string codempresa, string usuario, int codtarifa, string codcliente, int codalmdestino, int codalmacen, DateTime fecha, bool pedir_clave, bool solUrgcubreSaldoValido, List<insolurgente1> tabladetalle)
+        private async Task<(string msg, bool valido, List<Dtnocumplen>? dtnocumplenMaxVta, object? clave)> Validar_Max_Vta(DBContext _context, string id, int numeroid, string codempresa, string usuario, int codtarifa, string codcliente, int codalmdestino, int codalmacen, DateTime fecha, bool pedir_clave, bool solUrgVtaMaxValido, List<insolurgente1> tabladetalle)
         {
             bool resultado = true;
             string alerta = "";
@@ -1092,11 +1288,12 @@ namespace SIAW.Controllers.inventarios.transaccion
             if (resultado == false)
             {
                 alerta = "La solicitud urgente tiene cantidades que superan el porcentaje maximo de venta en el almacen destino, verifique esta situacion!!!";
-                if (pedir_clave && solUrgcubreSaldoValido == false)
+                if (pedir_clave && solUrgVtaMaxValido == false)
                 {
                     string codclientedescripcion = await cliente.Razonsocial(_context, codcliente);
                     object clave = new
                     {
+                        identificador= "20U",
                         valido = false,
                         resp = alerta,
                         servicio = 20,
@@ -1107,6 +1304,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                     };
                     return (alerta, false, dtnocumplen, clave);
                 }
+                return (alerta, false, dtnocumplen, null);
             }
 
 
@@ -1379,7 +1577,7 @@ namespace SIAW.Controllers.inventarios.transaccion
 
         //[Authorize]
         [HttpPost]
-        [Route("recalcularDetalle/{userConn}")]
+        [Route("recalcularDetalle/{userConn}/{codempresa}/{codtarifa}/{codalmacen}/{usuario}")]
         public async Task<object> recalcularDetalle(string userConn, string codempresa, int codtarifa, int codalmacen, string usuario, List<detalleRequest> detalleRequest)
         {
             try
@@ -1420,8 +1618,8 @@ namespace SIAW.Controllers.inventarios.transaccion
         }
 
         [HttpPost]
-        [Route("recalcularDetalle/{userConn}")]
-        public async Task<object> recalcularDetalle(string userConn, string codempresa, int codalmDestino, string usuario, List<insolurgente1> insolurgente1)
+        [Route("validarNegativ/{userConn}/{codempresa}/{codalmDestino}/{usuario}")]
+        public async Task<object> validarNegativ(string userConn, string codempresa, int codalmDestino, string usuario, List<insolurgente1> insolurgente1)
         {
             try
             {
@@ -1431,7 +1629,7 @@ namespace SIAW.Controllers.inventarios.transaccion
                     var resultado = await Validar_Saldos_Negativos_Doc(_context, true, codalmDestino, codempresa, usuario, insolurgente1);
                     if (resultado.valido == false)
                     {
-                        return BadRequest(new
+                        return StatusCode(203, new
                         {
                             valido = false,
                             resultado.msg,
@@ -1454,6 +1652,454 @@ namespace SIAW.Controllers.inventarios.transaccion
         }
 
 
+
+        [HttpPost]
+        [Route("validarMaximoVta/{userConn}/{codempresa}")]
+        public async Task<object> validarMaximoVta(string userConn, string codempresa,  requestGabrarSolUrgente requestGabrarSolUrgente)
+        {
+            List<insolurgente1> detalle = requestGabrarSolUrgente.tablaDetalle;
+            insolurgente cabecera = requestGabrarSolUrgente.cabecera;
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    bool solUrgVtaMaxValido = false;
+                    var validaMaxVta = await Validar_Max_Vta(_context, cabecera.id, cabecera.numeroid, codempresa, cabecera.usuarioreg, cabecera.codtarifa, cabecera.codcliente, cabecera.codalmdestino, cabecera.codalmacen, cabecera.fecha, false, solUrgVtaMaxValido, detalle);
+                    
+                    if (validaMaxVta.valido == false)
+                    {
+                        return StatusCode(203, new
+                        {
+                            valido = false,
+                            resp = validaMaxVta.msg,
+                            validaMaxVta.dtnocumplenMaxVta,
+                        });
+                    }
+                    return Ok(new
+                    {
+                        valido = true,
+                        resp = validaMaxVta.msg,
+                        validaMaxVta.dtnocumplenMaxVta
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Error en el servidor al validar Negativos: {ex.Message}");
+                throw;
+            }
+        }
+
+
+        // IMPORTAR 
+        [HttpPost]
+        [Route("importSolUrginJson")]
+        public async Task<IActionResult> importSolUrginJson([FromForm] IFormFile file)
+        {
+
+            // Guardar el archivo en una ubicación temporal
+            string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            string outputDirectory = Path.Combine(currentDirectory, "OutputFiles");
+
+            Directory.CreateDirectory(outputDirectory); // Crear el directorio si no existe
+
+
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest("No se cargo el archivo correctamente.");
+            }
+            string filePath = "";
+            string pathDescFile = "";
+
+            string _targetDirectory = "";
+            try
+            {
+                _targetDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "OutputFiles");
+                // Combina el directorio de destino con el nombre del archivo
+                filePath = Path.Combine(_targetDirectory, file.FileName);
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
+                }
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+            ziputil zUtil = new ziputil();
+
+            string primerArchivo = zUtil.ObtenerPrimerArchivoEnZip(filePath);
+            ///descomprimir
+            try
+            {
+                await zUtil.DescomprimirArchivo(_targetDirectory, filePath, primerArchivo);
+                pathDescFile = Path.Combine(_targetDirectory, primerArchivo);
+                string xmlDecript = await encripVB.DecryptData(pathDescFile);
+                //await funciones.DecryptData(Path.Combine(_targetDirectory, primerArchivo), Path.Combine(_targetDirectory, "profor.xml"), key, IV2);
+
+                DataSet dataSet = new DataSet();
+
+                using (StringReader stringReader = new StringReader(xmlDecript))
+                {
+                    dataSet.ReadXml(stringReader);
+                }
+
+                Console.WriteLine("XML convertido a DataSet exitosamente.");
+
+                // Suponiendo que tienes un DataSet llamado dataSet y quieres convertirlo a un diccionario de tablas:
+                Dictionary<string, DataTable> datosConvertidos = dataSet.ToDictionary();
+
+                // Accede a una tabla específica por su nombre
+                DataTable cabeceraTabla = datosConvertidos["cabecera"];
+                DataTable detalleTabla = datosConvertidos["detalle"];
+
+                List<Dictionary<string, object>> cabeceraList = DataTableToListConverter.ConvertToList(cabeceraTabla);
+                List<Dictionary<string, object>> detalleList = DataTableToListConverter.ConvertToList(detalleTabla);
+                return Ok(new
+                {
+                    cabeceraList,
+                    detalleList
+                });
+            }
+            catch (Exception ex)
+            {
+                return Problem("Error en el servidor al importar solicitud Urgente en JSON: " + ex.Message);
+                throw;
+            }
+            finally
+            {
+                System.IO.File.Delete(filePath);
+                System.IO.File.Delete(pathDescFile);
+            }
+
+        }
+
+
+        // EXPORTAR ZIP
+        [HttpGet]
+        [Route("exportSolUrgente/{userConn}/{codSolUrgete}")]
+        public async Task<IActionResult> exportSolUrgente(string userConn, int codSolUrgete)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    var result = await cargariedataset(_context, codSolUrgete);
+                    if (result.resp)
+                    {
+                        string stringDataXml = ConvertDataSetToXml(result.iedataset);
+                        string id = result.id;
+                        int numeroid = result.numeroid;
+
+                        var resp_dataEncriptada = await exportar_encriptado(stringDataXml, id, numeroid);
+                        if (resp_dataEncriptada.resp)
+                        {
+                            string zipFilePath = resp_dataEncriptada.filePath;
+
+                            if (System.IO.File.Exists(zipFilePath))
+                            {
+                                byte[] fileBytes = System.IO.File.ReadAllBytes(zipFilePath);
+                                string fileName = Path.GetFileName(zipFilePath);
+                                try
+                                {
+                                    // Devuelve el archivo ZIP para descargar
+                                    return File(fileBytes, "application/zip", fileName);
+                                }
+                                catch (Exception)
+                                {
+                                    return Problem("Error en el servidor");
+                                    throw;
+                                }
+                                finally
+                                {
+                                    System.IO.File.Delete(zipFilePath);
+                                }
+
+                            }
+                            else
+                            {
+                                return NotFound("El archivo ZIP no se encontró.");
+                            }
+                        }
+                        //return Ok(stringDataXml);
+                    }
+                    return Ok(result.resp);
+                }
+            }
+            catch (Exception ex)
+            {
+                return Problem("Error en el servidor al exportar Pedido ZIP: " + ex.Message);
+                throw;
+            }
+        }
+
+        private async Task<(bool resp, DataSet iedataset, string id, int numeroid)> cargariedataset(DBContext _context, int codSolUrgete)
+        {
+            DataSet iedataset = new DataSet();
+
+            try
+            {
+                iedataset.Clear();
+                iedataset.Reset();
+
+                // cargar cabecera
+                var dataPedido = await _context.insolurgente.Where(i => i.codigo == codSolUrgete).ToListAsync();
+                if (dataPedido.Any())
+                {
+                    DataTable cabeceraTable = dataPedido.ToDataTable();
+                    cabeceraTable.TableName = "cabecera";
+                    iedataset.Tables.Add(cabeceraTable);
+                    iedataset.Tables["cabecera"].Columns.Add("documento", typeof(string));
+                    iedataset.Tables["cabecera"].Rows[0]["documento"] = "SOLURGENTE";
+
+                }
+                string id = dataPedido[0].id;
+                int numeroid = (int)dataPedido[0].numeroid;
+                /*
+                // Añadir campo identificador
+                iedataset.Tables["cabecera"].Columns.Add("documento", typeof(string));
+                iedataset.Tables["cabecera"].Rows[0]["documento"] = "PROFORMA";
+
+                */
+
+                // Cargar detalle usando LINQ y Entity Framework
+                var dataDetalle = await _context.insolurgente1
+                    .Where(p => p.codsolurgente == codSolUrgete)
+                    .Join(_context.initem,
+                          p => p.coditem,
+                          i => i.codigo,
+                          (p, i) => new
+                          {
+                              p.coditem,
+                              i.descripcion,
+                              i.medida,
+                              p.cantidad,
+                              p.udm,
+                              p.cantidad_pedido,
+                          })
+                    .OrderBy(p => p.coditem)
+                    .ToListAsync();
+
+                DataTable detalleTable = dataDetalle.ToDataTable();   // convertir a dataTable
+                detalleTable.TableName = "detalle";
+                iedataset.Tables.Add(detalleTable);
+
+                return (true, iedataset, id, numeroid);
+            }
+            catch (Exception)
+            {
+                return (false, iedataset, "", 0);
+            }
+        }
+        private string ConvertDataSetToXml(DataSet iedataset)
+        {
+            using (StringWriter sw = new StringWriter())
+            {
+                iedataset.WriteXml(sw, XmlWriteMode.WriteSchema);
+                return sw.ToString();
+            }
+        }
+
+        private async Task<(bool resp, string filePath)> exportar_encriptado(string xmlText, string id, int numeroid)
+        {
+            ziputil zUtil = new ziputil();
+            try
+            {
+                string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
+                string outputDirectory = Path.Combine(currentDirectory, "OutputFiles");
+
+                Directory.CreateDirectory(outputDirectory); // Crear el directorio si no existe
+                string outName = Path.Combine(outputDirectory, id + "-" + numeroid + ".enc");
+
+                string[] archivo = new string[1];
+                archivo[0] = outName;
+
+                //await funciones.EncryptData(xmlText, outName, key, IV2);
+                await encripVB.EncryptData(xmlText, outName);
+
+                await zUtil.Comprimir(archivo, outName.Substring(0, outName.Length - 4) + ".zip", false);
+
+
+                return (true, outName.Substring(0, outName.Length - 4) + ".zip");
+            }
+            catch (Exception)
+            {
+                return (false, "");
+            }
+        }
+
+
+
+        [HttpGet]
+        [Route("getDataImpSolUrg/{userConn}/{codSolUrg}/{codempresa}/{codmoneda_total}/{especial}")]
+        public async Task<ActionResult<List<object>>> getDataImpSolUrg(string userConn, int codSolUrg, string codempresa, string codmoneda_total, bool especial, List<string> infraccioness)
+        {
+            try
+            {
+                string userConnectionString = _userConnectionManager.GetUserConnection(userConn);
+                using (var _context = DbContextFactory.Create(userConnectionString))
+                {
+                    string rempresa = "";
+                    string titulo = "";
+                    string usuario = "";
+                    string nit = "";
+
+                    string rcodigo = "";
+                    string rcodalmacen = "";
+                    string rcodalmdestino = "";
+                    string rcodalmarea = "";
+                    string rfecha = "";
+                    string robs = "";
+                    string rcodvendedor = "";
+                    string rcodcliente = "";
+                    string rcodmoneda = "";
+                    string rtipopago = "";
+
+                    string rcodtarifa = "";
+                    string rtotalventa = "";
+                    string rtotal = "";
+                    string rtransporte = "";
+                    string rtpollegada = "";
+                    string rinfracciones = "";
+                    string rtipocliente = "";
+                    string rpeso_pedido = "";
+                    string robs1 = "";
+                    string robs2 = "";
+                    string robs3 = "";
+                    string rrubro = "";
+                    string cridpf_alm = "";
+                    string crnroidpf_alm = "";
+
+                    // obtener los datos de cabecera
+                    var cabecera = await _context.insolurgente.Where(i => i.codigo == codSolUrg).FirstOrDefaultAsync();
+                    if (cabecera == null)
+                    {
+                        return BadRequest(new { resp = "No se encontraron datos con el codigo proporcionado, consulte con el Administrador." });
+                    }
+
+                    titulo = cabecera.id + "-" + cabecera.numeroid + " SOLICITUD " + (especial == true ? "ESPECIAL ": "") + "DE MERCADERIA A AG: " + cabecera.codalmdestino;
+                    rempresa = await nombres.nombreempresa(_context, codempresa);
+                    usuario = cabecera.flete;
+                    nit = "N.I.T.: " + await empresa.NITempresa(_context, codempresa);
+                    rcodigo = cabecera.codigo.ToString("00000000");
+                    rcodalmacen = cabecera.codalmacen.ToString();
+                    rcodalmdestino = cabecera.codalmdestino.ToString();
+                    rcodalmarea = (await almacen.AreaAlmacen(_context, cabecera.codalmacen)).ToString();
+                    rfecha = cabecera.fecha.ToShortDateString();
+                    robs = cabecera.obs;
+                    rcodvendedor = cabecera.codvendedor + " " + await nombres.nombrevendedor(_context, cabecera.codvendedor);
+                    rcodcliente = cabecera.tipocliente + " - " + cabecera.codcliente + " " + cabecera.nomcliente;
+                    rcodmoneda = cabecera.codmoneda;
+                    rrubro = await cliente.RubroConDescripcion(_context, cabecera.codcliente);
+
+                    rcodtarifa = cabecera.codtarifa.ToString();
+                    rtotalventa = cabecera.totalventa.ToString();
+                    rtotal = cabecera.totalventa + " " + codmoneda_total;
+                    rtransporte = cabecera.transporte;
+                    rtpollegada = cabecera.tpollegada;
+                    rinfracciones = armarInfraciones(infraccioness);
+                    rtipocliente = cabecera.tipocliente + " Prof:" + cabecera.idproforma + "-" + cabecera.numeroidproforma;
+                    rpeso_pedido = cabecera.peso_pedido.ToString();
+
+                    cridpf_alm = cabecera.idproforma;
+                    crnroidpf_alm = cabecera.numeroidproforma.ToString();
+
+                    if (cabecera.tipopago == 0)
+                    {
+                        rtipopago = "CONTADO";
+                    }
+                    else
+                    {
+                        rtipopago = "CREDITO";
+                    }
+                    ////////////////////////////////////////
+                    //// Fin de pasar valores a las variables
+                    ////////////////////////////////////////
+                    var tablaDetalle = await _context.insolurgente1
+                        .Join(_context.initem,
+                              p => p.coditem,
+                              i => i.codigo,
+                              (p, i) => new
+                              {
+                                  p.codsolurgente,
+                                  p.coditem,
+                                  i.descripcion,
+                                  i.medida,
+                                  p.cantidad,
+                                  p.udm,
+                                  p.saldoag,
+                                  p.saldodest,
+                                  p.stockmax,
+                                  p.saldoarea,
+                                  p.precio,
+                                  p.total,
+                                  p.cantidad_pedido
+                              })
+                        .Where(joined => joined.codsolurgente == codSolUrg)
+                        .OrderBy(joined => joined.coditem)
+                        .ToListAsync();
+
+                    return Ok(new
+                    {
+                        rempresa,
+                        titulo,
+                        usuario,
+                        nit,
+                        rcodigo,
+                        rcodalmacen,
+                        rcodalmdestino,
+                        rcodalmarea,
+                        rfecha,
+                        robs,
+                        rcodvendedor,
+                        rcodcliente,
+                        rcodmoneda,
+                        rtipopago,
+                        rcodtarifa,
+                        rtotalventa,
+                        rtotal,
+                        rtransporte,
+                        rtpollegada,
+                        rinfracciones,
+                        rtipocliente,
+                        rpeso_pedido,
+                        robs1,
+                        robs2,
+                        rrubro,
+                        cridpf_alm,
+                        crnroidpf_alm,
+
+                        tablaDetalle
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                return Problem("Error en el servidor al obtener datos para imprimir por vista previa NM: " + ex.Message);
+                throw;
+            }
+        }
+
+        private string armarInfraciones(List<string> infrac)
+        {
+            string resultado = "";
+            foreach (var reg in infrac)
+            {
+                if (resultado == "")
+                {
+                    resultado = reg;
+                }
+                else
+                {
+                    resultado = resultado + " * " + reg;
+                }
+            }
+            return resultado;
+        }
     }
 
 

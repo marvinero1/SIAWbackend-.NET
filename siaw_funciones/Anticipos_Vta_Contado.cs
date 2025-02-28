@@ -31,12 +31,14 @@ namespace siaw_funciones
         private Almacen almacen = new Almacen();
         private Cliente cliente = new Cliente();
         private Cobranzas cobranzas = new Cobranzas();
+        private Log log = new Log();
 
-        public async Task<bool> ActualizarMontoRestAnticipo(DBContext _context, string id_anticipo, int numeroid_anticipo, int codproforma, int codanticipo, double monto_actual_aplicado, string codigoempresa)
+        public async Task<bool> ActualizarMontoRestAnticipo(DBContext _context, string id_anticipo, int numeroid_anticipo, int codproforma, int codanticipo, double monto_actual_aplicado, string codigoempresa, string usuario, string ventana)
         {
             // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             // obtener monto total original del anticipo
             double monto_anticipo = 0;
+            double monto_rest_anticipo = 0;
             string moneda_anticipo = "";
             double monto_proformas = 0;
             double monto_aux = 0;
@@ -51,21 +53,25 @@ namespace siaw_funciones
                     .Select(i => new
                     {
                         i.monto,
+                        i.montorest,
                         i.codmoneda
                     }).FirstOrDefaultAsync();
                 if (dt != null)
                 {
                     monto_anticipo = (double)(dt.monto ?? 0);
+                    monto_rest_anticipo = (double)(dt.montorest ?? 0);
                     moneda_anticipo = dt.codmoneda;
                 }
                 else
                 {
                     monto_anticipo = 0;
+                    monto_rest_anticipo = 0;
                     moneda_anticipo = await Empresa.monedabase(_context, codigoempresa);
                 }
             }
             catch (Exception)
             {
+                return false;
                 monto_anticipo = 0;
                 moneda_anticipo = await Empresa.monedabase(_context, codigoempresa);
             }
@@ -97,7 +103,7 @@ namespace siaw_funciones
                 foreach (var reg in dt)
                 {
                     // convertir el monto en la moneda original del anticipo si es necesario
-                    monto_aux = (double)await tipoCambio._conversion(_context, moneda_anticipo, reg.codmoneda, reg.fecha, reg.monto??0);
+                    monto_aux = (double)await tipoCambio._conversion(_context, moneda_anticipo, reg.codmoneda, reg.fecha, reg.monto ?? 0);
                     monto_aux = Math.Round(monto_aux, 2);
                     monto_proformas += monto_aux;
                 }
@@ -279,11 +285,14 @@ namespace siaw_funciones
             {
                 anticipoToUpdate.montorest = (decimal?)saldo_anticipo;
                 await _context.SaveChangesAsync();
+                if (monto_rest_anticipo != saldo_anticipo)
+                {
+                    await log.RegistrarEvento(_context, usuario, Log.Entidades.SW_Anticipo, codanticipo.ToString(), id_anticipo, numeroid_anticipo.ToString(), ventana, "Se actualizo el monto restante del anticipo, del monto restante inicial: " + monto_rest_anticipo + " al monto restante final: " + saldo_anticipo, Log.TipoLog.Edicion);
+                }
                 return true;
             }
             return false;
         }
-
 
 
         public async Task<List <vedetalleanticipoProforma>> Anticipos_Aplicados_a_Proforma(DBContext _context, string id, int nroid)
@@ -331,7 +340,7 @@ namespace siaw_funciones
         }
 
 
-        public async Task<ResultadoValidacion> Validar_Anticipo_Asignado_2(DBContext _context, bool para_aprobar, DatosDocVta DVTA, List<vedetalleanticipoProforma> dt_anticipo_pf, string codempresa)
+        public async Task<ResultadoValidacion> Validar_Anticipo_Asignado_2(DBContext _context, bool para_aprobar, DatosDocVta DVTA, List<vedetalleanticipoProforma> dt_anticipo_pf, string codempresa, string usuario)
         {
             bool resultado = true;
             string cadena = "";
@@ -506,8 +515,7 @@ namespace siaw_funciones
                     }
 
                     //actualizar el montorest
-                    await ActualizarMontoRestAnticipo(_context, item.id_anticipo, item.nroid_anticipo, item.codproforma, item.codanticipo, item.monto, codempresa);
-                    //obtener el monto restante del anticipo sin incluir el monto aplicado para esta proforma
+                    await ActualizarMontoRestAnticipo(_context, item.id_anticipo, item.nroid_anticipo, item.codproforma, item.codanticipo, item.monto, codempresa, usuario, "Validar_Anticipo_Asignado_2");                    //obtener el monto restante del anticipo sin incluir el monto aplicado para esta proforma
                     monto_rest_anticipo_pf = await Montorest_De_Anticipo_Sin_Proforma(_context, item.id_anticipo, item.nroid_anticipo, item.codproforma, codempresa);
                     //obtener el monto restante del anticipo incluir el monto aplicado a una cobranza
                     monto_rest_anticipo_cb = await Montorest_De_Anticipo_Cobranza_Anticipo(_context, item.id_anticipo, item.nroid_anticipo, codempresa);
@@ -531,7 +539,9 @@ namespace siaw_funciones
                         item.monto = (double)await tipoCambio._conversion(_context, moneda_anticipo, item.codmoneda, item.fechareg, (decimal)item.monto);
                         item.monto = Math.Round(item.monto, 2);
                     }
-
+                    //Desde 27/02/2025 actualizar el montorest a su monto correcto sin asignar el monto aplicado a la proforma actual
+                    //actualizar el montorest
+                    await ActualizarMontoRestAnticipo(_context, item.id_anticipo, item.nroid_anticipo, 0, item.codanticipo, 0, codempresa, usuario, "Validar_Anticipo_Asignado_2");
                 }
             }
             if (cadena4.Trim().Length > 0)
@@ -854,10 +864,10 @@ namespace siaw_funciones
             }
             return ttl_dist;
         }
-        public async Task<List<vedetalleanticipo>> Anticipos_MontoRestante_Sin_Deposito(DBContext _context, string codcliente, int codvendedor)
+        public async Task<List<vedetalleanticipo>> Anticipos_MontoRestante_Sin_Deposito(DBContext _context, string codcliente, int codvendedor, DateTime fecha)
         {
             var dt_anticipos = await _context.coanticipo
-                .Where(x => x.codcliente == codcliente && x.codvendedor == codvendedor && x.anulado == false && x.montorest > 0 && x.deposito_cliente == false)
+                .Where(x => x.codcliente == codcliente && x.codvendedor == codvendedor && x.anulado == false && x.montorest > 0 && x.deposito_cliente == false && x.fecha <= fecha.Date)
                 .Select(x => new vedetalleanticipo
                 {
                     codigo = x.codigo,

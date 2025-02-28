@@ -2755,7 +2755,7 @@ namespace SIAW.Controllers.ventas.transaccion
                             string mensajeAprobacion = "";
                             List<vedesextraDatos> tabladescuentos = await Convertirvedesextraprof_a_vedesextraDatos(datosProforma.vedesextraprof);
                             List<verecargosDatos> tablarecargos = await Convertirverecargoprof_a_verecargosDatos(datosProforma.verecargoprof);
-                            var resultValApro = await Validar_Aprobar_Proforma(_context, veproforma.id, numeroIdGrbd, codprofGrbd, codempresa, tabladescuentos, DVTA, tablarecargos);
+                            var resultValApro = await Validar_Aprobar_Proforma(_context, veproforma.id, numeroIdGrbd, codprofGrbd, codempresa,datosProforma.veproforma.usuarioreg, tabladescuentos, DVTA, tablarecargos);
 
                             msgAlerts.AddRange(resultValApro.msgsAlert);
 
@@ -3109,7 +3109,7 @@ namespace SIAW.Controllers.ventas.transaccion
 
 
 
-        private async Task<(bool resp, List<string> msgsAlert)> Validar_Aprobar_Proforma(DBContext _context, string id_pf, int nroid_pf, int cod_proforma, string codempresa, List<vedesextraDatos> tabladescuentos, DatosDocVta DVTA, List<verecargosDatos>? tablarecargos)
+        private async Task<(bool resp, List<string> msgsAlert)> Validar_Aprobar_Proforma(DBContext _context, string id_pf, int nroid_pf, int cod_proforma, string codempresa, string usuario, List<vedesextraDatos> tabladescuentos, DatosDocVta DVTA, List<verecargosDatos>? tablarecargos)
         {
             bool resultado = true;
             List<string> msgsAlert = new List<string>();
@@ -3204,7 +3204,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 if (dt_anticipos.Count > 0)
                 {
                     ResultadoValidacion objres = new ResultadoValidacion();
-                    objres = await anticipos_vta_contado.Validar_Anticipo_Asignado_2(_context, true, DVTA, dt_anticipos, codempresa);
+                    objres = await anticipos_vta_contado.Validar_Anticipo_Asignado_2(_context, true, DVTA, dt_anticipos, codempresa, usuario);
                     if (objres.resultado)
                     {
                         // Desde 15/01/2024 se cambio esta funcion porque no estaba validando correctamente la transformacion de moneda de los anticipos a aplicarse ya se en $us o BS
@@ -4093,7 +4093,7 @@ namespace SIAW.Controllers.ventas.transaccion
                 {
                     foreach (var reg in dt_anticipo_pf)
                     {
-                        if (!await anticipos_vta_contado.ActualizarMontoRestAnticipo(_context, reg.id_anticipo, reg.nroid_anticipo, reg.codproforma ?? 0, reg.codanticipo ?? 0, 0, codempresa))
+                        if (!await anticipos_vta_contado.ActualizarMontoRestAnticipo(_context, reg.id_anticipo, reg.nroid_anticipo, reg.codproforma ?? 0, reg.codanticipo ?? 0, 0, codempresa,veproforma.usuarioreg, this._controllerName))
                         //    if (!await anticipos_vta_contado.ActualizarMontoRestAnticipo(_context, reg.id_anticipo, reg.nroid_anticipo, reg.codproforma ?? 0, reg.codanticipo ?? 0, reg.monto, codempresa))
                         {
                             resultado = false;
@@ -4794,10 +4794,20 @@ namespace SIAW.Controllers.ventas.transaccion
             //'//Desde 24/09/2024 en el total_preliminar verificar si el cliente tiene anticipos anteriores con saldos pendientes y si estos no tienen enlace con un deposito,
             //'sino lo tuvieran el enlace entonces el monto del anticipo debe restar al total_preliminar para que con ese nuevo subtotal se saque el 3 % del descuento por deposito que le corresponde
             //'si los anticipos tienen un enlace con deposito entonces no deben restar al total_preliminar
-
-            if (await configuracion.Calculo_Desc_Deposito_Contado(_context, codempresa) == "SUBTOTAL2" && tipopago == 0 && contraEntrega == false)
+            int cod_desextra_contado = 0;
+            bool hay_desc_deposito_contado = false;
+            cod_desextra_contado = await configuracion.emp_coddesextra_x_deposito_contado(_context, codempresa);
+            foreach (var reg in tabladescuentos)
             {
-                var tablaAnticiposSinDeposito = await anticipos_vta_contado.Anticipos_MontoRestante_Sin_Deposito(_context, codcliente_real,codvendedor);
+                if (reg.coddesextra == cod_desextra_contado)
+                {
+                    hay_desc_deposito_contado = true;
+                }
+            }
+
+            if (await configuracion.Calculo_Desc_Deposito_Contado(_context, codempresa) == "SUBTOTAL2" && tipopago == 0 && contraEntrega == false && hay_desc_deposito_contado == true)
+            {
+                var tablaAnticiposSinDeposito = await anticipos_vta_contado.Anticipos_MontoRestante_Sin_Deposito(_context, codcliente_real, codvendedor, fecha);
                 decimal totalAnticiposSinDeposito = 0;
                 decimal montoCambio = 0;
                 string cadenaAnticipos = string.Empty;
@@ -4907,7 +4917,6 @@ namespace SIAW.Controllers.ventas.transaccion
             return (respdescuentos, mensaje, tabladescuentos);
 
         }
-
 
 
         private async Task<(double totalIva, double TotalGen, List<veproforma_iva> tablaiva)> vertotal(DBContext _context, double subtotal, double recargos, double descuentos, string codcliente_real, string codmoneda, string codempresa, DateTime fecha, List<itemDataMatriz> tabladetalle, List<tablarecargos> tablarecargos)
@@ -5623,8 +5632,11 @@ namespace SIAW.Controllers.ventas.transaccion
                 string descuentoCredito = "";
                 int pto_vta_cliente = 0;
                 int coddesextra_ptoventa = 0;
+                bool es_cliente_sin_nombre = false;
+
                 using (var _context = DbContextFactory.Create(userConnectionString))
                 {
+                    es_cliente_sin_nombre = await cliente.EsClienteSinNombre(_context, codcliente);
                     // Verificar si el descuento esta habilitado
                     var habilitado = await ventas.Descuento_Extra_Habilitado(_context, coddesextra);
                     if (!habilitado)
@@ -5679,13 +5691,14 @@ namespace SIAW.Controllers.ventas.transaccion
                     ////////////////////////////////////////////////////////////////////////////////////////
                     // verificar que el descto extra este asignado CLIENTE
                     // implementado en fecha: 30-11-2021
-                    if (codcliente != codcliente_real)
-                    {
-                        if (await cliente.Cliente_Tiene_Descto_Extra_Asignado(_context, coddesextra, codcliente) == false)
-                        {
-                            return StatusCode(203, new { resp = "El cliente: " + codcliente + " no tiene asignado el descuento: " + coddesextra + ", verificque esta situacion!!!", status = false });
-                        }
-                    }
+                    //Desde 26/02/2025 se comento este control porque solo debe validar que el descuento extra este asignado al cliente real
+                    //if (codcliente != codcliente_real)
+                    //{
+                    //    if (await cliente.Cliente_Tiene_Descto_Extra_Asignado(_context, coddesextra, codcliente) == false)
+                    //    {
+                    //        return StatusCode(203, new { resp = "El cliente: " + codcliente + " no tiene asignado el descuento: " + coddesextra + ", verificque esta situacion!!!", status = false });
+                    //    }
+                    //}
 
                     ////////////////////////////////////////////////////////////////////////////////////////
                     // verificar si es el descuento por deposito
@@ -5755,19 +5768,23 @@ namespace SIAW.Controllers.ventas.transaccion
                     }
 
                     //Desde 10/02/2025 Verificar que el descuento si es por importe, que valide que este asignando correctamente segun el pto de venta del cliente
-                    if (await ventas.Descuento_Extra_Es_por_Importe(_context, coddesextra) == true)
-                    {//Verificar que el descuento extra a añadir es el que le pertenece segun su pto de venta del cliente de la direccion de la proforma
-                        pto_vta_cliente = await cliente.PuntoDeVentaCliente(_context, codcliente_real);
-                        coddesextra_ptoventa = await ventas.Descuento_Extra_Por_Importe_segun_PtoVta_Cliente(_context, pto_vta_cliente, true, codtarifa);
-                        if (coddesextra_ptoventa == 0)
-                        {
-                            return StatusCode(203, new { resp = "El Punto de Venta del cliente " + codcliente_real + " no está habilitado para aplicar este Descuento Extra por Importe debido a su tipo de precio en la proforma.", status = false });
-                        }
-                        else
-                        {
-                            if (coddesextra_ptoventa != coddesextra)
+                    if (es_cliente_sin_nombre == false)
+                    {
+                        //Desde 10/02/2025 Verificar que el descuento si es por importe, que valide que este asignando correctamente segun el pto de venta del cliente
+                        if (await ventas.Descuento_Extra_Es_por_Importe(_context, coddesextra) == true)
+                        {//Verificar que el descuento extra a añadir es el que le pertenece segun su pto de venta del cliente de la direccion de la proforma
+                            pto_vta_cliente = await cliente.PuntoDeVentaCliente(_context, codcliente_real);
+                            coddesextra_ptoventa = await ventas.Descuento_Extra_Por_Importe_segun_PtoVta_Cliente(_context, pto_vta_cliente, true, codtarifa);
+                            if (coddesextra_ptoventa == 0)
                             {
-                                return StatusCode(203, new { resp = "El descuento" + coddesextra + " no se puede añadir porque el Punto de Venta del cliente no está habilitado para este Descuento Extra por Importe.", status = false });
+                                return StatusCode(203, new { resp = "El Punto de Venta del cliente " + codcliente_real + " no está habilitado para aplicar este Descuento Extra por Importe debido a su tipo de precio en la proforma.", status = false });
+                            }
+                            else
+                            {
+                                if (coddesextra_ptoventa != coddesextra)
+                                {
+                                    return StatusCode(203, new { resp = "El descuento" + coddesextra + " no se puede añadir porque el Punto de Venta del cliente no está habilitado para este Descuento Extra por Importe.", status = false });
+                                }
                             }
                         }
                     }

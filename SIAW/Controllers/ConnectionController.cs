@@ -142,13 +142,19 @@ namespace SIAW.Controllers
                 {
                     return BadRequest(new { resp = "Nombre de conexion invalido" });
                 }
+                string cadenaConexion = connectionString;
                 connectionString = EncryptionHelper.DecryptString(connectionString);
                 if (!VerificarConexion(connectionString))
                 {
                     return BadRequest(new { resp = "No se puede establecer conexión con este Servidor" });
                 }
                 ConnectionController.ConnectionString = connectionString;
-                return Ok(true);
+                return Ok(new
+                {
+                    valido = true,
+                    conDatDesc = cadenaConexion,
+                    ConnectionController.ConnectionString
+                });
             }
             catch (Exception)
             {
